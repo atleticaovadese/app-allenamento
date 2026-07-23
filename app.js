@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo" };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -101,7 +101,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
@@ -201,12 +201,14 @@ function disegna() {
   else if (coach && S.vista === "atleti") corpo = vistaAtleti();
   else if (coach && S.vista === "cal-squadra") corpo = vistaCalendarioSquadra();
   else if (coach && S.vista === "report") corpo = vistaReport();
+  else if (coach && S.vista === "riscaldamento") corpo = vistaRiscaldamento();
   else if (!coach && S.vista === "oggi") corpo = vistaOggi();
   else if (!coach && S.vista === "calendario") corpo = vistaCalendario();
   else if (!coach && S.vista === "diario") corpo = vistaDiario();
   else if (!coach && S.vista === "io") corpo = vistaIo();
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();
   else if (LIB[S.vista]) corpo = vistaLibreria(LIB[S.vista][0], LIB[S.vista][1]);
+  else if (S.vista === "lib-video") corpo = vistaLibreriaVideo();
   else corpo = vistaInArrivo(titoloVista(S.vista, menu), DA_EXCEL[S.vista]);
 
   const oggi = new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });

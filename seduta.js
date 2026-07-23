@@ -15,6 +15,21 @@ function mostraFoglio(html) {
   $("velo").innerHTML = `<div class="foglio">${html}</div>`;
   $("velo").classList.add("on");
 }
+
+// Obiettivi e focus della seduta: li scrive l'allenatore, l'atleta li legge.
+function bloccoObiettivi(s) {
+  const coach = S.utente.ruolo === "coach";
+  const testo = (s.obiettivi || "").trim();
+  if (!coach && !testo) return "";
+  return `<div class="card">
+    <p class="et">Obiettivi e focus di oggi${coach ? " · <span style='color:var(--blu)'>lo scrivi tu, l'atleta lo vede</span>" : ""}</p>
+    ${coach
+      ? `<textarea rows="4" style="margin-top:8px" placeholder="Punti chiave della seduta, su cosa concentrarsi negli esercizi..."
+           onchange="segnaTestoSeduta('${s.id}','obiettivi',this.value)">${testo}</textarea>`
+      : `<div class="obiettivi">${testo.split("\n").filter(r => r.trim()).map(r => `<div>${r}</div>`).join("")}</div>`}
+  </div>`;
+}
+function segnaTestoSeduta(sid, campo, val) { sedutaDaId(sid)[campo] = val; }
 function chiudiScheda() { $("velo").classList.remove("on"); $("velo").innerHTML = ""; }
 
 function apriScheda(nome) {
@@ -31,16 +46,20 @@ function apriEsercizioInfo(prot, i) {
   const voce = (DEMO.schede[prot] || [])[i] || "";
   const nome = voce.replace(/\s+[×x]?\d.*$/i, "").trim() || voce;
   const lib = typeof cercaLibreria === "function" ? cercaLibreria(nome) : null;
+  const emb = lib && lib.v && typeof ytEmbed === "function" ? ytEmbed(lib.v) : "";
   mostraFoglio(`
     <div class="foglio-top">
       <button class="chiudi" onclick="apriScheda('${prot}')" aria-label="Indietro">‹</button>
       <h3 style="flex:1;text-align:center">${nome}</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
-    <p class="et" style="text-align:center;margin-bottom:12px">${voce}</p>
+    <p class="et" style="text-align:center;margin-bottom:10px">${voce}</p>
     ${lib && lib.cue ? `<p style="font-size:14px;line-height:1.6;margin-bottom:10px">${lib.cue}</p>` : ""}
-    ${lib && lib.v
-      ? `<a class="btn" style="text-decoration:none;display:block;text-align:center"
-           href="${lib.v}" target="_blank" rel="noopener">▶ Guarda il video</a>`
+    ${emb
+      ? `<div class="yt-wrap"><iframe src="${emb}" title="${nome}"
+           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+           allowfullscreen loading="lazy"></iframe></div>
+         <a class="et" style="display:block;text-align:center;margin-top:8px;color:var(--blu)"
+            href="${lib.v}" target="_blank" rel="noopener">apri su YouTube ↗</a>`
       : `<div class="video-vuoto"><span>▶</span></div>
          <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio.</p>`}`);
 }
@@ -183,6 +202,13 @@ function bloccoChiusura(s) {
         onchange="segnaChiusura('${s.id}','fastidi',this.checked)">
       <span>Ho avuto un fastidio durante l'allenamento</span>
     </label>
+    ${S.utente.ruolo === "coach"
+      ? `<div style="margin-top:14px">
+           <label class="lab">Nota dell'allenatore — promemoria su cosa lavorare <span style="color:var(--txt3)">(la vedi solo tu)</span></label>
+           <textarea rows="3" style="margin-top:6px" placeholder="Es. curare l'uscita, controllare la caviglia, alzare il carico la prossima volta..."
+             onchange="segnaTestoSeduta('${s.id}','notaCoach',this.value)">${s.notaCoach || ""}</textarea>
+         </div>`
+      : ""}
     <button class="btn" style="margin-top:14px" onclick="chiudiSeduta('${s.id}')">
       ${s.chiusa ? "Allenamento salvato ✓" : "Chiudi allenamento e segna presenza"}
     </button>
@@ -207,6 +233,7 @@ function vistaSeduta() {
       <p class="et" style="color:#fff;opacity:.85">${s.data}</p>
       <h3 style="color:#fff">${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
       <p style="font-size:13px;margin-top:6px;opacity:.9">${s.focus}</p>
-    </div>${corpo}`;
+    </div>
+    ${bloccoObiettivi(s)}${corpo}`;
 }
 function tornaIndietro() { fermaTimer(); T.id = null; S.seduta = null; disegna(); }

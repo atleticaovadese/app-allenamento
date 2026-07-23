@@ -108,6 +108,8 @@ const DEMO = {
   sedute: [
     { id: "s1", tipo: "pista", giorno: 2, quando: "oggi", data: "mercoledì 23 settembre",
       focus: "Accelerazione — qualità sopra la quantità",
+      obiettivi: "• Spinta bassa nei primi 20 m, non alzarsi subito\n• Braccia ampie e rilassate\n• Recupero completo: meglio poche ripetute ma pulite",
+      notaCoach: "",
       riscaldamento: ["Attivazione sprint", "Mobilità completa", "Andature sprint"],
       elementi: [
         { id: "e1", distanza: 60, ripetute: 4, percentuale: 95, recupero: "6'",
@@ -119,6 +121,8 @@ const DEMO = {
 
     { id: "s2", tipo: "palestra", giorno: 3, quando: "venerdì", data: "venerdì 25 settembre",
       focus: "Forza massima — velocità del bilanciere sopra il minimo",
+      obiettivi: "• Massima intenzione in salita, controllo in discesa\n• Fermati se la velocità del bilanciere cala sotto il target\n• Cura la tecnica del Nordic: scendi lento",
+      notaCoach: "",
       riscaldamento: ["Attivazione sprint", "Mobilità completa"],
       esercizi: [
         { id: "x1", nome: "Squat", serie: 4, rep: 5, percentuale: 85, peso: 132,
@@ -133,7 +137,10 @@ const DEMO = {
       durata: null, rpe: null, fastidi: false, chiusa: false },
 
     { id: "s0", tipo: "pista", giorno: 1, quando: "lunedì", data: "lunedì 21 settembre",
-      focus: "Velocità massima", riscaldamento: ["Attivazione sprint", "Andature sprint"],
+      focus: "Velocità massima",
+      obiettivi: "• Massima frequenza mantenendo l'ampiezza\n• Rilassato nel tratto lanciato",
+      notaCoach: "Ha tenuto bene i 30 m lanciati. La prossima volta provare 40 m per allungare il tratto di velocità massima.",
+      riscaldamento: ["Attivazione sprint", "Andature sprint"],
       elementi: [{ id: "e0", distanza: 30, ripetute: 5, percentuale: 100, recupero: "5'",
         target: 4.46, tempi: [4.48, 4.45, 4.47, 4.51, 4.49] }],
       durata: 85, rpe: 8, fastidi: false, chiusa: true }
