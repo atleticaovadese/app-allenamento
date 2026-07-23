@@ -30,14 +30,19 @@ function apriScheda(nome) {
 function apriEsercizioInfo(prot, i) {
   const voce = (DEMO.schede[prot] || [])[i] || "";
   const nome = voce.replace(/\s+[×x]?\d.*$/i, "").trim() || voce;
+  const lib = typeof cercaLibreria === "function" ? cercaLibreria(nome) : null;
   mostraFoglio(`
     <div class="foglio-top">
       <button class="chiudi" onclick="apriScheda('${prot}')" aria-label="Indietro">‹</button>
       <h3 style="flex:1;text-align:center">${nome}</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     <p class="et" style="text-align:center;margin-bottom:12px">${voce}</p>
-    <div class="video-vuoto"><span>▶</span></div>
-    <p class="et" style="margin-top:12px">Il video e le indicazioni arrivano quando colleghiamo le Librerie.</p>`);
+    ${lib && lib.cue ? `<p style="font-size:14px;line-height:1.6;margin-bottom:10px">${lib.cue}</p>` : ""}
+    ${lib && lib.v
+      ? `<a class="btn" style="text-decoration:none;display:block;text-align:center"
+           href="${lib.v}" target="_blank" rel="noopener">▶ Guarda il video</a>`
+      : `<div class="video-vuoto"><span>▶</span></div>
+         <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio.</p>`}`);
 }
 
 // ---------- PISTA ----------

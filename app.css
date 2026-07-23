@@ -146,6 +146,15 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .p-giallo{background:var(--giallo-bg);color:var(--giallo)}
 .freccia{color:var(--txt3);font-size:18px}
 
+/* ---- librerie ---- */
+.sez{font-size:12px;color:var(--txt3);text-transform:uppercase;letter-spacing:.03em;
+  margin:16px 4px 6px;font-weight:600}
+.lib-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:11px 13px;margin-bottom:7px;cursor:pointer}
+.lib-row:active{background:var(--card2)}
+.vid-ic{color:var(--verde);font-size:12px;flex:none;background:var(--verde-bg);
+  width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+
 /* ---- cruscotto a quadranti ---- */
 .oggi{background:linear-gradient(180deg,#2b6fd6,#2159b0);border:0;cursor:pointer}
 .oggi .et{color:#dbe9ff}

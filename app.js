@@ -46,6 +46,13 @@ const DA_EXCEL = {
   aiuto: "Legenda + Start", report: "(nuovo: non c'è in Excel)"
 };
 
+// Librerie condivise (atleta e allenatore): voce del menù -> [tipo dati, titolo]
+const LIB = {
+  "lib-sala": ["sala", "Libreria Sala"],
+  "lib-mobilita": ["mobilita", "Libreria Mobilità"],
+  "lib-plio": ["pliometria", "Pliometria"]
+};
+
 function titoloVista(v, menu) {
   for (const m of menu) {
     if (m.k === v) return m.l;
@@ -199,6 +206,7 @@ function disegna() {
   else if (!coach && S.vista === "diario") corpo = vistaDiario();
   else if (!coach && S.vista === "io") corpo = vistaIo();
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();
+  else if (LIB[S.vista]) corpo = vistaLibreria(LIB[S.vista][0], LIB[S.vista][1]);
   else corpo = vistaInArrivo(titoloVista(S.vista, menu), DA_EXCEL[S.vista]);
 
   const oggi = new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
