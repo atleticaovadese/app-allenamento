@@ -38,6 +38,41 @@ const DEMO = {
     "Andature sprint": ["A skip 2×20 m", "B skip 2×20 m", "Dribbling 2×20 m", "3 allunghi progressivi"]
   },
 
+  // Monitoraggio per l'allenatore (per atleta)
+  mon: {
+    at1: { stato: "v", acwr: "1.12", forma: "+4.2", prontezza: "3.9", aderenza: 90,
+      ultimo: "ieri", fv: "profilo equilibrato",
+      alert: [["v", "60 m migliorato: 7.06 → 7.01"]],
+      settimana: ["pista", "", "palestra", "pista", "", "gara", ""], done: [1, 0, 1, 1, 0, 0, 0] },
+    at2: { stato: "w", acwr: "1.38", forma: "+1.1", prontezza: "3.2", aderenza: 84,
+      ultimo: "oggi", fv: "carenza di forza",
+      alert: [["w", "Asimmetria caviglia 12%"], ["w", "Diario non compilato da 2 giorni"]],
+      settimana: ["pista", "palestra", "", "pista", "palestra", "", ""], done: [1, 1, 0, 1, 0, 0, 0] },
+    at3: { stato: "r", acwr: "1.62", forma: "−3.5", prontezza: "2.1", aderenza: 63,
+      ultimo: "4 giorni fa", fv: "—",
+      alert: [["r", "Prontezza bassa da 4 giorni (2.1)"], ["r", "Carico in salita: ACWR 1.62"], ["w", "4 sedute saltate"]],
+      settimana: ["palestra", "", "pista", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] }
+  },
+
+  giorniSettimana: ["lun", "mar", "mer", "gio", "ven", "sab", "dom"],
+
+  // Report della domenica
+  report: {
+    settimana: "21 – 27 settembre",
+    positivo: {
+      pista: "Tempo medio sui 30 m: 4.12 → 4.06 · 2 atleti su 3 in miglioramento",
+      palestra: "Volume settimanale +8% · velocità del bilanciere stabile a parità di carico",
+      wins: [
+        ["Leonardo Z.", "record sui 60 m: 7.01"],
+        ["Marco B.", "quattro settimane di fila senza saltare"]
+      ]
+    },
+    daFare: {
+      at3: "Sentila e scarica: togli le ripetute intense di giovedì",
+      at2: "Ricontrolla la caviglia al prossimo test"
+    }
+  },
+
   // Presenze per mese (programmati, fatti) — per il grafico
   presenzeMesi: [
     ["set", 11, 11], ["ott", 31, 29], ["nov", 30, 28], ["dic", 31, 24],

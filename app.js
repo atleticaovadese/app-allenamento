@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {} };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo" };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -16,6 +16,7 @@ const MENU_ATLETA = [
 const MENU_COACH = [
   { k: "squadra", ic: "◧", l: "Squadra" },
   { k: "atleti", ic: "◉", l: "Atleti" },
+  { k: "cal-squadra", ic: "▦", l: "Calendario squadra" },
   { g: "Programma", ic: "▦", subs: [
     ["pista", "Pista"], ["palestra", "Palestra"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["periodizzazione", "Periodizzazione"]] },
@@ -93,7 +94,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
@@ -164,24 +165,7 @@ function vistaInArrivo(titolo, foglio) {
   </div>`;
 }
 
-// ---------- coach ----------
-function vistaCoach() {
-  const stato = { at1: ["p-verde", "in regola"], at2: ["p-giallo", "attenzione"], at3: ["p-giallo", "aderenza bassa"] };
-  return `<div class="quadri" style="margin-bottom:11px">
-      <div class="q"><div class="k">Da vedere subito</div><div class="v" style="color:var(--rosso)">1</div></div>
-      <div class="q"><div class="k">Tieni d'occhio</div><div class="v" style="color:var(--giallo)">2</div></div>
-    </div>
-  ${DEMO.atleti.map(a => {
-    const [cl, tx] = stato[a.id];
-    const ad = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
-    return `<div class="card" style="padding:13px 16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div style="min-width:0"><h3>${a.nome}</h3>
-          <p class="et" style="margin-top:2px">${a.specialita} · aderenza ${ad}%</p></div>
-        <span class="pill ${cl}">${tx}</span>
-      </div></div>`;
-  }).join("")}`;
-}
+// (le viste dell'allenatore stanno in coach.js)
 
 // ---------- disegno ----------
 function disegnaMenu(menu) {
@@ -205,10 +189,14 @@ function disegna() {
   const menu = coach ? MENU_COACH : MENU_ATLETA;
   let corpo;
   if (S.seduta) corpo = vistaSeduta();
-  else if (coach && S.vista === "squadra") corpo = vistaCoach();
+  else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
+  else if (coach && S.vista === "squadra") corpo = vistaSquadra();
+  else if (coach && S.vista === "atleti") corpo = vistaAtleti();
+  else if (coach && S.vista === "cal-squadra") corpo = vistaCalendarioSquadra();
+  else if (coach && S.vista === "report") corpo = vistaReport();
   else if (!coach && S.vista === "oggi") corpo = vistaOggi();
-  else if (S.vista === "calendario") corpo = vistaCalendario();
-  else if (S.vista === "diario") corpo = vistaDiario();
+  else if (!coach && S.vista === "calendario") corpo = vistaCalendario();
+  else if (!coach && S.vista === "diario") corpo = vistaDiario();
   else if (!coach && S.vista === "io") corpo = vistaIo();
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();
   else corpo = vistaInArrivo(titoloVista(S.vista, menu), DA_EXCEL[S.vista]);

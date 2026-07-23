@@ -101,6 +101,30 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .cell.now{outline:2px solid var(--blu);outline-offset:1px}
 .legenda{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--txt2)}
 
+/* ---- coach ---- */
+.p-rosso{background:var(--rosso-bg);color:var(--rosso)}
+.riga-a{display:flex;align-items:center;gap:11px;cursor:pointer;padding:13px 16px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.avviso{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:var(--r);margin-bottom:5px}
+.azioni{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.azioni .btn{padding:11px;font-size:13px}
+.kpi4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+
+.mini-week{display:flex;gap:6px}
+.mini-g{flex:1;display:flex;flex-direction:column;gap:3px}
+.mini-c{height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
+.mini-c.pista{background:#2f6fd6} .mini-c.palestra{background:#5148b0}
+.mini-c.gara{background:#d85a30} .mini-c.salto{background:#4b8a1e}
+.mini-c.vuoto{background:var(--card2)} .mini-c.nofatto{opacity:.4}
+
+.cell.gara{background:#d85a30} .cell.salto{background:#4b8a1e}
+.cell.off{background:var(--card2)} .cell.nofatto{opacity:.42}
+.shead{display:grid;grid-template-columns:64px repeat(7,1fr);gap:4px;margin:12px 0 6px}
+.shead span{font-size:10px;color:var(--txt3);text-align:center}
+.srow{display:grid;grid-template-columns:64px repeat(7,1fr);gap:4px;align-items:center;margin-bottom:5px}
+.srow-n{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow .cell{height:30px;font-size:13px;cursor:default}
+
 .pront{text-align:center}
 .pront .pv{font-size:38px;font-weight:600;line-height:1.1;margin-top:4px}
 .pront .pv span{font-size:16px;color:var(--txt2);font-weight:400}
