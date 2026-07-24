@@ -187,45 +187,101 @@ function vistaGare() {
 }
 
 // ---------- Aiuto e glossario ----------
-// Ogni voce: [termine, riga breve, spiegazione completa]. Si tocca per leggere tutto.
+// Ogni voce: [sezione, termine, riga breve, spiegazione completa]. Si tocca per leggere tutto.
 const GLOSSARIO = [
-  ["Prontezza", "Quanto sei pronto ad allenarti oggi (dal diario).",
+  ["Diario", "Prontezza", "Quanto sei pronto ad allenarti oggi (dal diario).",
     "È la media dei quattro valori del diario: qualità del sonno, stress, dolori ed energia (da 1 a 5). Su tutte e quattro le scale 5 = sto bene, quindi più è alta più sei pronto. Indicativamente: <b>sopra 3.5</b> via libera, <b>tra 2.5 e 3.5</b> allenamento un po' più leggero, <b>sotto 2.5</b> conviene scaricare o parlarne con l'allenatore. L'atleta non la vede (per non 'aggiustare' le risposte): la vede solo l'allenatore."],
-  ["ACWR", "Rapporto tra carico recente e carico abituale.",
-    "Acute:Chronic Workload Ratio = carico dell'ultima settimana diviso la media delle 4 settimane precedenti. Dice se stai aumentando troppo in fretta. <b>0.8–1.3</b> = zona ideale; <b>sopra 1.5</b> = salita rapida, più rischio di infortunio; <b>sotto 0.8</b> = stai scaricando. Nel monitoraggio è colorato: verde ok, giallo attenzione, rosso alto."],
-  ["Forma (TSB)", "La tua freschezza in questo momento.",
-    "Training Stress Balance = carico cronico (fondo, le ultime settimane) meno carico acuto (la fatica di questi giorni). <b>Positivo</b> = fresco e scarico, buono vicino alle gare; <b>negativo</b> = affaticato, normale nei blocchi di carico pesante. Non è 'male' essere negativi: dipende dal momento della stagione."],
-  ["VBT", "Velocità del bilanciere in palestra.",
-    "Velocity Based Training: si misura quanto velocemente si muove il bilanciere in ogni serie. Per ogni esercizio c'è una velocità richiesta (target). L'app fa la media delle serie: se cala <b>più del 10% sotto il target</b>, il carico è troppo alto o sei stanco, e conviene togliere peso o chiudere l'esercizio."],
-  ["RPE", "Quanto è stato faticoso l'allenamento.",
-    "Rate of Perceived Exertion: da 1 (facilissimo) a 10 (massimo sforzo), lo scrivi a fine seduta. Insieme alla durata serve a calcolare il carico dell'allenamento (durata × RPE) e quindi ACWR e forma. È soggettivo ma molto affidabile se sei onesto."],
-  ["RSI", "Quanto sei reattivo nei salti.",
-    "Reactive Strength Index: misura la reattività elastica (tempo di contatto a terra vs altezza del salto), di solito col drop jump. Più è alto, più sei esplosivo e 'rigido' al contatto — qualità chiave nello sprint. Si misura con app tipo My Jump."],
-  ["CMJ e SJ", "Due salti che misurano la forza esplosiva.",
-    "<b>CMJ</b> (Counter Movement Jump) = salto con contromovimento (ti pieghi e risali): usa l'elasticità. <b>SJ</b> (Squat Jump) = parti da fermo in posizione piegata, senza rimbalzo: misura la forza pura. La differenza tra i due dice quanto sfrutti l'elasticità."],
-  ["PB e Stagione", "I tuoi migliori tempi.",
-    "<b>PB</b> (Personal Best) = il miglior tempo di sempre su quella distanza. <b>Stagione</b> = il miglior tempo dell'anno agonistico in corso. <b>Obiettivo</b> = il tempo a cui punti. Nella scheda atleta li vedi affiancati per capire a che punto sei."],
-  ["Aderenza", "Quanto segui il programma.",
-    "Percentuale di allenamenti fatti su quelli programmati (es. 27 fatti su 30 = 90%). È il primo segnale di costanza: un'aderenza che cala spesso anticipa cali di forma o fastidi."],
-  ["Mesociclo e Blocco", "Come è organizzato il programma.",
-    "Il <b>mesociclo</b> è una fase di 3-4 settimane con un obiettivo (es. Forza max, poi Forza-velocità), di solito con le prime settimane in carico e l'ultima di <b>scarico</b> (più leggera) per assorbire il lavoro. Più mesocicli in fila formano la stagione, costruita a partire da Piano & Picco verso la gara importante."],
-  ["Scarico", "La settimana 'leggera'.",
-    "Settimana (di solito l'ultima del blocco) con volume e intensità ridotti: serve a recuperare, far salire la forma e trasformare il lavoro fatto in prestazione. Nel calendario è la colonna più chiara."],
-  ["Profilo F-V", "Forza vs velocità: dove sei carente.",
-    "Il profilo Forza-Velocità dice se ti manca più <b>forza</b> (spingi poco) o più <b>velocità</b> (sei lento a esprimerla). Serve a scegliere su cosa lavorare: chi è carente di forza fa più lavoro pesante, chi è carente di velocità più lavoro veloce/pliometrico."]
+
+  ["Carico e forma", "RPE", "Quanto è stato faticoso l'allenamento.",
+    "Rate of Perceived Exertion: da 1 (facilissimo) a 10 (massimo sforzo), lo scrivi a fine seduta. Insieme alla durata è la base del carico. È soggettivo ma molto affidabile se sei onesto."],
+  ["Carico e forma", "RIR", "Ripetizioni ancora in riserva.",
+    "Reps In Reserve: quante ripetizioni potevi ancora fare a fine serie. È il modo di esprimere lo sforzo in palestra: <b>RIR 2 ≈ RPE 8</b>, <b>RIR 0 = a cedimento</b> (RPE 10, massimale). Più RIR = più margine lasciato."],
+  ["Carico e forma", "sRPE / Carico", "Il carico di una singola seduta.",
+    "Session-RPE: RPE della seduta × durata in minuti (es. RPE 7 per 80' = 560). È il mattone da cui nascono carico acuto, cronico, forma e ACWR."],
+  ["Carico e forma", "CTL (Fitness)", "La tua condizione di fondo.",
+    "Chronic Training Load: media del carico su ~42 giorni. È la base che costruisci nel tempo: sale e scende lentamente. Più è alta, più 'motore' hai."],
+  ["Carico e forma", "ATL (Fatica)", "La stanchezza recente.",
+    "Acute Training Load: media del carico su ~7 giorni. Sale e scende in fretta: rappresenta la fatica accumulata negli ultimi giorni."],
+  ["Carico e forma", "TSB (Forma)", "La tua freschezza in questo momento.",
+    "Training Stress Balance = CTL − ATL (fondo meno fatica recente). <b>Positivo</b> = fresco e scarico, buono vicino alle gare; <b>negativo</b> = affaticato, normale nei blocchi di carico. Non è 'male' essere negativi: dipende dal momento della stagione."],
+  ["Carico e forma", "ACWR", "Rapporto tra carico recente e abituale.",
+    "Acute:Chronic Workload Ratio = carico acuto (7 gg) diviso cronico (28 gg). Dice se stai aumentando troppo in fretta. <b>0.8–1.3</b> = zona ideale; <b>1.31–1.50</b> = attenzione; <b>sopra 1.5</b> = rischio infortunio alto, scarica; <b>sotto 0.8</b> = carico basso. Nel monitoraggio è colorato verde/giallo/rosso."],
+
+  ["Palestra e VBT", "VBT", "Allenarsi guardando la velocità del bilanciere.",
+    "Velocity Based Training: si misura quanto velocemente si muove il bilanciere in ogni serie. Per ogni esercizio c'è una velocità richiesta (target). L'app fa la media delle serie: se cala <b>più del 10% sotto il target</b>, il carico è troppo alto o sei stanco, meglio togliere peso o chiudere."],
+  ["Palestra e VBT", "m/s", "L'unità della velocità del bilanciere.",
+    "Metri al secondo: la velocità media della fase di salita (concentrica) del bilanciere. È il numero che scrivi in palestra serie per serie."],
+  ["Palestra e VBT", "MCV", "Velocità media di una serie.",
+    "Mean Concentric Velocity: la velocità media della fase di salita, mediata sulle ripetizioni della serie. È ciò che l'app confronta col target VBT."],
+  ["Palestra e VBT", "MVT", "La velocità del tuo massimale.",
+    "Minimal Velocity Threshold: la velocità (m/s) a cui il carico diventa un massimale. Cambia per esercizio: Squat ~0.30, Panca ~0.15, Stacco ~0.20. Serve a stimare l'1RM senza farlo davvero."],
+  ["Palestra e VBT", "1RM", "Il massimale.",
+    "One-Rep Max: il carico che sollevi una sola volta con tecnica corretta. È il riferimento da cui si calcolano le percentuali di lavoro."],
+  ["Palestra e VBT", "%1RM", "Percentuale del massimale.",
+    "La quota del massimale a cui lavori: 80% = 0,8 × 1RM. Le percentuali decidono se stai allenando forza (alte) o velocità/potenza (medio-basse)."],
+  ["Palestra e VBT", "R²", "Quanto è affidabile la stima dell'1RM.",
+    "Da 0 a 1: quanto bene i dati velocità-carico stanno su una retta. Vicino a 1 = stima molto affidabile; sotto 0,9 servono più serie o un'esecuzione più pulita."],
+  ["Palestra e VBT", "TUT", "Tempo sotto tensione.",
+    "Il ritmo di esecuzione, es. 3-1-0-1 = 3s in discesa (eccentrica), 1s di pausa in basso, 0s in salita (esplosiva), 1s in alto. Controlla il tipo di stimolo dell'esercizio."],
+  ["Palestra e VBT", "Volume (kg)", "Il tonnellaggio in palestra.",
+    "Serie × ripetizioni × peso (es. 4×5 a 100 kg = 2000 kg). Misura quanto lavoro totale hai fatto in palestra."],
+
+  ["Pista e sprint", "Volume pista", "I metri totali in pista.",
+    "Somma delle ripetute per i metri della seduta (es. 4×60 m + 6×30 m = 420 m). Misura il carico di corsa."],
+  ["Pista e sprint", "Traino / Sled", "Sprint con resistenza.",
+    "Sprint resistito trascinando una slitta (sled). Il carico si dosa in base al calo di velocità che provoca: leggeri per la velocità, pesanti per la forza-accelerazione. Vedi il profilo F-V sprint."],
+  ["Pista e sprint", "Profilo F-V", "Forza vs velocità: dove sei carente.",
+    "Il profilo Forza-Velocità (salti/sprint con metodo Morin-Samozino, bilanciere con la curva di Hill) dice se ti manca più <b>forza</b> (spingi poco) o più <b>velocità</b> (sei lento a esprimerla). Guida su cosa lavorare."],
+
+  ["Test e salti", "CMJ e SJ", "Due salti che misurano la forza esplosiva.",
+    "<b>CMJ</b> (Counter Movement Jump) = salto con contromovimento (ti pieghi e risali): usa l'elasticità. <b>SJ</b> (Squat Jump) = parti da fermo piegato, senza rimbalzo: misura la forza pura. La differenza tra i due dice quanto sfrutti l'elasticità."],
+  ["Test e salti", "RSI", "Quanto sei reattivo nei salti.",
+    "Reactive Strength Index = altezza del salto ÷ tempo di contatto a terra (di solito col drop jump). Più è alto, più sei esplosivo e 'rigido' al contatto — qualità chiave nello sprint. Si misura con app tipo My Jump."],
+
+  ["Periodizzazione", "Mesociclo e Blocco", "Come è organizzato il programma.",
+    "Il <b>mesociclo</b> è una fase di 3-4 settimane con un obiettivo, con le prime settimane in carico e l'ultima di <b>scarico</b>. Più mesocicli in fila formano la stagione, costruita da Piano & Picco verso la gara importante."],
+  ["Periodizzazione", "Scarico", "La settimana 'leggera'.",
+    "Settimana (di solito l'ultima del blocco) con volume e intensità ridotti: serve a recuperare, far salire la forma e trasformare il lavoro in prestazione. Nel calendario è la colonna più chiara."],
+  ["Periodizzazione", "AA — Adattamento Anatomico", "Il primo blocco di forza.",
+    "Fase iniziale che prepara tendini, articolazioni e struttura al carico e sistema la tecnica. Volumi medi, carichi non massimali: getta le fondamenta per i blocchi successivi."],
+  ["Periodizzazione", "Mx-S — Forza massima", "Il blocco di forza pura.",
+    "Maximum Strength: carichi alti e poche ripetizioni per alzare la forza massimale. È la base che poi si converte in potenza e velocità."],
+  ["Periodizzazione", "Conversione a potenza", "Trasformare la forza in esplosività.",
+    "Blocco in cui la forza costruita viene resa veloce/esplosiva con carichi più leggeri mossi rapidamente, pliometria e lavori specifici. Avvicina la forza alla gara."],
+  ["Periodizzazione", "Mantenimento (P+MxS)", "Tenere forza e potenza in gara.",
+    "Nel periodo competitivo si riduce il volume ma si mantiene lo stimolo di forza e potenza, per non perdere ciò che hai costruito mentre gareggi."],
+
+  ["Sistemi energetici", "O2p — Potenza aerobica", "Il sistema aerobico.",
+    "La capacità di produrre energia con l'ossigeno. Nello sprint conta soprattutto per il recupero tra le prove e per i 300-400 m."],
+  ["Sistemi energetici", "P. alattacida", "Energia esplosiva immediata.",
+    "Il sistema dei fosfati (ATP-PC): energia potentissima ma brevissima (fino a ~6-8 s). È ciò che usi negli sprint brevi e nei massimali."],
+  ["Sistemi energetici", "P. lattacida", "Energia per prove intense medie.",
+    "Produzione di energia ad alta intensità con accumulo di lattato, tipica delle prove sui 150-300 m."],
+  ["Sistemi energetici", "Cap. lattacida", "Tolleranza al lattato.",
+    "La capacità di reggere prove intense e prolungate accumulando lattato (prove lunghe/ripetute, tipiche dei 200-400 m)."],
+
+  ["Prestazioni e costanza", "PB e Stagione", "I tuoi migliori tempi.",
+    "<b>PB</b> (Personal Best) = miglior tempo di sempre su quella distanza. <b>Stagione</b> = miglior tempo dell'anno in corso. <b>Obiettivo</b> = il tempo a cui punti. Nella scheda atleta li vedi affiancati."],
+  ["Prestazioni e costanza", "Aderenza", "Quanto segui il programma.",
+    "Percentuale di allenamenti fatti su quelli programmati (es. 27 su 30 = 90%). È il primo segnale di costanza: un'aderenza che cala spesso anticipa cali di forma o fastidi."]
 ];
 
 function vistaAiuto() {
-  return `<div class="card"><h3>Aiuto e glossario</h3>
-    <p class="et" style="margin-top:2px">I termini che vedi nell'app, spiegati. Tocca una voce per leggere tutto.</p></div>` +
-    GLOSSARIO.map(([t, breve], i) => `<div class="lib-row" onclick="apriGlossario(${i})">
+  let h = `<div class="card"><h3>Aiuto e glossario</h3>
+    <p class="et" style="margin-top:2px">Tutti i termini e gli acronimi che vedi nell'app e nell'Excel. Tocca una voce per leggere tutto.</p></div>`;
+  let sez = null;
+  GLOSSARIO.forEach(([s, t, breve], i) => {
+    if (s !== sez) { h += `<p class="sez">${s}</p>`; sez = s; }
+    h += `<div class="lib-row" onclick="apriGlossario(${i})">
       <div style="flex:1;min-width:0"><div style="font-weight:600">${t}</div>
         <div class="et" style="margin-top:1px">${breve}</div></div>
-      <span class="freccia">›</span></div>`).join("");
+      <span class="freccia">›</span></div>`;
+  });
+  return h;
 }
 
 function apriGlossario(i) {
-  const [t, , dett] = GLOSSARIO[i];
+  const [, t, , dett] = GLOSSARIO[i];
   mostraFoglio(`
     <div class="foglio-top"><h3>${t}</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
