@@ -115,6 +115,21 @@ const DEMO = {
     }
   },
 
+  // Infortuni e prevenzione (per la vista dell'allenatore)
+  infortuni: [
+    { atleta: "at3", zona: "Tendine d'Achille dx", stato: "In recupero", dal: "marzo",
+      nota: "Stop di 10 giorni a marzo, rientrata con carichi ridotti. Continuare calf eccentrici e isometrie, niente pliometria intensa fino al via libera." },
+    { atleta: "at2", zona: "Caviglia sx", stato: "Da monitorare", dal: "questa settimana",
+      nota: "Asimmetria del 12% all'ultimo test. Mobilità caviglia + propriocezione monopodalica; ricontrollo al prossimo test." }
+  ],
+
+  // Ultimo diario per atleta (vista dell'allenatore)
+  diariCoach: {
+    at1: { compilato: true, ultimo: "oggi", prontezza: "3.9", sonno: 7.5, nota: "Tutto ok, gambe pronte." },
+    at2: { compilato: false, ultimo: "2 giorni fa", prontezza: "3.2", sonno: 6, nota: "" },
+    at3: { compilato: false, ultimo: "4 giorni fa", prontezza: "2.1", sonno: 5.5, nota: "Notti corte, un po' scarica." }
+  },
+
   // Presenze per mese (programmati, fatti) — per il grafico
   presenzeMesi: [
     ["set", 11, 11], ["ott", 31, 29], ["nov", 30, 28], ["dic", 31, 24],

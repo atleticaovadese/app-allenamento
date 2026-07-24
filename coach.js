@@ -13,6 +13,15 @@ function triage() {
   return c;
 }
 
+// atleti ordinati per urgenza (rosso, giallo, verde)
+function ordinaAtleti() {
+  const ord = { r: 0, w: 1, v: 2 };
+  return [...DEMO.atleti].sort((a, b) => ord[DEMO.mon[a.id].stato] - ord[DEMO.mon[b.id].stato]);
+}
+function colAcwr(v) { const n = parseFloat(v); return n >= 1.5 ? "var(--rosso)" : n >= 1.3 ? "var(--giallo)" : "var(--verde)"; }
+function colProntezza(v) { const n = parseFloat(v); return n >= 3.5 ? "var(--verde)" : n >= 2.5 ? "var(--giallo)" : "var(--rosso)"; }
+function nomeAtleta(id) { return (DEMO.atleti.find(a => a.id === id) || {}).nome || id; }
+
 // ---------- squadra (ingresso coach) ----------
 function vistaSquadra() {
   const t = triage();
@@ -189,4 +198,75 @@ function vistaReport() {
 
   <p class="et" style="margin:14px 2px 8px">Atleti per priorità</p>
   ${schede}`;
+}
+
+// ---------- monitoraggio: carico e forma ----------
+function vistaCarico() {
+  const righe = ordinaAtleti().map(a => {
+    const s = DEMO.mon[a.id];
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">
+        <span class="dot" style="background:${STATO[s.stato][2]}"></span>
+        <h3 style="flex:1">${a.nome}</h3><span class="et">${a.specialita}</span></div>
+      <div class="quadri">
+        <div class="q"><div class="k">ACWR</div><div class="v" style="color:${colAcwr(s.acwr)}">${s.acwr}</div></div>
+        <div class="q"><div class="k">Forma (TSB)</div>
+          <div class="v" style="color:${parseFloat(s.forma) >= 0 ? 'var(--verde)' : 'var(--giallo)'}">${s.forma}</div></div>
+        <div class="q"><div class="k">Prontezza</div><div class="v" style="color:${colProntezza(s.prontezza)}">${s.prontezza}</div></div>
+      </div></div>`;
+  }).join("");
+  return `<div class="card"><h3>Carico e forma</h3>
+    <p class="et" style="margin-top:2px">ACWR, freschezza (TSB) e prontezza di ogni atleta ·
+      <button class="link-indietro" onclick="vai('aiuto')">cosa vogliono dire ›</button></p></div>
+    ${righe}`;
+}
+
+// ---------- monitoraggio: infortuni e prevenzione ----------
+function vistaInfortuni() {
+  const righe = (DEMO.infortuni || []).map(inf => `
+    <div class="card" style="border-color:rgba(240,168,60,.45)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3>${nomeAtleta(inf.atleta)}</h3><span class="pill p-giallo">${inf.stato}</span></div>
+      <p style="font-weight:500;margin-top:6px">${inf.zona} <span class="et">· dal ${inf.dal}</span></p>
+      <p style="font-size:14px;line-height:1.6;color:var(--txt2);margin-top:6px">${inf.nota}</p></div>`).join("");
+  return `<div class="card"><h3>Infortuni e prevenzione</h3>
+    <p class="et" style="margin-top:2px">Chi ha fastidi o è da tenere d'occhio</p></div>
+    ${righe || `<div class="card"><p class="et">Nessun infortunio segnalato. 💪</p></div>`}`;
+}
+
+// ---------- monitoraggio: presenze squadra ----------
+function vistaPresenzeCoach() {
+  const righe = ordinaAtleti().map(a => {
+    const stag = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
+    const col = stag >= 85 ? "var(--verde)" : stag >= 70 ? "var(--giallo)" : "var(--rosso)";
+    return `<div class="card riga-a">
+      <div style="flex:1;min-width:0"><h3>${a.nome}</h3>
+        <p class="et" style="margin-top:2px">mese ${a.presenzeMese[0]}/${a.presenzeMese[1]} · stagione ${a.presenzeStagione[0]}/${a.presenzeStagione[1]}</p></div>
+      <b style="font-size:18px;color:${col}">${stag}%</b></div>`;
+  }).join("");
+  return `<div class="card"><h3>Presenze squadra</h3>
+    <p class="et" style="margin-top:2px">Aderenza di ogni atleta (fatti su programmati)</p></div>
+    ${righe}`;
+}
+
+// ---------- monitoraggio: diario squadra ----------
+function vistaDiarioCoach() {
+  const righe = ordinaAtleti().map(a => {
+    const d = DEMO.diariCoach[a.id] || {};
+    const pr = d.prontezza || DEMO.mon[a.id].prontezza;
+    const stato = d.compilato
+      ? `compilato ${d.ultimo}`
+      : `<span style="color:var(--rosso)">non compilato da ${d.ultimo}</span>`;
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0"><h3>${a.nome}</h3>
+          <p class="et" style="margin-top:2px">${stato}</p></div>
+        <div style="text-align:right"><div class="et">prontezza</div>
+          <b style="font-size:18px;color:${colProntezza(pr)}">${pr}</b></div></div>
+      ${d.compilato && (d.sonno || d.nota) ? `<p class="et" style="margin-top:8px">${d.sonno ? "sonno " + d.sonno + " h" : ""}${d.sonno && d.nota ? " · " : ""}${d.nota || ""}</p>` : ""}
+    </div>`;
+  }).join("");
+  return `<div class="card"><h3>Diario squadra</h3>
+    <p class="et" style="margin-top:2px">Prontezza e ultimo diario di ogni atleta</p></div>
+    ${righe}`;
 }
