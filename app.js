@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, mostraScheda: false };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -29,6 +29,7 @@ const MENU_COACH = [
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
   { k: "gare", ic: "★", l: "Gare" },
   { k: "report", ic: "✉", l: "Report settimanale" },
+  { k: "dati", ic: "⇅", l: "Import / Export" },
   { k: "aiuto", ic: "?", l: "Aiuto e glossario" }
 ];
 
@@ -101,7 +102,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.mostraScheda = false; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
@@ -186,24 +187,49 @@ function vistaGare() {
 }
 
 // ---------- Aiuto e glossario ----------
+// Ogni voce: [termine, riga breve, spiegazione completa]. Si tocca per leggere tutto.
+const GLOSSARIO = [
+  ["Prontezza", "Quanto sei pronto ad allenarti oggi (dal diario).",
+    "È la media dei quattro valori del diario: qualità del sonno, stress, dolori ed energia (da 1 a 5). Su tutte e quattro le scale 5 = sto bene, quindi più è alta più sei pronto. Indicativamente: <b>sopra 3.5</b> via libera, <b>tra 2.5 e 3.5</b> allenamento un po' più leggero, <b>sotto 2.5</b> conviene scaricare o parlarne con l'allenatore. L'atleta non la vede (per non 'aggiustare' le risposte): la vede solo l'allenatore."],
+  ["ACWR", "Rapporto tra carico recente e carico abituale.",
+    "Acute:Chronic Workload Ratio = carico dell'ultima settimana diviso la media delle 4 settimane precedenti. Dice se stai aumentando troppo in fretta. <b>0.8–1.3</b> = zona ideale; <b>sopra 1.5</b> = salita rapida, più rischio di infortunio; <b>sotto 0.8</b> = stai scaricando. Nel monitoraggio è colorato: verde ok, giallo attenzione, rosso alto."],
+  ["Forma (TSB)", "La tua freschezza in questo momento.",
+    "Training Stress Balance = carico cronico (fondo, le ultime settimane) meno carico acuto (la fatica di questi giorni). <b>Positivo</b> = fresco e scarico, buono vicino alle gare; <b>negativo</b> = affaticato, normale nei blocchi di carico pesante. Non è 'male' essere negativi: dipende dal momento della stagione."],
+  ["VBT", "Velocità del bilanciere in palestra.",
+    "Velocity Based Training: si misura quanto velocemente si muove il bilanciere in ogni serie. Per ogni esercizio c'è una velocità richiesta (target). L'app fa la media delle serie: se cala <b>più del 10% sotto il target</b>, il carico è troppo alto o sei stanco, e conviene togliere peso o chiudere l'esercizio."],
+  ["RPE", "Quanto è stato faticoso l'allenamento.",
+    "Rate of Perceived Exertion: da 1 (facilissimo) a 10 (massimo sforzo), lo scrivi a fine seduta. Insieme alla durata serve a calcolare il carico dell'allenamento (durata × RPE) e quindi ACWR e forma. È soggettivo ma molto affidabile se sei onesto."],
+  ["RSI", "Quanto sei reattivo nei salti.",
+    "Reactive Strength Index: misura la reattività elastica (tempo di contatto a terra vs altezza del salto), di solito col drop jump. Più è alto, più sei esplosivo e 'rigido' al contatto — qualità chiave nello sprint. Si misura con app tipo My Jump."],
+  ["CMJ e SJ", "Due salti che misurano la forza esplosiva.",
+    "<b>CMJ</b> (Counter Movement Jump) = salto con contromovimento (ti pieghi e risali): usa l'elasticità. <b>SJ</b> (Squat Jump) = parti da fermo in posizione piegata, senza rimbalzo: misura la forza pura. La differenza tra i due dice quanto sfrutti l'elasticità."],
+  ["PB e Stagione", "I tuoi migliori tempi.",
+    "<b>PB</b> (Personal Best) = il miglior tempo di sempre su quella distanza. <b>Stagione</b> = il miglior tempo dell'anno agonistico in corso. <b>Obiettivo</b> = il tempo a cui punti. Nella scheda atleta li vedi affiancati per capire a che punto sei."],
+  ["Aderenza", "Quanto segui il programma.",
+    "Percentuale di allenamenti fatti su quelli programmati (es. 27 fatti su 30 = 90%). È il primo segnale di costanza: un'aderenza che cala spesso anticipa cali di forma o fastidi."],
+  ["Mesociclo e Blocco", "Come è organizzato il programma.",
+    "Il <b>mesociclo</b> è una fase di 3-4 settimane con un obiettivo (es. Forza max, poi Forza-velocità), di solito con le prime settimane in carico e l'ultima di <b>scarico</b> (più leggera) per assorbire il lavoro. Più mesocicli in fila formano la stagione, costruita a partire da Piano & Picco verso la gara importante."],
+  ["Scarico", "La settimana 'leggera'.",
+    "Settimana (di solito l'ultima del blocco) con volume e intensità ridotti: serve a recuperare, far salire la forma e trasformare il lavoro fatto in prestazione. Nel calendario è la colonna più chiara."],
+  ["Profilo F-V", "Forza vs velocità: dove sei carente.",
+    "Il profilo Forza-Velocità dice se ti manca più <b>forza</b> (spingi poco) o più <b>velocità</b> (sei lento a esprimerla). Serve a scegliere su cosa lavorare: chi è carente di forza fa più lavoro pesante, chi è carente di velocità più lavoro veloce/pliometrico."]
+];
+
 function vistaAiuto() {
-  const voci = [
-    ["Prontezza", "Media di sonno, stress, dolori ed energia del diario (1-5). Sopra 3.5 sei pronto; sotto 2.5 conviene scaricare."],
-    ["ACWR", "Rapporto tra il carico dell'ultima settimana e la media delle 4 precedenti. Sopra 1.5 = più rischio di infortunio."],
-    ["Forma (TSB)", "Freschezza: carico cronico meno carico acuto. Positivo = fresco, negativo = affaticato."],
-    ["VBT", "Velocità del bilanciere. Se cala sotto il target del 10% l'esercizio è troppo pesante o sei stanco."],
-    ["RPE", "Fatica percepita da 1 a 10 a fine allenamento. Serve a calcolare il carico."],
-    ["RSI", "Reactive Strength Index: reattività nei salti. Più alto = più esplosivo."],
-    ["CMJ / SJ", "Salto con e senza contromovimento: misurano la forza esplosiva delle gambe."],
-    ["PB / Stagione", "PB = miglior tempo di sempre. Stagione = miglior tempo dell'anno in corso."],
-    ["Aderenza", "Percentuale di allenamenti fatti su quelli programmati."],
-    ["Mesociclo / Blocco", "Fase di 3-4 settimane con un obiettivo (es. Forza max), con l'ultima settimana di scarico."]
-  ];
   return `<div class="card"><h3>Aiuto e glossario</h3>
-    <p class="et" style="margin-top:2px">Cosa vogliono dire i termini che vedi nell'app</p></div>` +
-    voci.map(([k, v]) => `<div class="card">
-      <div style="font-weight:600;margin-bottom:4px">${k}</div>
-      <p style="font-size:14px;line-height:1.6;color:var(--txt2)">${v}</p></div>`).join("");
+    <p class="et" style="margin-top:2px">I termini che vedi nell'app, spiegati. Tocca una voce per leggere tutto.</p></div>` +
+    GLOSSARIO.map(([t, breve], i) => `<div class="lib-row" onclick="apriGlossario(${i})">
+      <div style="flex:1;min-width:0"><div style="font-weight:600">${t}</div>
+        <div class="et" style="margin-top:1px">${breve}</div></div>
+      <span class="freccia">›</span></div>`).join("");
+}
+
+function apriGlossario(i) {
+  const [t, , dett] = GLOSSARIO[i];
+  mostraFoglio(`
+    <div class="foglio-top"><h3>${t}</h3>
+      <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <p style="font-size:15px;line-height:1.7">${dett}</p>`);
 }
 
 function vistaInArrivo(titolo, foglio) {
@@ -250,6 +276,7 @@ function disegna() {
   else if (coach && S.vista === "infortuni") corpo = vistaInfortuni();
   else if (coach && S.vista === "presenze") corpo = vistaPresenzeCoach();
   else if (coach && S.vista === "diario-c") corpo = vistaDiarioCoach();
+  else if (coach && S.vista === "dati") corpo = vistaImportExport();
   else if (!coach && S.vista === "oggi") corpo = vistaOggi();
   else if (!coach && S.vista === "calendario") corpo = vistaCalendario();
   else if (!coach && S.vista === "diario") corpo = vistaDiario();
@@ -283,4 +310,5 @@ function disegna() {
 }
 
 ripristina();
+if (typeof caricaCustom === "function") caricaCustom();
 disegna();

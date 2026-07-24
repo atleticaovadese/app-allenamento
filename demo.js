@@ -80,6 +80,9 @@ const DEMO = {
     "Andature sprint": ["A skip 2×20 m", "B skip 2×20 m", "Dribbling 2×20 m", "3 allunghi progressivi"]
   },
 
+  // Esercizi aggiunti dall'allenatore (non arrivano dall'Excel). Vengono salvati e inclusi nell'export.
+  customEsercizi: [],
+
   // Monitoraggio per l'allenatore (per atleta)
   mon: {
     at1: { stato: "v", acwr: "1.12", forma: "+4.2", prontezza: "3.9", aderenza: 90,

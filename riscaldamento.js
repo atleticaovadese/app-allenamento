@@ -3,15 +3,68 @@
 
 function vistaRiscaldamento() {
   if (S.routineEdit) return editorRoutine();
+  if (S.esercizioEdit) return editorEsercizio();
   const nomi = Object.keys(DEMO.schede);
   let h = `<div class="card"><h3>Riscaldamento</h3>
-      <p class="et" style="margin-top:2px">Crea e gestisci le routine. L'atleta le trova nella sua seduta e, toccando un esercizio, ne vede il video.</p></div>
-    <button class="btn" style="margin-bottom:12px" onclick="nuovaRoutine()">＋ Nuova routine</button>`;
+      <p class="et" style="margin-top:2px">Crea le routine e aggiungi esercizi nuovi. L'atleta le trova nella sua seduta e, toccando un esercizio, ne vede il video.</p></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn" style="flex:1" onclick="nuovaRoutine()">＋ Nuova routine</button>
+      <button class="btn btn-2" style="flex:1" onclick="nuovoEsercizio()">＋ Nuovo esercizio</button>
+    </div>`;
   h += nomi.map((n, i) => `<div class="lib-row" onclick="modificaRoutine(${i})">
       <div style="flex:1;min-width:0"><div style="font-weight:500">${n}</div>
         <div class="et" style="margin-top:1px">${DEMO.schede[n].length} esercizi</div></div>
       <span class="freccia">›</span></div>`).join("");
   return h;
+}
+
+// ---------- nuovo esercizio (non arriva dall'Excel) ----------
+function nuovoEsercizio() { S.esercizioEdit = { lib: "mobilita", g: "", n: "", m: "", cue: "", v: "" }; disegna(); window.scrollTo(0, 0); }
+
+function editorEsercizio() {
+  const e = S.esercizioEdit;
+  const libs = [["mobilita", "Mobilità"], ["sala", "Sala (palestra)"], ["pliometria", "Pliometria"]];
+  return `<button class="indietro" onclick="annullaEsercizio()">‹ Indietro</button>
+    <div class="card"><h3>Nuovo esercizio</h3>
+      <p class="et" style="margin-top:2px">Aggiungi un esercizio tuo, non presente nell'Excel. Finisce nella libreria scelta ed è subito usabile nelle routine.</p></div>
+    <div class="card">
+      <label class="lab">In quale libreria</label>
+      <select onchange="S.esercizioEdit.lib=this.value" style="margin-top:6px">
+        ${libs.map(([k, l]) => `<option value="${k}" ${e.lib === k ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+
+      <label class="lab" style="display:block;margin-top:12px">Nome esercizio</label>
+      <input value="${(e.n || "").replace(/"/g, "&quot;")}" placeholder="Es. Wall drill a parete"
+        oninput="S.esercizioEdit.n=this.value" style="margin-top:6px">
+
+      <label class="lab" style="display:block;margin-top:12px">Distretto / zona / gruppo <span style="color:var(--txt3)">(opz.)</span></label>
+      <input value="${(e.g || "").replace(/"/g, "&quot;")}" placeholder="Es. Caviglia"
+        oninput="S.esercizioEdit.g=this.value" style="margin-top:6px">
+
+      <label class="lab" style="display:block;margin-top:12px">Muscoli / a cosa serve</label>
+      <input value="${(e.m || "").replace(/"/g, "&quot;")}" placeholder="Es. polpaccio, stiffness caviglia"
+        oninput="S.esercizioEdit.m=this.value" style="margin-top:6px">
+
+      <label class="lab" style="display:block;margin-top:12px">Indicazioni (come si esegue)</label>
+      <textarea rows="3" placeholder="Descrizione breve..."
+        oninput="S.esercizioEdit.cue=this.value" style="margin-top:6px">${e.cue || ""}</textarea>
+
+      <label class="lab" style="display:block;margin-top:12px">Link YouTube</label>
+      <input value="${(e.v || "").replace(/"/g, "&quot;")}" placeholder="https://youtu.be/..."
+        oninput="S.esercizioEdit.v=this.value" style="margin-top:6px">
+    </div>
+    <button class="btn" onclick="salvaEsercizio()">Salva esercizio</button>`;
+}
+function annullaEsercizio() { S.esercizioEdit = null; disegna(); window.scrollTo(0, 0); }
+function salvaEsercizio() {
+  const e = S.esercizioEdit;
+  if (!(e.n || "").trim()) { alert("Scrivi almeno il nome dell'esercizio."); return; }
+  aggiungiEsercizioCustom(e.lib, {
+    g: (e.g || "").trim(), n: e.n.trim(), m: (e.m || "").trim(),
+    cue: (e.cue || "").trim(), v: (e.v || "").trim()
+  });
+  S.esercizioEdit = null; disegna(); window.scrollTo(0, 0);
+  alert("Esercizio aggiunto alla libreria. ✓");
 }
 
 const RISC_TIPI = ["Attivazione", "Mobilità", "Andature"];
@@ -99,11 +152,13 @@ function salvaRoutine() {
   if (!r.voci.length) { alert("Aggiungi almeno un esercizio."); return; }
   if (r.orig && r.orig !== nome) delete DEMO.schede[r.orig];  // rinominata
   DEMO.schede[nome] = [...r.voci];
+  if (typeof salvaCustom === "function") salvaCustom();
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);
 }
 function eliminaRoutine() {
   const r = S.routineEdit;
   if (r.orig && confirm("Eliminare questa routine?")) delete DEMO.schede[r.orig];
   else if (r.orig) return;
+  if (typeof salvaCustom === "function") salvaCustom();
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);
 }
