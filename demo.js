@@ -10,13 +10,55 @@ const DEMO = {
       pb: [["60 m", "7.01"], ["100 m", "10.90"], ["200 m", "22.40"]],
       massimali: [["Squat", 155], ["Trap Bar", 185], ["Panca piana", 92]],
       presenzeMese: [21, 22], presenzeStagione: [253, 280],
-      test: [["60 m", "7.01", "-0.05"], ["CMJ", "45 cm", "+2"], ["Squat", "155 kg", "+5"]] },
+      test: [["60 m", "7.01", "-0.05"], ["CMJ", "45 cm", "+2"], ["Squat", "155 kg", "+5"]],
+      scheda: {
+        anagrafica: { categoria: "Promesse (U23)", nascita: "14/03/2003", anno: 2003,
+          gambaStacco: "Destra", altezza: 181, peso: 74 },
+        pb: [
+          ["30 m lanciato", "3.10", "2 mag", "3.08", ""],
+          ["30 m blocchi", "3.82", "12 gen", "", ""],
+          ["60 m", "7.01", "24 gen", "6.95", "6.90"],
+          ["100 m", "10.90", "20 giu", "10.80", "10.75"],
+          ["200 m", "22.40", "9 mag", "22.00", "21.90"]
+        ],
+        massimali: [
+          ["Squat", 155, "5 mar", ""], ["Trap Bar", 185, "5 mar", ""],
+          ["Panca piana", 92, "5 mar", ""], ["Stacco", 175, "5 mar", ""],
+          ["Hip thrust", 170, "5 mar", ""]
+        ],
+        salti: [
+          ["CMJ", "45", "cm", "5 mar"], ["SJ", "41", "cm", "5 mar"],
+          ["Drop jump", "44", "cm", "5 mar"], ["RSI", "2.2", "index", "5 mar"],
+          ["Broad jump", "270", "cm", "5 mar"], ["Sprint 30 m volante", "3.10", "s", "2 mag"]
+        ]
+      } },
     { id: "at2", nome: "Marco Bianchi", disciplina: "velocita", specialita: "200 m",
       pb: [["100 m", "11.42"]], massimali: [["Squat", 130]],
-      presenzeMese: [18, 22], presenzeStagione: [201, 240], test: [] },
+      presenzeMese: [18, 22], presenzeStagione: [201, 240], test: [],
+      scheda: {
+        anagrafica: { categoria: "Juniores", nascita: "22/07/2006", anno: 2006,
+          gambaStacco: "Sinistra", altezza: 178, peso: 70 },
+        pb: [
+          ["60 m", "7.30", "10 feb", "", ""], ["100 m", "11.42", "5 giu", "11.35", "11.20"],
+          ["200 m", "23.10", "20 mag", "22.90", "22.50"]
+        ],
+        massimali: [
+          ["Squat", 130, "3 mar", ""], ["Panca piana", 78, "3 mar", ""], ["Stacco", 150, "3 mar", ""]
+        ],
+        salti: [["CMJ", "40", "cm", "3 mar"], ["RSI", "2.0", "index", "3 mar"]]
+      } },
     { id: "at3", nome: "Sara Moretti", disciplina: "velocita", specialita: "100 m",
       pb: [["100 m", "12.60"]], massimali: [["Squat", 85]],
-      presenzeMese: [11, 22], presenzeStagione: [150, 240], test: [] }
+      presenzeMese: [11, 22], presenzeStagione: [150, 240], test: [],
+      scheda: {
+        anagrafica: { categoria: "Allieve", nascita: "08/11/2008", anno: 2008,
+          gambaStacco: "Destra", altezza: 168, peso: 58 },
+        pb: [
+          ["60 m", "8.05", "15 gen", "", ""], ["100 m", "12.60", "10 mag", "12.55", "12.40"]
+        ],
+        massimali: [["Squat", 85, "1 mar", ""], ["Hip thrust", 95, "1 mar", ""]],
+        salti: [["CMJ", "34", "cm", "1 mar"]]
+      } }
   ],
 
   mesociclo: {

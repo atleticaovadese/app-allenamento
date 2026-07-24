@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, mostraScheda: false };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -101,7 +101,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.mostraScheda = false; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
@@ -163,6 +163,49 @@ function vistaOggi() {
 
 function apriSeduta(id) { S.seduta = id; T.id = null; fermaTimer(); disegna(); window.scrollTo(0, 0); }
 
+// ---------- Gare (atleta e allenatore) ----------
+function vistaGare() {
+  const p = DEMO.prossimaGara;
+  const righe = DEMO.gareProssime.map(g => `
+    <div class="riga">
+      <div><div style="font-weight:500">${g.luogo}</div>
+        <div class="et">${g.gara} · obiettivo ${g.obiettivo}</div></div>
+      <b>${g.data}</b></div>`).join("");
+  return `
+  <div class="card"><h3>Calendario gare</h3>
+    <p class="et" style="margin-top:2px">La prossima e quelle in programma</p></div>
+  <div class="card" style="border-color:var(--blu)">
+    <p class="et" style="color:var(--blu)">Prossima gara · tra ${p.traSettimane} settimane</p>
+    <h3 style="margin-top:4px">${p.luogo}</h3>
+    <p class="et" style="margin-top:2px">${p.gara} · obiettivo ${p.obiettivo}</p>
+  </div>
+  <div class="card">
+    <p class="et" style="margin-bottom:6px">In programma</p>
+    ${righe || `<p class="et">Nessun'altra gara inserita.</p>`}
+  </div>`;
+}
+
+// ---------- Aiuto e glossario ----------
+function vistaAiuto() {
+  const voci = [
+    ["Prontezza", "Media di sonno, stress, dolori ed energia del diario (1-5). Sopra 3.5 sei pronto; sotto 2.5 conviene scaricare."],
+    ["ACWR", "Rapporto tra il carico dell'ultima settimana e la media delle 4 precedenti. Sopra 1.5 = più rischio di infortunio."],
+    ["Forma (TSB)", "Freschezza: carico cronico meno carico acuto. Positivo = fresco, negativo = affaticato."],
+    ["VBT", "Velocità del bilanciere. Se cala sotto il target del 10% l'esercizio è troppo pesante o sei stanco."],
+    ["RPE", "Fatica percepita da 1 a 10 a fine allenamento. Serve a calcolare il carico."],
+    ["RSI", "Reactive Strength Index: reattività nei salti. Più alto = più esplosivo."],
+    ["CMJ / SJ", "Salto con e senza contromovimento: misurano la forza esplosiva delle gambe."],
+    ["PB / Stagione", "PB = miglior tempo di sempre. Stagione = miglior tempo dell'anno in corso."],
+    ["Aderenza", "Percentuale di allenamenti fatti su quelli programmati."],
+    ["Mesociclo / Blocco", "Fase di 3-4 settimane con un obiettivo (es. Forza max), con l'ultima settimana di scarico."]
+  ];
+  return `<div class="card"><h3>Aiuto e glossario</h3>
+    <p class="et" style="margin-top:2px">Cosa vogliono dire i termini che vedi nell'app</p></div>` +
+    voci.map(([k, v]) => `<div class="card">
+      <div style="font-weight:600;margin-bottom:4px">${k}</div>
+      <p style="font-size:14px;line-height:1.6;color:var(--txt2)">${v}</p></div>`).join("");
+}
+
 function vistaInArrivo(titolo, foglio) {
   return `<div class="card">
     <h3>${titolo}</h3>
@@ -196,6 +239,7 @@ function disegna() {
   const menu = coach ? MENU_COACH : MENU_ATLETA;
   let corpo;
   if (S.seduta) corpo = vistaSeduta();
+  else if (coach && S.atletaSel && S.mostraScheda) corpo = vistaSchedaAtleta();
   else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
   else if (coach && S.vista === "squadra") corpo = vistaSquadra();
   else if (coach && S.vista === "atleti") corpo = vistaAtleti();
@@ -209,6 +253,8 @@ function disegna() {
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();
   else if (LIB[S.vista]) corpo = vistaLibreria(LIB[S.vista][0], LIB[S.vista][1]);
   else if (S.vista === "lib-video") corpo = vistaLibreriaVideo();
+  else if (S.vista === "gare") corpo = vistaGare();
+  else if (S.vista === "aiuto") corpo = vistaAiuto();
   else corpo = vistaInArrivo(titoloVista(S.vista, menu), DA_EXCEL[S.vista]);
 
   const oggi = new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });

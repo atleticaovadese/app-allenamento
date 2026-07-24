@@ -52,7 +52,7 @@ function listaAtleti() {
 }
 
 // ---------- dettaglio atleta = cruscotto ----------
-function apriAtleta(id) { S.atletaSel = id; disegna(); window.scrollTo(0, 0); }
+function apriAtleta(id) { S.atletaSel = id; S.mostraScheda = false; disegna(); window.scrollTo(0, 0); }
 function chiudiAtleta() { S.atletaSel = null; disegna(); }
 
 function vistaAtletaDettaglio() {
@@ -105,9 +105,9 @@ function vistaAtletaDettaglio() {
   <div class="card">
     <p class="et" style="margin-bottom:8px">Apri</p>
     <div class="azioni">
+      <button class="btn btn-2" onclick="apriSchedaAtleta()">Scheda: dati, PB, massimali, test</button>
       <button class="btn btn-2" onclick="apriSeduta('s1')">Seduta di oggi</button>
       <button class="btn btn-2" onclick="vai('pista')">Programma</button>
-      <button class="btn btn-2" onclick="vai('test')">Test</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
     </div>

@@ -14,17 +14,32 @@ function vistaRiscaldamento() {
   return h;
 }
 
-function nuovaRoutine() { S.routineEdit = { nome: "", voci: [], orig: null }; disegna(); window.scrollTo(0, 0); }
+const RISC_TIPI = ["Attivazione", "Mobilità", "Andature"];
+
+// Esercizi disponibili per tipo, presi dalle librerie (come i menù a tendina dell'Excel).
+function eserciziTipo(tipo) {
+  const V = LIBRERIE.video || [];
+  const cat = n => (V.find(c => c.cat === n) || { items: [] }).items;
+  if (tipo === "Attivazione")
+    return [...cat("Basic taps (piedi e caviglia)"), ...cat("Glutei e femorali")];
+  if (tipo === "Mobilità")
+    return [...(LIBRERIE.mobilita || []).map(x => ({ n: x.n, v: x.v })),
+            ...cat("Mobility drills"), ...cat("Attivazione e mobilità tronco (TAM)")];
+  if (tipo === "Andature")
+    return [...cat("Running drills (andature)"), ...cat("Tecnica di partenza")];
+  return [];
+}
+
+function nuovaRoutine() { S.routineEdit = { nome: "", voci: [], orig: null, tipo: "Attivazione" }; disegna(); window.scrollTo(0, 0); }
 function modificaRoutine(i) {
   const n = Object.keys(DEMO.schede)[i];
-  S.routineEdit = { nome: n, voci: [...DEMO.schede[n]], orig: n };
+  S.routineEdit = { nome: n, voci: [...DEMO.schede[n]], orig: n, tipo: "Attivazione" };
   disegna(); window.scrollTo(0, 0);
 }
 
 function editorRoutine() {
   const r = S.routineEdit;
-  const sugg = suggeritiRiscaldamento();
-  window._SUGG = sugg;
+  const lista = eserciziTipo(r.tipo);
   return `<button class="indietro" onclick="annullaRoutine()">‹ Indietro</button>
     <div class="card">
       <label class="lab">Nome della routine</label>
@@ -37,26 +52,44 @@ function editorRoutine() {
         ? r.voci.map((v, i) => `<div class="riga"><span>${v}</span>
             <button class="chiudi" onclick="rimuoviVoce(${i})" aria-label="Rimuovi">✕</button></div>`).join("")
         : `<p class="et" style="margin-top:6px">Ancora nessun esercizio: aggiungline qui sotto.</p>`}
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <input id="nuovaVoce" placeholder="Esercizio + dose (es. A-skip 2×20 m)" style="flex:1"
-          onkeydown="if(event.key==='Enter'){aggiungiVoce();}">
-        <button class="btn" style="width:auto;padding:0 16px" onclick="aggiungiVoce()">＋</button>
+
+      <p class="et" style="margin-top:16px;margin-bottom:6px">Aggiungi dalle librerie</p>
+      <label class="lab">Tipo</label>
+      <div class="segm" style="margin:6px 0 10px">
+        ${RISC_TIPI.map(t => `<button class="${r.tipo === t ? "on" : ""}" onclick="setTipoRisc('${t}')">${t}</button>`).join("")}
       </div>
-      ${sugg.length
-        ? `<p class="et" style="margin-top:14px;margin-bottom:6px">Aggiungi rapido dalle librerie</p>
-           <div class="chips">${sugg.map((n, i) => `<button class="chip" onclick="aggiungiVoceIdx(${i})">＋ ${n}</button>`).join("")}</div>`
-        : ""}
+      <label class="lab">Esercizio (${lista.length} in «${r.tipo}»)</label>
+      <select id="esSel" style="margin-top:6px">
+        ${lista.map((x, i) => `<option value="${x.n.replace(/"/g, "&quot;")}">${x.n}</option>`).join("")}
+      </select>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="doseEs" placeholder="dose (opz.) es. 2×20 m" style="flex:1">
+        <button class="btn" style="width:auto;padding:0 16px" onclick="aggiungiDaTipo()">＋ Aggiungi</button>
+      </div>
+
+      <p class="et" style="margin-top:14px;margin-bottom:6px">Oppure scrivi a mano</p>
+      <div style="display:flex;gap:8px">
+        <input id="nuovaVoce" placeholder="Esercizio + dose libero" style="flex:1"
+          onkeydown="if(event.key==='Enter'){aggiungiVoce();}">
+        <button class="btn btn-2" style="width:auto;padding:0 16px" onclick="aggiungiVoce()">＋</button>
+      </div>
     </div>
     <button class="btn" onclick="salvaRoutine()">Salva routine</button>
     ${r.orig ? `<button class="btn btn-2" style="margin-top:8px" onclick="eliminaRoutine()">Elimina routine</button>` : ""}`;
 }
 
+function setTipoRisc(t) { S.routineEdit.tipo = t; disegna(); }
+function aggiungiDaTipo() {
+  const sel = document.getElementById("esSel");
+  const nome = sel ? sel.value : "";
+  const dose = ((document.getElementById("doseEs") || {}).value || "").trim();
+  if (nome) { S.routineEdit.voci.push(dose ? nome + " " + dose : nome); disegna(); }
+}
 function aggiungiVoce() {
   const el = document.getElementById("nuovaVoce");
   const v = (el && el.value || "").trim();
   if (v) { S.routineEdit.voci.push(v); disegna(); }
 }
-function aggiungiVoceIdx(i) { S.routineEdit.voci.push(window._SUGG[i]); disegna(); }
 function rimuoviVoce(i) { S.routineEdit.voci.splice(i, 1); disegna(); }
 function annullaRoutine() { S.routineEdit = null; disegna(); window.scrollTo(0, 0); }
 
@@ -73,15 +106,4 @@ function eliminaRoutine() {
   if (r.orig && confirm("Eliminare questa routine?")) delete DEMO.schede[r.orig];
   else if (r.orig) return;
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);
-}
-
-// Suggerimenti presi dalle librerie video (andature, mobility, basic taps).
-function suggeritiRiscaldamento() {
-  const out = [];
-  const cats = LIBRERIE.video || [];
-  ["Running drills (andature)", "Mobility drills", "Basic taps (piedi e caviglia)"].forEach(cn => {
-    const c = cats.find(x => x.cat === cn);
-    if (c) c.items.slice(0, 4).forEach(it => out.push(it.n));
-  });
-  return out;
 }

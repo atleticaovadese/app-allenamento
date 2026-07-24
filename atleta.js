@@ -1,59 +1,76 @@
 // Schermate di dettaglio dell'atleta: I miei dati, Presenze, Calendario.
 
-// ---------- I miei dati ----------
-function vistaIo() {
-  const a = DEMO.atleti[0];
-
-  const record = DEMO.recordEstesi.map(([d, t, data, ob]) => `
+// ---------- Scheda atleta (copia del foglio "Atleta": la vedono atleta E allenatore) ----------
+function schedaAtleta(a) {
+  const s = a.scheda || {}, an = s.anagrafica || {};
+  const anag = [
+    ["Categoria", an.categoria], ["Anno", an.anno],
+    ["Data di nascita", an.nascita], ["Gamba di stacco", an.gambaStacco],
+    ["Altezza", an.altezza ? an.altezza + " cm" : ""], ["Peso rif.", an.peso ? an.peso + " kg" : ""],
+    ["Disciplina", a.disciplina], ["Specialità", a.specialita]
+  ];
+  const pb = (s.pb || []).map(([d, t, data, stag, ob]) => `
     <div class="riga">
-      <div><div>${d}</div><div class="et">${data}${ob ? " · obiettivo " + ob : ""}</div></div>
-      <b style="font-size:17px">${t}</b>
-    </div>`).join("");
-
-  const mx = DEMO.massimaliEstesi.map(([n, kg, data]) => `
+      <div><div style="font-weight:500">${d}</div>
+        <div class="et">${[data, stag ? "stag. " + stag : "", ob ? "obiettivo " + ob : ""].filter(Boolean).join(" · ") || "—"}</div></div>
+      <b style="font-size:17px">${t}</b></div>`).join("");
+  const mx = (s.massimali || []).map(([n, kg, data, note]) => `
     <div class="riga">
-      <div><div>${n}</div><div class="et">${data}</div></div>
-      <b style="font-size:17px">${kg} <span style="font-size:13px;color:var(--txt2)">kg</span></b>
-    </div>`).join("");
-
-  const test = DEMO.testStorico.map(([n, u, serie]) => {
-    const primo = serie[0], ultimo = serie[serie.length - 1];
-    const migliore = u === "s" ? Math.min(...serie) : Math.max(...serie);
-    const su = u === "s" ? (ultimo < primo) : (ultimo > primo);
-    return `<div class="riga">
-      <div><div>${n}</div><div class="et">${serie.length} sessioni</div></div>
-      <div style="text-align:right">
-        <b style="font-size:16px">${ultimo}</b> <span class="et">${u}</span>
-        <div class="et" style="color:${su ? "var(--verde)" : "var(--txt3)"}">
-          ${su ? "▲" : "="} meglio ${migliore}</div>
-      </div></div>`;
-  }).join("");
+      <div><div style="font-weight:500">${n}</div>
+        <div class="et">${[data, note].filter(Boolean).join(" · ") || "—"}</div></div>
+      <b style="font-size:17px">${kg} <span style="font-size:13px;color:var(--txt2)">kg</span></b></div>`).join("");
+  const salti = (s.salti || []).map(([n, v, u, data]) => `
+    <div class="riga">
+      <div><div style="font-weight:500">${n}</div><div class="et">${data || "—"}</div></div>
+      <b style="font-size:16px">${v} <span style="font-size:13px;color:var(--txt2)">${u}</span></b></div>`).join("");
 
   return `
   <div class="card">
     <div style="display:flex;align-items:center;gap:12px">
       <div class="avatar">${a.nome.split(" ").map(x => x[0]).join("")}</div>
-      <div><h3>${a.nome}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}</p></div>
+      <div><h3>${a.nome}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}${an.categoria ? " · " + an.categoria : ""}</p></div>
     </div>
   </div>
 
   <div class="card">
-    <p class="et" style="margin-bottom:6px">Record personali</p>
-    ${record}
-    <p class="et" style="margin-top:10px">Li puoi aggiornare tu o l'allenatore.</p>
+    <p class="et" style="margin-bottom:8px">Dati anagrafici</p>
+    <div class="griglia2">${anag.map(([k, v]) =>
+      `<div class="num"><div class="k">${k}</div><div class="v" style="font-size:15px">${v || "—"}</div></div>`).join("")}</div>
   </div>
 
   <div class="card">
-    <p class="et" style="margin-bottom:6px">Massimali</p>
-    ${mx}
+    <p class="et" style="margin-bottom:6px">Migliori prestazioni (PB) <span style="color:var(--txt3)">· data · stagione · obiettivo</span></p>
+    ${pb || `<p class="et">Nessun PB inserito.</p>`}
   </div>
 
   <div class="card">
-    <p class="et" style="margin-bottom:6px">Ultimi test</p>
-    ${test}
-    <button class="btn btn-2" style="margin-top:12px" onclick="vai('presenze')">Vedi anche le presenze</button>
+    <p class="et" style="margin-bottom:6px">Massimali di forza</p>
+    ${mx || `<p class="et">Nessun massimale inserito.</p>`}
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:6px">Salti e test</p>
+    ${salti || `<p class="et">Nessun test inserito.</p>`}
   </div>`;
 }
+
+// ---------- I miei dati (atleta) ----------
+function vistaIo() {
+  const a = DEMO.atleti.find(x => x.id === S.utente.atletaId) || DEMO.atleti[0];
+  return schedaAtleta(a) + `
+  <div class="card">
+    <p class="et">I dati li tiene aggiornati l'allenatore. Per vedere le presenze:
+      <button class="link-indietro" onclick="vai('presenze')">apri Presenze ›</button></p>
+  </div>`;
+}
+
+// ---------- Scheda atleta vista dall'allenatore ----------
+function vistaSchedaAtleta() {
+  const a = DEMO.atleti.find(x => x.id === S.atletaSel) || DEMO.atleti[0];
+  return `<button class="indietro" onclick="chiudiSchedaAtleta()">‹ Torna al cruscotto</button>` + schedaAtleta(a);
+}
+function apriSchedaAtleta() { S.mostraScheda = true; disegna(); window.scrollTo(0, 0); }
+function chiudiSchedaAtleta() { S.mostraScheda = false; disegna(); window.scrollTo(0, 0); }
 
 // ---------- Presenze ----------
 function vistaPresenze() {
