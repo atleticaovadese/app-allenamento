@@ -104,9 +104,14 @@ function aggiornaMenu() {
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
 function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
+// atleta attualmente loggato (o il primo, in anteprima)
+function atletaCorrente() {
+  return DEMO.atleti.find(x => S.utente && x.id === S.utente.atletaId) || DEMO.atleti[0];
+}
+
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
-  const a = DEMO.atleti[0], m = DEMO.mesociclo, g = DEMO.prossimaGara;
+  const a = atletaCorrente(), m = DEMO.mesociclo, g = DEMO.prossimaGara;
   const s = DEMO.sedute.find(x => x.quando === "oggi");
   const lavoro = s.tipo === "pista"
     ? s.elementi.map(e => `${e.ripetute}×${e.distanza} m`).join(" · ")
@@ -277,6 +282,21 @@ function vistaAiuto() {
         <div class="et" style="margin-top:1px">${breve}</div></div>
       <span class="freccia">›</span></div>`;
   });
+
+  // Tabella semaforo ACWR (come nella Legenda dell'Excel)
+  const acwr = [
+    ["&lt; 0.80", "Carico basso: rischio sotto-stimolo. Puoi aumentare gradualmente.", "var(--verde)"],
+    ["0.80 – 1.30", "Zona ottimale: progressione sicura del carico.", "var(--verde)"],
+    ["1.31 – 1.50", "Attenzione: carico in rapida salita. Occhio a fatica e sensazioni.", "var(--giallo)"],
+    ["&gt; 1.50", "Rischio infortunio alto: scarica / riduci il carico.", "var(--rosso)"]
+  ];
+  h += `<p class="sez">Semaforo ACWR</p>
+    <div class="card">${acwr.map(([v, d, c]) => `
+      <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)">
+        <b style="color:${c};min-width:78px">${v}</b>
+        <span style="font-size:13px;color:var(--txt2)">${d}</span></div>`).join("")}
+      <p class="et" style="margin-top:8px">L'ACWR nel monitoraggio è colorato con questi stessi livelli.</p>
+    </div>`;
   return h;
 }
 
@@ -291,9 +311,9 @@ function apriGlossario(i) {
 function vistaInArrivo(titolo, foglio) {
   return `<div class="card">
     <h3>${titolo}</h3>
-    <p class="et" style="margin-top:6px">Questo pezzo lo costruiamo nei prossimi giorni.</p>
+    <p class="et" style="margin-top:6px">Questa parte si gestisce nell'Excel${foglio ? ` (foglio «${foglio}»)` : ""}: è il nostro file di riferimento per programmazione e analisi. I dati entreranno in app con l'import, quando collegheremo il database.</p>
     ${foglio ? `<div style="margin-top:12px;padding:10px 12px;background:var(--blu-bg);border-radius:var(--r)">
-      <p style="font-size:12px;color:var(--blu)">Arriva dal foglio Excel «${foglio}»</p></div>` : ""}
+      <p style="font-size:12px;color:var(--blu)">📄 Excel · foglio «${foglio}»</p></div>` : ""}
   </div>`;
 }
 
@@ -355,6 +375,7 @@ function disegna() {
       ${disegnaMenu(menu)}
       <div class="tit">Account</div>
       <a onclick="esci()"><span class="ic">⏻</span>Esci</a>
+      <div style="padding:14px 12px 4px;font-size:11px;color:var(--txt3)">${CONFIG.nome} · versione ${CONFIG.versione}</div>
     </aside>
 
     <div class="top">

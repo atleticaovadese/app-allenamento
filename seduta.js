@@ -64,6 +64,11 @@ function apriEsercizioInfo(prot, i) {
          <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio.</p>`}`);
 }
 
+// recupero in secondi -> "3'" oppure "1'30"
+function fmtRec(sec) { if (!sec) return ""; const m = Math.floor(sec / 60), s = sec % 60; return s ? m + "'" + String(s).padStart(2, "0") : m + "'"; }
+function volumeKg(x) { return x.peso ? x.serie * x.rep * x.peso : null; }
+function volumePista(s) { return (s.elementi || []).reduce((t, e) => t + e.ripetute * e.distanza, 0); }
+
 // ---------- PISTA ----------
 function vistaPista(s) {
   return `${bloccoRiscaldamento(s)}
@@ -83,10 +88,14 @@ function vistaPista(s) {
         <h3>${e.ripetute} × ${e.distanza} m</h3>
         <span class="et" style="margin:0">${e.percentuale}% · rec ${e.recupero}</span>
       </div>
-      <p class="et" style="margin:4px 0 10px">obiettivo <b>${e.target.toFixed(2)} s</b></p>
+      <p class="et" style="margin:4px 0 10px">obiettivo <b>${e.target.toFixed(2)} s</b> · volume ${e.ripetute * e.distanza} m</p>
       <div class="tempi">${caselle}</div>
     </div>`;
   }).join("")}
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+    <span class="et" style="margin:0">Volume totale della seduta</span>
+    <b style="font-size:17px">${volumePista(s)} m</b>
+  </div>
   ${bloccoChiusura(s)}`;
 }
 
@@ -108,20 +117,23 @@ function vistaPalestra(s) {
 function esercizioChiuso(s, x) {
   const fatte = x.vbt.filter(v => v !== null).length;
   const finito = fatte === x.serie;
-  let stato = `${x.serie} × ${x.rep}${x.peso ? " · " + x.peso + " kg" : ""}`;
-  let cls = "";
+  const vol = volumeKg(x);
+  const presc = `${x.serie} × ${x.rep}${x.peso ? " · " + x.peso + " kg" : ""}${x.tut ? " · TUT " + x.tut : ""}${vol ? " · vol " + vol + " kg" : ""}`;
+  let cls = "", stato = "";
   if (finito && x.vbtTarget) {
     const m = media(x.vbt);
     const sotto = (x.vbtTarget - m) / x.vbtTarget * 100;
     cls = sotto > CONFIG.soglie.vbtSottoPct ? "male" : "bene";
     stato = `media ${m.toFixed(2)} m/s` + (cls === "male" ? ` · sotto ${x.vbtTarget}` : " · in linea");
-  } else if (fatte) stato += ` · ${fatte}/${x.serie} serie`;
+  } else if (fatte) stato = `${fatte}/${x.serie} serie`;
 
   return `<div class="card es ${cls}" onclick="apriEsercizio('${x.id}')">
     <div style="display:flex;align-items:center;gap:10px">
       <span class="spunta ${finito ? (cls === "male" ? "w" : "v") : ""}">${finito ? "✓" : ""}</span>
       <div style="flex:1;min-width:0">
-        <h3>${x.nome}</h3><p class="et" style="margin-top:2px">${stato}</p>
+        <h3>${x.nome}</h3>
+        <p class="et" style="margin-top:2px">${presc}</p>
+        ${stato ? `<p class="et" style="margin-top:1px">${stato}</p>` : ""}
       </div>
       <span class="freccia">›</span>
     </div></div>`;
@@ -145,7 +157,7 @@ function esercizioAperto(s, x) {
       <span class="et" style="margin:0">${x.serie} × ${x.rep}${x.percentuale ? " · " + x.percentuale + "%" : ""}</span>
     </div>
     <p class="et" style="margin:4px 0 10px">
-      ${x.peso ? x.peso + " kg" : "corpo libero"}${x.vbtTarget ? " · velocità richiesta " + x.vbtTarget.toFixed(2) + " m/s" : ""}
+      ${x.peso ? x.peso + " kg" : "corpo libero"}${x.tut ? " · TUT " + x.tut : ""}${x.recuperoSec ? " · rec " + fmtRec(x.recuperoSec) : ""}${x.vbtTarget ? " · vel. " + x.vbtTarget.toFixed(2) + " m/s" : ""}${volumeKg(x) ? " · vol " + volumeKg(x) + " kg" : ""}
     </p>
     ${righe}${parziale}
     ${T.sec > 0 ? bloccoTimer() : ""}

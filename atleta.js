@@ -74,7 +74,7 @@ function chiudiSchedaAtleta() { S.mostraScheda = false; disegna(); window.scroll
 
 // ---------- Presenze ----------
 function vistaPresenze() {
-  const a = DEMO.atleti[0];
+  const a = atletaCorrente();
   const mesi = DEMO.presenzeMesi;
   const totFatti = mesi.reduce((s, m) => s + m[2], 0);
   const totProg = mesi.reduce((s, m) => s + m[1], 0);

@@ -185,13 +185,13 @@ const DEMO = {
       notaCoach: "",
       riscaldamento: ["Attivazione sprint", "Mobilità completa"],
       esercizi: [
-        { id: "x1", nome: "Squat", serie: 4, rep: 5, percentuale: 85, peso: 132,
+        { id: "x1", nome: "Squat", serie: 4, rep: 5, percentuale: 85, peso: 132, tut: "3-1-0-1",
           vbtTarget: 0.55, recuperoSec: 180, vbt: [null, null, null, null] },
-        { id: "x2", nome: "Hip thrust", serie: 3, rep: 8, percentuale: 80, peso: 136,
+        { id: "x2", nome: "Hip thrust", serie: 3, rep: 8, percentuale: 80, peso: 136, tut: "2-0-1-1",
           vbtTarget: 0.60, recuperoSec: 150, vbt: [null, null, null] },
-        { id: "x3", nome: "Nordic hamstring", serie: 3, rep: 6, percentuale: null, peso: null,
+        { id: "x3", nome: "Nordic hamstring", serie: 3, rep: 6, percentuale: null, peso: null, tut: "4-0-0",
           vbtTarget: null, recuperoSec: 120, vbt: [null, null, null] },
-        { id: "x4", nome: "Pallof press", serie: 3, rep: 8, percentuale: null, peso: null,
+        { id: "x4", nome: "Pallof press", serie: 3, rep: 8, percentuale: null, peso: null, tut: "tenuta 3s",
           vbtTarget: null, recuperoSec: 60, vbt: [null, null, null] }
       ],
       durata: null, rpe: null, fastidi: false, chiusa: false },
