@@ -28,6 +28,7 @@ input,select,textarea{font:inherit;width:100%;color:var(--txt)}
 .btn:active{transform:scale(.99)}
 .btn-2{background:var(--card2);color:var(--txt);border:1px solid var(--line2)}
 .demo-nota{margin-top:22px;padding:12px 14px;background:var(--blu-bg);border-radius:var(--r);font-size:13px;color:var(--blu)}
+.login-err{margin-bottom:14px;padding:11px 13px;background:var(--rosso-bg);border-radius:var(--r);font-size:13px;color:var(--rosso)}
 
 /* ---- barra in alto ---- */
 .top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);

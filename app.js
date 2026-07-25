@@ -70,7 +70,8 @@ function entra(ruolo) {
   disegna();
 }
 function esci() {
-  S.utente = null; S.seduta = null; S.vista = "oggi"; S.menu = false;
+  if (typeof disconnetti === "function") disconnetti();
+  S.utente = null; S.seduta = null; S.vista = "oggi"; S.menu = false; S.atletaSel = null;
   localStorage.removeItem("utente"); disegna();
 }
 function ripristina() {
@@ -85,15 +86,22 @@ function vistaLogin() {
   return `<div class="login">
     <h1>${CONFIG.nome}</h1>
     <p class="sub">Allenamento e monitoraggio</p>
-    <div class="campo"><label>Email</label><input type="email" placeholder="nome@esempio.it"></div>
-    <div class="campo"><label>Password</label><input type="password" placeholder="••••••••"></div>
-    <button class="btn" onclick="entra('atleta')">Entra</button>
-    <div class="demo-nota"><b>Anteprima</b> — il collegamento al database arriva al prossimo passo. Intanto entra come:
+    <div id="loginErr" class="login-err" style="display:none"></div>
+    <div class="campo"><label>Email</label><input id="inEmail" type="email" placeholder="nome@esempio.it"></div>
+    <div class="campo"><label>Password</label>
+      <input id="inPwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')accediUI()"></div>
+    <button class="btn" onclick="accediUI()">Entra</button>
+    <div class="demo-nota"><b>Anteprima</b> — per provare l'interfaccia senza account:
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-2" onclick="entra('atleta')">Atleta</button>
-        <button class="btn btn-2" onclick="entra('coach')">Allenatore</button>
+        <button class="btn btn-2" onclick="entra('atleta')">Atleta (demo)</button>
+        <button class="btn btn-2" onclick="entra('coach')">Allenatore (demo)</button>
       </div></div>
   </div>`;
+}
+function accediUI() {
+  const email = ($("inEmail") || {}).value || "";
+  const pwd = ($("inPwd") || {}).value || "";
+  if (typeof accedi === "function") accedi(email, pwd);
 }
 
 function apriMenu() { S.menu = !S.menu; aggiornaMenu(); }
@@ -386,6 +394,6 @@ function disegna() {
   aggiornaMenu();
 }
 
-ripristina();
 if (typeof caricaCustom === "function") caricaCustom();
-disegna();
+if (typeof avvioApp === "function") { avvioApp(); }
+else { ripristina(); disegna(); }

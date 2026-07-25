@@ -1,0 +1,124 @@
+// Collegamento al database Supabase: login reale e caricamento dati.
+// Strategia: al login riempio l'oggetto DEMO con i dati veri (stessa forma),
+// così tutte le viste restano uguali. Le parti non ancora nel DB (sedute,
+// programma, monitoraggio calcolato) restano per ora sui dati demo.
+
+const sb = (typeof supabase !== "undefined" && typeof SUPA !== "undefined")
+  ? supabase.createClient(SUPA.url, SUPA.anon)
+  : null;
+
+// ---- snapshot dei dati demo di monitoraggio (per riagganciarli agli atleti veri per nome) ----
+const _MON_DEMO   = { "Leonardo Zetti": DEMO.mon.at1, "Marco Bianchi": DEMO.mon.at2, "Sara Moretti": DEMO.mon.at3 };
+const _DIARI_DEMO = { "Leonardo Zetti": DEMO.diariCoach.at1, "Marco Bianchi": DEMO.diariCoach.at2, "Sara Moretti": DEMO.diariCoach.at3 };
+const _DAFARE_DEMO = { "Marco Bianchi": DEMO.report.daFare.at2, "Sara Moretti": DEMO.report.daFare.at3 };
+const _PRES_DEMO = {};
+DEMO.atleti.forEach(a => { _PRES_DEMO[a.nome] = { mese: a.presenzeMese, stag: a.presenzeStagione }; });
+
+const MESI_IT = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+const ORD_DIST = ["30 m lanciato","30 m blocchi","60 m","80 m","100 m","120 m","150 m","200 m","300 m","400 m"];
+function fmtData(iso) { if (!iso) return ""; const d = new Date(iso + "T00:00:00"); return d.getDate() + " " + MESI_IT[d.getMonth()]; }
+function rankDist(d) { const i = ORD_DIST.indexOf(d); return i < 0 ? 99 : i; }
+function settimaneA(iso) { if (!iso) return 0; const d = new Date(iso + "T00:00:00"); return Math.max(0, Math.round((d - new Date()) / (7 * 86400000))); }
+function monDefault() { return { stato: "v", acwr: "—", forma: "—", prontezza: "—", aderenza: 0, ultimo: "—", fv: "—", alert: [], settimana: ["","","","","","",""], done: [0,0,0,0,0,0,0] }; }
+function diarioDefault() { return { compilato: false, ultimo: "—", prontezza: "—", sonno: null, nota: "" }; }
+
+// ---------- login ----------
+function mostraErroreLogin(msg) {
+  const e = document.getElementById("loginErr");
+  if (e) { e.textContent = msg; e.style.display = "block"; }
+}
+
+async function accedi(email, password) {
+  if (!sb) { mostraErroreLogin("Collegamento al database non disponibile. Usa l'anteprima demo."); return; }
+  if (!email || !password) { mostraErroreLogin("Scrivi email e password."); return; }
+  mostraErroreLogin(""); const e = document.getElementById("loginErr"); if (e) e.style.display = "none";
+  const btn = document.querySelector(".login .btn"); if (btn) { btn.textContent = "Accesso in corso…"; btn.disabled = true; }
+  const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) {
+    if (btn) { btn.textContent = "Entra"; btn.disabled = false; }
+    mostraErroreLogin("Email o password non validi.");
+    return;
+  }
+  await caricaDati();
+  disegna();
+}
+
+async function disconnetti() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } }
+
+// ---------- caricamento dati veri nel DEMO ----------
+async function caricaDati() {
+  if (!sb) return;
+  const { data: ures } = await sb.auth.getUser();
+  const user = ures && ures.user;
+  if (!user) return;
+
+  // profilo dell'utente
+  const { data: prof } = await sb.from("profilo").select("ruolo,societa_id,nome").eq("id", user.id).single();
+  if (!prof) return;
+  S.utente = { ruolo: prof.ruolo, nome: prof.nome, societaId: prof.societa_id, email: user.email };
+
+  // atleti + schede
+  const { data: atl } = await sb.from("atleta")
+    .select("id,nome,disciplina,specialita,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(distanza,tempo,data,stagione,obiettivo),massimale(esercizio,kg,data,note),test(nome,valore,unita,data)")
+    .order("creato_il");
+
+  const nuoviMon = {}, nuoviDiari = {}, nuovaDaFare = {};
+  DEMO.atleti = (atl || []).map(a => {
+    const pres = _PRES_DEMO[a.nome] || { mese: [0, 0], stag: [0, 0] };
+    const pb = (a.pb || []).slice().sort((x, y) => rankDist(x.distanza) - rankDist(y.distanza))
+      .map(p => [p.distanza, p.tempo, fmtData(p.data), p.stagione, p.obiettivo]);
+    const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtData(m.data), m.note || ""]);
+    const salti = (a.test || []).map(t => [t.nome, t.valore, t.unita, fmtData(t.data)]);
+    const scheda = {
+      anagrafica: {
+        categoria: a.categoria, anno: a.data_nascita ? new Date(a.data_nascita).getFullYear() : "",
+        nascita: a.data_nascita ? new Date(a.data_nascita).toLocaleDateString("it-IT") : "",
+        gambaStacco: a.gamba_stacco, altezza: a.altezza_cm, peso: a.peso_kg
+      }, pb, massimali, salti
+    };
+    nuoviMon[a.id] = _MON_DEMO[a.nome] || monDefault();
+    nuoviDiari[a.id] = _DIARI_DEMO[a.nome] || diarioDefault();
+    if (_DAFARE_DEMO[a.nome]) nuovaDaFare[a.id] = _DAFARE_DEMO[a.nome];
+    return {
+      id: a.id, nome: a.nome, disciplina: a.disciplina, specialita: a.specialita,
+      presenzeMese: pres.mese, presenzeStagione: pres.stag,
+      test: salti.slice(0, 3).map(([n, v, u]) => [n, v + " " + u, ""]),
+      pb: pb.map(p => [p[0], p[1]]), massimali: massimali.map(m => [m[0], m[1]]),
+      scheda
+    };
+  });
+  DEMO.mon = nuoviMon;
+  DEMO.diariCoach = nuoviDiari;
+  DEMO.report.daFare = nuovaDaFare;
+
+  // se ha fatto login un atleta, aggancio il suo atletaId
+  if (prof.ruolo === "atleta") {
+    const mio = (atl || []).find(a => a.profilo_id === user.id);
+    if (mio) S.utente.atletaId = mio.id;
+    else if (DEMO.atleti[0]) S.utente.atletaId = DEMO.atleti[0].id;
+  }
+
+  // infortuni aperti
+  const { data: inf } = await sb.from("infortunio").select("atleta_id,zona,stato,dal,nota").eq("aperto", true);
+  DEMO.infortuni = (inf || []).map(i => ({ atleta: i.atleta_id, zona: i.zona, stato: i.stato, dal: i.dal, nota: i.nota }));
+
+  // gare (prossima + successive)
+  const { data: gare } = await sb.from("gara").select("data,luogo,gara,obiettivo").order("data");
+  if (gare && gare.length) {
+    const g0 = gare[0];
+    DEMO.prossimaGara = { luogo: g0.luogo, gara: g0.gara, obiettivo: g0.obiettivo, traSettimane: settimaneA(g0.data) };
+    DEMO.gareProssime = gare.slice(1).map(g => ({ data: fmtData(g.data), luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
+  }
+}
+
+// ---------- avvio: riprende la sessione se già loggato ----------
+async function avvioApp() {
+  try {
+    if (sb) {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session) { await caricaDati(); }
+      else if (typeof ripristina === "function") ripristina();
+    } else if (typeof ripristina === "function") ripristina();
+  } catch (e) { console.warn("avvio:", e); if (typeof ripristina === "function") ripristina(); }
+  disegna();
+}
