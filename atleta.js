@@ -17,8 +17,11 @@ function schedaAtleta(a, mod) {
   const pb = (s.pb || []).map((r, i) => {
     const [d, t, data, stag, ob, id] = r;
     return `<div class="riga">
-      <div><div style="font-weight:500">${d}</div>
-        <div class="et">${[data, stag ? "stag. " + stag : "", ob ? "obiettivo " + ob : ""].filter(Boolean).join(" · ") || "—"}</div></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500">${d}</div>
+        <div class="et" style="margin-top:1px">${data ? "fatto il " + data : "—"}${stag ? " · miglior stagione " + stag + " s" : ""}</div>
+        ${ob ? `<div style="font-size:12px;color:var(--blu);margin-top:2px">obiettivo ${ob} s</div>` : ""}
+      </div>
       <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${t}</b>${del("pb", "pb", id, i)}</div></div>`;
   }).join("");
   const mx = (s.massimali || []).map((r, i) => {
@@ -50,7 +53,7 @@ function schedaAtleta(a, mod) {
   </div>
 
   <div class="card">
-    <p class="et" style="margin-bottom:6px">Migliori prestazioni (PB) <span style="color:var(--txt3)">· data · stagione · obiettivo</span></p>
+    <p class="et" style="margin-bottom:6px">Migliori prestazioni (PB)</p>
     ${pb || `<p class="et">Nessun PB inserito.</p>`}
     ${agg("pb", "Aggiungi PB")}
   </div>
@@ -76,8 +79,8 @@ function apriAggiungi(tipo, atletaId) {
     campi = `<label class="lab">Distanza</label><input id="f1" placeholder="60 m" style="margin:6px 0 10px">
       <label class="lab">Tempo (s)</label><input id="f2" inputmode="decimal" placeholder="7.01" style="margin:6px 0 10px">
       <label class="lab">Data</label><input id="f3" type="date" style="margin:6px 0 10px">
-      <div class="griglia2"><div><label class="lab">Stagione (s)</label><input id="f4" inputmode="decimal" style="margin-top:6px"></div>
-        <div><label class="lab">Obiettivo (s)</label><input id="f5" inputmode="decimal" style="margin-top:6px"></div></div>`;
+      <div class="griglia2"><div><label class="lab">Miglior tempo stagione (s)</label><input id="f4" inputmode="decimal" placeholder="12.90" style="margin-top:6px"></div>
+        <div><label class="lab">Obiettivo (s)</label><input id="f5" inputmode="decimal" placeholder="12.50" style="margin-top:6px"></div></div>`;
   } else if (tipo === "massimale") {
     tit = "Nuovo massimale";
     campi = `<label class="lab">Esercizio</label><input id="f1" placeholder="Squat" style="margin:6px 0 10px">
