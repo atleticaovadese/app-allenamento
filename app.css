@@ -6,6 +6,7 @@
   --giallo:#f0a83c; --giallo-bg:rgba(240,168,60,.15);
   --rosso:#ff6b6b; --rosso-bg:rgba(255,107,107,.15);
   --r:10px;
+  color-scheme: dark;   /* i controlli nativi (data, tendine) usano il tema scuro e restano leggibili */
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;background:var(--bg)}
