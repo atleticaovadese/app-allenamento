@@ -33,10 +33,14 @@ async function accedi(email, password) {
   if (!email || !password) { mostraErroreLogin("Scrivi email e password."); return; }
   mostraErroreLogin(""); const e = document.getElementById("loginErr"); if (e) e.style.display = "none";
   const btn = document.querySelector(".login .btn"); if (btn) { btn.textContent = "Accesso in corso…"; btn.disabled = true; }
-  const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+  const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
   if (error) {
     if (btn) { btn.textContent = "Entra"; btn.disabled = false; }
-    mostraErroreLogin("Email o password non validi.");
+    const m = (error.message || "").toLowerCase();
+    if (m.includes("not confirmed"))
+      mostraErroreLogin("Utente non confermato. In Supabase → Authentication → Users, ricrealo con 'Auto Confirm User' spuntato.");
+    else
+      mostraErroreLogin("Email o password non corretti. Controlla la password, oppure reimpostala in Supabase.");
     return;
   }
   await caricaDati();
@@ -109,6 +113,39 @@ async function caricaDati() {
     DEMO.prossimaGara = { luogo: g0.luogo, gara: g0.gara, obiettivo: g0.obiettivo, traSettimane: settimaneA(g0.data) };
     DEMO.gareProssime = gare.slice(1).map(g => ({ data: fmtData(g.data), luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
   }
+}
+
+// ---------- scrittura: nuovo atleta ----------
+function haDB() { return !!(sb && S.utente && S.utente.societaId); }
+
+function aggiungiAtletaLocale(a) {
+  const anag = {
+    categoria: a.categoria, anno: a.data_nascita ? new Date(a.data_nascita).getFullYear() : "",
+    nascita: a.data_nascita ? new Date(a.data_nascita).toLocaleDateString("it-IT") : "",
+    gambaStacco: a.gamba_stacco, altezza: a.altezza_cm, peso: a.peso_kg
+  };
+  DEMO.atleti.push({
+    id: a.id, nome: a.nome, disciplina: a.disciplina, specialita: a.specialita,
+    presenzeMese: [0, 0], presenzeStagione: [0, 0], test: [], pb: [], massimali: [],
+    scheda: { anagrafica: anag, pb: [], massimali: [], salti: [] }
+  });
+  DEMO.mon[a.id] = monDefault();
+  DEMO.diariCoach[a.id] = diarioDefault();
+}
+
+async function creaAtleta(d) {
+  if (haDB()) {
+    const { data, error } = await sb.from("atleta").insert({
+      societa_id: S.utente.societaId, nome: d.nome, disciplina: d.disciplina, specialita: d.specialita || null,
+      categoria: d.categoria || null, data_nascita: d.data_nascita || null, gamba_stacco: d.gamba_stacco || null,
+      altezza_cm: d.altezza_cm || null, peso_kg: d.peso_kg || null
+    }).select().single();
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+    aggiungiAtletaLocale(data);
+  } else {
+    aggiungiAtletaLocale({ id: "loc" + Date.now(), ...d });
+  }
+  return true;
 }
 
 // ---------- avvio: riprende la sessione se già loggato ----------

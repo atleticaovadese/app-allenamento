@@ -38,9 +38,77 @@ function vistaSquadra() {
 }
 
 function vistaAtleti() {
+  if (S.nuovoAtleta) return vistaNuovoAtleta();
   return `<div class="card"><h3>Atleti</h3>
     <p class="et" style="margin-top:2px">${DEMO.atleti.length} · tocca per il cruscotto</p></div>
+    <button class="btn" style="margin-bottom:12px" onclick="apriNuovoAtleta()">＋ Nuovo atleta</button>
     ${listaAtleti()}`;
+}
+
+// ---------- nuovo atleta (salva nel database) ----------
+function apriNuovoAtleta() { S.nuovoAtleta = { disciplina: "velocita" }; disegna(); window.scrollTo(0, 0); }
+function chiudiNuovoAtleta() { S.nuovoAtleta = null; disegna(); window.scrollTo(0, 0); }
+
+function vistaNuovoAtleta() {
+  const a = S.nuovoAtleta;
+  const disc = [["velocita", "Velocità"], ["mezzofondo", "Mezzofondo"], ["lanci", "Lanci"], ["palestra", "Solo palestra"]];
+  return `<button class="indietro" onclick="chiudiNuovoAtleta()">‹ Indietro</button>
+    <div class="card"><h3>Nuovo atleta</h3>
+      <p class="et" style="margin-top:2px">Si salva nel database e compare nella squadra.</p></div>
+    <div class="card">
+      <label class="lab">Nome e cognome</label>
+      <input value="${(a.nome || "").replace(/"/g, "&quot;")}" placeholder="Es. Giulia Rossi"
+        oninput="S.nuovoAtleta.nome=this.value" style="margin-top:6px">
+
+      <label class="lab" style="display:block;margin-top:12px">Disciplina</label>
+      <select onchange="S.nuovoAtleta.disciplina=this.value" style="margin-top:6px">
+        ${disc.map(([k, l]) => `<option value="${k}" ${a.disciplina === k ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Specialità</label>
+          <input value="${(a.specialita || "").replace(/"/g, "&quot;")}" placeholder="100 m"
+            oninput="S.nuovoAtleta.specialita=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Categoria</label>
+          <input value="${(a.categoria || "").replace(/"/g, "&quot;")}" placeholder="Allievi"
+            oninput="S.nuovoAtleta.categoria=this.value" style="margin-top:6px"></div>
+      </div>
+
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Data di nascita</label>
+          <input type="date" value="${a.data_nascita || ""}"
+            oninput="S.nuovoAtleta.data_nascita=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Gamba di stacco</label>
+          <select onchange="S.nuovoAtleta.gamba_stacco=this.value" style="margin-top:6px">
+            <option value="">—</option>
+            <option value="Destra" ${a.gamba_stacco === "Destra" ? "selected" : ""}>Destra</option>
+            <option value="Sinistra" ${a.gamba_stacco === "Sinistra" ? "selected" : ""}>Sinistra</option>
+          </select></div>
+      </div>
+
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Altezza (cm)</label>
+          <input inputmode="numeric" value="${a.altezza_cm || ""}" placeholder="178"
+            oninput="S.nuovoAtleta.altezza_cm=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Peso (kg)</label>
+          <input inputmode="numeric" value="${a.peso_kg || ""}" placeholder="70"
+            oninput="S.nuovoAtleta.peso_kg=this.value" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <button class="btn" onclick="salvaNuovoAtleta()">Salva atleta</button>`;
+}
+
+async function salvaNuovoAtleta() {
+  const a = S.nuovoAtleta;
+  if (!(a.nome || "").trim()) { alert("Scrivi almeno il nome dell'atleta."); return; }
+  const btn = document.querySelector(".main .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  const ok = await creaAtleta({
+    nome: a.nome.trim(), disciplina: a.disciplina || "velocita", specialita: (a.specialita || "").trim(),
+    categoria: (a.categoria || "").trim(), data_nascita: a.data_nascita || null, gamba_stacco: a.gamba_stacco || "",
+    altezza_cm: a.altezza_cm ? Number(a.altezza_cm) : null, peso_kg: a.peso_kg ? Number(a.peso_kg) : null
+  });
+  if (ok) { S.nuovoAtleta = null; S.vista = "atleti"; disegna(); window.scrollTo(0, 0); }
+  else if (btn) { btn.textContent = "Salva atleta"; btn.disabled = false; }
 }
 
 function listaAtleti() {
