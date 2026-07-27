@@ -71,28 +71,63 @@ function schedaAtleta(a, mod) {
   </div>`;
 }
 
+// Voci del foglio Atleta (per i menù a tendina).
+const DIST_PB = ["30 m lanciato", "30 m blocchi", "60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "300 m", "400 m"];
+const ESERCIZI_MASSIMALI = ["Squat", "1/2 Squat", "Panca piana", "Stacco", "Trap Bar", "Strappo (snatch)", "Girata (clean)", "Hip thrust", "Pressa"];
+const TEST_SALTI = [["CMJ", "cm"], ["SJ", "cm"], ["Drop jump", "cm"], ["RSI", "index"], ["Broad jump", "cm"], ["Sprint 30 m volante", "s"]];
+
+// Menù a tendina con le voci + "Altro…" (che apre un campo libero).
+function tendina(id, voci, extra) {
+  return `<select id="${id}" onchange="toggleAltro('${id}')${extra || ""}">
+      ${voci.map(x => `<option value="${x.replace(/"/g, "&quot;")}">${x}</option>`).join("")}
+      <option value="__altro__">Altro…</option>
+    </select>
+    <input id="${id}b" placeholder="scrivi…" style="display:none;margin-top:8px">`;
+}
+function toggleAltro(id) {
+  const sel = document.getElementById(id), inp = document.getElementById(id + "b");
+  if (inp) inp.style.display = sel.value === "__altro__" ? "block" : "none";
+}
+function autoUnita() {
+  const s = document.getElementById("f1"), u = document.getElementById("f3");
+  if (!s || !u) return;
+  const opt = s.options[s.selectedIndex], uu = opt ? opt.getAttribute("data-u") : "";
+  if (uu) u.value = uu;
+}
+// legge il valore di una tendina (o il campo libero se "Altro")
+function valTendina(id) {
+  const s = document.getElementById(id);
+  if (!s) return "";
+  return s.value === "__altro__" ? ((document.getElementById(id + "b") || {}).value || "").trim() : s.value;
+}
+
 // Foglio per aggiungere una voce alla scheda (solo allenatore).
 function apriAggiungi(tipo, atletaId) {
   let campi, tit;
   if (tipo === "pb") {
     tit = "Nuovo PB";
-    campi = `<label class="lab">Distanza</label><input id="f1" placeholder="60 m" style="margin:6px 0 10px">
-      <label class="lab">Tempo (s)</label><input id="f2" inputmode="decimal" placeholder="7.01" style="margin:6px 0 10px">
-      <label class="lab">Data</label><input id="f3" type="date" style="margin:6px 0 10px">
-      <div class="griglia2"><div><label class="lab">Miglior tempo stagione (s)</label><input id="f4" inputmode="decimal" placeholder="12.90" style="margin-top:6px"></div>
+    campi = `<label class="lab">Distanza</label>${tendina("f1", DIST_PB)}
+      <label class="lab" style="display:block;margin-top:12px">Tempo (s)</label><input id="f2" inputmode="decimal" placeholder="12.86" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f3" type="date" style="margin-top:6px">
+      <div class="griglia2" style="margin-top:12px"><div><label class="lab">Miglior tempo stagione (s)</label><input id="f4" inputmode="decimal" placeholder="12.90" style="margin-top:6px"></div>
         <div><label class="lab">Obiettivo (s)</label><input id="f5" inputmode="decimal" placeholder="12.50" style="margin-top:6px"></div></div>`;
   } else if (tipo === "massimale") {
     tit = "Nuovo massimale";
-    campi = `<label class="lab">Esercizio</label><input id="f1" placeholder="Squat" style="margin:6px 0 10px">
-      <label class="lab">1RM (kg)</label><input id="f2" inputmode="numeric" placeholder="120" style="margin:6px 0 10px">
-      <label class="lab">Data</label><input id="f3" type="date" style="margin:6px 0 10px">
-      <label class="lab">Note</label><input id="f4" placeholder="opzionale" style="margin-top:6px">`;
+    campi = `<label class="lab">Esercizio</label>${tendina("f1", ESERCIZI_MASSIMALI)}
+      <label class="lab" style="display:block;margin-top:12px">1RM (kg)</label><input id="f2" inputmode="numeric" placeholder="120" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f3" type="date" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Note</label><input id="f4" placeholder="opzionale" style="margin-top:6px">`;
   } else {
     tit = "Nuovo test";
-    campi = `<label class="lab">Test</label><input id="f1" placeholder="CMJ" style="margin:6px 0 10px">
-      <label class="lab">Valore</label><input id="f2" inputmode="decimal" placeholder="45" style="margin:6px 0 10px">
-      <label class="lab">Unità</label><input id="f3" placeholder="cm" style="margin:6px 0 10px">
-      <label class="lab">Data</label><input id="f4" type="date" style="margin-top:6px">`;
+    campi = `<label class="lab">Test</label>
+      <select id="f1" onchange="toggleAltro('f1');autoUnita()">
+        ${TEST_SALTI.map(([n, u]) => `<option value="${n}" data-u="${u}">${n}</option>`).join("")}
+        <option value="__altro__">Altro…</option>
+      </select>
+      <input id="f1b" placeholder="scrivi…" style="display:none;margin-top:8px">
+      <label class="lab" style="display:block;margin-top:12px">Valore</label><input id="f2" inputmode="decimal" placeholder="45" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Unità</label><input id="f3" value="${TEST_SALTI[0][1]}" placeholder="cm" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f4" type="date" style="margin-top:6px">`;
   }
   mostraFoglio(`
     <div class="foglio-top"><h3>${tit}</h3>
@@ -104,16 +139,17 @@ function apriAggiungi(tipo, atletaId) {
 async function salvaVoce(tipo, atletaId) {
   const v = id => ((document.getElementById(id) || {}).value || "").trim();
   const num = x => x === "" ? null : Number(String(x).replace(",", "."));
+  const n1 = valTendina("f1");
   let ok = false;
   if (tipo === "pb") {
-    if (!v("f1") || !v("f2")) { alert("Distanza e tempo sono obbligatori."); return; }
-    ok = await creaPB(atletaId, { distanza: v("f1"), tempo: num(v("f2")), data: v("f3") || null, stagione: num(v("f4")), obiettivo: num(v("f5")) });
+    if (!n1 || !v("f2")) { alert("Distanza e tempo sono obbligatori."); return; }
+    ok = await creaPB(atletaId, { distanza: n1, tempo: num(v("f2")), data: v("f3") || null, stagione: num(v("f4")), obiettivo: num(v("f5")) });
   } else if (tipo === "massimale") {
-    if (!v("f1") || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
-    ok = await creaMassimale(atletaId, { esercizio: v("f1"), kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
+    if (!n1 || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
+    ok = await creaMassimale(atletaId, { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
   } else {
-    if (!v("f1") || !v("f2")) { alert("Test e valore sono obbligatori."); return; }
-    ok = await creaTest(atletaId, { nome: v("f1"), valore: num(v("f2")), unita: v("f3"), data: v("f4") || null });
+    if (!n1 || !v("f2")) { alert("Test e valore sono obbligatori."); return; }
+    ok = await creaTest(atletaId, { nome: n1, valore: num(v("f2")), unita: v("f3"), data: v("f4") || null });
   }
   if (ok) { chiudiScheda(); disegna(); window.scrollTo(0, 0); }
 }
