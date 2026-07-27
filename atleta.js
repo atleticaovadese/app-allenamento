@@ -1,7 +1,7 @@
 // Schermate di dettaglio dell'atleta: I miei dati, Presenze, Calendario.
 
 // ---------- Scheda atleta (copia del foglio "Atleta": la vedono atleta E allenatore) ----------
-function schedaAtleta(a) {
+function schedaAtleta(a, mod) {
   const s = a.scheda || {}, an = s.anagrafica || {};
   const anag = [
     ["Categoria", an.categoria], ["Anno", an.anno],
@@ -9,20 +9,31 @@ function schedaAtleta(a) {
     ["Altezza", an.altezza ? an.altezza + " cm" : ""], ["Peso rif.", an.peso ? an.peso + " kg" : ""],
     ["Disciplina", a.disciplina], ["Specialità", a.specialita]
   ];
-  const pb = (s.pb || []).map(([d, t, data, stag, ob]) => `
-    <div class="riga">
+  const del = (tab, key, id, i) => mod
+    ? `<button class="chiudi" style="font-size:15px" onclick="eliminaVoce('${tab}','${a.id}','${id}','${key}',${i})" aria-label="Elimina">✕</button>` : "";
+  const agg = (tipo, label) => mod
+    ? `<button class="btn btn-2" style="margin-top:10px" onclick="apriAggiungi('${tipo}','${a.id}')">＋ ${label}</button>` : "";
+
+  const pb = (s.pb || []).map((r, i) => {
+    const [d, t, data, stag, ob, id] = r;
+    return `<div class="riga">
       <div><div style="font-weight:500">${d}</div>
         <div class="et">${[data, stag ? "stag. " + stag : "", ob ? "obiettivo " + ob : ""].filter(Boolean).join(" · ") || "—"}</div></div>
-      <b style="font-size:17px">${t}</b></div>`).join("");
-  const mx = (s.massimali || []).map(([n, kg, data, note]) => `
-    <div class="riga">
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${t}</b>${del("pb", "pb", id, i)}</div></div>`;
+  }).join("");
+  const mx = (s.massimali || []).map((r, i) => {
+    const [n, kg, data, note, id] = r;
+    return `<div class="riga">
       <div><div style="font-weight:500">${n}</div>
         <div class="et">${[data, note].filter(Boolean).join(" · ") || "—"}</div></div>
-      <b style="font-size:17px">${kg} <span style="font-size:13px;color:var(--txt2)">kg</span></b></div>`).join("");
-  const salti = (s.salti || []).map(([n, v, u, data]) => `
-    <div class="riga">
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${kg} <span style="font-size:13px;color:var(--txt2)">kg</span></b>${del("massimale", "massimali", id, i)}</div></div>`;
+  }).join("");
+  const salti = (s.salti || []).map((r, i) => {
+    const [n, v, u, data, id] = r;
+    return `<div class="riga">
       <div><div style="font-weight:500">${n}</div><div class="et">${data || "—"}</div></div>
-      <b style="font-size:16px">${v} <span style="font-size:13px;color:var(--txt2)">${u}</span></b></div>`).join("");
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:16px">${v} <span style="font-size:13px;color:var(--txt2)">${u}</span></b>${del("test", "salti", id, i)}</div></div>`;
+  }).join("");
 
   return `
   <div class="card">
@@ -41,23 +52,73 @@ function schedaAtleta(a) {
   <div class="card">
     <p class="et" style="margin-bottom:6px">Migliori prestazioni (PB) <span style="color:var(--txt3)">· data · stagione · obiettivo</span></p>
     ${pb || `<p class="et">Nessun PB inserito.</p>`}
+    ${agg("pb", "Aggiungi PB")}
   </div>
 
   <div class="card">
     <p class="et" style="margin-bottom:6px">Massimali di forza</p>
     ${mx || `<p class="et">Nessun massimale inserito.</p>`}
+    ${agg("massimale", "Aggiungi massimale")}
   </div>
 
   <div class="card">
     <p class="et" style="margin-bottom:6px">Salti e test</p>
     ${salti || `<p class="et">Nessun test inserito.</p>`}
+    ${agg("test", "Aggiungi test")}
   </div>`;
+}
+
+// Foglio per aggiungere una voce alla scheda (solo allenatore).
+function apriAggiungi(tipo, atletaId) {
+  let campi, tit;
+  if (tipo === "pb") {
+    tit = "Nuovo PB";
+    campi = `<label class="lab">Distanza</label><input id="f1" placeholder="60 m" style="margin:6px 0 10px">
+      <label class="lab">Tempo (s)</label><input id="f2" inputmode="decimal" placeholder="7.01" style="margin:6px 0 10px">
+      <label class="lab">Data</label><input id="f3" type="date" style="margin:6px 0 10px">
+      <div class="griglia2"><div><label class="lab">Stagione (s)</label><input id="f4" inputmode="decimal" style="margin-top:6px"></div>
+        <div><label class="lab">Obiettivo (s)</label><input id="f5" inputmode="decimal" style="margin-top:6px"></div></div>`;
+  } else if (tipo === "massimale") {
+    tit = "Nuovo massimale";
+    campi = `<label class="lab">Esercizio</label><input id="f1" placeholder="Squat" style="margin:6px 0 10px">
+      <label class="lab">1RM (kg)</label><input id="f2" inputmode="numeric" placeholder="120" style="margin:6px 0 10px">
+      <label class="lab">Data</label><input id="f3" type="date" style="margin:6px 0 10px">
+      <label class="lab">Note</label><input id="f4" placeholder="opzionale" style="margin-top:6px">`;
+  } else {
+    tit = "Nuovo test";
+    campi = `<label class="lab">Test</label><input id="f1" placeholder="CMJ" style="margin:6px 0 10px">
+      <label class="lab">Valore</label><input id="f2" inputmode="decimal" placeholder="45" style="margin:6px 0 10px">
+      <label class="lab">Unità</label><input id="f3" placeholder="cm" style="margin:6px 0 10px">
+      <label class="lab">Data</label><input id="f4" type="date" style="margin-top:6px">`;
+  }
+  mostraFoglio(`
+    <div class="foglio-top"><h3>${tit}</h3>
+      <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    ${campi}
+    <button class="btn" style="margin-top:16px" onclick="salvaVoce('${tipo}','${atletaId}')">Salva</button>`);
+}
+
+async function salvaVoce(tipo, atletaId) {
+  const v = id => ((document.getElementById(id) || {}).value || "").trim();
+  const num = x => x === "" ? null : Number(String(x).replace(",", "."));
+  let ok = false;
+  if (tipo === "pb") {
+    if (!v("f1") || !v("f2")) { alert("Distanza e tempo sono obbligatori."); return; }
+    ok = await creaPB(atletaId, { distanza: v("f1"), tempo: num(v("f2")), data: v("f3") || null, stagione: num(v("f4")), obiettivo: num(v("f5")) });
+  } else if (tipo === "massimale") {
+    if (!v("f1") || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
+    ok = await creaMassimale(atletaId, { esercizio: v("f1"), kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
+  } else {
+    if (!v("f1") || !v("f2")) { alert("Test e valore sono obbligatori."); return; }
+    ok = await creaTest(atletaId, { nome: v("f1"), valore: num(v("f2")), unita: v("f3"), data: v("f4") || null });
+  }
+  if (ok) { chiudiScheda(); disegna(); window.scrollTo(0, 0); }
 }
 
 // ---------- I miei dati (atleta) ----------
 function vistaIo() {
   const a = DEMO.atleti.find(x => x.id === S.utente.atletaId) || DEMO.atleti[0];
-  return schedaAtleta(a) + `
+  return schedaAtleta(a, false) + `
   <div class="card">
     <p class="et">I dati li tiene aggiornati l'allenatore. Per vedere le presenze:
       <button class="link-indietro" onclick="vai('presenze')">apri Presenze ›</button></p>
@@ -67,7 +128,7 @@ function vistaIo() {
 // ---------- Scheda atleta vista dall'allenatore ----------
 function vistaSchedaAtleta() {
   const a = DEMO.atleti.find(x => x.id === S.atletaSel) || DEMO.atleti[0];
-  return `<button class="indietro" onclick="chiudiSchedaAtleta()">‹ Torna al cruscotto</button>` + schedaAtleta(a);
+  return `<button class="indietro" onclick="chiudiSchedaAtleta()">‹ Torna al cruscotto</button>` + schedaAtleta(a, true);
 }
 function apriSchedaAtleta() { S.mostraScheda = true; disegna(); window.scrollTo(0, 0); }
 function chiudiSchedaAtleta() { S.mostraScheda = false; disegna(); window.scrollTo(0, 0); }

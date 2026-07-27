@@ -63,16 +63,16 @@ async function caricaDati() {
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
-    .select("id,nome,disciplina,specialita,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(distanza,tempo,data,stagione,obiettivo),massimale(esercizio,kg,data,note),test(nome,valore,unita,data)")
+    .select("id,nome,disciplina,specialita,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
     .order("creato_il");
 
   const nuoviMon = {}, nuoviDiari = {}, nuovaDaFare = {};
   DEMO.atleti = (atl || []).map(a => {
     const pres = _PRES_DEMO[a.nome] || { mese: [0, 0], stag: [0, 0] };
     const pb = (a.pb || []).slice().sort((x, y) => rankDist(x.distanza) - rankDist(y.distanza))
-      .map(p => [p.distanza, p.tempo, fmtData(p.data), p.stagione, p.obiettivo]);
-    const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtData(m.data), m.note || ""]);
-    const salti = (a.test || []).map(t => [t.nome, t.valore, t.unita, fmtData(t.data)]);
+      .map(p => [p.distanza, p.tempo, fmtData(p.data), p.stagione, p.obiettivo, p.id]);
+    const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtData(m.data), m.note || "", m.id]);
+    const salti = (a.test || []).map(t => [t.nome, t.valore, t.unita, fmtData(t.data), t.id]);
     const scheda = {
       anagrafica: {
         categoria: a.categoria, anno: a.data_nascita ? new Date(a.data_nascita).getFullYear() : "",
@@ -146,6 +146,59 @@ async function creaAtleta(d) {
     aggiungiAtletaLocale({ id: "loc" + Date.now(), ...d });
   }
   return true;
+}
+
+// ---------- scrittura: voci della scheda (PB, massimali, test) ----------
+function _atl(id) { return DEMO.atleti.find(a => a.id === id); }
+
+async function creaPB(atletaId, d) {
+  let id = "loc" + Date.now();
+  if (haDB()) {
+    const { data, error } = await sb.from("pb").insert({ atleta_id: atletaId, distanza: d.distanza, tempo: d.tempo, data: d.data || null, stagione: d.stagione, obiettivo: d.obiettivo }).select("id").single();
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+    id = data.id;
+  }
+  const a = _atl(atletaId);
+  if (a) {
+    a.scheda.pb.push([d.distanza, d.tempo, fmtData(d.data), d.stagione, d.obiettivo, id]);
+    a.scheda.pb.sort((x, y) => rankDist(x[0]) - rankDist(y[0]));
+    a.pb.push([d.distanza, d.tempo]);
+  }
+  return true;
+}
+
+async function creaMassimale(atletaId, d) {
+  let id = "loc" + Date.now();
+  if (haDB()) {
+    const { data, error } = await sb.from("massimale").insert({ atleta_id: atletaId, esercizio: d.esercizio, kg: d.kg, data: d.data || null, note: d.note || null }).select("id").single();
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+    id = data.id;
+  }
+  const a = _atl(atletaId);
+  if (a) { a.scheda.massimali.push([d.esercizio, d.kg, fmtData(d.data), d.note || "", id]); a.massimali.push([d.esercizio, d.kg]); }
+  return true;
+}
+
+async function creaTest(atletaId, d) {
+  let id = "loc" + Date.now();
+  if (haDB()) {
+    const { data, error } = await sb.from("test").insert({ atleta_id: atletaId, nome: d.nome, valore: d.valore, unita: d.unita || null, data: d.data || null }).select("id").single();
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+    id = data.id;
+  }
+  const a = _atl(atletaId);
+  if (a) a.scheda.salti.push([d.nome, d.valore, d.unita || "", fmtData(d.data), id]);
+  return true;
+}
+
+async function eliminaVoce(tabella, atletaId, id, arrKey, idx) {
+  if (haDB() && id && !String(id).startsWith("loc")) {
+    const { error } = await sb.from(tabella).delete().eq("id", id);
+    if (error) { alert("Errore: " + error.message); return; }
+  }
+  const a = _atl(atletaId);
+  if (a && a.scheda[arrKey]) a.scheda[arrKey].splice(idx, 1);
+  disegna();
 }
 
 // ---------- avvio: riprende la sessione se già loggato ----------
