@@ -76,3 +76,82 @@ function vistaVelocitaTarget() {
     <p class="et" style="margin-top:8px">v a una % = velocità a 100% × %. m/s a 100% = distanza ÷ tempo a 100%.</p>
   </div>`;
 }
+
+// 2) STIMA 1RM da VBT (load-velocity) — stima il massimale senza farlo.
+const LIFTS_1RM = [["Squat", 0.30], ["1/2 Squat", 0.32], ["Panca piana", 0.15], ["Stacco", 0.20], ["Bulgarian", 0.45], ["Girata/Strappo", 0.80]];
+let rmState = { lift: 0, mvt: 0.30, righe: [{ c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }] };
+
+function regressione(punti) {
+  const n = punti.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0, syy = 0;
+  punti.forEach(p => { sx += p.x; sy += p.y; sxy += p.x * p.y; sxx += p.x * p.x; syy += p.y * p.y; });
+  const den = n * sxx - sx * sx;
+  if (den === 0) return null;
+  const slope = (n * sxy - sx * sy) / den;
+  const intercept = (sy - slope * sx) / n;
+  const rden = den * (n * syy - sy * sy);
+  const r2 = rden > 0 ? Math.pow(n * sxy - sx * sy, 2) / rden : null;
+  return { slope, intercept, r2 };
+}
+function setRmLift(i) { rmState.lift = Number(i); rmState.mvt = LIFTS_1RM[rmState.lift][1]; disegna(); }
+function setRmMvtVal(v) { rmState.mvt = v; }
+function setRmRigaVal(i, campo, v) { rmState.righe[i][campo] = v; }
+
+function vistaStima1RM() {
+  const mvt = parseFloat(String(rmState.mvt).replace(",", "."));
+  const punti = rmState.righe.map(r => ({ x: parseFloat(String(r.c).replace(",", ".")), y: parseFloat(String(r.v).replace(",", ".")) }))
+    .filter(p => !isNaN(p.x) && !isNaN(p.y) && p.x > 0);
+  const reg = regressione(punti);
+  let oneRM = null, r2 = null;
+  if (reg && reg.slope !== 0 && !isNaN(mvt)) { oneRM = (mvt - reg.intercept) / reg.slope; r2 = reg.r2; }
+  const ok = oneRM != null && oneRM > 0 && isFinite(oneRM);
+
+  const righeInput = rmState.righe.map((r, i) => `<tr>
+      <td><input inputmode="numeric" value="${r.c}" placeholder="kg" oninput="setRmRigaVal(${i},'c',this.value)" onchange="disegna()" style="min-width:70px"></td>
+      <td><input inputmode="decimal" value="${r.v}" placeholder="m/s" oninput="setRmRigaVal(${i},'v',this.value)" onchange="disegna()" style="min-width:70px"></td>
+    </tr>`).join("");
+
+  const perc = [100, 90, 80, 70, 60];
+  const righePerc = ok ? perc.map(p => {
+    const velAttesa = reg.slope * (p / 100 * oneRM) + reg.intercept;
+    return `<tr><td>${p}%</td><td class="pauto">${Math.round(p / 100 * oneRM)}</td><td class="pauto">${velAttesa.toFixed(2)}</td></tr>`;
+  }).join("") : "";
+
+  const colR2 = r2 == null ? "var(--txt3)" : r2 >= 0.95 ? "var(--verde)" : r2 >= 0.9 ? "var(--giallo)" : "var(--rosso)";
+
+  return `
+  <div class="card"><h3>Stima 1RM (da velocità)</h3>
+    <p class="et" style="margin-top:2px">Inserisci 3-5 serie a carichi crescenti con massima intenzione e la loro velocità media. La retta carico-velocità stima l'1RM alla MVT, senza fare il massimale.</p></div>
+
+  <div class="card">
+    <div class="griglia2">
+      <div><label class="lab">Esercizio</label>
+        <select onchange="setRmLift(this.value)" style="margin-top:6px">
+          ${LIFTS_1RM.map((l, i) => `<option value="${i}" ${rmState.lift === i ? "selected" : ""}>${l[0]}</option>`).join("")}</select></div>
+      <div><label class="lab">MVT (m/s) <span style="color:var(--txt3)">vel. all'1RM</span></label>
+        <input inputmode="decimal" value="${rmState.mvt}" oninput="setRmMvtVal(this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:6px">Prove (carico crescente + velocità media)</p>
+    <table class="ptab" style="min-width:0">
+      <thead><tr><th>Carico (kg)</th><th>Vel. media (m/s)</th></tr></thead>
+      <tbody>${righeInput}</tbody>
+    </table>
+  </div>
+
+  <div class="card" ${ok ? 'style="border-color:rgba(124,194,67,.4)"' : ""}>
+    <div class="quadri">
+      <div class="q wide"><div class="k">1RM stimato</div>
+        <div class="v" style="color:var(--verde)">${ok ? Math.round(oneRM) + " kg" : "—"}</div></div>
+      <div class="q"><div class="k">R² (affidabilità)</div>
+        <div class="v" style="color:${colR2}">${r2 != null ? r2.toFixed(2) : "—"}</div></div>
+    </div>
+    ${ok
+      ? `<p class="et" style="margin-top:10px;margin-bottom:6px">Velocità attesa per %1RM</p>
+         <table class="ptab" style="min-width:0"><thead><tr><th>%1RM</th><th>Carico (kg)</th><th>Vel. attesa (m/s)</th></tr></thead><tbody>${righePerc}</tbody></table>`
+      : `<p class="et" style="margin-top:8px">Servono almeno 2 prove (meglio 3-5) con carichi diversi. R² vicino a 1 = stima affidabile.</p>`}
+  </div>`;
+}
