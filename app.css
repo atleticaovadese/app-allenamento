@@ -167,6 +167,17 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .chip:active{background:var(--blu-bg);border-color:var(--blu);color:var(--blu)}
 select{padding:11px 12px;border:1px solid var(--line2);border-radius:var(--r);background:var(--card2);
   color:var(--txt);font-size:15px;width:100%}
+/* ---- Piano & Picco (tabella come l'Excel) ---- */
+.p-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--r)}
+.piano{border-collapse:collapse;font-size:12px;white-space:nowrap;min-width:660px}
+.piano th{background:var(--card2);color:var(--txt2);font-weight:600;padding:8px 8px;text-align:center;border-bottom:1px solid var(--line2)}
+.piano td{padding:5px 8px;text-align:center;border-bottom:1px solid var(--line)}
+.piano tr:last-child td{border-bottom:0}
+.piano select{font-size:12px;padding:6px 7px;min-width:130px;width:auto}
+.piano .pauto{color:var(--verde);font-weight:600}
+.piano .pdata{color:var(--txt3)}
+.piano .pgara{color:var(--blu);font-weight:500}
+
 .segm{display:flex;gap:6px}
 .segm button{flex:1;background:var(--card2);border:1px solid var(--line2);color:var(--txt2);
   border-radius:var(--r);padding:9px 6px;font-size:13px}

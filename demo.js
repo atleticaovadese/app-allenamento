@@ -72,6 +72,12 @@ const DEMO = {
     { data: "17 ott", luogo: "Novara", gara: "100 m", obiettivo: "B" },
     { data: "8 nov", luogo: "Torino", gara: "60 m", obiettivo: "C" }
   ],
+  // gare con data completa (ISO) — servono al Piano & Picco per le colonne automatiche
+  gareRaw: [
+    { data: "2026-09-05", luogo: "Rieti", gara: "100 m", obiettivo: "A" },
+    { data: "2026-10-17", luogo: "Novara", gara: "100 m", obiettivo: "B" },
+    { data: "2026-11-08", luogo: "Torino", gara: "60 m", obiettivo: "C" }
+  ],
 
   // Esercizi con la scheda che si apre toccandoli
   schede: {

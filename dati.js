@@ -24,16 +24,18 @@ function caricaCustom() {
     DEMO.customEsercizi = c.esercizi || [];
     mergeEserciziCustom(DEMO.customEsercizi);
     if (c.schede) DEMO.schede = c.schede;
+    if (c.piano) DEMO.piano = c.piano;
   } catch (e) { /* niente da caricare */ }
 }
 
 function salvaCustom() {
   try {
     localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify({
-      esercizi: DEMO.customEsercizi || [], schede: DEMO.schede
+      esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, piano: DEMO.piano
     }));
   } catch (e) { /* localStorage non disponibile */ }
 }
+function savePiano() { salvaCustom(); }
 
 function aggiungiEsercizioCustom(lib, ex) {
   DEMO.customEsercizi = DEMO.customEsercizi || [];

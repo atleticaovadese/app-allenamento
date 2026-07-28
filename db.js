@@ -113,6 +113,7 @@ async function caricaDati() {
     const g0 = gare[0];
     DEMO.prossimaGara = { luogo: g0.luogo, gara: g0.gara, obiettivo: g0.obiettivo, traSettimane: settimaneA(g0.data) };
     DEMO.gareProssime = gare.slice(1).map(g => ({ data: fmtData(g.data), luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
+    DEMO.gareRaw = gare.map(g => ({ data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
   }
 }
 
