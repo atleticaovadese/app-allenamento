@@ -79,7 +79,7 @@ function vistaVelocitaTarget() {
 
 // 2) STIMA 1RM da VBT (load-velocity) — stima il massimale senza farlo.
 const LIFTS_1RM = [["Squat", 0.30], ["1/2 Squat", 0.32], ["Panca piana", 0.15], ["Stacco", 0.20], ["Bulgarian", 0.45], ["Girata/Strappo", 0.80]];
-let rmState = { lift: 0, mvt: 0.30, righe: [{ c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }] };
+let rmState = { lift: 0, mvt: 0.30, atletaRif: "", righe: [{ c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }] };
 
 function regressione(punti) {
   const n = punti.length;
@@ -97,6 +97,27 @@ function regressione(punti) {
 function setRmLift(i) { rmState.lift = Number(i); rmState.mvt = LIFTS_1RM[rmState.lift][1]; disegna(); }
 function setRmMvtVal(v) { rmState.mvt = v; }
 function setRmRigaVal(i, campo, v) { rmState.righe[i][campo] = v; }
+function setRmAtleta(id) { rmState.atletaRif = id; disegna(); }
+
+// salva la stima come "massimale stimato" nella scheda dell'atleta (cronologia + andamento)
+async function salvaStima1RM() {
+  const mvt = parseFloat(String(rmState.mvt).replace(",", "."));
+  const punti = rmState.righe.map(r => ({ x: parseFloat(String(r.c).replace(",", ".")), y: parseFloat(String(r.v).replace(",", ".")) }))
+    .filter(p => !isNaN(p.x) && !isNaN(p.y) && p.x > 0);
+  const reg = regressione(punti);
+  if (!reg || reg.slope === 0 || isNaN(mvt)) { alert("Serve una stima valida (almeno 2 prove)."); return; }
+  const oneRM = (mvt - reg.intercept) / reg.slope;
+  if (!(oneRM > 0 && isFinite(oneRM))) { alert("Stima non valida."); return; }
+  const a = DEMO.atleti.find(x => x.id === rmState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const eserc = LIFTS_1RM[rmState.lift][0];
+  const oggi = new Date().toISOString().slice(0, 10);
+  const note = "stima VBT" + (reg.r2 != null ? " · R² " + reg.r2.toFixed(2) : "");
+  const btn = document.getElementById("btnSalva1rm"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  const ok = typeof creaMassimale === "function" ? await creaMassimale(a.id, { esercizio: eserc, kg: Math.round(oneRM), data: oggi, note }) : false;
+  if (ok) { alert("Salvato: " + eserc + " " + Math.round(oneRM) + " kg nella scheda di " + a.nome + "."); disegna(); }
+  else if (btn) { btn.textContent = "Salva"; btn.disabled = false; }
+}
 
 function vistaStima1RM() {
   const mvt = parseFloat(String(rmState.mvt).replace(",", "."));
@@ -119,13 +140,19 @@ function vistaStima1RM() {
   }).join("") : "";
 
   const colR2 = r2 == null ? "var(--txt3)" : r2 >= 0.95 ? "var(--verde)" : r2 >= 0.9 ? "var(--giallo)" : "var(--rosso)";
+  const eserc = LIFTS_1RM[rmState.lift][0];
+  const atl = DEMO.atleti.find(x => x.id === rmState.atletaRif);
+  const storia = atl && atl.scheda ? (atl.scheda.massimali || []).filter(m => m[0] === eserc) : [];
 
   return `
   <div class="card"><h3>Stima 1RM (da velocità)</h3>
     <p class="et" style="margin-top:2px">Inserisci 3-5 serie a carichi crescenti con massima intenzione e la loro velocità media. La retta carico-velocità stima l'1RM alla MVT, senza fare il massimale.</p></div>
 
   <div class="card">
-    <div class="griglia2">
+    <label class="lab">Atleta <span style="color:var(--txt3)">(per salvare la stima e la cronologia)</span></label>
+    <select onchange="setRmAtleta(this.value)" style="margin-top:6px">
+      <option value="">— nessuno (solo calcolo) —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${rmState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    <div class="griglia2" style="margin-top:12px">
       <div><label class="lab">Esercizio</label>
         <select onchange="setRmLift(this.value)" style="margin-top:6px">
           ${LIFTS_1RM.map((l, i) => `<option value="${i}" ${rmState.lift === i ? "selected" : ""}>${l[0]}</option>`).join("")}</select></div>
@@ -151,7 +178,18 @@ function vistaStima1RM() {
     </div>
     ${ok
       ? `<p class="et" style="margin-top:10px;margin-bottom:6px">Velocità attesa per %1RM</p>
-         <table class="ptab" style="min-width:0"><thead><tr><th>%1RM</th><th>Carico (kg)</th><th>Vel. attesa (m/s)</th></tr></thead><tbody>${righePerc}</tbody></table>`
+         <table class="ptab" style="min-width:0"><thead><tr><th>%1RM</th><th>Carico (kg)</th><th>Vel. attesa (m/s)</th></tr></thead><tbody>${righePerc}</tbody></table>
+         ${atl
+          ? `<button class="btn" id="btnSalva1rm" style="margin-top:14px" onclick="salvaStima1RM()">💾 Salva come massimale stimato di ${atl.nome}</button>`
+          : `<p class="et" style="margin-top:10px">Scegli un atleta in alto per salvare questa stima nella sua scheda (cronologia).</p>`}`
       : `<p class="et" style="margin-top:8px">Servono almeno 2 prove (meglio 3-5) con carichi diversi. R² vicino a 1 = stima affidabile.</p>`}
-  </div>`;
+  </div>
+
+  ${atl ? `<div class="card">
+    <p class="et" style="margin-bottom:6px">Cronologia ${eserc} · ${atl.nome}</p>
+    ${storia.length
+      ? `<table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>1RM (kg)</th><th>Note</th></tr></thead>
+         <tbody>${storia.map(m => `<tr><td>${m[2] || "—"}</td><td class="pauto">${m[1]}</td><td class="et" style="white-space:normal">${m[3] || ""}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="et">Ancora nessun massimale/stima per ${eserc}. Salva la prima!</p>`}
+  </div>` : ""}`;
 }
