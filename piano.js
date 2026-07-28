@@ -71,6 +71,7 @@ function prossimaGaraA() {
 
 // ---------- vista ----------
 function vistaPiano() {
+  if (S.pianoGrafici) return vistaPianoGrafici();
   const p = pianoDati();
   const rows = calcolaPiano();
   const gaA = prossimaGaraA();
@@ -110,6 +111,7 @@ function vistaPiano() {
     ${gaA ? `<p class="et" style="margin-top:10px">Prossima gara A: <b>${gaA.data}</b> · tra ${gaA.tra} settimane</p>`
           : `<p class="et" style="margin-top:10px">Nessuna gara «A» futura nel calendario gare.</p>`}
   </div>
+  <button class="btn btn-2" style="margin-bottom:12px" onclick="apriPianoGrafici()">📊 Vedi i grafici</button>
   <div class="p-scroll">
     <table class="piano">
       <thead><tr>
@@ -130,3 +132,48 @@ function setPianoNsett(n) {
   if (typeof savePiano === "function") savePiano(); disegna();
 }
 function setPianoCella(i, campo, v) { pianoDati().righe[i][campo] = v; if (typeof savePiano === "function") savePiano(); disegna(); }
+
+// ---------- grafici ----------
+function apriPianoGrafici() { S.pianoGrafici = true; disegna(); window.scrollTo(0, 0); }
+function chiudiPianoGrafici() { S.pianoGrafici = false; disegna(); window.scrollTo(0, 0); }
+
+// grafico a linee (scala 1-5) di Intensità / Volume / Picco
+function chartPianoSVG(calc) {
+  const n = calc.length;
+  if (!n || !DEMO.piano.inizio) return `<p class="et">Imposta l'inizio della stagione (nel piano) per vedere il grafico.</p>`;
+  const W = 340, H = 190, padL = 20, padR = 8, padT = 10, padB = 22;
+  const x = i => padL + (W - padL - padR) * (n <= 1 ? 0 : i / (n - 1));
+  const y = v => (H - padB) - (H - padT - padB) * ((v - 1) / 4);
+  const serie = [{ key: "intensita", col: "#ff6b6b" }, { key: "volume", col: "#4d9aff" }, { key: "peaking", col: "#7cc243" }];
+  const linea = s => {
+    const pts = calc.map((c, i) => (c[s.key] === "" || c[s.key] == null) ? null : `${x(i).toFixed(1)},${y(c[s.key]).toFixed(1)}`).filter(Boolean).join(" ");
+    return pts ? `<polyline points="${pts}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round"/>` : "";
+  };
+  const grid = [1, 2, 3, 4, 5].map(v => `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="#2c2c34" stroke-width="1"/><text x="2" y="${(y(v) + 3).toFixed(1)}" fill="#76756f" font-size="9">${v}</text>`).join("");
+  const gara = calc.map((c, i) => c.scarico === "GARA" ? `<line x1="${x(i).toFixed(1)}" y1="${padT}" x2="${x(i).toFixed(1)}" y2="${H - padB}" stroke="#ff6b6b" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>` : "").join("");
+  const xlab = calc.map((c, i) => (i % 4 === 0 || i === n - 1) ? `<text x="${x(i).toFixed(1)}" y="${H - 6}" fill="#76756f" font-size="9" text-anchor="middle">${i + 1}</text>` : "").join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${gara}${xlab}${serie.map(linea).join("")}</svg>`;
+}
+
+function vistaPianoGrafici() {
+  const calc = calcolaPiano();
+  return `<button class="indietro" onclick="chiudiPianoGrafici()">‹ Torna al piano</button>
+    <div class="card"><h3>Grafici del piano</h3>
+      <p class="et" style="margin-top:2px">L'andamento programmato della stagione. Le linee tratteggiate rosse sono le gare A.</p></div>
+
+    <div class="card">
+      <p class="et" style="margin-bottom:6px">Intensità · Volume · Picco (1–5) per settimana</p>
+      ${chartPianoSVG(calc)}
+      <div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap">
+        <span class="et"><span class="quad" style="background:#ff6b6b"></span> intensità</span>
+        <span class="et"><span class="quad" style="background:#4d9aff"></span> volume</span>
+        <span class="et"><span class="quad" style="background:#7cc243"></span> picco</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="et" style="margin-bottom:6px">Forma misurata (TSB) per settimana</p>
+      <div style="background:var(--card2);border:1px dashed var(--line2);border-radius:12px;padding:16px;font-size:13px;color:var(--txt2);line-height:1.6">
+        Si riempirà quando gli atleti registreranno gli allenamenti (Carico &amp; Forma). Obiettivo: la forma reale sale quando il <b>picco</b> scende a 1 sulla gara A.</div>
+    </div>`;
+}
