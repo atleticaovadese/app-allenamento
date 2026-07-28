@@ -193,3 +193,90 @@ function vistaStima1RM() {
       : `<p class="et">Ancora nessun massimale/stima per ${eserc}. Salva la prima!</p>`}
   </div>` : ""}`;
 }
+
+// 3) TRAINO / SLED (Morin-Samozino) — carichi per zona dal calo di velocità.
+const ZONE_TRAINO = [
+  [0.10, "Competenza tecnica", "Sovraccarico minimo: meccanica di sprint quasi piena"],
+  [0.20, "Speed-strength", "Forza-velocità: fase di accelerazione"],
+  [0.30, "Speed-strength", "Transizione verso la potenza"],
+  [0.40, "Potenza", "Vicino alla potenza orizzontale massima"],
+  [0.50, "Potenza (max ~)", "Massima potenza orizzontale (~ metà di V0)"],
+  [0.60, "Strength-speed", "Forza orizzontale, carichi alti"],
+  [0.75, "Strength / Forza", "Carichi molto pesanti: forza orizzontale pura"]
+];
+let trainoState = { atletaRif: "", bm: "", dist: "", righe: [{ c: "", t: "" }, { c: "", t: "" }, { c: "", t: "" }, { c: "", t: "" }, { c: "", t: "" }] };
+
+function setTrainoAtleta(id) {
+  trainoState.atletaRif = id;
+  const a = DEMO.atleti.find(x => x.id === id);
+  if (a && a.scheda && a.scheda.anagrafica && a.scheda.anagrafica.peso) trainoState.bm = String(a.scheda.anagrafica.peso);
+  disegna();
+}
+function setTrainoVal(campo, val) { trainoState[campo] = val; }
+function setTrainoRigaVal(i, campo, val) { trainoState.righe[i][campo] = val; }
+
+function vistaTraino() {
+  const bm = parseFloat(String(trainoState.bm).replace(",", "."));
+  const dist = parseFloat(String(trainoState.dist).replace(",", "."));
+  const hasDist = !isNaN(dist) && dist > 0;
+  const punti = trainoState.righe.map(r => {
+    const c = parseFloat(String(r.c).replace(",", "."));
+    const t = parseFloat(String(r.t).replace(",", "."));
+    const v = (hasDist && !isNaN(t) && t > 0) ? dist / t : null;
+    return { c, t, v };
+  });
+  const regPunti = punti.filter(p => !isNaN(p.c) && p.v != null).map(p => ({ x: p.c, y: p.v }));
+  const reg = regPunti.length >= 2 ? regressione(regPunti) : null;
+  const V0 = reg ? reg.intercept : null, slope = reg ? reg.slope : null, r2 = reg ? reg.r2 : null;
+  const okZone = reg && slope < 0 && V0 > 0 && hasDist;
+  const colR2 = r2 == null ? "var(--txt3)" : r2 >= 0.95 ? "var(--verde)" : r2 >= 0.9 ? "var(--giallo)" : "var(--rosso)";
+
+  const righeInput = punti.map((p, i) => `<tr>
+      <td><input inputmode="numeric" value="${trainoState.righe[i].c}" placeholder="kg" oninput="setTrainoRigaVal(${i},'c',this.value)" onchange="disegna()" style="min-width:64px"></td>
+      <td><input inputmode="decimal" value="${trainoState.righe[i].t}" placeholder="s" oninput="setTrainoRigaVal(${i},'t',this.value)" onchange="disegna()" style="min-width:64px"></td>
+      <td class="pauto">${p.v != null ? p.v.toFixed(2) : "—"}</td>
+    </tr>`).join("");
+
+  const righeZone = okZone ? ZONE_TRAINO.map(([loss, zona, scopo]) => {
+    const vT = V0 * (1 - loss), tT = dist / vT, carico = -V0 * loss / slope;
+    const pctBM = (!isNaN(bm) && bm > 0) ? carico / bm * 100 : null;
+    return `<tr><td>${Math.round(loss * 100)}%</td><td class="pauto">${vT.toFixed(2)}</td><td class="pauto">${tT.toFixed(2)}</td><td class="pauto">${Math.round(carico)}</td><td class="pauto">${pctBM != null ? Math.round(pctBM) + "%" : "—"}</td><td>${zona}</td><td class="et" style="white-space:normal">${scopo}</td></tr>`;
+  }).join("") : "";
+
+  return `
+  <div class="card"><h3>Traino / Sled</h3>
+    <p class="et" style="margin-top:2px">Metodo Morin-Samozino. Cronometra alcuni sprint sulla stessa distanza: uno senza traino (0 kg) e 1-2 con traino, a massima spinta. Da distanza e tempi il foglio stima V0 e la pendenza e calcola il carico per ogni zona.</p></div>
+
+  <div class="card">
+    <div class="griglia2">
+      <div><label class="lab">Atleta (prende il peso)</label>
+        <select onchange="setTrainoAtleta(this.value)" style="margin-top:6px">
+          <option value="">— a mano —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${trainoState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
+      <div><label class="lab">Massa corporea (kg)</label>
+        <input inputmode="decimal" value="${trainoState.bm || ""}" placeholder="es. 74" oninput="setTrainoVal('bm',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+    <label class="lab" style="display:block;margin-top:12px">Distanza della prova (m) <span style="color:var(--txt3)">stessa per tutte, es. 20-30 m</span></label>
+    <input inputmode="numeric" value="${trainoState.dist || ""}" placeholder="es. 20" oninput="setTrainoVal('dist',this.value)" onchange="disegna()" style="margin-top:6px">
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:6px">Prove (includi 0 kg) — la velocità si calcola da distanza ÷ tempo</p>
+    <table class="ptab" style="min-width:0">
+      <thead><tr><th>Carico (kg)</th><th>Tempo (s)</th><th>Vmax (m/s)</th></tr></thead>
+      <tbody>${righeInput}</tbody>
+    </table>
+  </div>
+
+  <div class="card" ${okZone ? 'style="border-color:rgba(124,194,67,.4)"' : ""}>
+    <div class="quadri">
+      <div class="q"><div class="k">V0 (m/s)</div><div class="v" style="color:var(--verde)">${V0 != null && okZone ? V0.toFixed(2) : "—"}</div></div>
+      <div class="q"><div class="k">Pendenza</div><div class="v" style="font-size:18px">${slope != null && okZone ? slope.toFixed(3) : "—"}</div></div>
+      <div class="q"><div class="k">R²</div><div class="v" style="color:${colR2}">${r2 != null ? r2.toFixed(2) : "—"}</div></div>
+    </div>
+    ${okZone
+      ? `<p class="et" style="margin-top:10px;margin-bottom:6px">Carichi per zona (dal calo di Vmax)</p>
+         <div class="p-scroll"><table class="ptab pista-w"><thead><tr><th>Calo</th><th>Vmax<br>target</th><th>Tempo<br>target</th><th>Carico<br>(kg)</th><th>%BM</th><th>Zona</th><th>Scopo</th></tr></thead><tbody>${righeZone}</tbody></table></div>
+         <p class="et" style="margin-top:8px">La potenza orizzontale max è tipicamente intorno al 50% di calo di Vmax. R² vicino a 1 = stima affidabile.</p>`
+      : `<p class="et" style="margin-top:8px">Servono almeno il tempo senza traino (0 kg) + 1-2 carichi, la distanza e (per il %BM) il peso.</p>`}
+  </div>`;
+}
