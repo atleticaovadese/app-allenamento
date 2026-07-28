@@ -16,7 +16,46 @@ const PISTA_COEFF = {
 
 function rigaVuota() { return { contenuto: "", distanza: "", n: "", rec: "", perc: "" }; }
 function settVuota() { return { righe: [rigaVuota()] }; }
-function giornoVuoto() { return { giornoSett: "", riscaldamento: "", settimane: [settVuota(), settVuota(), settVuota(), settVuota()] }; }
+function giornoVuoto() { return { giornoSett: "", risc: {}, settimane: [settVuota(), settVuota(), settVuota(), settVuota()] }; }
+
+// riscaldamento del giorno: 4 tipi (attivazione/mobilità/andature/ostacoli), ognuno on/off + protocollo scelto
+const RISC_TIPI_PISTA = [["attivazione", "Attivazione"], ["mobilita", "Mobilità"], ["andature", "Andature"], ["ostacoli", "Ostacoli"]];
+function riscInit(g) {
+  if (!g.risc) g.risc = {};
+  RISC_TIPI_PISTA.forEach(([k]) => { if (!g.risc[k]) g.risc[k] = { on: false, prot: "" }; });
+  return g.risc;
+}
+function routineDiTipo(label) {
+  const st = DEMO.schedeTipo || {};
+  return Object.keys(DEMO.schede || {}).filter(n => (st[n] || "") === label);
+}
+function giornoCorrente() { return pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno]; }
+
+function apriRiscPista() {
+  const g = giornoCorrente(), risc = riscInit(g);
+  const body = RISC_TIPI_PISTA.map(([k, label]) => {
+    const rs = routineDiTipo(label), on = risc[k].on;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <label class="check"><input type="checkbox" ${on ? "checked" : ""} onchange="toggleRiscTipo('${k}',this.checked)"><span>${label}</span></label>
+      ${on ? (rs.length
+        ? `<select style="margin-top:8px" onchange="setRiscTipoProt('${k}',this.value)"><option value="">— scegli protocollo —</option>${rs.map(n => `<option ${risc[k].prot === n ? "selected" : ""}>${n}</option>`).join("")}</select>`
+        : `<p class="et" style="margin-top:6px">Nessun protocollo «${label}». Crealo in Programma → Riscaldamento scegliendo il tipo «${label}».</p>`) : ""}
+    </div>`;
+  }).join("");
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Riscaldamento del giorno</h3>
+      <button class="chiudi" onclick="chiudiRiscPista()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:4px">Spunta i tipi da includere e scegli il protocollo. Puoi combinarli come vuoi.</p>
+    ${body}`);
+}
+function toggleRiscTipo(k, on) { riscInit(giornoCorrente())[k].on = on; savePista(); apriRiscPista(); }
+function setRiscTipoProt(k, v) { riscInit(giornoCorrente())[k].prot = v; savePista(); apriRiscPista(); }
+function chiudiRiscPista() { chiudiScheda(); disegna(); }
+function riscRiassunto(g) {
+  const risc = riscInit(g);
+  const att = RISC_TIPI_PISTA.filter(([k]) => risc[k].on);
+  return att.length ? att.map(([k, label]) => `${label}${risc[k].prot ? " (" + risc[k].prot + ")" : ""}`).join(" · ") : "non impostato";
+}
 function mesoVuoto() { return { blocco: "", inizio: "", focus: "", giorni: [giornoVuoto(), giornoVuoto(), giornoVuoto(), giornoVuoto()] }; }
 
 function pistaInit() {
@@ -60,6 +99,10 @@ function setPistaTop(campo, val) {
 function setPistaMeso(campo, val) { pistaInit().mesocicli[S.pistaMeso][campo] = val; savePista(); disegna(); }
 function setPistaGiorno(campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno][campo] = val; savePista(); disegna(); }
 function setPistaRiga(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i][campo] = val; savePista(); disegna(); }
+// versioni "solo stato" (niente disegna): per gli <input> di testo, così non si perde il focus mentre si scrive
+function setPistaTopVal(campo, val) { const p = pistaInit(); p[campo] = val; savePista(); }
+function setPistaMesoVal(campo, val) { pistaInit().mesocicli[S.pistaMeso][campo] = val; savePista(); }
+function setPistaRigaVal(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i][campo] = val; savePista(); }
 function pistaAddRiga(s) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe.push(rigaVuota()); savePista(); disegna(); }
 function pistaDelRiga(s, i) { const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePista(); disegna(); }
 function pistaAddMeso() { pistaInit().mesocicli.push(mesoVuoto()); S.pistaMeso = pistaInit().mesocicli.length - 1; S.pistaGiorno = 0; savePista(); disegna(); window.scrollTo(0, 0); }
@@ -93,7 +136,7 @@ function vistaProgrammaPista() {
       <div style="margin-top:10px">
         <label class="lab">PB di riferimento (s) ${p.atletaRif ? "<span style='color:var(--txt3)'>(dall'atleta)</span>" : ""}</label>
         <input inputmode="decimal" value="${p.atletaRif ? (pb != null ? pb : "") : (p.pbManuale || "")}" ${p.atletaRif ? "disabled" : ""}
-          placeholder="es. 10.90" oninput="setPistaTop('pbManuale',this.value)" style="margin-top:6px">
+          placeholder="es. 10.90" oninput="setPistaTopVal('pbManuale',this.value)" onchange="disegna()" style="margin-top:6px">
       </div>
       <p class="et" style="margin-top:8px">${p.profilo ? (pb != null ? `Tempi target calcolati sul PB ${pb} s.` : "Manca il PB: scrivilo o scegli un atleta.") : "Scegli il profilo velocità per calcolare i tempi."}</p>
     </div>`;
@@ -111,7 +154,7 @@ function vistaProgrammaPista() {
           <input type="date" value="${m.inizio || ""}" onchange="setPistaMeso('inizio',this.value)" style="margin-top:6px"></div>
       </div>
       <label class="lab" style="display:block;margin-top:10px">Focus mesociclo</label>
-      <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. accelerazione e forza" oninput="setPistaMeso('focus',this.value)" style="margin-top:6px">
+      <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. accelerazione e forza" oninput="setPistaMesoVal('focus',this.value)" onchange="disegna()" style="margin-top:6px">
     </div>`;
 
   // selettore giorno
@@ -119,12 +162,10 @@ function vistaProgrammaPista() {
     `<button class="${i === S.pistaGiorno ? "on" : ""}" onclick="selGiorno(${i})">Giorno ${i + 1}</button>`).join("")}</div>`;
 
   const testaGiorno = `<div class="card">
-      <div class="griglia2">
-        <div><label class="lab">Giorno della settimana</label>
-          <select onchange="setPistaGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"], false)}</select></div>
-        <div><label class="lab">Riscaldamento</label>
-          <select onchange="setPistaGiorno('riscaldamento',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.riscaldamento, routineOpt, false)}</select></div>
-      </div>
+      <label class="lab">Giorno della settimana</label>
+      <select onchange="setPistaGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"], false)}</select>
+      <label class="lab" style="display:block;margin-top:12px">Riscaldamento</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
     </div>`;
 
   // le 4 settimane del giorno
@@ -133,11 +174,11 @@ function vistaProgrammaPista() {
       const t = pistaTempo(r.distanza, r.perc);
       const ms = t && r.distanza ? (Number(r.distanza) / t) : null;
       return `<tr>
-        <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRiga(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
+        <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
         <td><select onchange="setPistaRiga(${s},${i},'distanza',this.value)"><option value="">—</option>${optSel(r.distanza, distOpt, false)}</select></td>
-        <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRiga(${s},${i},'n',this.value)" style="min-width:52px"></td>
-        <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRiga(${s},${i},'rec',this.value)" style="min-width:66px"></td>
-        <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setPistaRiga(${s},${i},'perc',this.value)" style="min-width:52px"></td>
+        <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px"></td>
+        <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
+        <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
         <td class="pauto">${ms != null ? ms.toFixed(2) : "—"}</td>
         <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>

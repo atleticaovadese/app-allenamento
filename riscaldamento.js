@@ -67,7 +67,7 @@ function salvaEsercizio() {
   alert("Esercizio aggiunto alla libreria. ✓");
 }
 
-const RISC_TIPI = ["Attivazione", "Mobilità", "Andature"];
+const RISC_TIPI = ["Attivazione", "Mobilità", "Andature", "Ostacoli"];
 
 // Esercizi disponibili per tipo, presi dalle librerie (come i menù a tendina dell'Excel).
 function eserciziTipo(tipo) {
@@ -80,13 +80,15 @@ function eserciziTipo(tipo) {
             ...cat("Mobility drills"), ...cat("Attivazione e mobilità tronco (TAM)")];
   if (tipo === "Andature")
     return [...cat("Running drills (andature)"), ...cat("Tecnica di partenza")];
+  if (tipo === "Ostacoli")
+    return cat("Ostacoli");
   return [];
 }
 
 function nuovaRoutine() { S.routineEdit = { nome: "", voci: [], orig: null, tipo: "Attivazione" }; disegna(); window.scrollTo(0, 0); }
 function modificaRoutine(i) {
   const n = Object.keys(DEMO.schede)[i];
-  S.routineEdit = { nome: n, voci: [...DEMO.schede[n]], orig: n, tipo: "Attivazione" };
+  S.routineEdit = { nome: n, voci: [...DEMO.schede[n]], orig: n, tipo: (DEMO.schedeTipo && DEMO.schedeTipo[n]) || "Attivazione" };
   disegna(); window.scrollTo(0, 0);
 }
 
@@ -150,14 +152,16 @@ function salvaRoutine() {
   const r = S.routineEdit, nome = (r.nome || "").trim();
   if (!nome) { alert("Dai un nome alla routine."); return; }
   if (!r.voci.length) { alert("Aggiungi almeno un esercizio."); return; }
-  if (r.orig && r.orig !== nome) delete DEMO.schede[r.orig];  // rinominata
+  DEMO.schedeTipo = DEMO.schedeTipo || {};
+  if (r.orig && r.orig !== nome) { delete DEMO.schede[r.orig]; delete DEMO.schedeTipo[r.orig]; }  // rinominata
   DEMO.schede[nome] = [...r.voci];
+  DEMO.schedeTipo[nome] = r.tipo || "Attivazione";   // tipo della routine (per il riscaldamento della pista)
   if (typeof salvaCustom === "function") salvaCustom();
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);
 }
 function eliminaRoutine() {
   const r = S.routineEdit;
-  if (r.orig && confirm("Eliminare questa routine?")) delete DEMO.schede[r.orig];
+  if (r.orig && confirm("Eliminare questa routine?")) { delete DEMO.schede[r.orig]; if (DEMO.schedeTipo) delete DEMO.schedeTipo[r.orig]; }
   else if (r.orig) return;
   if (typeof salvaCustom === "function") salvaCustom();
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);

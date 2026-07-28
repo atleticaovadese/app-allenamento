@@ -86,6 +86,9 @@ const DEMO = {
     "Andature sprint": ["A skip 2×20 m", "B skip 2×20 m", "Dribbling 2×20 m", "3 allunghi progressivi"]
   },
 
+  // Tipo di ogni routine di riscaldamento (per il riscaldamento della pista a 4 tipi)
+  schedeTipo: { "Attivazione sprint": "Attivazione", "Mobilità completa": "Mobilità", "Andature sprint": "Andature" },
+
   // Esercizi aggiunti dall'allenatore (non arrivano dall'Excel). Vengono salvati e inclusi nell'export.
   customEsercizi: [],
 
