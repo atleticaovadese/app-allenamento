@@ -177,6 +177,11 @@ select{padding:11px 12px;border:1px solid var(--line2);border-radius:var(--r);ba
 .piano .pauto{color:var(--verde);font-weight:600}
 .piano .pdata{color:var(--txt3)}
 .piano .pgara{color:var(--blu);font-weight:500}
+.ptab{border-collapse:collapse;font-size:12.5px;min-width:520px;width:100%}
+.ptab th{background:var(--card2);color:var(--txt2);font-weight:600;padding:8px;text-align:left;border-bottom:1px solid var(--line2);white-space:nowrap}
+.ptab td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.4}
+.ptab tr:last-child td{border-bottom:0}
+.ptab td:first-child{font-weight:600;color:var(--txt)}
 
 .segm{display:flex;gap:6px}
 .segm button{flex:1;background:var(--card2);border:1px solid var(--line2);color:var(--txt2);

@@ -357,6 +357,7 @@ function disegna() {
   else if (coach && S.vista === "report") corpo = vistaReport();
   else if (coach && S.vista === "riscaldamento") corpo = vistaRiscaldamento();
   else if (coach && S.vista === "piano") corpo = vistaPiano();
+  else if (coach && S.vista === "periodizzazione") corpo = vistaPeriodizzazione();
   else if (coach && S.vista === "carico") corpo = vistaCarico();
   else if (coach && S.vista === "infortuni") corpo = vistaInfortuni();
   else if (coach && S.vista === "presenze") corpo = vistaPresenzeCoach();
