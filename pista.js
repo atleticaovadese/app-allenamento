@@ -30,9 +30,15 @@ function routineDiTipo(label) {
   return Object.keys(DEMO.schede || {}).filter(n => (st[n] || "") === label);
 }
 function giornoCorrente() { return pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno]; }
+// giorno "corrente" per il riscaldamento: pista o palestra, in base alla schermata aperta
+function riscGiorno() {
+  if (S.vista === "palestra" && typeof palestraInit === "function")
+    return palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno];
+  return giornoCorrente();
+}
 
 function apriRiscPista() {
-  const g = giornoCorrente(), risc = riscInit(g);
+  const g = riscGiorno(), risc = riscInit(g);
   const body = RISC_TIPI_PISTA.map(([k, label]) => {
     const rs = routineDiTipo(label), on = risc[k].on;
     return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
@@ -48,8 +54,8 @@ function apriRiscPista() {
     <p class="et" style="margin-bottom:4px">Spunta i tipi da includere e scegli il protocollo. Puoi combinarli come vuoi.</p>
     ${body}`);
 }
-function toggleRiscTipo(k, on) { riscInit(giornoCorrente())[k].on = on; savePista(); apriRiscPista(); }
-function setRiscTipoProt(k, v) { riscInit(giornoCorrente())[k].prot = v; savePista(); apriRiscPista(); }
+function toggleRiscTipo(k, on) { riscInit(riscGiorno())[k].on = on; if (typeof salvaCustom === "function") salvaCustom(); apriRiscPista(); }
+function setRiscTipoProt(k, v) { riscInit(riscGiorno())[k].prot = v; if (typeof salvaCustom === "function") salvaCustom(); apriRiscPista(); }
 function chiudiRiscPista() { chiudiScheda(); disegna(); }
 function riscRiassunto(g) {
   const risc = riscInit(g);

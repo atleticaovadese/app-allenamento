@@ -70,7 +70,8 @@ function palCopiaSettimana() {
   const src = g.settimane[0];
   for (let s = 1; s < n; s++) {
     const righe = (src.righe || []).map(r => ({ ...r }));
-    if (isScaricoIdx(m, s)) righe.forEach(r => { if (r.serie) r.serie = Math.max(1, Math.round(Number(r.serie) / 2)); });
+    // sullo scarico: porta il %1RM al 60% per gli esercizi con massimale (modificabile a mano dopo)
+    if (isScaricoIdx(m, s)) righe.forEach(r => { if (massimaleDi(r.esercizio) != null) r.perc = "60"; });
     g.settimane[s].righe = righe;
     g.settimane[s].nota = src.nota || "";
   }
@@ -140,11 +141,13 @@ function vistaProgrammaPalestra() {
   const testaGiorno = `<div class="card">
       <label class="lab">Giorno della settimana</label>
       <select onchange="setPalGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"])}</select>
+      <label class="lab" style="display:block;margin-top:12px">Riscaldamento</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
     </div>`;
 
   const listaSett = palSettimaneDelGiorno(m, g);
   const copiaBtn = listaSett.length > 1
-    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="palCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? " (scarico −50% auto)" : ""}</button>`
+    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="palCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? " (scarico → 60% auto)" : ""}</button>`
     : "";
 
   const settimane = listaSett.map((sett, s) => {
@@ -170,10 +173,10 @@ function vistaProgrammaPalestra() {
         <td><button class="chiudi" style="font-size:14px" onclick="palDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
       </tr>`;
     }).join("");
-    return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
+    return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.55);background:rgba(240,168,60,.08)"' : ""}>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
-        ${scar ? '<span class="pill p-giallo">scarico</span>' : ""}
+        ${scar ? '<span class="pill p-giallo">scarico · 60%</span>' : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Rec</th><th>TUT</th><th>VBT tgt</th><th>Peso (kg)</th><th>Vol (kg)</th><th></th></tr></thead>
