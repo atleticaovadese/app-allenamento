@@ -72,7 +72,7 @@ async function caricaDati() {
     const pres = _PRES_DEMO[a.nome] || { mese: [0, 0], stag: [0, 0] };
     const pb = (a.pb || []).slice().sort((x, y) => rankDist(x.distanza) - rankDist(y.distanza))
       .map(p => [p.distanza, p.tempo, fmtDataAnno(p.data), p.stagione, p.obiettivo, p.id]);
-    const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtDataAnno(m.data), m.note || "", m.id]);
+    const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtDataAnno(m.data), m.note || "", m.id, m.data || ""]);
     const salti = (a.test || []).map(t => [t.nome, t.valore, t.unita, fmtDataAnno(t.data), t.id]);
     const scheda = {
       anagrafica: {
@@ -177,7 +177,7 @@ async function creaMassimale(atletaId, d) {
     id = data.id;
   }
   const a = _atl(atletaId);
-  if (a) { a.scheda.massimali.push([d.esercizio, d.kg, fmtDataAnno(d.data), d.note || "", id]); a.massimali.push([d.esercizio, d.kg]); }
+  if (a) { a.scheda.massimali.push([d.esercizio, d.kg, fmtDataAnno(d.data), d.note || "", id, d.data || ""]); a.massimali.push([d.esercizio, d.kg]); }
   return true;
 }
 

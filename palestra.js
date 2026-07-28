@@ -21,8 +21,11 @@ function massimaleDi(esercizio) {
   if (!p.atletaRif || !esercizio) return null;
   const a = DEMO.atleti.find(x => x.id === p.atletaRif);
   if (!a || !a.scheda) return null;
-  const row = (a.scheda.massimali || []).find(m => m[0] === esercizio);
-  return row && row[1] != null ? Number(row[1]) : null;
+  const rows = (a.scheda.massimali || []).filter(m => m[0] === esercizio && m[1] != null);
+  if (!rows.length) return null;
+  // usa il massimale PIÙ RECENTE (data ISO in fondo alla riga): dopo un test i pesi si ricalibrano da soli
+  rows.sort((x, y) => (x[5] || "") < (y[5] || "") ? -1 : (x[5] || "") > (y[5] || "") ? 1 : 0);
+  return Number(rows[rows.length - 1][1]);
 }
 function palPeso(r) {
   const rm = massimaleDi(r.esercizio);
@@ -105,7 +108,7 @@ function vistaProgrammaPalestra() {
       <label class="lab">Atleta di riferimento (per il peso dai massimali)</label>
       <select onchange="setPalTop('atletaRif',this.value)" style="margin-top:6px">
         <option value="">— (peso a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
-      <p class="et" style="margin-top:8px">${p.atletaRif ? "Per gli esercizi con massimale il peso si calcola da solo; per gli accessori lo scrivi a mano." : "Scegli un atleta per calcolare i pesi dai suoi massimali."}</p>
+      <p class="et" style="margin-top:8px">${p.atletaRif ? "Il peso usa l'<b>ultimo</b> massimale: dopo un test (Analisi → Stima 1RM) i pesi dei microcicli si <b>ricalibrano da soli</b>. Per gli accessori senza massimale lo scrivi a mano." : "Scegli un atleta per calcolare i pesi dai suoi massimali."}</p>
     </div>`;
 
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>
