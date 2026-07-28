@@ -25,13 +25,14 @@ function caricaCustom() {
     mergeEserciziCustom(DEMO.customEsercizi);
     if (c.schede) DEMO.schede = c.schede;
     if (c.piano) DEMO.piano = c.piano;
+    if (c.pista) DEMO.pista = c.pista;
   } catch (e) { /* niente da caricare */ }
 }
 
 function salvaCustom() {
   try {
     localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify({
-      esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, piano: DEMO.piano
+      esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, piano: DEMO.piano, pista: DEMO.pista
     }));
   } catch (e) { /* localStorage non disponibile */ }
 }
