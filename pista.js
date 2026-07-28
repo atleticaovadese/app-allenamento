@@ -15,7 +15,7 @@ const PISTA_COEFF = {
 };
 
 function rigaVuota() { return { contenuto: "", distanza: "", n: "", rec: "", perc: "" }; }
-function settVuota() { return { righe: [rigaVuota()] }; }
+function settVuota() { return { righe: [rigaVuota()], nota: "" }; }
 function giornoVuoto() { return { giornoSett: "", risc: {}, settimane: [settVuota(), settVuota(), settVuota(), settVuota()] }; }
 
 // riscaldamento del giorno: 4 tipi (attivazione/mobilità/andature/ostacoli), ognuno on/off + protocollo scelto
@@ -56,7 +56,77 @@ function riscRiassunto(g) {
   const att = RISC_TIPI_PISTA.filter(([k]) => risc[k].on);
   return att.length ? att.map(([k, label]) => `${label}${risc[k].prot ? " (" + risc[k].prot + ")" : ""}`).join(" · ") : "non impostato";
 }
-function mesoVuoto() { return { blocco: "", inizio: "", focus: "", giorni: [giornoVuoto(), giornoVuoto(), giornoVuoto(), giornoVuoto()] }; }
+
+// ---------- collegamento al Piano & Picco ----------
+function cicloDaLen(len) { return ({ 1: "1", 2: "1+1", 3: "2+1", 4: "3+1", 5: "4+1" })[len] || ""; }
+function isoLocale(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function nSettimaneMeso(m) { return (m.ciclo && typeof AD_CICLO !== "undefined" && AD_CICLO[m.ciclo]) ? AD_CICLO[m.ciclo] : 4; }
+function isScaricoIdx(m, s) {
+  if (!m.ciclo) return false;
+  if (m.ciclo === "1") return true;                 // ciclo "1" = tutto scarico
+  return s === nSettimaneMeso(m) - 1;               // ultima settimana del ciclo
+}
+function settimaneDelGiorno(m, g) {
+  const n = nSettimaneMeso(m);
+  while (g.settimane.length < n) g.settimane.push(settVuota());
+  g.settimane.forEach(s => { if (s.nota === undefined) s.nota = ""; });
+  return g.settimane.slice(0, n);
+}
+
+// cicli (mesocicli) ricavati dal foglio Piano & Picco
+function pistaCicliPiano() {
+  const p = DEMO.piano;
+  if (!p || !p.inizio || !p.righe || typeof AD_CICLO === "undefined") return [];
+  const inizio = new Date(p.inizio + "T00:00:00");
+  const res = [];
+  let AD = 4, AE = null, label = "";
+  for (let i = 0; i < p.nSettimane; i++) {
+    const w = p.righe[i] || {};
+    if (w.ciclo) { AD = AD_CICLO[w.ciclo] || 4; AE = 0; label = w.ciclo; }
+    else { AE = (AE === null ? 0 : (AE + 1) % AD); }
+    if (AE === 0) res.push({ startIdx: i, ciclo: label || cicloDaLen(AD), data: new Date(inizio.getTime() + i * 7 * 86400000), blocco: w.blocco || "" });
+  }
+  res.forEach((c, k) => { c.nWeeks = ((k + 1 < res.length) ? res[k + 1].startIdx : p.nSettimane) - c.startIdx; });
+  return res;
+}
+function setPistaMesoDaPiano(idx) {
+  if (idx === "") return;
+  const c = pistaCicliPiano()[Number(idx)];
+  if (!c) return;
+  const m = pistaInit().mesocicli[S.pistaMeso];
+  m.ciclo = c.ciclo;
+  m.inizio = isoLocale(c.data);
+  if (c.blocco && !m.blocco) m.blocco = c.blocco;
+  savePista(); disegna();
+}
+
+// copia la settimana 1 sulle altre; sulla settimana di scarico taglia il volume del 50% (dimezza le ripetute)
+function pistaCopiaSettimana() {
+  const m = pistaInit().mesocicli[S.pistaMeso], g = m.giorni[S.pistaGiorno];
+  const n = nSettimaneMeso(m);
+  while (g.settimane.length < n) g.settimane.push(settVuota());
+  const src = g.settimane[0];
+  for (let s = 1; s < n; s++) {
+    const righe = (src.righe || []).map(r => ({ ...r }));
+    if (isScaricoIdx(m, s)) righe.forEach(r => { if (r.n) r.n = Math.max(1, Math.round(Number(r.n) / 2)); });
+    g.settimane[s].righe = righe;
+    g.settimane[s].nota = src.nota || "";
+  }
+  savePista(); disegna();
+}
+
+// ---------- nota tecnica del giorno (coach -> atleta) ----------
+function apriNotaSeduta(s) {
+  const sett = giornoCorrente().settimane[s];
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Nota tecnica · Settimana ${s + 1}</h3>
+      <button class="chiudi" onclick="chiudiNotaSeduta()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:8px">Spiega all'atleta cosa curare in questa seduta: la vedrà nel suo allenamento.</p>
+    <textarea rows="5" placeholder="Es. cura l'uscita dai blocchi, spinta bassa nei primi 20 m..." oninput="setNotaSeduta(${s},this.value)">${(sett.nota || "").replace(/</g, "&lt;")}</textarea>`);
+}
+function setNotaSeduta(s, v) { giornoCorrente().settimane[s].nota = v; savePista(); }
+function chiudiNotaSeduta() { chiudiScheda(); disegna(); }
+function mesoVuoto() { return { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [giornoVuoto(), giornoVuoto(), giornoVuoto(), giornoVuoto()] }; }
 
 function pistaInit() {
   if (!DEMO.pista || !DEMO.pista.mesocicli) DEMO.pista = { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [mesoVuoto()] };
@@ -146,15 +216,27 @@ function vistaProgrammaPista() {
     `<button class="${i === S.pistaMeso ? "on" : ""}" onclick="selMeso(${i})">Meso ${i + 1}</button>`).join("")}
     <button onclick="pistaAddMeso()">＋</button></div>`;
 
+  const cicli = pistaCicliPiano();
+  const nSett = nSettimaneMeso(m);
   const testaMeso = `<div class="card">
-      <div class="griglia2">
-        <div><label class="lab">Blocco</label>
-          <select onchange="setPistaMeso('blocco',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(m.blocco, (typeof BLOCCHI !== "undefined" ? BLOCCHI : []), false)}</select></div>
+      <label class="lab">Mesociclo dal Piano &amp; Picco</label>
+      <select onchange="setPistaMesoDaPiano(this.value)" style="margin-top:6px">
+        <option value="">— scegli (o imposta a mano) —</option>
+        ${cicli.map((c, i) => `<option value="${i}">Ciclo ${c.ciclo} · ${c.nWeeks} sett · dal ${c.data.getDate()} ${MESI_IT[c.data.getMonth()]}</option>`).join("")}
+      </select>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Ciclo (carico+scarico)</label>
+          <select onchange="setPistaMeso('ciclo',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(m.ciclo, (typeof CICLI !== "undefined" ? CICLI : []), false)}</select></div>
         <div><label class="lab">Inizio Sett. 1</label>
           <input type="date" value="${m.inizio || ""}" onchange="setPistaMeso('inizio',this.value)" style="margin-top:6px"></div>
       </div>
-      <label class="lab" style="display:block;margin-top:10px">Focus mesociclo</label>
-      <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. accelerazione e forza" oninput="setPistaMesoVal('focus',this.value)" onchange="disegna()" style="margin-top:6px">
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Blocco</label>
+          <select onchange="setPistaMeso('blocco',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(m.blocco, (typeof BLOCCHI !== "undefined" ? BLOCCHI : []), false)}</select></div>
+        <div><label class="lab">Focus mesociclo</label>
+          <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. accelerazione" oninput="setPistaMesoVal('focus',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      </div>
+      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico` : "Scegli un ciclo (o prendilo dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
     </div>`;
 
   // selettore giorno
@@ -168,8 +250,14 @@ function vistaProgrammaPista() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
     </div>`;
 
-  // le 4 settimane del giorno
-  const settimane = g.settimane.map((sett, s) => {
+  // le settimane del giorno (numero dal ciclo del mesociclo)
+  const listaSett = settimaneDelGiorno(m, g);
+  const copiaBtn = listaSett.length > 1
+    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? " (scarico −50% auto)" : ""}</button>`
+    : "";
+  const settimane = listaSett.map((sett, s) => {
+    const scar = isScaricoIdx(m, s);
+    const nota = (sett.nota || "").trim();
     const righe = sett.righe.map((r, i) => {
       const t = pistaTempo(r.distanza, r.perc);
       const ms = t && r.distanza ? (Number(r.distanza) / t) : null;
@@ -184,8 +272,11 @@ function vistaProgrammaPista() {
         <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
       </tr>`;
     }).join("");
-    return `<div class="card">
-      <p style="font-weight:600;font-size:13px;margin-bottom:8px">Settimana ${s + 1}</p>
+    return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
+        ${scar ? '<span class="pill p-giallo">scarico</span>' : ""}
+      </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Contenuto</th><th>Distanza</th><th>n°</th><th>Rec</th><th>% vel</th><th>Tempo (s)</th><th>m/s</th><th></th></tr></thead>
         <tbody>${righe}</tbody>
@@ -194,8 +285,9 @@ function vistaProgrammaPista() {
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaAddRiga(${s})">＋ riga</button>
         <span class="et">Volume: <b style="color:var(--verde);font-size:14px">${volumeSett(sett).toLocaleString("it-IT")} m</b></span>
       </div>
+      <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
     </div>`;
   }).join("");
 
-  return testa + tabMeso + testaMeso + tabGiorno + testaGiorno + settimane;
+  return testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
 }
