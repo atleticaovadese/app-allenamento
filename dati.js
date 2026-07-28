@@ -27,6 +27,7 @@ function caricaCustom() {
     if (c.schedeTipo) DEMO.schedeTipo = c.schedeTipo;
     if (c.piano) DEMO.piano = c.piano;
     if (c.pista) DEMO.pista = c.pista;
+    if (c.palestra) DEMO.palestra = c.palestra;
   } catch (e) { /* niente da caricare */ }
 }
 
@@ -34,7 +35,7 @@ function salvaCustom() {
   try {
     localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify({
       esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
-      piano: DEMO.piano, pista: DEMO.pista
+      piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra
     }));
   } catch (e) { /* localStorage non disponibile */ }
 }
