@@ -8,7 +8,7 @@ const SIST_EN = ["O2 power (aerob.)", "Capacita lattacida", "Potenza alattacida"
 const CICLI = ["4+1", "3+1", "2+1", "1+1", "1"];
 const INT_BLOCCO = { "AA (Adatt. Anatomico)": 2, "Mx-S (Forza Max)": 4, "Conv. a Potenza": 4, "Mant. P+MxS": 5, "Competitivo": 5 };
 const AD_CICLO = { "1": 1, "1+1": 2, "2+1": 3, "3+1": 4, "4+1": 5 };
-const OPZ_SETT = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52];
+const OPZ_SETT = Array.from({ length: 52 }, (_, i) => i + 1);  // 1..52
 const WEEK_MS = 7 * 86400000;
 
 function dnum(iso) { if (!iso) return null; const d = new Date(iso + "T00:00:00"); return isNaN(d) ? null : d.getTime(); }
@@ -104,7 +104,7 @@ function vistaPiano() {
         <input type="date" value="${p.inizio || ""}" onchange="setPianoInizio(this.value)" style="margin-top:6px"></div>
       <div><label class="lab">Settimane</label>
         <select onchange="setPianoNsett(+this.value)" style="margin-top:6px">
-          ${OPZ_SETT.map(n => `<option value="${n}" ${p.nSettimane === n ? "selected" : ""}>${n} settimane</option>`).join("")}
+          ${OPZ_SETT.map(n => `<option value="${n}" ${p.nSettimane === n ? "selected" : ""}>${n}</option>`).join("")}
         </select></div>
     </div>
     ${gaA ? `<p class="et" style="margin-top:10px">Prossima gara A: <b>${gaA.data}</b> · tra ${gaA.tra} settimane</p>`
@@ -125,7 +125,7 @@ function vistaPiano() {
 function setPianoInizio(v) { pianoDati().inizio = v; if (typeof savePiano === "function") savePiano(); disegna(); }
 function setPianoNsett(n) {
   const p = pianoDati();
-  p.nSettimane = Math.max(4, Math.min(52, n));
+  p.nSettimane = Math.max(1, Math.min(52, n));
   while (p.righe.length < p.nSettimane) p.righe.push({ fase: "", blocco: "", sist: "", ciclo: "" });
   if (typeof savePiano === "function") savePiano(); disegna();
 }
