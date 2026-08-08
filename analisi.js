@@ -478,3 +478,154 @@ function vistaAndamento() {
           <tbody>${serie.map(v => `<tr><td>${v.label || "—"}</td><td class="pauto">${v.val}</td></tr>`).join("")}</tbody></table>` : ""}
       </div>`}`;
 }
+
+// 6) PROFILO F-V SPRINT (Samozino-Morin 2016) — dai tempi parziali o da MySprint.
+const DIST_SPRINT = [5, 10, 15, 20, 30, 40];
+const MS_LABELS = ["F0/kg (N/kg)", "V0 (m/s)", "Pmax/kg (W/kg)", "RFmax (%)", "Sfv/kg"];
+let sprintState = { atletaRif: "", massa: "", altezza: "", temp: "20", vento: "0", pressione: "760", fonte: "tempi", tempi: ["", "", "", "", "", ""], ms: ["", "", "", "", ""] };
+
+function setSprintAtleta(id) {
+  sprintState.atletaRif = id;
+  const a = DEMO.atleti.find(x => x.id === id);
+  if (a && a.scheda && a.scheda.anagrafica) {
+    if (a.scheda.anagrafica.peso) sprintState.massa = String(a.scheda.anagrafica.peso);
+    if (a.scheda.anagrafica.altezza) sprintState.altezza = String(a.scheda.anagrafica.altezza / 100);
+  }
+  disegna();
+}
+function setSprintVal(campo, val) { sprintState[campo] = val; }
+function setSprintFonte(v) { sprintState.fonte = v; disegna(); }
+function setSprintTempo(i, val) { sprintState.tempi[i] = val; }
+function setSprintMs(i, val) { sprintState.ms[i] = val; }
+
+// adatta Vmax e tau ai tempi parziali (x(t)=Vmax·(t + tau·e^-t/tau − tau))
+function fitSprint(dists, tempi) {
+  let best = null;
+  for (let i = 0; i <= 70; i++) {
+    const tau = Math.round((0.60 + 0.02 * i) * 100) / 100;
+    const G = tempi.map(t => t + tau * Math.exp(-t / tau) - tau);
+    let sxg = 0, sgg = 0;
+    for (let k = 0; k < dists.length; k++) { sxg += dists[k] * G[k]; sgg += G[k] * G[k]; }
+    if (sgg === 0) continue;
+    const Vmax = sxg / sgg;
+    let err = 0;
+    for (let k = 0; k < dists.length; k++) { const d = dists[k] - Vmax * G[k]; err += d * d; }
+    if (!best || err < best.err) best = { tau, Vmax, err };
+  }
+  return best;
+}
+
+function vistaProfiloFVSprint() {
+  const massa = parseFloat(String(sprintState.massa).replace(",", "."));
+  const altezza = parseFloat(String(sprintState.altezza).replace(",", "."));
+  const temp = parseFloat(String(sprintState.temp).replace(",", ".")) || 20;
+  const vento = parseFloat(String(sprintState.vento).replace(",", ".")) || 0;
+  const press = parseFloat(String(sprintState.pressione).replace(",", ".")) || 760;
+  const fonte = sprintState.fonte;
+
+  let F0kg = null, V0 = null, Pkg = null, RFmax = null, Sfvkg = null, DRF = null, Vmax = null, tau = null;
+
+  if (fonte === "mysprint") {
+    const m = sprintState.ms.map(x => parseFloat(String(x).replace(",", ".")));
+    if (!isNaN(m[0])) F0kg = m[0]; if (!isNaN(m[1])) V0 = m[1]; if (!isNaN(m[2])) Pkg = m[2];
+    if (!isNaN(m[3])) RFmax = m[3]; if (!isNaN(m[4])) Sfvkg = m[4];
+  } else if (!isNaN(massa) && massa > 0 && !isNaN(altezza) && altezza > 0) {
+    const coppie = DIST_SPRINT.map((d, i) => ({ d, t: parseFloat(String(sprintState.tempi[i]).replace(",", ".")) }))
+      .filter(p => !isNaN(p.t) && p.t > 0);
+    if (coppie.length >= 2) {
+      const fit = fitSprint(coppie.map(p => p.d), coppie.map(p => p.t));
+      if (fit && fit.Vmax > 0) {
+        Vmax = fit.Vmax; tau = fit.tau;
+        const rho = 1.293 * (press / 760) * (273 / (273 + temp));
+        const af = 0.2025 * Math.pow(altezza, 0.725) * Math.pow(massa, 0.425) * 0.266;
+        const kd = 0.5 * rho * af * 0.9;
+        const samples = [];
+        for (let i = 0; i <= 40; i++) {
+          const v = Vmax * (i / 40);
+          const a = (Vmax - v) / tau;
+          const Fh = massa * a + kd * Math.pow(v - vento, 2);
+          const RF = Fh !== 0 ? Fh / Math.sqrt(Fh * Fh + Math.pow(massa * 9.81, 2)) * 100 : 0;
+          samples.push({ v, Fh, RF });
+        }
+        const reg = regressione(samples.map(s => ({ x: s.v, y: s.Fh })));
+        if (reg && reg.slope < 0) {
+          const F0 = reg.intercept, Sfv = reg.slope;
+          F0kg = F0 / massa; V0 = -F0 / Sfv; Pkg = F0kg * V0 / 4; Sfvkg = Sfv / massa;
+          RFmax = Math.max(...samples.map(s => s.RF));
+          const regDrf = regressione(samples.slice(2).map(s => ({ x: s.v, y: s.RF })));
+          if (regDrf) DRF = regDrf.slope;
+        }
+      }
+    }
+  }
+  const ok = F0kg != null && V0 != null && V0 > 0;
+  let dir = null, extra = "";
+  if (ok) {
+    dir = (F0kg / 8.5 < V0 / 10) ? "Carenza di forza" : "Carenza di velocità";
+    if (RFmax != null && RFmax < 45) extra = " · efficacia tecnica bassa (spinta orizzontale da migliorare)";
+  }
+  const consiglio = dir === "Carenza di forza"
+    ? "Priorità ACCELERAZIONE: traino pesante, forza max/esplosiva, partenze dai blocchi."
+    : dir === "Carenza di velocità"
+      ? "Priorità VELOCITÀ MASSIMA: lanciati, over-speed/assistito, tecnica ad alta velocità."
+      : "";
+
+  const tempiTable = `<div class="p-scroll"><table class="ptab" style="min-width:0">
+      <thead><tr><th>Distanza (m)</th><th>Tempo cumulato (s)</th></tr></thead>
+      <tbody>${DIST_SPRINT.map((d, i) => `<tr><td>${d}</td><td><input inputmode="decimal" value="${sprintState.tempi[i]}" placeholder="s" oninput="setSprintTempo(${i},this.value)" onchange="disegna()" style="min-width:80px"></td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="et" style="margin-top:8px">${Vmax != null ? `Vmax <b style="color:var(--txt)">${Vmax.toFixed(2)} m/s</b> · tau <b style="color:var(--txt)">${tau.toFixed(2)} s</b>` : "Inserisci almeno 2 tempi parziali (di uno sprint massimale da fermo)."}</p>`;
+
+  const msTable = MS_LABELS.map((l, i) => `<div class="griglia2" style="margin-top:${i ? 8 : 0}px;align-items:center">
+      <label class="lab" style="margin:0">${l}</label>
+      <input inputmode="decimal" value="${sprintState.ms[i]}" oninput="setSprintMs(${i},this.value)" onchange="disegna()"></div>`).join("");
+
+  return `
+  <div class="card"><h3>Profilo F-V Sprint</h3>
+    <p class="et" style="margin-top:2px">Da uno sprint massimale (30-40 m): inserisci i tempi parziali (calcolo automatico) oppure gli output di MySprint. È il forza-velocità orizzontale della corsa.</p></div>
+
+  <div class="card">
+    <div class="griglia2">
+      <div><label class="lab">Atleta</label>
+        <select onchange="setSprintAtleta(this.value)" style="margin-top:6px"><option value="">— a mano —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${sprintState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
+      <div><label class="lab">Massa (kg)</label>
+        <input inputmode="decimal" value="${sprintState.massa || ""}" placeholder="74" oninput="setSprintVal('massa',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+    <div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Altezza (m)</label>
+        <input inputmode="decimal" value="${sprintState.altezza || ""}" placeholder="1.81" oninput="setSprintVal('altezza',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      <div><label class="lab">Vento (m/s, + a favore)</label>
+        <input inputmode="decimal" value="${sprintState.vento}" oninput="setSprintVal('vento',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+    <div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Temperatura (°C)</label>
+        <input inputmode="decimal" value="${sprintState.temp}" oninput="setSprintVal('temp',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      <div><label class="lab">Pressione (mmHg)</label>
+        <input inputmode="decimal" value="${sprintState.pressione}" oninput="setSprintVal('pressione',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="segm">
+      <button class="${fonte === "tempi" ? "on" : ""}" onclick="setSprintFonte('tempi')">Tempi parziali</button>
+      <button class="${fonte === "mysprint" ? "on" : ""}" onclick="setSprintFonte('mysprint')">MySprint</button>
+    </div>
+    <div style="margin-top:12px">${fonte === "tempi" ? tempiTable : msTable}</div>
+  </div>
+
+  <div class="card" ${ok ? 'style="border-color:rgba(124,194,67,.4)"' : ""}>
+    <div class="quadri">
+      <div class="q"><div class="k">F0/kg (N/kg)</div><div class="v" style="color:var(--verde)">${ok ? F0kg.toFixed(2) : "—"}</div></div>
+      <div class="q"><div class="k">V0 (m/s)</div><div class="v" style="color:var(--verde)">${ok ? V0.toFixed(2) : "—"}</div></div>
+      <div class="q"><div class="k">Pmax/kg (W/kg)</div><div class="v">${Pkg != null ? Pkg.toFixed(1) : "—"}</div></div>
+      <div class="q"><div class="k">RFmax (%)</div><div class="v">${RFmax != null ? RFmax.toFixed(1) : "—"}</div></div>
+      <div class="q"><div class="k">Sfv/kg</div><div class="v" style="font-size:17px">${Sfvkg != null ? Sfvkg.toFixed(2) : "—"}</div></div>
+      <div class="q"><div class="k">DRF (%/m/s)</div><div class="v" style="font-size:17px">${DRF != null ? DRF.toFixed(2) : "—"}</div></div>
+    </div>
+    ${ok ? `<div style="margin-top:12px;padding:12px;background:var(--blu-bg);border-radius:12px">
+      <div style="font-weight:600;color:var(--blu)">${dir}${extra}</div>
+      <p style="font-size:14px;line-height:1.6;margin-top:6px">${consiglio}</p></div>
+      <p class="et" style="margin-top:10px">Rif. velocisti allenati: F0/kg 7-9 · V0 9-10.5 · Pmax/kg 18-28 · RFmax 45-60%.</p>`
+      : `<p class="et" style="margin-top:8px">Inserisci massa e altezza + almeno 2 tempi parziali, oppure passa a MySprint e incolla i valori.</p>`}
+  </div>`;
+}
