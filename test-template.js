@@ -24,7 +24,40 @@ function apriTestVideo(i) {
   if (typeof apriVideo === "function") apriVideo(nome, url, "", come, "");
 }
 
+let testState = { atletaRif: "" };
+function setTestAtleta(id) { testState.atletaRif = id; disegna(); window.scrollTo(0, 0); }
+
+// progressione dell'atleta in tutto: salti/test, tempi/PB, massimali (riusa andaVoci/andaMetriche/chartSerie di analisi.js)
+function progressioneAtleta(atl) {
+  if (typeof andaVoci !== "function") return "";
+  const cats = [["test", "Salti / test"], ["pb", "Tempi / PB (s)"], ["massimali", "Massimali (kg)"]];
+  let out = "";
+  cats.forEach(([cat, lbl]) => {
+    const metriche = andaMetriche(atl, cat);
+    if (!metriche.length) return;
+    out += `<p class="sez">${lbl}</p>`;
+    metriche.forEach(m => {
+      const serie = andaVoci(atl, cat).filter(v => v.nome === m)
+        .sort((a, b) => (a.iso || "") < (b.iso || "") ? -1 : (a.iso || "") > (b.iso || "") ? 1 : 0);
+      if (!serie.length) return;
+      const ultimo = serie[serie.length - 1];
+      const delta = serie.length > 1 ? (ultimo.val - serie[0].val) : null;
+      const unita = cat === "massimali" ? "kg" : cat === "pb" ? "s" : (serie[0] && serie[0].unita) || "";
+      const meglio = cat === "pb" ? (delta < 0) : (delta > 0);   // sui tempi: meno = meglio
+      out += `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <p style="font-weight:600;font-size:13px;margin:0">${m}</p>
+          <div style="text-align:right"><b style="font-size:16px">${ultimo.val} ${unita}</b>
+            ${delta != null ? `<span class="et" style="margin-left:6px;color:${meglio ? "var(--verde)" : "var(--rosso)"}">${delta > 0 ? "+" : ""}${Math.round(delta * 100) / 100}</span>` : ""}</div>
+        </div>
+        ${chartSerie(serie)}</div>`;
+    });
+  });
+  return out || `<div class="card"><p class="et">Ancora nessun dato registrato per questo atleta. I test compaiono qui man mano che li salvi (scheda / Stima 1RM).</p></div>`;
+}
+
 function vistaTest() {
+  const atl = DEMO.atleti.find(x => x.id === testState.atletaRif);
   const batteria = TEST_BATTERIA.map(([sez, tests]) => `
     <div class="card">
       <p style="font-weight:600;font-size:13px;margin-bottom:8px">${sez}</p>
@@ -44,7 +77,15 @@ function vistaTest() {
 
   return `
   <div class="card"><h3>Test periodici</h3>
-    <p class="et" style="margin-top:2px">Batteria da fare ogni ~8 settimane, da RIPOSATO e nelle stesse condizioni. Registra i risultati nella scheda dell'atleta (poi li vedi in Analisi → Andamento).</p></div>
+    <p class="et" style="margin-top:2px">Batteria da fare ogni ~8 settimane, da RIPOSATO e nelle stesse condizioni. Registra i risultati nella scheda dell'atleta.</p></div>
+
+  <div class="card">
+    <label class="lab">Atleta — vedi la sua progressione</label>
+    <select onchange="setTestAtleta(this.value)" style="margin-top:6px">
+      <option value="">— nessuno (solo la batteria) —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${testState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+  </div>
+
+  ${atl ? `<p class="sez">Progressione di ${atl.nome}</p>${progressioneAtleta(atl)}` : ""}
 
   <p class="sez">Batteria di test</p>
   ${batteria}
