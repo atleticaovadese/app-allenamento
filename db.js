@@ -182,19 +182,22 @@ async function creaAtleta(d) {
 // ---------- scrittura: voci della scheda (PB, massimali, test) ----------
 function _atl(id) { return DEMO.atleti.find(a => a.id === id); }
 
+// "" o NaN → null (le colonne numeriche del DB non accettano stringa vuota)
+function _numOrNull(x) { if (x === "" || x == null) return null; const n = Number(x); return isNaN(n) ? null : n; }
 async function creaPB(atletaId, d) {
   let id = "loc" + Date.now();
   const origine = d.origine || "gara";
+  const tempo = _numOrNull(d.tempo), stagione = _numOrNull(d.stagione), obiettivo = _numOrNull(d.obiettivo);
   if (haDB()) {
-    const { data, error } = await sb.from("pb").insert({ atleta_id: atletaId, distanza: d.distanza, tempo: d.tempo, data: d.data || null, stagione: d.stagione, obiettivo: d.obiettivo, origine }).select("id").single();
+    const { data, error } = await sb.from("pb").insert({ atleta_id: atletaId, distanza: d.distanza, tempo, data: d.data || null, stagione, obiettivo, origine }).select("id").single();
     if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
     id = data.id;
   }
   const a = _atl(atletaId);
   if (a) {
-    a.scheda.pb.push([d.distanza, d.tempo, fmtDataAnno(d.data), d.stagione, d.obiettivo, id, d.data || "", origine]);
+    a.scheda.pb.push([d.distanza, tempo, fmtDataAnno(d.data), stagione, obiettivo, id, d.data || "", origine]);
     a.scheda.pb.sort((x, y) => rankDist(x[0]) - rankDist(y[0]));
-    a.pb.push([d.distanza, d.tempo]);
+    a.pb.push([d.distanza, tempo]);
   }
   return true;
 }
@@ -206,7 +209,7 @@ async function aggiornaPbAllenamento(atletaId, distanza, tempo) {
     const attuale = (a.scheda.pb || []).filter(p => p[0] === distanza && (p[7] || "gara") === "allenamento").map(p => Number(p[1]));
     if (attuale.length && Math.min(...attuale) <= tempo) return false; // non è un nuovo PB
   }
-  return creaPB(atletaId, { distanza, tempo: Math.round(tempo * 100) / 100, data: new Date().toISOString().slice(0, 10), stagione: null, obiettivo: "", origine: "allenamento" });
+  return creaPB(atletaId, { distanza, tempo: Math.round(tempo * 100) / 100, data: new Date().toISOString().slice(0, 10), stagione: null, obiettivo: null, origine: "allenamento" });
 }
 
 async function creaMassimale(atletaId, d) {

@@ -265,7 +265,7 @@ async function salvaRisultatoGara() {
   DEMO.risultatiGara = DEMO.risultatiGara || [];
   DEMO.risultatiGara.unshift({ id: "rg" + Date.now(), atletaId: f.atletaId, data: f.data, gara: (f.gara || "").trim(), distanza: f.distanza, tempo: Math.round(t * 100) / 100, vento: (f.vento || "").trim(), posizione: (f.posizione || "").trim(), note: (f.note || "").trim() });
   if (typeof salvaCustom === "function") salvaCustom();
-  const ok = typeof creaPB === "function" ? await creaPB(f.atletaId, { distanza: f.distanza, tempo: Math.round(t * 100) / 100, data: f.data || null, stagione: null, obiettivo: "", origine: "gara" }) : true;
+  const ok = typeof creaPB === "function" ? await creaPB(f.atletaId, { distanza: f.distanza, tempo: Math.round(t * 100) / 100, data: f.data || null, stagione: null, obiettivo: null, origine: "gara" }) : true;
   if (ok !== false) { S.risultatoGara = null; S.vista = "gare"; disegna(); window.scrollTo(0, 0); }
   else if (btn) { btn.textContent = "Salva il risultato"; btn.disabled = false; }
 }
