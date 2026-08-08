@@ -124,8 +124,8 @@ async function caricaDati() {
   }
 
   // infortuni aperti
-  const { data: inf } = await sb.from("infortunio").select("atleta_id,zona,stato,dal,nota").eq("aperto", true);
-  DEMO.infortuni = (inf || []).map(i => ({ atleta: i.atleta_id, zona: i.zona, stato: i.stato, dal: i.dal, nota: i.nota }));
+  const { data: inf } = await sb.from("infortunio").select("id,atleta_id,zona,lato,tipo,gravita,stato,dal,data_inizio,data_rientro,nota").eq("aperto", true);
+  DEMO.infortuni = (inf || []).map(i => ({ id: i.id, atleta: i.atleta_id, zona: i.zona, lato: i.lato, tipo: i.tipo, gravita: i.gravita, stato: i.stato, dal: i.dal, dataInizio: i.data_inizio || i.dal, dataRientro: i.data_rientro, nota: i.nota }));
 
   // gare (prossima + successive)
   const { data: gare } = await sb.from("gara").select("data,luogo,gara,obiettivo").order("data");
@@ -210,6 +210,37 @@ async function creaTest(atletaId, d) {
   }
   const a = _atl(atletaId);
   if (a) a.scheda.salti.push([d.nome, d.valore, d.unita || "", fmtDataAnno(d.data), id, d.data || ""]);
+  return true;
+}
+
+async function creaInfortunio(atletaId, d) {
+  let id = "loc" + Date.now();
+  if (haDB()) {
+    const { data, error } = await sb.from("infortunio").insert({
+      atleta_id: atletaId, zona: d.zona, lato: d.lato || null, tipo: d.tipo || null, gravita: d.gravita || null,
+      stato: d.stato || "Attivo", dal: d.dataInizio || null, data_inizio: d.dataInizio || null,
+      data_rientro: d.dataRientro || null, nota: d.nota || null, aperto: d.stato !== "Risolto"
+    }).select("id").single();
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+    id = data.id;
+  }
+  DEMO.infortuni = DEMO.infortuni || [];
+  DEMO.infortuni.unshift({ id, atleta: atletaId, zona: d.zona, lato: d.lato, tipo: d.tipo, gravita: d.gravita,
+    stato: d.stato || "Attivo", dal: d.dataInizio, dataInizio: d.dataInizio, dataRientro: d.dataRientro, nota: d.nota });
+  return true;
+}
+async function aggiornaInfortunio(id, patch) {
+  if (haDB() && id && !String(id).startsWith("loc")) {
+    const { error } = await sb.from("infortunio").update(patch).eq("id", id);
+    if (error) { alert("Errore: " + error.message); return false; }
+  }
+  return true;
+}
+async function eliminaInfortunio(id) {
+  if (haDB() && id && !String(id).startsWith("loc")) {
+    const { error } = await sb.from("infortunio").delete().eq("id", id);
+    if (error) { alert("Errore: " + error.message); return false; }
+  }
   return true;
 }
 

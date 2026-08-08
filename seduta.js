@@ -266,6 +266,12 @@ function vistaSeduta() {
       <h3 style="color:#fff">${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
       <p style="font-size:13px;margin-top:6px;opacity:.9">${s.focus}</p>
     </div>
-    ${bloccoObiettivi(s)}${corpo}`;
+    ${bloccoObiettivi(s)}
+    <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>
+    ${corpo}`;
+}
+function segnalaInfortunioSeduta() {
+  const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id) || "";
+  if (typeof apriInfortunio === "function") apriInfortunio(aid, "seduta");
 }
 function tornaIndietro() { fermaTimer(); T.id = null; S.seduta = null; disegna(); }

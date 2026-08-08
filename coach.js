@@ -290,16 +290,104 @@ function vistaCarico() {
 }
 
 // ---------- monitoraggio: infortuni e prevenzione ----------
+const ZONE_INF = ["Ischiocrurali", "Polpaccio", "Adduttori", "Quadricipite", "Flessori anca", "Schiena/lombare", "Ginocchio", "Caviglia", "Tendine Achille", "Piede", "Spalla", "Altro"];
+const TIPO_INF = ["Muscolare", "Tendineo", "Articolare", "Osseo", "Altro"];
+const LATO_INF = ["Dx", "Sx", "Bilaterale"];
+const STATO_INF = ["Attivo", "In recupero", "Risolto"];
+function pillStato(s) { return s === "Risolto" ? "p-verde" : s === "In recupero" ? "p-giallo" : "p-rosso"; }
+function giorniTra(aISO, bISO) { if (!aISO || !bISO) return null; const d = (new Date(bISO) - new Date(aISO)) / 86400000; return isNaN(d) ? null : Math.round(d); }
+function durataInf(inf) {
+  const oggi = new Date().toISOString().slice(0, 10);
+  if (inf.dataRientro) { const g = giorniTra(inf.dataInizio, inf.dataRientro); return g != null ? `${g} gg` : ""; }
+  if (inf.dataInizio) { const g = giorniTra(inf.dataInizio, oggi); return g != null ? `${g} gg (in corso)` : ""; }
+  return "";
+}
+
 function vistaInfortuni() {
-  const righe = (DEMO.infortuni || []).map(inf => `
-    <div class="card" style="border-color:rgba(240,168,60,.45)">
+  const righe = (DEMO.infortuni || []).map(inf => {
+    const meta = [inf.lato, inf.tipo, inf.gravita ? "gravità " + inf.gravita + "/5" : "", durataInf(inf)].filter(Boolean).join(" · ");
+    const dataTxt = inf.dataInizio ? (typeof fmtData === "function" ? fmtData(inf.dataInizio) : inf.dataInizio) : (inf.dal || "");
+    return `<div class="card" style="border-color:rgba(240,168,60,.45)">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <h3>${nomeAtleta(inf.atleta)}</h3><span class="pill p-giallo">${inf.stato}</span></div>
-      <p style="font-weight:500;margin-top:6px">${inf.zona} <span class="et">· dal ${inf.dal}</span></p>
-      <p style="font-size:14px;line-height:1.6;color:var(--txt2);margin-top:6px">${inf.nota}</p></div>`).join("");
+        <h3>${nomeAtleta(inf.atleta)}</h3><span class="pill ${pillStato(inf.stato)}">${inf.stato || "Attivo"}</span></div>
+      <p style="font-weight:500;margin-top:6px">${inf.zona}${inf.lato ? " " + inf.lato : ""} <span class="et">· dal ${dataTxt}</span></p>
+      ${meta ? `<p class="et" style="margin-top:2px">${meta}</p>` : ""}
+      ${inf.nota ? `<p style="font-size:14px;line-height:1.6;color:var(--txt2);margin-top:6px">${inf.nota}</p>` : ""}
+      <div style="display:flex;gap:8px;margin-top:11px">
+        ${inf.stato !== "Risolto" ? `<button class="btn-2" style="flex:1;padding:9px" onclick="risolviInfortunio('${inf.id}')">Segna risolto</button>` : ""}
+        <button class="btn-2" style="flex:1;padding:9px;color:var(--rosso)" onclick="eliminaInfortunioUI('${inf.id}')">Elimina</button>
+      </div></div>`;
+  }).join("");
   return `<div class="card"><h3>Infortuni e prevenzione</h3>
-    <p class="et" style="margin-top:2px">Chi ha fastidi o è da tenere d'occhio</p></div>
+    <p class="et" style="margin-top:2px">Registro infortuni e fastidi: segnala, aggiorna lo stato, tieni la durata.</p></div>
+    <button class="btn" style="margin-bottom:12px" onclick="apriInfortunio('','infortuni')">＋ Segnala infortunio</button>
     ${righe || `<div class="card"><p class="et">Nessun infortunio segnalato. 💪</p></div>`}`;
+}
+
+function apriInfortunio(atletaId, from) {
+  S.infortunio = { atletaId: atletaId || "", from: from || "infortuni", zona: "", lato: "", tipo: "", gravita: "", stato: "Attivo", dataInizio: new Date().toISOString().slice(0, 10), dataRientro: "", nota: "" };
+  disegna(); window.scrollTo(0, 0);
+}
+function chiudiInfortunio() { const f = S.infortunio && S.infortunio.from; S.infortunio = null; if (f && f !== "seduta") S.vista = f; disegna(); window.scrollTo(0, 0); }
+
+function vistaInfortunioForm() {
+  const f = S.infortunio;
+  const sel = (arr, cur, campo) => `<select onchange="S.infortunio.${campo}=this.value" style="margin-top:6px"><option value="">—</option>${arr.map(z => `<option ${String(cur) === String(z) ? "selected" : ""}>${z}</option>`).join("")}</select>`;
+  return `<button class="indietro" onclick="chiudiInfortunio()">‹ Indietro</button>
+    <div class="card"><h3>Segnala infortunio</h3>
+      <p class="et" style="margin-top:2px">Si salva nel registro infortuni dell'atleta.</p></div>
+    <div class="card">
+      <label class="lab">Atleta</label>
+      <select onchange="S.infortunio.atletaId=this.value" style="margin-top:6px">
+        <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${f.atletaId === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Zona</label>${sel(ZONE_INF, f.zona, "zona")}</div>
+        <div><label class="lab">Lato</label>${sel(LATO_INF, f.lato, "lato")}</div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Tipo</label>${sel(TIPO_INF, f.tipo, "tipo")}</div>
+        <div><label class="lab">Gravità (1-5)</label>${sel([1, 2, 3, 4, 5], f.gravita, "gravita")}</div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Data inizio</label>
+          <input type="date" value="${f.dataInizio || ""}" oninput="S.infortunio.dataInizio=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Rientro (prev./eff.)</label>
+          <input type="date" value="${f.dataRientro || ""}" oninput="S.infortunio.dataRientro=this.value" style="margin-top:6px"></div>
+      </div>
+      <label class="lab" style="display:block;margin-top:12px">Stato</label>
+      <select onchange="S.infortunio.stato=this.value" style="margin-top:6px">${STATO_INF.map(z => `<option ${f.stato === z ? "selected" : ""}>${z}</option>`).join("")}</select>
+      <label class="lab" style="display:block;margin-top:12px">Causa / cosa fare</label>
+      <textarea rows="3" oninput="S.infortunio.nota=this.value" placeholder="Come è successo, indicazioni, cosa fare…" style="margin-top:6px;width:100%">${(f.nota || "").replace(/</g, "&lt;")}</textarea>
+    </div>
+    <button class="btn" onclick="salvaInfortunio()">Salva nel registro</button>`;
+}
+
+async function salvaInfortunio() {
+  const f = S.infortunio;
+  if (!f.atletaId) { alert("Scegli l'atleta."); return; }
+  if (!f.zona) { alert("Scegli la zona."); return; }
+  const btn = document.querySelector(".main .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  const ok = await creaInfortunio(f.atletaId, {
+    zona: f.zona, lato: f.lato || null, tipo: f.tipo || null, gravita: f.gravita ? Number(f.gravita) : null,
+    stato: f.stato || "Attivo", dataInizio: f.dataInizio || null, dataRientro: f.dataRientro || null, nota: (f.nota || "").trim() || null
+  });
+  if (ok) { const from = f.from; S.infortunio = null; if (from !== "seduta") S.vista = "infortuni"; disegna(); window.scrollTo(0, 0); }
+  else if (btn) { btn.textContent = "Salva nel registro"; btn.disabled = false; }
+}
+
+async function risolviInfortunio(id) {
+  const inf = (DEMO.infortuni || []).find(x => String(x.id) === String(id));
+  if (!inf) return;
+  const oggi = new Date().toISOString().slice(0, 10);
+  if (typeof aggiornaInfortunio === "function") await aggiornaInfortunio(id, { stato: "Risolto", data_rientro: oggi, aperto: false });
+  inf.stato = "Risolto"; if (!inf.dataRientro) inf.dataRientro = oggi;
+  disegna();
+}
+async function eliminaInfortunioUI(id) {
+  if (!confirm("Eliminare questo infortunio dal registro?")) return;
+  if (typeof eliminaInfortunio === "function") await eliminaInfortunio(id);
+  DEMO.infortuni = (DEMO.infortuni || []).filter(x => String(x.id) !== String(id));
+  disegna();
 }
 
 // ---------- monitoraggio: PREVENZIONE (test asimmetrie dx/sx = Limb Symmetry Index) ----------
@@ -315,6 +403,13 @@ const PREV_ESERCIZI = [
   ["Calf raise eccentrico", "polpaccio / Achille", "eccentric+calf+raise"],
   ["Core anti-rotazione (Pallof press)", "core", "pallof+press"]
 ];
+// cosa fare quando il test è oltre soglia (per lavorare sul lato debole)
+const PREV_NOTE = {
+  ktw: "Mobilità caviglia (knee-to-wall, sblocco tibio-tarsica) e soft tissue polpaccio/soleo sul lato rigido, poi rinforzo caviglia. Ricontrolla.",
+  ake: "Estensibilità + forza eccentrica ischiocrurali sul lato corto (Nordic mirato, hip hinge) e attivazione prima di correre.",
+  hip: "Mobilità anca sul lato limitato (rotazioni interne, 90/90, stretch glutei/piriforme) e controllo del bacino; rivaluta a 4-6 settimane.",
+  hop: "Forza e potenza monopodalica sul lato debole (split squat, step-up, progressione di balzi) finché la simmetria torna sotto il 10%."
+};
 // esempio pre-compilato su Leonardo (at1): 2 ok, 1 attenzione, 1 bandiera
 let prevState = { atletaRif: "at1", val: {
   ktw: { dx: "11", sx: "10" }, ake: { dx: "72", sx: "68" },
@@ -364,6 +459,18 @@ function vistaPrevenzione() {
     </table></div>
     ${stato ? `<p style="margin-top:12px;font-weight:600">${stato}</p>` : ""}
     <p class="et" style="margin-top:6px">Misura KTW e salto in cm, AKE e rotazione anca in gradi. Ricontrolla ogni ~8 settimane e confronta.</p>
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:8px">Cosa fare</p>
+    ${(() => {
+      const daFare = atl ? PREV_TESTS.filter(t => { const a = prevAsym(t.k); return a != null && a >= 10; }) : [];
+      return daFare.length
+        ? daFare.map(t => { const a = prevAsym(t.k); return `<div style="margin-bottom:10px">
+            <b style="font-size:14px;color:${prevColor(a)}">${t.nome} · ${a.toFixed(1)}%</b>
+            <p style="font-size:14px;line-height:1.6;color:var(--txt2);margin-top:2px">${PREV_NOTE[t.k]}</p></div>`; }).join("")
+        : `<p class="et">Nessuna asimmetria oltre il 10%: mantieni la prevenzione di base (Nordic, Copenhagen, calf, core 2×/sett).</p>`;
+    })()}
   </div>
 
   <div class="card">

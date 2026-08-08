@@ -164,9 +164,9 @@ const DEMO = {
 
   // Infortuni e prevenzione (per la vista dell'allenatore)
   infortuni: [
-    { atleta: "at3", zona: "Tendine d'Achille dx", stato: "In recupero", dal: "marzo",
+    { id: "inf1", atleta: "at3", zona: "Tendine Achille", lato: "Dx", tipo: "Tendineo", gravita: 3, stato: "In recupero", dal: "2026-03-05", dataInizio: "2026-03-05", dataRientro: "2026-03-15",
       nota: "Stop di 10 giorni a marzo, rientrata con carichi ridotti. Continuare calf eccentrici e isometrie, niente pliometria intensa fino al via libera." },
-    { atleta: "at2", zona: "Caviglia sx", stato: "Da monitorare", dal: "questa settimana",
+    { id: "inf2", atleta: "at2", zona: "Caviglia", lato: "Sx", tipo: "Articolare", gravita: 2, stato: "Attivo", dal: "2026-08-04", dataInizio: "2026-08-04", dataRientro: "",
       nota: "Asimmetria del 12% all'ultimo test. Mobilità caviglia + propriocezione monopodalica; ricontrollo al prossimo test." }
   ],
 
