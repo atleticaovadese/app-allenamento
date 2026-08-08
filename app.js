@@ -364,6 +364,7 @@ function disegna() {
   else if (coach && S.vista === "stima1rm") corpo = vistaStima1RM();
   else if (coach && S.vista === "traino") corpo = vistaTraino();
   else if (coach && S.vista === "fv") corpo = vistaProfiloFV();
+  else if (coach && S.vista === "andamento") corpo = vistaAndamento();
   else if (coach && S.vista === "carico") corpo = vistaCarico();
   else if (coach && S.vista === "infortuni") corpo = vistaInfortuni();
   else if (coach && S.vista === "presenze") corpo = vistaPresenzeCoach();

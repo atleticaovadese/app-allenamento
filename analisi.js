@@ -401,3 +401,80 @@ function vistaProfiloFV() {
     <p class="et" style="margin-top:8px">Squilibrio vicino a 0% = profilo già ottimale → lavora per alzare il Pmax.</p>
   </div>` : `<div class="card"><p class="et">Inserisci massa, le due altezze dell'anca e almeno 2 salti a carichi diversi.</p></div>`}`;
 }
+
+// 5) ANDAMENTO — evoluzione nel tempo di massimali, tempi/PB e test.
+let andaState = { atletaRif: "", categoria: "massimali", metrica: "" };
+const ANDA_CAT = [["massimali", "Massimali (kg)"], ["pb", "Tempi / PB (s)"], ["test", "Test"]];
+
+// estrae {nome, val, label, iso} dalle righe della scheda in base alla categoria
+function andaVoci(a, cat) {
+  const s = (a && a.scheda) || {};
+  if (cat === "massimali") return (s.massimali || []).map(m => ({ nome: m[0], val: Number(m[1]), label: m[2], iso: m[5] || "" }));
+  if (cat === "pb") return (s.pb || []).map(p => ({ nome: p[0], val: Number(p[1]), label: p[2], iso: p[6] || "" }));
+  return (s.salti || []).map(t => ({ nome: t[0], val: Number(t[1]), label: t[3], iso: t[5] || "", unita: t[2] }));
+}
+function andaMetriche(a, cat) {
+  const set = [];
+  andaVoci(a, cat).forEach(v => { if (v.nome && !set.includes(v.nome)) set.push(v.nome); });
+  return set;
+}
+function setAndaAtleta(id) { andaState.atletaRif = id; andaState.metrica = ""; disegna(); }
+function setAndaCategoria(c) { andaState.categoria = c; andaState.metrica = ""; disegna(); }
+function setAndaMetrica(m) { andaState.metrica = m; disegna(); }
+
+function chartSerie(punti) {
+  const n = punti.length;
+  if (!n) return `<p class="et">Nessun dato per questa voce.</p>`;
+  const vals = punti.map(p => p.val);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if (min === max) { min -= Math.abs(min * 0.05) || 1; max += Math.abs(max * 0.05) || 1; }
+  const W = 340, H = 170, padL = 34, padR = 8, padT = 10, padB = 30;
+  const x = i => padL + (W - padL - padR) * (n <= 1 ? 0.5 : i / (n - 1));
+  const y = v => (H - padB) - (H - padT - padB) * ((v - min) / (max - min));
+  const fmt = v => Math.abs(v) >= 100 ? String(Math.round(v)) : (Math.round(v * 100) / 100).toString();
+  const yl = [min, (min + max) / 2, max].map(v =>
+    `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W - padR}" y2="${y(v).toFixed(1)}" stroke="#2c2c34"/><text x="2" y="${(y(v) + 3).toFixed(1)}" fill="#76756f" font-size="9">${fmt(v)}</text>`).join("");
+  const step = Math.max(1, Math.ceil(n / 6));
+  const xl = punti.map((p, i) => (i % step === 0 || i === n - 1)
+    ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" fill="#76756f" font-size="8" text-anchor="middle">${(p.label || "").split(" ").slice(0, 2).join(" ")}</text>` : "").join("");
+  const line = n > 1 ? `<polyline points="${punti.map((p, i) => `${x(i).toFixed(1)},${y(p.val).toFixed(1)}`).join(" ")}" fill="none" stroke="#4d9aff" stroke-width="2"/>` : "";
+  const dots = punti.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.val).toFixed(1)}" r="3" fill="#4d9aff"/>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${yl}${xl}${line}${dots}</svg>`;
+}
+
+function vistaAndamento() {
+  const atl = DEMO.atleti.find(x => x.id === andaState.atletaRif);
+  const cat = andaState.categoria;
+  const metriche = atl ? andaMetriche(atl, cat) : [];
+  if (atl && !andaState.metrica && metriche.length) andaState.metrica = metriche[0];
+  const serie = atl && andaState.metrica
+    ? andaVoci(atl, cat).filter(v => v.nome === andaState.metrica)
+      .sort((a, b) => (a.iso || "") < (b.iso || "") ? -1 : (a.iso || "") > (b.iso || "") ? 1 : 0)
+    : [];
+  const unita = cat === "massimali" ? "kg" : cat === "pb" ? "s" : (serie[0] && serie[0].unita) || "";
+
+  return `
+  <div class="card"><h3>Andamento</h3>
+    <p class="et" style="margin-top:2px">L'evoluzione nel tempo di massimali, tempi/PB e test dell'atleta. Ogni nuovo test (es. Stima 1RM) aggiunge un punto.</p></div>
+
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setAndaAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${andaState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    ${atl ? `<div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Categoria</label>
+        <select onchange="setAndaCategoria(this.value)" style="margin-top:6px">${ANDA_CAT.map(([k, l]) => `<option value="${k}" ${cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div><label class="lab">Voce</label>
+        <select onchange="setAndaMetrica(this.value)" style="margin-top:6px">${metriche.length ? metriche.map(m => `<option ${andaState.metrica === m ? "selected" : ""}>${m}</option>`).join("") : '<option value="">—</option>'}</select></div>
+    </div>` : ""}
+  </div>
+
+  ${!atl ? `<div class="card"><p class="et">Scegli un atleta per vedere i suoi andamenti.</p></div>`
+    : !metriche.length ? `<div class="card"><p class="et">Nessun dato in «${ANDA_CAT.find(c => c[0] === cat)[1]}» per ${atl.nome}. Aggiungine dalla scheda o dai test.</p></div>`
+    : `<div class="card">
+        <p class="et" style="margin-bottom:6px">${andaState.metrica} (${unita}) · ${atl.nome}${cat === "pb" ? " · più in basso = meglio" : ""}</p>
+        ${chartSerie(serie)}
+        ${serie.length ? `<table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>${unita}</th></tr></thead>
+          <tbody>${serie.map(v => `<tr><td>${v.label || "—"}</td><td class="pauto">${v.val}</td></tr>`).join("")}</tbody></table>` : ""}
+      </div>`}`;
+}
