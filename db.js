@@ -107,6 +107,10 @@ async function caricaDati() {
     const nm = _oldToName[l.atletaId];
     return (nm && _idByNome[nm]) ? { ...l, atletaId: _idByNome[nm] } : l;
   });
+  // dati esempio Drop Jump/RSI: aggancia Leonardo (at1) al vero uuid così è già selezionato al login reale
+  if (typeof djState !== "undefined" && _oldToName[djState.atletaRif] && _idByNome[_oldToName[djState.atletaRif]]) {
+    djState.atletaRif = _idByNome[_oldToName[djState.atletaRif]];
+  }
 
   // se ha fatto login un atleta, aggancio il suo atletaId
   if (prof.ruolo === "atleta") {

@@ -403,9 +403,9 @@ function vistaProfiloFV() {
 }
 
 // 4b) DROP JUMP & RSI — reattività (Morin-Samozino / My Jump / OVR): RSI = altezza salto ÷ tempo di contatto.
-let djState = { atletaRif: "", righe: [
-  { caduta: "20", ct: "", h: "" }, { caduta: "30", ct: "", h: "" }, { caduta: "40", ct: "", h: "" },
-  { caduta: "50", ct: "", h: "" }, { caduta: "60", ct: "", h: "" }, { caduta: "", ct: "", h: "" }
+let djState = { atletaRif: "at1", righe: [
+  { caduta: "20", ct: "0.16", h: "32" }, { caduta: "30", ct: "0.17", h: "36" }, { caduta: "40", ct: "0.18", h: "40" },
+  { caduta: "50", ct: "0.20", h: "41" }, { caduta: "60", ct: "0.23", h: "42" }, { caduta: "", ct: "", h: "" }
 ] };
 function setDjAtleta(id) { djState.atletaRif = id; disegna(); }
 function setDjRigaVal(i, campo, val) { djState.righe[i][campo] = val; }
