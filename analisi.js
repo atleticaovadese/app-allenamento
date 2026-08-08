@@ -147,6 +147,7 @@ function vistaStima1RM() {
   return `
   <div class="card"><h3>Stima 1RM (da velocità)</h3>
     <p class="et" style="margin-top:2px">Inserisci 3-5 serie a carichi crescenti con massima intenzione e la loro velocità media. La retta carico-velocità stima l'1RM alla MVT, senza fare il massimale.</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("stima1rm") : ""}
 
   <div class="card">
     <label class="lab">Atleta <span style="color:var(--txt3)">(per salvare la stima e la cronologia)</span></label>
@@ -246,6 +247,7 @@ function vistaTraino() {
   return `
   <div class="card"><h3>Traino / Sled</h3>
     <p class="et" style="margin-top:2px">Metodo Morin-Samozino. Cronometra alcuni sprint sulla stessa distanza: uno senza traino (0 kg) e 1-2 con traino, a massima spinta. Da distanza e tempi il foglio stima V0 e la pendenza e calcola il carico per ogni zona.</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("traino") : ""}
 
   <div class="card">
     <div class="griglia2">
@@ -276,7 +278,8 @@ function vistaTraino() {
     ${okZone
       ? `<p class="et" style="margin-top:10px;margin-bottom:6px">Carichi per zona (dal calo di Vmax)</p>
          <div class="p-scroll"><table class="ptab pista-w"><thead><tr><th>Calo</th><th>Vmax<br>target</th><th>Tempo<br>target</th><th>Carico<br>(kg)</th><th>%BM</th><th>Zona</th><th>Scopo</th></tr></thead><tbody>${righeZone}</tbody></table></div>
-         <p class="et" style="margin-top:8px">La potenza orizzontale max è tipicamente intorno al 50% di calo di Vmax. R² vicino a 1 = stima affidabile.</p>`
+         <p class="et" style="margin-top:8px">La potenza orizzontale max è tipicamente intorno al 50% di calo di Vmax. R² vicino a 1 = stima affidabile.</p>
+         ${trainoState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaTraino()">💾 Salva il test (V0) nella scheda</button>` : `<p class="et" style="margin-top:8px">Scegli un atleta in alto per salvare il test.</p>`}`
       : `<p class="et" style="margin-top:8px">Servono almeno il tempo senza traino (0 kg) + 1-2 carichi, la distanza e (per il %BM) il peso.</p>`}
   </div>`;
 }
@@ -354,6 +357,7 @@ function vistaProfiloFV() {
   return `
   <div class="card"><h3>Profilo Forza-Velocità (salti)</h3>
     <p class="et" style="margin-top:2px">Da squat jump a carichi crescenti stima F0 (forza), V0 (velocità), Pmax e lo squilibrio F-V, e ti dice cosa allenare. Stessa formula dell'app My Jump. Usa lo SQUAT JUMP, non il CMJ.</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("fv") : ""}
 
   <div class="card">
     <div class="griglia2">
@@ -399,6 +403,7 @@ function vistaProfiloFV() {
     </div>
     <p style="font-size:14px;line-height:1.6;margin-top:10px;color:var(--txt)">${consiglio}</p>
     <p class="et" style="margin-top:8px">Squilibrio vicino a 0% = profilo già ottimale → lavora per alzare il Pmax.</p>
+    ${fvState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaFV()">💾 Salva Pmax/kg nella scheda</button>` : `<p class="et" style="margin-top:8px">Scegli un atleta in alto per salvare il test.</p>`}
   </div>` : `<div class="card"><p class="et">Inserisci massa, le due altezze dell'anca e almeno 2 salti a carichi diversi.</p></div>`}`;
 }
 
@@ -463,6 +468,7 @@ function vistaDropJump() {
   return `
   <div class="card"><h3>Drop Jump & RSI</h3>
     <p class="et" style="margin-top:2px">Reattività (Morin-Samozino · My Jump · OVR): da varie altezze di caduta misuri tempo di contatto e altezza del salto. Il foglio calcola l'<b>RSI = altezza salto ÷ tempo di contatto</b> e trova l'<b>altezza di caduta ottimale</b> (RSI più alto ★).</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("dropjump") : ""}
 
   <div class="card">
     <label class="lab">Atleta</label>
@@ -754,6 +760,7 @@ function vistaProfiloFVSprint() {
   return `
   <div class="card"><h3>Profilo F-V Sprint</h3>
     <p class="et" style="margin-top:2px">Da uno sprint massimale (30-40 m): inserisci i tempi parziali (calcolo automatico) oppure gli output di MySprint. È il forza-velocità orizzontale della corsa.</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("fv-sprint") : ""}
 
   <div class="card">
     <div class="griglia2">
@@ -897,4 +904,122 @@ function vistaMonitoraggioVBT() {
           }).join("")}</tbody>
         </table>
       </div>`}`;
+}
+
+// 7) CMJ e SJ (salti verticali) — My Jump; salva in scheda + indice elastico CMJ−SJ
+let cmjState = { atletaRif: "", cmj: "", sj: "" };
+function setCmjAtleta(id) { cmjState.atletaRif = id; disegna(); }
+function setCmjVal(k, v) { cmjState[k] = v; }
+async function salvaCMJ() {
+  const a = DEMO.atleti.find(x => x.id === cmjState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const cmj = parseFloat(String(cmjState.cmj).replace(",", ".")), sj = parseFloat(String(cmjState.sj).replace(",", "."));
+  if (!(cmj > 0) && !(sj > 0)) { alert("Inserisci almeno CMJ o SJ."); return; }
+  const oggi = new Date().toISOString().slice(0, 10); let n = 0;
+  if (cmj > 0 && typeof creaTest === "function") { await creaTest(a.id, { nome: "CMJ", valore: Math.round(cmj * 10) / 10, unita: "cm", data: oggi }); n++; }
+  if (sj > 0 && typeof creaTest === "function") { await creaTest(a.id, { nome: "SJ", valore: Math.round(sj * 10) / 10, unita: "cm", data: oggi }); n++; }
+  alert(`Salvati ${n} salti nella scheda di ${a.nome}.`); disegna();
+}
+function vistaCMJ() {
+  const cmj = parseFloat(String(cmjState.cmj).replace(",", ".")), sj = parseFloat(String(cmjState.sj).replace(",", "."));
+  const idx = (!isNaN(cmj) && !isNaN(sj) && sj > 0) ? cmj - sj : null;
+  const atl = DEMO.atleti.find(x => x.id === cmjState.atletaRif);
+  return `
+  <div class="card"><h3>CMJ e SJ (salti verticali)</h3>
+    <p class="et" style="margin-top:2px">Countermovement jump e squat jump (My Jump). La differenza CMJ−SJ dice quanto sfrutti l'elastico (contromovimento).</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("cmj") : ""}
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setCmjAtleta(this.value)" style="margin-top:6px">
+      <option value="">— a mano —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${cmjState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    <div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">CMJ (cm)</label><input inputmode="decimal" value="${cmjState.cmj}" placeholder="es. 38" oninput="setCmjVal('cmj',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      <div><label class="lab">SJ (cm)</label><input inputmode="decimal" value="${cmjState.sj}" placeholder="es. 35" oninput="setCmjVal('sj',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+  </div>
+  <div class="card" ${idx != null ? 'style="border-color:rgba(124,194,67,.4)"' : ""}>
+    <div class="quadri">
+      <div class="q"><div class="k">CMJ</div><div class="v">${!isNaN(cmj) ? cmj + " cm" : "—"}</div></div>
+      <div class="q"><div class="k">SJ</div><div class="v">${!isNaN(sj) ? sj + " cm" : "—"}</div></div>
+      <div class="q"><div class="k">CMJ−SJ</div><div class="v" style="color:var(--verde)">${idx != null ? (Math.round(idx * 10) / 10) + " cm" : "—"}</div></div>
+    </div>
+    <p class="et" style="margin-top:8px">CMJ−SJ alto = buon uso del ciclo allungamento-accorciamento. Vicino a 0 o negativo → lavora la componente elastica/reattiva.</p>
+    ${atl ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaCMJ()">Salva nella scheda di ${atl.nome}</button>` : `<p class="et" style="margin-top:10px">Scegli un atleta per salvare (compare nella progressione test).</p>`}
+  </div>`;
+}
+
+// 8) SPRINT — tempi: salva come PB (distanza + tempo) → progressione tempi
+const DIST_SPRINT_TEST = ["20 m", "30 m", "30 m lanciato", "60 m", "100 m", "150 m"];
+let sprTState = { atletaRif: "", dist: "30 m", tempo: "" };
+function setSprTAtleta(id) { sprTState.atletaRif = id; disegna(); }
+function setSprTDist(d) { sprTState.dist = d; disegna(); }
+function setSprTTempo(v) { sprTState.tempo = v; }
+async function salvaSprintTest() {
+  const a = DEMO.atleti.find(x => x.id === sprTState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const t = parseFloat(String(sprTState.tempo).replace(",", "."));
+  if (!(t > 0)) { alert("Inserisci un tempo valido."); return; }
+  const oggi = new Date().toISOString().slice(0, 10);
+  const ok = typeof creaPB === "function" ? await creaPB(a.id, { distanza: sprTState.dist, tempo: Math.round(t * 100) / 100, data: oggi, stagione: null, obiettivo: "" }) : false;
+  if (ok) { alert(`Salvato: ${sprTState.dist} ${t.toFixed(2)} s nella scheda di ${a.nome}.`); sprTState.tempo = ""; disegna(); }
+}
+function vistaSprintTest() {
+  const atl = DEMO.atleti.find(x => x.id === sprTState.atletaRif);
+  const storia = atl && atl.scheda ? (atl.scheda.pb || []).filter(p => p[0] === sprTState.dist) : [];
+  return `
+  <div class="card"><h3>Sprint — tempi</h3>
+    <p class="et" style="margin-top:2px">Registra i tempi (20 m, 30 m, 30 m lanciato…). Si salvano come PB e li vedi nella progressione.</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("sprint-test") : ""}
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setSprTAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${sprTState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    <div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Distanza</label>
+        <select onchange="setSprTDist(this.value)" style="margin-top:6px">${DIST_SPRINT_TEST.map(d => `<option ${sprTState.dist === d ? "selected" : ""}>${d}</option>`).join("")}</select></div>
+      <div><label class="lab">Tempo (s)</label>
+        <input inputmode="decimal" value="${sprTState.tempo}" placeholder="es. 3.85" oninput="setSprTTempo(this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+    ${atl ? `<button class="btn" style="margin-top:14px" onclick="salvaSprintTest()">Salva il tempo</button>` : `<p class="et" style="margin-top:10px">Scegli un atleta per salvare.</p>`}
+  </div>
+  ${atl ? `<div class="card"><p class="et" style="margin-bottom:6px">Storico ${sprTState.dist} · ${atl.nome}</p>
+    ${storia.length ? `<table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Tempo (s)</th></tr></thead><tbody>${storia.map(p => `<tr><td>${p[2] || "—"}</td><td class="pauto">${p[1]}</td></tr>`).join("")}</tbody></table>` : `<p class="et">Ancora nessun tempo per ${sprTState.dist}.</p>`}</div>` : ""}`;
+}
+
+// salvataggio Profilo F-V salti (headline Pmax/kg) e Traino (V0) → scheda/progressione
+async function salvaFV() {
+  const a = DEMO.atleti.find(x => x.id === fvState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const massa = parseFloat(String(fvState.massa).replace(",", "."));
+  const hPO = ((parseFloat(String(fvState.hFine).replace(",", ".")) || NaN) - (parseFloat(String(fvState.hPart).replace(",", ".")) || NaN)) / 100;
+  if (!(massa > 0) || !(hPO > 0)) { alert("Servono massa e le due altezze dell'anca."); return; }
+  const regP = fvState.righe.map(r => {
+    const c = parseFloat(String(r.c).replace(",", ".")) || 0, h = parseFloat(String(r.h).replace(",", "."));
+    if (isNaN(h) || h <= 0) return null;
+    const E = massa + c;
+    return { x: Math.sqrt(9.81 * (h / 100) / 2), y: E * 9.81 * (1 + (h / 100) / hPO) };
+  }).filter(Boolean);
+  const reg = regP.length >= 2 ? regressione(regP) : null;
+  if (!reg || reg.slope >= 0) { alert("Servono almeno 2 salti a carichi diversi."); return; }
+  const F0 = reg.intercept, V0 = -F0 / reg.slope, Pkg = (F0 * V0 / 4) / massa;
+  const oggi = new Date().toISOString().slice(0, 10);
+  const note = `F0 ${Math.round(F0)}N · V0 ${V0.toFixed(2)} · R² ${reg.r2 != null ? reg.r2.toFixed(2) : "—"}`;
+  const ok = typeof creaTest === "function" ? await creaTest(a.id, { nome: "Pmax/kg (salti)", valore: Math.round(Pkg * 10) / 10, unita: "W/kg", data: oggi, note }) : false;
+  if (ok) { alert(`Salvato: Pmax/kg ${Pkg.toFixed(1)} W/kg nella scheda di ${a.nome}.`); disegna(); }
+}
+async function salvaTraino() {
+  const a = DEMO.atleti.find(x => x.id === trainoState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const dist = parseFloat(String(trainoState.dist).replace(",", "."));
+  const regP = trainoState.righe.map(r => {
+    const c = parseFloat(String(r.c).replace(",", ".")), t = parseFloat(String(r.t).replace(",", "."));
+    return (!isNaN(c) && dist > 0 && t > 0) ? { x: c, y: dist / t } : null;
+  }).filter(Boolean);
+  const reg = regP.length >= 2 ? regressione(regP) : null;
+  if (!reg || reg.slope >= 0 || !(reg.intercept > 0)) { alert("Servono il tempo a 0 kg + 1-2 carichi e la distanza."); return; }
+  const V0 = reg.intercept, carico50 = -V0 * 0.5 / reg.slope;
+  const oggi = new Date().toISOString().slice(0, 10);
+  const note = `carico ~50% calo: ${Math.round(carico50)} kg · R² ${reg.r2 != null ? reg.r2.toFixed(2) : "—"}`;
+  const ok = typeof creaTest === "function" ? await creaTest(a.id, { nome: "V0 sprint (traino)", valore: Math.round(V0 * 100) / 100, unita: "m/s", data: oggi, note }) : false;
+  if (ok) { alert(`Salvato: V0 ${V0.toFixed(2)} m/s (traino) nella scheda di ${a.nome}.`); disegna(); }
 }

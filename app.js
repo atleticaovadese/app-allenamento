@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, nuovoTest: false, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -38,7 +38,7 @@ const DA_EXCEL = {
   squadra: "Cruscotto", atleti: "Atleta", io: "Atleta",
   pista: "Pista", palestra: "Palestra", riscaldamento: "Riscaldamento",
   template: "Template microcicli", piano: "Piano & Picco", periodizzazione: "Periodizzazione",
-  test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", stima1rm: "Stima 1RM",
+  test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "Test (CMJ/SJ)", "sprint-test": "Test (sprint)", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
   "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", carico: "Carico & Forma",
   infortuni: "Infortuni & Prevenzione", prevenzione: "Infortuni & Prevenzione (asimmetrie)", presenze: "Presenze", "diario-c": "Diario",
@@ -54,12 +54,13 @@ const LIB = {
   "lib-plio": ["pliometria", "Pliometria"]
 };
 
+const TITOLI_EXTRA = { cmj: "CMJ e SJ", "sprint-test": "Sprint — tempi" };
 function titoloVista(v, menu) {
   for (const m of menu) {
     if (m.k === v) return m.l;
     if (m.subs) { const s = m.subs.find(x => x[0] === v); if (s) return s[1]; }
   }
-  return "In arrivo";
+  return TITOLI_EXTRA[v] || "In arrivo";
 }
 
 // ---------- accesso ----------
@@ -110,7 +111,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.nuovoTest = false; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -369,6 +370,8 @@ function disegna() {
   else if (coach && S.vista === "andamento-palestra") corpo = vistaAndamentoPalestra();
   else if (coach && S.vista === "fv-sprint") corpo = vistaProfiloFVSprint();
   else if (coach && S.vista === "dropjump") corpo = vistaDropJump();
+  else if (coach && S.vista === "cmj") corpo = vistaCMJ();
+  else if (coach && S.vista === "sprint-test") corpo = vistaSprintTest();
   else if (coach && S.vista === "vbt") corpo = vistaMonitoraggioVBT();
   else if (coach && S.vista === "test") corpo = vistaTest();
   else if (coach && S.vista === "template") corpo = vistaTemplate();

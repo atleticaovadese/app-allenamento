@@ -462,6 +462,11 @@ function vistaPrevenzione() {
   </div>
 
   <div class="card">
+    <p class="et" style="margin-bottom:8px">Come si eseguono i test (video)</p>
+    ${typeof TEST_COME !== "undefined" ? [0, 1, 2, 5].map(i => { const t = TEST_COME[i]; if (!t) return ""; return `<div class="lib-row" onclick="apriTestVideo(${i})"><div style="flex:1;min-width:0"><div style="font-weight:500">${t[0]}</div><div class="et" style="margin-top:2px;white-space:normal;line-height:1.4">${t[1].length > 80 ? t[1].slice(0, 80) + "…" : t[1]}</div></div><span class="vid-ic">▶</span><span class="freccia">›</span></div>`; }).join("") : ""}
+  </div>
+
+  <div class="card">
     <p class="et" style="margin-bottom:8px">Cosa fare</p>
     ${(() => {
       const daFare = atl ? PREV_TESTS.filter(t => { const a = prevAsym(t.k); return a != null && a >= 10; }) : [];
