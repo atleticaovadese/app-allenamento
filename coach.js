@@ -302,6 +302,89 @@ function vistaInfortuni() {
     ${righe || `<div class="card"><p class="et">Nessun infortunio segnalato. 💪</p></div>`}`;
 }
 
+// ---------- monitoraggio: PREVENZIONE (test asimmetrie dx/sx = Limb Symmetry Index) ----------
+const PREV_TESTS = [
+  { k: "ktw", nome: "Caviglia KTW (dorsiflessione)", unita: "cm" },
+  { k: "ake", nome: "Hamstring AKE", unita: "°" },
+  { k: "hip", nome: "Rotazione interna anca", unita: "°" },
+  { k: "hop", nome: "Salto monopodalico", unita: "cm" }
+];
+const PREV_ESERCIZI = [
+  ["Nordic hamstring", "ischiocrurali · −~50% infortuni", "nordic+hamstring+curl"],
+  ["Copenhagen adduction", "adduttori / inguine", "copenhagen+adduction+exercise"],
+  ["Calf raise eccentrico", "polpaccio / Achille", "eccentric+calf+raise"],
+  ["Core anti-rotazione (Pallof press)", "core", "pallof+press"]
+];
+// esempio pre-compilato su Leonardo (at1): 2 ok, 1 attenzione, 1 bandiera
+let prevState = { atletaRif: "at1", val: {
+  ktw: { dx: "11", sx: "10" }, ake: { dx: "72", sx: "68" },
+  hip: { dx: "38", sx: "30" }, hop: { dx: "185", sx: "165" }
+} };
+function setPrevAtleta(id) { prevState.atletaRif = id; disegna(); }
+function setPrevVal(k, lato, v) { prevState.val[k][lato] = v; }
+function prevAsym(k) {
+  const d = parseFloat(String(prevState.val[k].dx).replace(",", "."));
+  const s = parseFloat(String(prevState.val[k].sx).replace(",", "."));
+  if (isNaN(d) || isNaN(s) || d <= 0 || s <= 0) return null;
+  return Math.abs(d - s) / Math.max(d, s) * 100;
+}
+function prevColor(a) { return a == null ? "var(--txt3)" : a > 15 ? "var(--rosso)" : a >= 10 ? "var(--giallo)" : "var(--verde)"; }
+function prevFlag(a) { return a == null ? "—" : a > 15 ? "🔴 asimmetria" : a >= 10 ? "🟡 attenzione" : "🟢 ok"; }
+
+function vistaPrevenzione() {
+  const atl = DEMO.atleti.find(x => x.id === prevState.atletaRif);
+  const righe = PREV_TESTS.map(t => {
+    const a = atl ? prevAsym(t.k) : null;
+    return `<tr>
+      <td style="text-align:left">${t.nome}<br><span class="et">${t.unita}</span></td>
+      <td><input inputmode="decimal" value="${prevState.val[t.k].dx}" placeholder="dx" oninput="setPrevVal('${t.k}','dx',this.value)" onchange="disegna()" style="min-width:50px"></td>
+      <td><input inputmode="decimal" value="${prevState.val[t.k].sx}" placeholder="sx" oninput="setPrevVal('${t.k}','sx',this.value)" onchange="disegna()" style="min-width:50px"></td>
+      <td class="pauto" style="color:${prevColor(a)};font-weight:600">${a != null ? a.toFixed(1) + "%" : "—"}</td>
+      <td style="color:${prevColor(a)};white-space:nowrap">${prevFlag(a)}</td>
+    </tr>`;
+  }).join("");
+  const flags = atl ? PREV_TESTS.map(t => prevAsym(t.k)).filter(a => a != null) : [];
+  const nRosse = flags.filter(a => a > 15).length, nGialle = flags.filter(a => a >= 10 && a <= 15).length;
+  const stato = !flags.length ? "" : nRosse ? `🔴 ${nRosse} asimmetria da correggere` : nGialle ? `🟡 ${nGialle} da tenere d'occhio` : "🟢 simmetria nella norma";
+
+  return `
+  <div class="card"><h3>Prevenzione — test asimmetrie</h3>
+    <p class="et" style="margin-top:2px">Confronto destra/sinistra (Limb Symmetry Index). Per ogni test inserisci dx e sx: la % di asimmetria si calcola da sola. Rif.: &gt;15% 🔴 bandiera · 10–15% 🟡 attenzione · &lt;10% 🟢 ok.</p></div>
+
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setPrevAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${prevState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+  </div>
+
+  <div class="card">
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th style="text-align:left">Test</th><th>Dx</th><th>Sx</th><th>Asimm.</th><th>Esito</th></tr></thead>
+      <tbody>${righe}</tbody>
+    </table></div>
+    ${stato ? `<p style="margin-top:12px;font-weight:600">${stato}</p>` : ""}
+    <p class="et" style="margin-top:6px">Misura KTW e salto in cm, AKE e rotazione anca in gradi. Ricontrolla ogni ~8 settimane e confronta.</p>
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:8px">Rientro graduale &amp; prehab</p>
+    <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.65;color:var(--txt2)">
+      <li>Rientro solo a <b>dolore assente</b>, forza ~90% del lato sano e gesto tecnico pulito. Carico in progressione, non di colpo.</li>
+      <li>Dopo uno stop riparti con volume/intensità bassi (lo Scarico nel Piano &amp; Picco aiuta) e ricontrolla le asimmetrie.</li>
+      <li>Prevenzione di base <b>2×/sett</b> nelle zone a rischio del velocista: ischiocrurali, adduttori, polpaccio, core.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:10px">Esercizi di prevenzione</p>
+    ${PREV_ESERCIZI.map(([n, d, q]) => `<div class="lib-row">
+      <div style="flex:1"><b style="font-size:14px">${n}</b><div class="et" style="margin:2px 0 0">${d}</div></div>
+      <a class="vid-ic" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">cerca ▶</a>
+    </div>`).join("")}
+    <p class="et" style="margin-top:10px">Rif.: ACWR (Gabbett) 0.8–1.3 · asimmetria &gt;10–15% = bandiera (Limb Symmetry Index) · Nordic hamstring (meta-analisi van Dyk / Al Attar).</p>
+  </div>`;
+}
+
 // ---------- monitoraggio: presenze squadra ----------
 function vistaPresenzeCoach() {
   const righe = ordinaAtleti().map(a => {

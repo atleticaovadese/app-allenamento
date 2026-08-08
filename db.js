@@ -111,6 +111,10 @@ async function caricaDati() {
   if (typeof djState !== "undefined" && _oldToName[djState.atletaRif] && _idByNome[_oldToName[djState.atletaRif]]) {
     djState.atletaRif = _idByNome[_oldToName[djState.atletaRif]];
   }
+  // idem per i test di prevenzione (asimmetrie)
+  if (typeof prevState !== "undefined" && _oldToName[prevState.atletaRif] && _idByNome[_oldToName[prevState.atletaRif]]) {
+    prevState.atletaRif = _idByNome[_oldToName[prevState.atletaRif]];
+  }
 
   // se ha fatto login un atleta, aggancio il suo atletaId
   if (prof.ruolo === "atleta") {

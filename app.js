@@ -25,7 +25,7 @@ const MENU_COACH = [
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
-    ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
+    ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
   { k: "gare", ic: "★", l: "Gare" },
   { k: "report", ic: "✉", l: "Report settimanale" },
@@ -41,7 +41,7 @@ const DA_EXCEL = {
   test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
   "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", carico: "Carico & Forma",
-  infortuni: "Infortuni & Prevenzione", presenze: "Presenze", "diario-c": "Diario",
+  infortuni: "Infortuni & Prevenzione", prevenzione: "Infortuni & Prevenzione (asimmetrie)", presenze: "Presenze", "diario-c": "Diario",
   "lib-sala": "Libreria Sala", "lib-mobilita": "Libreria Mobilita", "lib-video": "Libreria Video",
   "lib-plio": "Pliometria", gare: "Calendario gare", calendario: "Pista (mesocicli)", diario: "Diario",
   aiuto: "Legenda + Start", report: "(nuovo: non c'è in Excel)"
@@ -373,6 +373,7 @@ function disegna() {
   else if (coach && S.vista === "template") corpo = vistaTemplate();
   else if (coach && S.vista === "carico") corpo = vistaCarico();
   else if (coach && S.vista === "infortuni") corpo = vistaInfortuni();
+  else if (coach && S.vista === "prevenzione") corpo = vistaPrevenzione();
   else if (coach && S.vista === "presenze") corpo = vistaPresenzeCoach();
   else if (coach && S.vista === "diario-c") corpo = vistaDiarioCoach();
   else if (coach && S.vista === "dati") corpo = vistaImportExport();
