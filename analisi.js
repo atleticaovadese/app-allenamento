@@ -402,6 +402,96 @@ function vistaProfiloFV() {
   </div>` : `<div class="card"><p class="et">Inserisci massa, le due altezze dell'anca e almeno 2 salti a carichi diversi.</p></div>`}`;
 }
 
+// 4b) DROP JUMP & RSI — reattività (Morin-Samozino / My Jump / OVR): RSI = altezza salto ÷ tempo di contatto.
+let djState = { atletaRif: "", righe: [
+  { caduta: "20", ct: "", h: "" }, { caduta: "30", ct: "", h: "" }, { caduta: "40", ct: "", h: "" },
+  { caduta: "50", ct: "", h: "" }, { caduta: "60", ct: "", h: "" }, { caduta: "", ct: "", h: "" }
+] };
+function setDjAtleta(id) { djState.atletaRif = id; disegna(); }
+function setDjRigaVal(i, campo, val) { djState.righe[i][campo] = val; }
+function colRSI(r) { return r == null ? "var(--txt3)" : r < 1.5 ? "var(--rosso)" : r < 2.0 ? "var(--giallo)" : "var(--verde)"; }
+
+// calcola per ogni riga: tempo di volo (dal salto), RSI = altezza/contatto, RSI volo/contatto
+function djCalcola() {
+  return djState.righe.map(r => {
+    const H = parseFloat(String(r.caduta).replace(",", "."));
+    const ct = parseFloat(String(r.ct).replace(",", "."));
+    const h = parseFloat(String(r.h).replace(",", "."));
+    const Hv = isNaN(H) ? null : H;
+    if (isNaN(ct) || ct <= 0 || isNaN(h) || h <= 0) return { H: Hv, ct: null, h: null, ft: null, rsi: null, rsift: null };
+    const JHm = h / 100, ft = Math.sqrt(8 * JHm / 9.81);
+    return { H: Hv, ct, h, ft, rsi: JHm / ct, rsift: ft / ct };
+  });
+}
+// prova con RSI più alto = altezza di caduta ottimale
+function djBest() {
+  const p = djCalcola().filter(x => x.rsi != null);
+  if (!p.length) return null;
+  let b = p[0]; p.forEach(x => { if (x.rsi > b.rsi) b = x; });
+  return b;
+}
+async function salvaRSI() {
+  const a = DEMO.atleti.find(x => x.id === djState.atletaRif);
+  if (!a) { alert("Scegli prima un atleta."); return; }
+  const best = djBest();
+  if (!best) { alert("Inserisci almeno una prova valida (tempo di contatto e altezza del salto)."); return; }
+  const oggi = new Date().toISOString().slice(0, 10);
+  const nome = best.H != null ? `RSI (DJ ${best.H} cm)` : "RSI (Drop Jump)";
+  if (typeof creaTest === "function") {
+    const ok = await creaTest(a.id, { nome, valore: Math.round(best.rsi * 100) / 100, unita: "m/s", data: oggi });
+    if (ok) { alert(`Salvato nella scheda di ${a.nome}: ${nome} = ${best.rsi.toFixed(2)} m/s.`); disegna(); }
+  }
+}
+
+function vistaDropJump() {
+  const punti = djCalcola();
+  let bestIdx = -1;
+  punti.forEach((x, i) => { if (x.rsi != null && (bestIdx < 0 || x.rsi > punti[bestIdx].rsi)) bestIdx = i; });
+  const best = bestIdx >= 0 ? punti[bestIdx] : null;
+  const serie = punti.filter(x => x.rsi != null && x.H != null).sort((a, b) => a.H - b.H)
+    .map(x => ({ label: `${x.H}`, val: Math.round(x.rsi * 100) / 100 }));
+
+  const righeInput = punti.map((p, i) => `<tr ${i === bestIdx ? 'style="background:var(--verde-bg)"' : ""}>
+      <td><input inputmode="numeric" value="${djState.righe[i].caduta}" placeholder="cm" oninput="setDjRigaVal(${i},'caduta',this.value)" onchange="disegna()" style="min-width:50px"></td>
+      <td><input inputmode="decimal" value="${djState.righe[i].ct}" placeholder="0,18" oninput="setDjRigaVal(${i},'ct',this.value)" onchange="disegna()" style="min-width:60px"></td>
+      <td><input inputmode="decimal" value="${djState.righe[i].h}" placeholder="cm" oninput="setDjRigaVal(${i},'h',this.value)" onchange="disegna()" style="min-width:50px"></td>
+      <td class="pauto">${p.ft != null ? p.ft.toFixed(3) : "—"}</td>
+      <td class="pauto" style="color:${colRSI(p.rsi)};font-weight:600">${p.rsi != null ? p.rsi.toFixed(2) : "—"}${i === bestIdx ? " ★" : ""}</td>
+      <td class="pauto">${p.rsift != null ? p.rsift.toFixed(2) : "—"}</td>
+    </tr>`).join("");
+
+  return `
+  <div class="card"><h3>Drop Jump & RSI</h3>
+    <p class="et" style="margin-top:2px">Reattività (Morin-Samozino · My Jump · OVR): da varie altezze di caduta misuri tempo di contatto e altezza del salto. Il foglio calcola l'<b>RSI = altezza salto ÷ tempo di contatto</b> e trova l'<b>altezza di caduta ottimale</b> (RSI più alto ★).</p></div>
+
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setDjAtleta(this.value)" style="margin-top:6px">
+      <option value="">— a mano —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${djState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:6px">Prove — una riga per altezza di caduta. Tempo di contatto in secondi (0,18 = 180 ms). Altezza salto dal volo (My Jump / OVR).</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Caduta<br>(cm)</th><th>T. contatto<br>(s)</th><th>Salto<br>(cm)</th><th>T. volo<br>(s)</th><th>RSI<br>(m/s)</th><th>RSI<br>volo/cont.</th></tr></thead>
+      <tbody>${righeInput}</tbody>
+    </table></div>
+    <p class="et" style="margin-top:8px">RSI = altezza salto (m) ÷ tempo di contatto (s). Rif.: &lt;1.5 scarso · 1.5–2.0 medio · 2.0–2.5 buono · &gt;2.5 ottimo.</p>
+  </div>
+
+  ${best ? `<div class="card" style="border-color:rgba(124,194,67,.4)">
+    <p class="et" style="margin-bottom:8px">Migliore reattività</p>
+    <div class="quadri">
+      <div class="q"><div class="k">Caduta ottimale</div><div class="v" style="color:var(--verde)">${best.H != null ? best.H + " cm" : "—"}</div></div>
+      <div class="q"><div class="k">RSI migliore</div><div class="v" style="color:var(--verde)">${best.rsi.toFixed(2)}</div></div>
+      <div class="q"><div class="k">Salto</div><div class="v">${best.h} cm</div></div>
+      <div class="q"><div class="k">T. contatto</div><div class="v">${best.ct.toFixed(2)} s</div></div>
+    </div>
+    ${serie.length >= 2 ? `<p class="et" style="margin:14px 0 4px">RSI per altezza di caduta</p>${chartSerie(serie)}` : ""}
+    ${djState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaRSI()">Salva l'RSI migliore nella scheda</button>` : `<p class="et" style="margin-top:10px">Scegli un atleta per salvare l'RSI nella scheda (comparirà nella progressione dei test).</p>`}
+  </div>` : `<div class="card"><p class="et">Inserisci almeno una prova: altezza di caduta, tempo di contatto e altezza del salto.</p></div>`}`;
+}
+
 // 5) ANDAMENTO — due viste separate come nell'Excel: Pista (per distanza) e Palestra (per esercizio).
 
 // estrae {nome, val, label, iso} dalle righe della scheda in base alla categoria

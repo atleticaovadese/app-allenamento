@@ -21,7 +21,7 @@ const MENU_COACH = [
     ["pista", "Pista"], ["palestra", "Palestra"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["periodizzazione", "Periodizzazione"]] },
   { g: "Analisi", ic: "◭", subs: [
-    ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"],
+    ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
@@ -38,7 +38,7 @@ const DA_EXCEL = {
   squadra: "Cruscotto", atleti: "Atleta", io: "Atleta",
   pista: "Pista", palestra: "Palestra", riscaldamento: "Riscaldamento",
   template: "Template microcicli", piano: "Piano & Picco", periodizzazione: "Periodizzazione",
-  test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", stima1rm: "Stima 1RM",
+  test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
   "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", carico: "Carico & Forma",
   infortuni: "Infortuni & Prevenzione", presenze: "Presenze", "diario-c": "Diario",
@@ -367,6 +367,7 @@ function disegna() {
   else if (coach && S.vista === "andamento-pista") corpo = vistaAndamentoPista();
   else if (coach && S.vista === "andamento-palestra") corpo = vistaAndamentoPalestra();
   else if (coach && S.vista === "fv-sprint") corpo = vistaProfiloFVSprint();
+  else if (coach && S.vista === "dropjump") corpo = vistaDropJump();
   else if (coach && S.vista === "vbt") corpo = vistaMonitoraggioVBT();
   else if (coach && S.vista === "test") corpo = vistaTest();
   else if (coach && S.vista === "template") corpo = vistaTemplate();
