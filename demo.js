@@ -94,12 +94,21 @@ const DEMO = {
 
   // Registro VBT (si riempie dalle sedute di palestra svolte). A parità di carico, m/s che sale = migliori.
   vbtLog: [
+    { data: "2026-03-06", atletaId: "at1", esercizio: "Squat", carico: 125, vbtEseguita: 0.50, vbtTarget: 0.55 },
     { data: "2026-04-10", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.52, vbtTarget: 0.55 },
     { data: "2026-05-15", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.55, vbtTarget: 0.55 },
     { data: "2026-06-20", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.58, vbtTarget: 0.55 },
+    { data: "2026-07-18", atletaId: "at1", esercizio: "Squat", carico: 135, vbtEseguita: 0.57, vbtTarget: 0.55 },
     { data: "2026-04-10", atletaId: "at1", esercizio: "Hip thrust", carico: 120, vbtEseguita: 0.58, vbtTarget: 0.60 },
     { data: "2026-05-15", atletaId: "at1", esercizio: "Hip thrust", carico: 120, vbtEseguita: 0.61, vbtTarget: 0.60 },
-    { data: "2026-06-20", atletaId: "at1", esercizio: "Hip thrust", carico: 125, vbtEseguita: 0.60, vbtTarget: 0.60 }
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Hip thrust", carico: 125, vbtEseguita: 0.60, vbtTarget: 0.60 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Panca piana", carico: 78, vbtEseguita: 0.41, vbtTarget: 0.45 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Panca piana", carico: 80, vbtEseguita: 0.44, vbtTarget: 0.45 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Panca piana", carico: 82, vbtEseguita: 0.46, vbtTarget: 0.45 },
+    { data: "2026-07-18", atletaId: "at1", esercizio: "Panca piana", carico: 84, vbtEseguita: 0.45, vbtTarget: 0.45 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Stacco", carico: 150, vbtEseguita: 0.36, vbtTarget: 0.40 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Stacco", carico: 150, vbtEseguita: 0.40, vbtTarget: 0.40 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Stacco", carico: 160, vbtEseguita: 0.42, vbtTarget: 0.40 }
   ],
 
   // Monitoraggio per l'allenatore (per atleta)

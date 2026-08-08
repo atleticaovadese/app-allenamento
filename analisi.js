@@ -404,13 +404,14 @@ function vistaProfiloFV() {
 
 // 5) ANDAMENTO — evoluzione nel tempo di massimali, tempi/PB e test.
 let andaState = { atletaRif: "", categoria: "massimali", metrica: "" };
-const ANDA_CAT = [["massimali", "Massimali (kg)"], ["pb", "Tempi / PB (s)"], ["test", "Test"]];
+const ANDA_CAT = [["pb", "Pista — tempi / PB (s)"], ["massimali", "Palestra — massimali (kg)"], ["vbt", "Palestra — VBT (m/s)"], ["test", "Salti / test"]];
 
 // estrae {nome, val, label, iso} dalle righe della scheda in base alla categoria
 function andaVoci(a, cat) {
   const s = (a && a.scheda) || {};
   if (cat === "massimali") return (s.massimali || []).map(m => ({ nome: m[0], val: Number(m[1]), label: m[2], iso: m[5] || "" }));
   if (cat === "pb") return (s.pb || []).map(p => ({ nome: p[0], val: Number(p[1]), label: p[2], iso: p[6] || "" }));
+  if (cat === "vbt") return (DEMO.vbtLog || []).filter(l => l.atletaId === a.id).map(l => ({ nome: l.esercizio, val: Number(l.vbtEseguita), label: (typeof fmtDataAnno === "function" ? fmtDataAnno(l.data) : l.data), iso: l.data || "", unita: "m/s" }));
   return (s.salti || []).map(t => ({ nome: t[0], val: Number(t[1]), label: t[3], iso: t[5] || "", unita: t[2] }));
 }
 function andaMetriche(a, cat) {

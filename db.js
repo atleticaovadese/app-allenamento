@@ -96,6 +96,14 @@ async function caricaDati() {
   DEMO.diariCoach = nuoviDiari;
   DEMO.report.daFare = nuovaDaFare;
 
+  // ri-aggancia per NOME i dati VBT demo (at1/at2/at3) ai veri atleti (uuid), così si vedono al login reale
+  const _oldToName = { at1: "Leonardo Zetti", at2: "Marco Bianchi", at3: "Sara Moretti" };
+  const _idByNome = {}; DEMO.atleti.forEach(a => { _idByNome[a.nome] = a.id; });
+  DEMO.vbtLog = (DEMO.vbtLog || []).map(l => {
+    const nm = _oldToName[l.atletaId];
+    return (nm && _idByNome[nm]) ? { ...l, atletaId: _idByNome[nm] } : l;
+  });
+
   // se ha fatto login un atleta, aggancio il suo atletaId
   if (prof.ruolo === "atleta") {
     const mio = (atl || []).find(a => a.profilo_id === user.id);
