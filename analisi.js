@@ -402,9 +402,7 @@ function vistaProfiloFV() {
   </div>` : `<div class="card"><p class="et">Inserisci massa, le due altezze dell'anca e almeno 2 salti a carichi diversi.</p></div>`}`;
 }
 
-// 5) ANDAMENTO — evoluzione nel tempo di massimali, tempi/PB e test.
-let andaState = { atletaRif: "", categoria: "massimali", metrica: "" };
-const ANDA_CAT = [["pb", "Pista — tempi / PB (s)"], ["massimali", "Palestra — massimali (kg)"], ["vbt", "Palestra — VBT (m/s)"], ["test", "Salti / test"]];
+// 5) ANDAMENTO — due viste separate come nell'Excel: Pista (per distanza) e Palestra (per esercizio).
 
 // estrae {nome, val, label, iso} dalle righe della scheda in base alla categoria
 function andaVoci(a, cat) {
@@ -419,9 +417,51 @@ function andaMetriche(a, cat) {
   andaVoci(a, cat).forEach(v => { if (v.nome && !set.includes(v.nome)) set.push(v.nome); });
   return set;
 }
-function setAndaAtleta(id) { andaState.atletaRif = id; andaState.metrica = ""; disegna(); }
-function setAndaCategoria(c) { andaState.categoria = c; andaState.metrica = ""; disegna(); }
-function setAndaMetrica(m) { andaState.metrica = m; disegna(); }
+// --- stato e dati dei due andamenti (Pista per distanza, Palestra per esercizio) ---
+const DIST_ANDA = [10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 220, 250, 280, 300, 350, 400];
+const MET_PISTA = [["tempo", "Tempo (s)"], ["volume", "Volume (m)"], ["velocita", "Vel (m/s)"]];
+const MET_PAL = [["serie", "Serie"], ["rep", "Rep"], ["peso", "Peso (kg)"], ["volume", "Volume (kg)"], ["rpe", "RPE"], ["vbt", "VBT (m/s)"]];
+let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo" };
+let andaPalState = { atletaRif: "", esercizio: "", metrica: "peso" };
+function setAndaPiAtleta(id) { andaPistaState.atletaRif = id; disegna(); }
+function setAndaPiDist(d) { andaPistaState.distanza = Number(d); disegna(); }
+function setAndaPiMetrica(m) { andaPistaState.metrica = m; disegna(); }
+function setAndaPaAtleta(id) { andaPalState.atletaRif = id; andaPalState.esercizio = ""; disegna(); }
+function setAndaPaEs(e) { andaPalState.esercizio = e; disegna(); }
+function setAndaPaMetrica(m) { andaPalState.metrica = m; disegna(); }
+
+// sedute in pista alla distanza scelta (da DEMO.pistaLog)
+function pistaLogVoci(atletaId, distanza) {
+  return (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && Number(l.distanza) === Number(distanza))
+    .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+}
+// distanze che hanno almeno un dato (per marcare il menu a tendina)
+function pistaLogDistanze(atletaId) {
+  const set = [];
+  (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId).forEach(l => { const d = Number(l.distanza); if (!set.includes(d)) set.push(d); });
+  return set.sort((a, b) => a - b);
+}
+// esercizi registrati in palestra (da DEMO.vbtLog)
+function palLogEsercizi(atletaId) {
+  const set = [];
+  (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId).forEach(l => { if (!set.includes(l.esercizio)) set.push(l.esercizio); });
+  return set;
+}
+function palLogVoci(atletaId, esercizio) {
+  return (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.esercizio === esercizio)
+    .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+}
+// blocco Sedute / Media / Max / Min come nell'Excel
+function statBlocco(vals) {
+  const v = vals.filter(x => x != null && !isNaN(x));
+  const n = v.length;
+  const f = x => Math.abs(x) >= 100 ? String(Math.round(x)) : (Math.round(x * 100) / 100).toString();
+  const cells = [["Sedute", String(n)], ["Media", n ? f(v.reduce((s, x) => s + x, 0) / n) : "—"],
+    ["Max", n ? f(Math.max(...v)) : "—"], ["Min", n ? f(Math.min(...v)) : "—"]];
+  return `<div style="display:flex;gap:8px;margin:12px 0 4px">${cells.map(([l, val]) =>
+    `<div style="flex:1;background:var(--card2);border-radius:12px;padding:10px 4px;text-align:center">
+      <p class="et" style="margin:0 0 2px">${l}</p><b style="font-size:16px">${val}</b></div>`).join("")}</div>`;
+}
 
 function chartSerie(punti) {
   const n = punti.length;
@@ -443,40 +483,80 @@ function chartSerie(punti) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${yl}${xl}${line}${dots}</svg>`;
 }
 
-function vistaAndamento() {
-  const atl = DEMO.atleti.find(x => x.id === andaState.atletaRif);
-  const cat = andaState.categoria;
-  const metriche = atl ? andaMetriche(atl, cat) : [];
-  if (atl && !andaState.metrica && metriche.length) andaState.metrica = metriche[0];
-  const serie = atl && andaState.metrica
-    ? andaVoci(atl, cat).filter(v => v.nome === andaState.metrica)
-      .sort((a, b) => (a.iso || "") < (b.iso || "") ? -1 : (a.iso || "") > (b.iso || "") ? 1 : 0)
-    : [];
-  const unita = cat === "massimali" ? "kg" : cat === "pb" ? "s" : (serie[0] && serie[0].unita) || "";
+// ANDAMENTO PISTA — per distanza (Tempo / Volume / Vel), si compila dalle sedute di pista
+function vistaAndamentoPista() {
+  const atl = DEMO.atleti.find(x => x.id === andaPistaState.atletaRif);
+  const dist = andaPistaState.distanza, met = andaPistaState.metrica;
+  const voci = atl ? pistaLogVoci(atl.id, dist) : [];
+  const metLbl = (MET_PISTA.find(m => m[0] === met) || MET_PISTA[0])[1];
+  const disp = atl ? pistaLogDistanze(atl.id) : [];
+  const serie = voci.map(v => ({ label: typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data, val: Number(v[met]) }));
 
   return `
-  <div class="card"><h3>Andamento</h3>
-    <p class="et" style="margin-top:2px">L'evoluzione nel tempo di massimali, tempi/PB e test dell'atleta. Ogni nuovo test (es. Stima 1RM) aggiunge un punto.</p></div>
+  <div class="card"><h3>Andamento Pista</h3>
+    <p class="et" style="margin-top:2px">Scegli una distanza: seduta per seduta il Tempo, il Volume (metri) e la velocità (m/s), col grafico della metrica che scegli. Si compila da solo dalla Pista.</p></div>
 
   <div class="card">
     <label class="lab">Atleta</label>
-    <select onchange="setAndaAtleta(this.value)" style="margin-top:6px">
-      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${andaState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    <select onchange="setAndaPiAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${andaPistaState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
     ${atl ? `<div class="griglia2" style="margin-top:12px">
-      <div><label class="lab">Categoria</label>
-        <select onchange="setAndaCategoria(this.value)" style="margin-top:6px">${ANDA_CAT.map(([k, l]) => `<option value="${k}" ${cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
-      <div><label class="lab">Voce</label>
-        <select onchange="setAndaMetrica(this.value)" style="margin-top:6px">${metriche.length ? metriche.map(m => `<option ${andaState.metrica === m ? "selected" : ""}>${m}</option>`).join("") : '<option value="">—</option>'}</select></div>
+      <div><label class="lab">Distanza (m)</label>
+        <select onchange="setAndaPiDist(this.value)" style="margin-top:6px">${DIST_ANDA.map(d => `<option value="${d}" ${dist === d ? "selected" : ""}>${d}${disp.includes(d) ? " ●" : ""}</option>`).join("")}</select></div>
+      <div><label class="lab">Vedi nel grafico</label>
+        <select onchange="setAndaPiMetrica(this.value)" style="margin-top:6px">${MET_PISTA.map(([k, l]) => `<option value="${k}" ${met === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     </div>` : ""}
   </div>
 
-  ${!atl ? `<div class="card"><p class="et">Scegli un atleta per vedere i suoi andamenti.</p></div>`
-    : !metriche.length ? `<div class="card"><p class="et">Nessun dato in «${ANDA_CAT.find(c => c[0] === cat)[1]}» per ${atl.nome}. Aggiungine dalla scheda o dai test.</p></div>`
+  ${!atl ? `<div class="card"><p class="et">Scegli un atleta.</p></div>`
+    : !voci.length ? `<div class="card"><p class="et">Nessuna seduta sui ${dist} m per ${atl.nome}. I dati compaiono man mano che chiudi le sedute di pista${disp.length ? ` · distanze con dati: ${disp.join(", ")} m` : ""}.</p></div>`
     : `<div class="card">
-        <p class="et" style="margin-bottom:6px">${andaState.metrica} (${unita}) · ${atl.nome}${cat === "pb" ? " · più in basso = meglio" : ""}</p>
+        <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m · ${atl.nome}${met === "tempo" ? " · più in basso = meglio" : ""}</p>
+        ${statBlocco(serie.map(s => s.val))}
         ${chartSerie(serie)}
-        ${serie.length ? `<table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>${unita}</th></tr></thead>
-          <tbody>${serie.map(v => `<tr><td>${v.label || "—"}</td><td class="pauto">${v.val}</td></tr>`).join("")}</tbody></table>` : ""}
+        <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
+          <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${v.tempo != null ? Number(v.tempo).toFixed(2) : "—"}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
+      </div>`}`;
+}
+
+// ANDAMENTO PALESTRA — per esercizio (Serie/Rep/Peso/Volume/RPE/VBT), si compila dalle sedute di palestra
+function vistaAndamentoPalestra() {
+  const atl = DEMO.atleti.find(x => x.id === andaPalState.atletaRif);
+  const esercizi = atl ? palLogEsercizi(atl.id) : [];
+  if (atl && !andaPalState.esercizio && esercizi.length) andaPalState.esercizio = esercizi[0];
+  const es = andaPalState.esercizio, met = andaPalState.metrica;
+  const metLbl = (MET_PAL.find(m => m[0] === met) || MET_PAL[2])[1];
+  const voci = atl && es ? palLogVoci(atl.id, es) : [];
+  const campo = met === "vbt" ? "vbtEseguita" : met;
+  const serie = voci.map(v => {
+    let raw = v[campo]; if (raw == null && met === "peso") raw = v.carico;
+    return { label: typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data, val: Number(raw) };
+  }).filter(s => !isNaN(s.val));
+
+  return `
+  <div class="card"><h3>Andamento Palestra</h3>
+    <p class="et" style="margin-top:2px">Scegli un esercizio: seduta per seduta Serie, Rep, Peso, Volume (kg), RPE e VBT, col grafico della metrica che scegli. Si compila da solo dalla Palestra.</p></div>
+
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setAndaPaAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${andaPalState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    ${atl && esercizi.length ? `<div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Esercizio</label>
+        <select onchange="setAndaPaEs(this.value)" style="margin-top:6px">${esercizi.map(e => `<option ${es === e ? "selected" : ""}>${e}</option>`).join("")}</select></div>
+      <div><label class="lab">Vedi nel grafico</label>
+        <select onchange="setAndaPaMetrica(this.value)" style="margin-top:6px">${MET_PAL.map(([k, l]) => `<option value="${k}" ${met === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    </div>` : ""}
+  </div>
+
+  ${!atl ? `<div class="card"><p class="et">Scegli un atleta.</p></div>`
+    : !esercizi.length ? `<div class="card"><p class="et">Nessun esercizio registrato per ${atl.nome}. I dati compaiono man mano che chiudi le sedute di palestra.</p></div>`
+    : `<div class="card">
+        <p class="et" style="margin-bottom:2px">${metLbl} · ${es} · ${atl.nome}</p>
+        ${statBlocco(serie.map(s => s.val))}
+        ${chartSerie(serie)}
+        <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Ser</th><th>Rep</th><th>Peso</th><th>Vol</th><th>RPE</th><th>VBT</th></tr></thead>
+          <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td>${v.serie != null ? v.serie : "—"}</td><td>${v.rep != null ? v.rep : "—"}</td><td class="pauto">${v.peso != null ? v.peso : (v.carico != null ? v.carico : "—")}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.rpe != null ? v.rpe : "—"}</td><td>${v.vbtEseguita != null ? Number(v.vbtEseguita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
       </div>`}`;
 }
 
@@ -637,18 +717,39 @@ function setVbtAtleta(id) { vbtState.atletaRif = id; vbtState.esercizio = ""; di
 function setVbtEsercizio(e) { vbtState.esercizio = e; disegna(); }
 function eserciziVbt(atletaId) {
   const set = [];
-  (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId).forEach(l => { if (!set.includes(l.esercizio)) set.push(l.esercizio); });
+  (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.vbtEseguita != null).forEach(l => { if (!set.includes(l.esercizio)) set.push(l.esercizio); });
   return set;
 }
 function serieVbt(atletaId, esercizio) {
-  return (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.esercizio === esercizio)
+  return (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.esercizio === esercizio && l.vbtEseguita != null)
     .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
 }
-// chiamata dalla seduta di palestra a fine allenamento
-function registraVbt(atletaId, esercizio, carico, vbtEseguita, vbtTarget) {
-  if (!atletaId || !esercizio || vbtEseguita == null || isNaN(vbtEseguita)) return;
+// chiamata dalla seduta di palestra a fine allenamento; extra = {serie, rep, volume, rpe}
+function registraVbt(atletaId, esercizio, peso, vbtEseguita, vbtTarget, extra) {
+  if (!atletaId || !esercizio) return;
+  extra = extra || {};
+  const hasVbt = vbtEseguita != null && !isNaN(vbtEseguita);
+  if (!hasVbt && peso == null && extra.serie == null) return; // niente da registrare
   DEMO.vbtLog = DEMO.vbtLog || [];
-  DEMO.vbtLog.push({ data: new Date().toISOString().slice(0, 10), atletaId, esercizio, carico: carico || null, vbtEseguita: Math.round(vbtEseguita * 100) / 100, vbtTarget: vbtTarget || null });
+  DEMO.vbtLog.push({
+    data: new Date().toISOString().slice(0, 10), atletaId, esercizio,
+    peso: peso != null ? peso : null, carico: peso != null ? peso : null,
+    serie: extra.serie != null ? extra.serie : null, rep: extra.rep != null ? extra.rep : null,
+    volume: extra.volume != null ? extra.volume : null, rpe: extra.rpe != null ? extra.rpe : null,
+    vbtEseguita: hasVbt ? Math.round(vbtEseguita * 100) / 100 : null, vbtTarget: vbtTarget != null ? vbtTarget : null
+  });
+  if (typeof salvaCustom === "function") salvaCustom();
+}
+// chiamata dalla seduta di pista a fine allenamento
+function registraPista(atletaId, distanza, tempo, volume, velocita) {
+  if (!atletaId || !distanza) return;
+  DEMO.pistaLog = DEMO.pistaLog || [];
+  DEMO.pistaLog.push({
+    data: new Date().toISOString().slice(0, 10), atletaId, distanza: Number(distanza),
+    tempo: tempo != null ? Math.round(tempo * 100) / 100 : null,
+    volume: volume != null ? volume : null,
+    velocita: velocita != null ? Math.round(velocita * 100) / 100 : null
+  });
   if (typeof salvaCustom === "function") salvaCustom();
 }
 

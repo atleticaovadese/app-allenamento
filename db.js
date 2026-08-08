@@ -103,6 +103,10 @@ async function caricaDati() {
     const nm = _oldToName[l.atletaId];
     return (nm && _idByNome[nm]) ? { ...l, atletaId: _idByNome[nm] } : l;
   });
+  DEMO.pistaLog = (DEMO.pistaLog || []).map(l => {
+    const nm = _oldToName[l.atletaId];
+    return (nm && _idByNome[nm]) ? { ...l, atletaId: _idByNome[nm] } : l;
+  });
 
   // se ha fatto login un atleta, aggancio il suo atletaId
   if (prof.ruolo === "atleta") {

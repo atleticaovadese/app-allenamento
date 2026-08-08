@@ -94,21 +94,37 @@ const DEMO = {
 
   // Registro VBT (si riempie dalle sedute di palestra svolte). A parità di carico, m/s che sale = migliori.
   vbtLog: [
-    { data: "2026-03-06", atletaId: "at1", esercizio: "Squat", carico: 125, vbtEseguita: 0.50, vbtTarget: 0.55 },
-    { data: "2026-04-10", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.52, vbtTarget: 0.55 },
-    { data: "2026-05-15", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.55, vbtTarget: 0.55 },
-    { data: "2026-06-20", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.58, vbtTarget: 0.55 },
-    { data: "2026-07-18", atletaId: "at1", esercizio: "Squat", carico: 135, vbtEseguita: 0.57, vbtTarget: 0.55 },
-    { data: "2026-04-10", atletaId: "at1", esercizio: "Hip thrust", carico: 120, vbtEseguita: 0.58, vbtTarget: 0.60 },
-    { data: "2026-05-15", atletaId: "at1", esercizio: "Hip thrust", carico: 120, vbtEseguita: 0.61, vbtTarget: 0.60 },
-    { data: "2026-06-20", atletaId: "at1", esercizio: "Hip thrust", carico: 125, vbtEseguita: 0.60, vbtTarget: 0.60 },
-    { data: "2026-04-10", atletaId: "at1", esercizio: "Panca piana", carico: 78, vbtEseguita: 0.41, vbtTarget: 0.45 },
-    { data: "2026-05-15", atletaId: "at1", esercizio: "Panca piana", carico: 80, vbtEseguita: 0.44, vbtTarget: 0.45 },
-    { data: "2026-06-20", atletaId: "at1", esercizio: "Panca piana", carico: 82, vbtEseguita: 0.46, vbtTarget: 0.45 },
-    { data: "2026-07-18", atletaId: "at1", esercizio: "Panca piana", carico: 84, vbtEseguita: 0.45, vbtTarget: 0.45 },
-    { data: "2026-04-10", atletaId: "at1", esercizio: "Stacco", carico: 150, vbtEseguita: 0.36, vbtTarget: 0.40 },
-    { data: "2026-05-15", atletaId: "at1", esercizio: "Stacco", carico: 150, vbtEseguita: 0.40, vbtTarget: 0.40 },
-    { data: "2026-06-20", atletaId: "at1", esercizio: "Stacco", carico: 160, vbtEseguita: 0.42, vbtTarget: 0.40 }
+    { data: "2026-03-06", atletaId: "at1", esercizio: "Squat", carico: 125, peso: 125, serie: 4, rep: 5, volume: 2500, rpe: 7, vbtEseguita: 0.50, vbtTarget: 0.55 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Squat", carico: 130, peso: 130, serie: 4, rep: 5, volume: 2600, rpe: 7.5, vbtEseguita: 0.52, vbtTarget: 0.55 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Squat", carico: 130, peso: 130, serie: 5, rep: 4, volume: 2600, rpe: 8, vbtEseguita: 0.55, vbtTarget: 0.55 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Squat", carico: 130, peso: 130, serie: 5, rep: 4, volume: 2600, rpe: 8, vbtEseguita: 0.58, vbtTarget: 0.55 },
+    { data: "2026-07-18", atletaId: "at1", esercizio: "Squat", carico: 135, peso: 135, serie: 4, rep: 4, volume: 2160, rpe: 8, vbtEseguita: 0.57, vbtTarget: 0.55 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Hip thrust", carico: 120, peso: 120, serie: 4, rep: 6, volume: 2880, rpe: 7, vbtEseguita: 0.58, vbtTarget: 0.60 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Hip thrust", carico: 120, peso: 120, serie: 4, rep: 6, volume: 2880, rpe: 7.5, vbtEseguita: 0.61, vbtTarget: 0.60 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Hip thrust", carico: 125, peso: 125, serie: 4, rep: 5, volume: 2500, rpe: 8, vbtEseguita: 0.60, vbtTarget: 0.60 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Panca piana", carico: 78, peso: 78, serie: 4, rep: 5, volume: 1560, rpe: 7, vbtEseguita: 0.41, vbtTarget: 0.45 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Panca piana", carico: 80, peso: 80, serie: 4, rep: 5, volume: 1600, rpe: 7.5, vbtEseguita: 0.44, vbtTarget: 0.45 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Panca piana", carico: 82, peso: 82, serie: 4, rep: 4, volume: 1312, rpe: 8, vbtEseguita: 0.46, vbtTarget: 0.45 },
+    { data: "2026-07-18", atletaId: "at1", esercizio: "Panca piana", carico: 84, peso: 84, serie: 4, rep: 4, volume: 1344, rpe: 8, vbtEseguita: 0.45, vbtTarget: 0.45 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Stacco", carico: 150, peso: 150, serie: 3, rep: 4, volume: 1800, rpe: 7.5, vbtEseguita: 0.36, vbtTarget: 0.40 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Stacco", carico: 150, peso: 150, serie: 3, rep: 4, volume: 1800, rpe: 8, vbtEseguita: 0.40, vbtTarget: 0.40 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Stacco", carico: 160, peso: 160, serie: 3, rep: 3, volume: 1440, rpe: 8, vbtEseguita: 0.42, vbtTarget: 0.40 }
+  ],
+
+  // Registro Pista (si riempie dalle sedute di pista svolte): Tempo eseguito, Volume (m), Vel (m/s) per distanza.
+  pistaLog: [
+    { data: "2026-03-06", atletaId: "at1", distanza: 30, tempo: 3.95, volume: 180, velocita: 7.59 },
+    { data: "2026-04-10", atletaId: "at1", distanza: 30, tempo: 3.90, volume: 180, velocita: 7.69 },
+    { data: "2026-05-15", atletaId: "at1", distanza: 30, tempo: 3.86, volume: 150, velocita: 7.77 },
+    { data: "2026-06-20", atletaId: "at1", distanza: 30, tempo: 3.82, volume: 150, velocita: 7.85 },
+    { data: "2026-03-06", atletaId: "at1", distanza: 60, tempo: 7.20, volume: 360, velocita: 8.33 },
+    { data: "2026-04-10", atletaId: "at1", distanza: 60, tempo: 7.10, volume: 360, velocita: 8.45 },
+    { data: "2026-05-15", atletaId: "at1", distanza: 60, tempo: 7.05, volume: 300, velocita: 8.51 },
+    { data: "2026-06-20", atletaId: "at1", distanza: 60, tempo: 6.98, volume: 240, velocita: 8.60 },
+    { data: "2026-07-18", atletaId: "at1", distanza: 60, tempo: 6.95, volume: 240, velocita: 8.63 },
+    { data: "2026-04-10", atletaId: "at1", distanza: 150, tempo: 16.80, volume: 450, velocita: 8.93 },
+    { data: "2026-05-15", atletaId: "at1", distanza: 150, tempo: 16.60, volume: 450, velocita: 9.04 },
+    { data: "2026-06-20", atletaId: "at1", distanza: 150, tempo: 16.45, volume: 300, velocita: 9.12 }
   ],
 
   // Monitoraggio per l'allenatore (per atleta)

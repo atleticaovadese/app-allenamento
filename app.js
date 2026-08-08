@@ -23,7 +23,7 @@ const MENU_COACH = [
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"],
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["traino", "Traino"],
-    ["vbt", "Monitoraggio VBT"], ["andamento", "Andamento"]] },
+    ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
     ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
@@ -40,7 +40,7 @@ const DA_EXCEL = {
   template: "Template microcicli", piano: "Piano & Picco", periodizzazione: "Periodizzazione",
   test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
-  andamento: "Andamento Palestra + Andamento Pista", carico: "Carico & Forma",
+  "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", carico: "Carico & Forma",
   infortuni: "Infortuni & Prevenzione", presenze: "Presenze", "diario-c": "Diario",
   "lib-sala": "Libreria Sala", "lib-mobilita": "Libreria Mobilita", "lib-video": "Libreria Video",
   "lib-plio": "Pliometria", gare: "Calendario gare", calendario: "Pista (mesocicli)", diario: "Diario",
@@ -364,7 +364,8 @@ function disegna() {
   else if (coach && S.vista === "stima1rm") corpo = vistaStima1RM();
   else if (coach && S.vista === "traino") corpo = vistaTraino();
   else if (coach && S.vista === "fv") corpo = vistaProfiloFV();
-  else if (coach && S.vista === "andamento") corpo = vistaAndamento();
+  else if (coach && S.vista === "andamento-pista") corpo = vistaAndamentoPista();
+  else if (coach && S.vista === "andamento-palestra") corpo = vistaAndamentoPalestra();
   else if (coach && S.vista === "fv-sprint") corpo = vistaProfiloFVSprint();
   else if (coach && S.vista === "vbt") corpo = vistaMonitoraggioVBT();
   else if (coach && S.vista === "test") corpo = vistaTest();

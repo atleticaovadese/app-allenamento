@@ -233,12 +233,24 @@ function segnaChiusura(sid, campo, val) {
 function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
   if (s.durata === null || s.rpe === null) { alert("Scrivi durata e RPE prima di chiudere."); return; }
-  // palestra: registra la VBT eseguita nel Monitoraggio VBT
+  // palestra: registra la seduta (Serie/Rep/Peso/Volume/RPE/VBT) → Monitoraggio VBT + Andamento Palestra
   if (s.tipo === "palestra" && typeof registraVbt === "function") {
     const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
     (s.esercizi || []).forEach(x => {
       const fatte = x.vbt.filter(v => v !== null);
-      if (fatte.length) registraVbt(aid, x.nome, x.peso || null, media(x.vbt), x.vbtTarget || null);
+      const vbtMedia = fatte.length ? media(x.vbt) : null;
+      registraVbt(aid, x.nome, x.peso || null, vbtMedia, x.vbtTarget || null,
+        { serie: x.serie != null ? x.serie : null, rep: x.rep != null ? x.rep : null, volume: volumeKg(x), rpe: s.rpe });
+    });
+  }
+  // pista: registra Tempo (media eseguita) / Volume (m) / Vel per distanza → Andamento Pista
+  if (s.tipo === "pista" && typeof registraPista === "function") {
+    const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
+    (s.elementi || []).forEach(e => {
+      const fatti = (e.tempi || []).filter(v => v !== null);
+      if (!fatti.length) return;
+      const tmedio = fatti.reduce((a, b) => a + b, 0) / fatti.length;
+      registraPista(aid, e.distanza, tmedio, e.ripetute * e.distanza, tmedio ? e.distanza / tmedio : null);
     });
   }
   s.chiusa = true; fermaTimer(); S.seduta = null; S.vista = "oggi"; disegna();
