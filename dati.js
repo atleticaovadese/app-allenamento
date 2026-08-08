@@ -30,6 +30,7 @@ function caricaCustom() {
     if (c.palestra) DEMO.palestra = c.palestra;
     if (c.vbtLog) DEMO.vbtLog = c.vbtLog;
     if (c.pistaLog) DEMO.pistaLog = c.pistaLog;
+    if (c.testSessioni) DEMO.testSessioni = c.testSessioni;
   } catch (e) { /* niente da caricare */ }
 }
 
@@ -37,9 +38,59 @@ function salvaCustom() {
   try {
     localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify({
       esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
-      piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog
+      piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
+      testSessioni: DEMO.testSessioni
     }));
   } catch (e) { /* localStorage non disponibile */ }
+}
+
+// --- sessioni di test complete (snapshot per data): si rivedono per intero ---
+function salvaSessione(atletaId, tipo, dati) {
+  if (!atletaId) return false;
+  DEMO.testSessioni = DEMO.testSessioni || [];
+  DEMO.testSessioni.push({ id: "ts" + Date.now(), atletaId, tipo, data: new Date().toISOString().slice(0, 10), dati });
+  salvaCustom();
+  return true;
+}
+function sessioniDi(atletaId, tipo) {
+  return (DEMO.testSessioni || []).filter(s => s.atletaId === atletaId && s.tipo === tipo)
+    .slice().sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0)); // più recenti prima
+}
+function eliminaSessione(id) {
+  DEMO.testSessioni = (DEMO.testSessioni || []).filter(s => s.id !== id);
+  salvaCustom(); disegna();
+}
+// lista delle sessioni salvate di un test (card riapribile per data)
+function bloccoSessioni(atletaId, tipo, titolo) {
+  if (!atletaId) return "";
+  const ss = sessioniDi(atletaId, tipo);
+  const dt = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
+  return `<div class="card"><p class="et" style="margin-bottom:8px">${titolo || "Test salvati"}</p>
+    ${ss.length ? ss.map(s => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <b style="font-size:14px">${dt(s.data)}</b>
+        <button class="link-indietro" style="color:var(--rosso)" onclick="eliminaSessione('${s.id}')">elimina</button></div>
+      ${formatSessione(s.tipo, s.dati)}</div>`).join("")
+      : `<p class="et">Nessun test salvato ancora. Salva e lo rivedi qui, completo, per data.</p>`}
+  </div>`;
+}
+// formatta il contenuto completo di una sessione salvata, per tipo di test
+function formatSessione(tipo, d) {
+  const col = a => a == null ? "var(--txt3)" : a > 15 ? "var(--rosso)" : a >= 10 ? "var(--giallo)" : "var(--verde)";
+  if (tipo === "prevenzione") {
+    const row = (lbl, o) => o ? `<tr><td>${lbl}</td><td class="pauto">${o.dx}/${o.sx}</td><td class="pauto" style="color:${col(o.asym)}">${o.asym != null ? o.asym.toFixed(1) + "%" : "—"}</td></tr>` : "";
+    return `<table class="ptab" style="min-width:0;margin-top:6px"><thead><tr><th>Test</th><th>Dx/Sx</th><th>Asimm.</th></tr></thead><tbody>${row("Caviglia KTW", d.ktw)}${row("Hamstring AKE", d.ake)}${row("Rot. anca", d.hip)}${row("Salto monop.", d.hop)}</tbody></table>`;
+  }
+  if (tipo === "dropjump") {
+    return `<table class="ptab" style="min-width:0;margin-top:6px"><thead><tr><th>Caduta</th><th>Cont.</th><th>Salto</th><th>RSI</th></tr></thead><tbody>${(d.righe || []).map(r => { const best = d.bestH != null && Number(r.caduta) === Number(d.bestH); return `<tr><td>${r.caduta} cm</td><td class="pauto">${r.ct}</td><td class="pauto">${r.h}</td><td class="pauto"${best ? ' style="color:var(--verde);font-weight:600"' : ""}>${r.rsi != null ? Number(r.rsi).toFixed(2) : "—"}${best ? " ★" : ""}</td></tr>`; }).join("")}</tbody></table>${d.bestRsi != null ? `<p class="et" style="margin-top:4px">Ottimale: ${d.bestH} cm · RSI ${Number(d.bestRsi).toFixed(2)}</p>` : ""}`;
+  }
+  if (tipo === "fv") {
+    return `<p class="et" style="margin-top:4px;line-height:1.6">F0 ${Math.round(d.F0)} N · V0 ${Number(d.V0).toFixed(2)} m/s · Pmax ${Math.round(d.Pmax)} W · <b style="color:var(--txt)">${Number(d.Pkg).toFixed(1)} W/kg</b>${d.FVimb != null ? ` · squilibrio ${Math.round(d.FVimb)}% (${d.dir})` : ""}</p>`;
+  }
+  if (tipo === "fv-sprint") {
+    return `<p class="et" style="margin-top:4px;line-height:1.6">F0/kg ${d.F0kg != null ? Number(d.F0kg).toFixed(1) : "—"} N/kg · V0 ${d.V0 != null ? Number(d.V0).toFixed(2) : "—"} m/s · <b style="color:var(--txt)">Pmax/kg ${d.Pmaxkg != null ? Number(d.Pmaxkg).toFixed(1) : "—"} W/kg</b> · RFmax ${d.RFmax != null ? Number(d.RFmax).toFixed(1) + "%" : "—"}</p>`;
+  }
+  return "";
 }
 function savePiano() { salvaCustom(); }
 

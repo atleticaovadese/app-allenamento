@@ -115,6 +115,11 @@ async function caricaDati() {
   if (typeof prevState !== "undefined" && _oldToName[prevState.atletaRif] && _idByNome[_oldToName[prevState.atletaRif]]) {
     prevState.atletaRif = _idByNome[_oldToName[prevState.atletaRif]];
   }
+  // sessioni di test complete salvate (snapshot): aggancia al vero uuid
+  DEMO.testSessioni = (DEMO.testSessioni || []).map(s => {
+    const nm = _oldToName[s.atletaId];
+    return (nm && _idByNome[nm]) ? { ...s, atletaId: _idByNome[nm] } : s;
+  });
 
   // se ha fatto login un atleta, aggancio il suo atletaId
   if (prof.ruolo === "atleta") {

@@ -459,6 +459,7 @@ function vistaPrevenzione() {
     </table></div>
     ${stato ? `<p style="margin-top:12px;font-weight:600">${stato}</p>` : ""}
     <p class="et" style="margin-top:6px">Misura KTW e salto in cm, AKE e rotazione anca in gradi. Ricontrolla ogni ~8 settimane e confronta.</p>
+    ${atl && flags.length ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaPrevenzione()">💾 Salva il test</button>` : (atl ? `<p class="et" style="margin-top:8px">Inserisci i test (dx e sx) per salvarli.</p>` : "")}
   </div>
 
   <div class="card">
@@ -494,7 +495,17 @@ function vistaPrevenzione() {
       <a class="vid-ic" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">cerca ▶</a>
     </div>`).join("")}
     <p class="et" style="margin-top:10px">Rif.: ACWR (Gabbett) 0.8–1.3 · asimmetria &gt;10–15% = bandiera (Limb Symmetry Index) · Nordic hamstring (meta-analisi van Dyk / Al Attar).</p>
-  </div>`;
+  </div>
+  ${atl && typeof bloccoSessioni === "function" ? bloccoSessioni(atl.id, "prevenzione", "Test di prevenzione salvati") : ""}`;
+}
+function salvaPrevenzione() {
+  const a = DEMO.atleti.find(x => x.id === prevState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const dati = {}; let n = 0;
+  PREV_TESTS.forEach(t => { const asym = prevAsym(t.k); if (asym != null) { dati[t.k] = { dx: prevState.val[t.k].dx, sx: prevState.val[t.k].sx, asym }; n++; } });
+  if (!n) { alert("Inserisci almeno un test (dx e sx)."); return; }
+  if (typeof salvaSessione === "function") salvaSessione(a.id, "prevenzione", dati);
+  alert(`Test di prevenzione salvato per ${a.nome}.`); disegna();
 }
 
 // ---------- monitoraggio: presenze squadra ----------

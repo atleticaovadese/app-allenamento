@@ -403,8 +403,9 @@ function vistaProfiloFV() {
     </div>
     <p style="font-size:14px;line-height:1.6;margin-top:10px;color:var(--txt)">${consiglio}</p>
     <p class="et" style="margin-top:8px">Squilibrio vicino a 0% = profilo già ottimale → lavora per alzare il Pmax.</p>
-    ${fvState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaFV()">💾 Salva Pmax/kg nella scheda</button>` : `<p class="et" style="margin-top:8px">Scegli un atleta in alto per salvare il test.</p>`}
-  </div>` : `<div class="card"><p class="et">Inserisci massa, le due altezze dell'anca e almeno 2 salti a carichi diversi.</p></div>`}`;
+    ${fvState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaFV()">💾 Salva il test</button>` : `<p class="et" style="margin-top:8px">Scegli un atleta in alto per salvare il test.</p>`}
+  </div>` : `<div class="card"><p class="et">Inserisci massa, le due altezze dell'anca e almeno 2 salti a carichi diversi.</p></div>`}
+  ${fvState.atletaRif && typeof bloccoSessioni === "function" ? bloccoSessioni(fvState.atletaRif, "fv", "Profili F-V salvati") : ""}`;
 }
 
 // 4b) DROP JUMP & RSI — reattività (Morin-Samozino / My Jump / OVR): RSI = altezza salto ÷ tempo di contatto.
@@ -442,9 +443,12 @@ async function salvaRSI() {
   if (!best) { alert("Inserisci almeno una prova valida (tempo di contatto e altezza del salto)."); return; }
   const oggi = new Date().toISOString().slice(0, 10);
   const nome = best.H != null ? `RSI (DJ ${best.H} cm)` : "RSI (Drop Jump)";
+  // scheda completa del test (tutte le altezze) per rivederla per data
+  const righe = djCalcola().filter(x => x.rsi != null).map(x => ({ caduta: x.H, ct: x.ct, h: x.h, rsi: Math.round(x.rsi * 100) / 100 }));
+  if (typeof salvaSessione === "function") salvaSessione(a.id, "dropjump", { righe, bestH: best.H, bestRsi: Math.round(best.rsi * 100) / 100 });
   if (typeof creaTest === "function") {
     const ok = await creaTest(a.id, { nome, valore: Math.round(best.rsi * 100) / 100, unita: "m/s", data: oggi });
-    if (ok) { alert(`Salvato nella scheda di ${a.nome}: ${nome} = ${best.rsi.toFixed(2)} m/s.`); disegna(); }
+    if (ok) { alert(`Test RSI salvato per ${a.nome} (${nome} = ${best.rsi.toFixed(2)} m/s).`); disegna(); }
   }
 }
 
@@ -494,8 +498,9 @@ function vistaDropJump() {
       <div class="q"><div class="k">T. contatto</div><div class="v">${best.ct.toFixed(2)} s</div></div>
     </div>
     ${serie.length >= 2 ? `<p class="et" style="margin:14px 0 4px">RSI per altezza di caduta</p>${chartSerie(serie)}` : ""}
-    ${djState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaRSI()">Salva l'RSI migliore nella scheda</button>` : `<p class="et" style="margin-top:10px">Scegli un atleta per salvare l'RSI nella scheda (comparirà nella progressione dei test).</p>`}
-  </div>` : `<div class="card"><p class="et">Inserisci almeno una prova: altezza di caduta, tempo di contatto e altezza del salto.</p></div>`}`;
+    ${djState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaRSI()">💾 Salva il test RSI (scheda completa)</button>` : `<p class="et" style="margin-top:10px">Scegli un atleta per salvare il test (compare nella progressione e qui sotto per data).</p>`}
+  </div>` : `<div class="card"><p class="et">Inserisci almeno una prova: altezza di caduta, tempo di contatto e altezza del salto.</p></div>`}
+  ${djState.atletaRif && typeof bloccoSessioni === "function" ? bloccoSessioni(djState.atletaRif, "dropjump", "Test RSI salvati") : ""}`;
 }
 
 // 5) ANDAMENTO — due viste separate come nell'Excel: Pista (per distanza) e Palestra (per esercizio).
@@ -692,16 +697,15 @@ function fitSprint(dists, tempi) {
   return best;
 }
 
-function vistaProfiloFVSprint() {
+// calcolo del profilo F-V sprint (Samozino-Morin) — usato da vista e da salvataggio
+function calcSprint() {
   const massa = parseFloat(String(sprintState.massa).replace(",", "."));
   const altezza = parseFloat(String(sprintState.altezza).replace(",", "."));
   const temp = parseFloat(String(sprintState.temp).replace(",", ".")) || 20;
   const vento = parseFloat(String(sprintState.vento).replace(",", ".")) || 0;
   const press = parseFloat(String(sprintState.pressione).replace(",", ".")) || 760;
   const fonte = sprintState.fonte;
-
   let F0kg = null, V0 = null, Pkg = null, RFmax = null, Sfvkg = null, DRF = null, Vmax = null, tau = null;
-
   if (fonte === "mysprint") {
     const m = sprintState.ms.map(x => parseFloat(String(x).replace(",", ".")));
     if (!isNaN(m[0])) F0kg = m[0]; if (!isNaN(m[1])) V0 = m[1]; if (!isNaN(m[2])) Pkg = m[2];
@@ -736,6 +740,12 @@ function vistaProfiloFVSprint() {
     }
   }
   const ok = F0kg != null && V0 != null && V0 > 0;
+  return { ok, F0kg, V0, Pkg, RFmax, Sfvkg, DRF, Vmax, tau };
+}
+
+function vistaProfiloFVSprint() {
+  const { ok, F0kg, V0, Pkg, RFmax, Sfvkg, DRF, Vmax, tau } = calcSprint();
+  const fonte = sprintState.fonte;
   let dir = null, extra = "";
   if (ok) {
     dir = (F0kg / 8.5 < V0 / 10) ? "Carenza di forza" : "Carenza di velocità";
@@ -803,9 +813,11 @@ function vistaProfiloFVSprint() {
     ${ok ? `<div style="margin-top:12px;padding:12px;background:var(--blu-bg);border-radius:12px">
       <div style="font-weight:600;color:var(--blu)">${dir}${extra}</div>
       <p style="font-size:14px;line-height:1.6;margin-top:6px">${consiglio}</p></div>
-      <p class="et" style="margin-top:10px">Rif. velocisti allenati: F0/kg 7-9 · V0 9-10.5 · Pmax/kg 18-28 · RFmax 45-60%.</p>`
+      <p class="et" style="margin-top:10px">Rif. velocisti allenati: F0/kg 7-9 · V0 9-10.5 · Pmax/kg 18-28 · RFmax 45-60%.</p>
+      ${sprintState.atletaRif ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaFVSprint()">💾 Salva il test</button>` : `<p class="et" style="margin-top:8px">Scegli un atleta in alto per salvare il test.</p>`}`
       : `<p class="et" style="margin-top:8px">Inserisci massa e altezza + almeno 2 tempi parziali, oppure passa a MySprint e incolla i valori.</p>`}
-  </div>`;
+  </div>
+  ${sprintState.atletaRif && typeof bloccoSessioni === "function" ? bloccoSessioni(sprintState.atletaRif, "fv-sprint", "F-V Sprint salvati") : ""}`;
 }
 
 // 7) MONITORAGGIO VBT — registro della velocità del bilanciere nel tempo (dalle sedute di palestra).
@@ -1001,7 +1013,11 @@ async function salvaFV() {
   }).filter(Boolean);
   const reg = regP.length >= 2 ? regressione(regP) : null;
   if (!reg || reg.slope >= 0) { alert("Servono almeno 2 salti a carichi diversi."); return; }
-  const F0 = reg.intercept, V0 = -F0 / reg.slope, Pkg = (F0 * V0 / 4) / massa;
+  const F0 = reg.intercept, V0 = -F0 / reg.slope, Pmax = F0 * V0 / 4, Pkg = Pmax / massa;
+  let FVimb = null, dir = null;
+  const Sopt = (typeof soptFV === "function" && Pkg > 0) ? soptFV(hPO, Pkg) : null;
+  if (Sopt) { const Sfvkg = reg.slope / massa; FVimb = Math.abs(Sfvkg / Sopt - 1) * 100; dir = (Sfvkg / Sopt < 1) ? "Carenza di forza" : "Carenza di velocità"; }
+  if (typeof salvaSessione === "function") salvaSessione(a.id, "fv", { F0, V0, Pmax, Pkg, FVimb, dir });
   const oggi = new Date().toISOString().slice(0, 10);
   const note = `F0 ${Math.round(F0)}N · V0 ${V0.toFixed(2)} · R² ${reg.r2 != null ? reg.r2.toFixed(2) : "—"}`;
   const ok = typeof creaTest === "function" ? await creaTest(a.id, { nome: "Pmax/kg (salti)", valore: Math.round(Pkg * 10) / 10, unita: "W/kg", data: oggi, note }) : false;
@@ -1022,4 +1038,14 @@ async function salvaTraino() {
   const note = `carico ~50% calo: ${Math.round(carico50)} kg · R² ${reg.r2 != null ? reg.r2.toFixed(2) : "—"}`;
   const ok = typeof creaTest === "function" ? await creaTest(a.id, { nome: "V0 sprint (traino)", valore: Math.round(V0 * 100) / 100, unita: "m/s", data: oggi, note }) : false;
   if (ok) { alert(`Salvato: V0 ${V0.toFixed(2)} m/s (traino) nella scheda di ${a.nome}.`); disegna(); }
+}
+async function salvaFVSprint() {
+  const a = DEMO.atleti.find(x => x.id === sprintState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const r = calcSprint();
+  if (!r.ok) { alert("Serve un profilo valido (massa+altezza+2 tempi, oppure MySprint)."); return; }
+  if (typeof salvaSessione === "function") salvaSessione(a.id, "fv-sprint", { F0kg: r.F0kg, V0: r.V0, Pmaxkg: r.Pkg, RFmax: r.RFmax, Sfvkg: r.Sfvkg });
+  const oggi = new Date().toISOString().slice(0, 10);
+  if (r.Pkg != null && typeof creaTest === "function") await creaTest(a.id, { nome: "Pmax/kg (sprint)", valore: Math.round(r.Pkg * 10) / 10, unita: "W/kg", data: oggi });
+  alert(`Test F-V Sprint salvato per ${a.nome}.`); disegna();
 }
