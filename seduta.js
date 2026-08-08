@@ -233,6 +233,14 @@ function segnaChiusura(sid, campo, val) {
 function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
   if (s.durata === null || s.rpe === null) { alert("Scrivi durata e RPE prima di chiudere."); return; }
+  // palestra: registra la VBT eseguita nel Monitoraggio VBT
+  if (s.tipo === "palestra" && typeof registraVbt === "function") {
+    const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
+    (s.esercizi || []).forEach(x => {
+      const fatte = x.vbt.filter(v => v !== null);
+      if (fatte.length) registraVbt(aid, x.nome, x.peso || null, media(x.vbt), x.vbtTarget || null);
+    });
+  }
   s.chiusa = true; fermaTimer(); S.seduta = null; S.vista = "oggi"; disegna();
 }
 

@@ -366,6 +366,7 @@ function disegna() {
   else if (coach && S.vista === "fv") corpo = vistaProfiloFV();
   else if (coach && S.vista === "andamento") corpo = vistaAndamento();
   else if (coach && S.vista === "fv-sprint") corpo = vistaProfiloFVSprint();
+  else if (coach && S.vista === "vbt") corpo = vistaMonitoraggioVBT();
   else if (coach && S.vista === "test") corpo = vistaTest();
   else if (coach && S.vista === "template") corpo = vistaTemplate();
   else if (coach && S.vista === "carico") corpo = vistaCarico();

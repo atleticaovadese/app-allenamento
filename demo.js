@@ -92,6 +92,16 @@ const DEMO = {
   // Esercizi aggiunti dall'allenatore (non arrivano dall'Excel). Vengono salvati e inclusi nell'export.
   customEsercizi: [],
 
+  // Registro VBT (si riempie dalle sedute di palestra svolte). A parità di carico, m/s che sale = migliori.
+  vbtLog: [
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.52, vbtTarget: 0.55 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.55, vbtTarget: 0.55 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Squat", carico: 130, vbtEseguita: 0.58, vbtTarget: 0.55 },
+    { data: "2026-04-10", atletaId: "at1", esercizio: "Hip thrust", carico: 120, vbtEseguita: 0.58, vbtTarget: 0.60 },
+    { data: "2026-05-15", atletaId: "at1", esercizio: "Hip thrust", carico: 120, vbtEseguita: 0.61, vbtTarget: 0.60 },
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Hip thrust", carico: 125, vbtEseguita: 0.60, vbtTarget: 0.60 }
+  ],
+
   // Monitoraggio per l'allenatore (per atleta)
   mon: {
     at1: { stato: "v", acwr: "1.12", forma: "+4.2", prontezza: "3.9", aderenza: 90,

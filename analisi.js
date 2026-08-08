@@ -629,3 +629,80 @@ function vistaProfiloFVSprint() {
       : `<p class="et" style="margin-top:8px">Inserisci massa e altezza + almeno 2 tempi parziali, oppure passa a MySprint e incolla i valori.</p>`}
   </div>`;
 }
+
+// 7) MONITORAGGIO VBT — registro della velocità del bilanciere nel tempo (dalle sedute di palestra).
+let vbtState = { atletaRif: "", esercizio: "" };
+function setVbtAtleta(id) { vbtState.atletaRif = id; vbtState.esercizio = ""; disegna(); }
+function setVbtEsercizio(e) { vbtState.esercizio = e; disegna(); }
+function eserciziVbt(atletaId) {
+  const set = [];
+  (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId).forEach(l => { if (!set.includes(l.esercizio)) set.push(l.esercizio); });
+  return set;
+}
+function serieVbt(atletaId, esercizio) {
+  return (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.esercizio === esercizio)
+    .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+}
+// chiamata dalla seduta di palestra a fine allenamento
+function registraVbt(atletaId, esercizio, carico, vbtEseguita, vbtTarget) {
+  if (!atletaId || !esercizio || vbtEseguita == null || isNaN(vbtEseguita)) return;
+  DEMO.vbtLog = DEMO.vbtLog || [];
+  DEMO.vbtLog.push({ data: new Date().toISOString().slice(0, 10), atletaId, esercizio, carico: carico || null, vbtEseguita: Math.round(vbtEseguita * 100) / 100, vbtTarget: vbtTarget || null });
+  if (typeof salvaCustom === "function") salvaCustom();
+}
+
+function chartVBT(punti) {
+  const n = punti.length;
+  if (!n) return `<p class="et">Nessun dato VBT per questa voce.</p>`;
+  const all = punti.flatMap(p => [p.val, p.target]).filter(v => v != null);
+  let min = Math.min(...all), max = Math.max(...all);
+  if (min === max) { min -= 0.05; max += 0.05; }
+  const W = 340, H = 170, padL = 32, padR = 8, padT = 10, padB = 28;
+  const x = i => padL + (W - padL - padR) * (n <= 1 ? 0.5 : i / (n - 1));
+  const y = v => (H - padB) - (H - padT - padB) * ((v - min) / (max - min));
+  const yl = [min, (min + max) / 2, max].map(v => `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W - padR}" y2="${y(v).toFixed(1)}" stroke="#2c2c34"/><text x="2" y="${(y(v) + 3).toFixed(1)}" fill="#76756f" font-size="9">${(Math.round(v * 100) / 100).toFixed(2)}</text>`).join("");
+  const step = Math.max(1, Math.ceil(n / 6));
+  const xl = punti.map((p, i) => (i % step === 0 || i === n - 1) ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" fill="#76756f" font-size="8" text-anchor="middle">${(p.label || "").split(" ").slice(0, 2).join(" ")}</text>` : "").join("");
+  const tgt = punti.every(p => p.target != null) ? `<polyline points="${punti.map((p, i) => `${x(i).toFixed(1)},${y(p.target).toFixed(1)}`).join(" ")}" fill="none" stroke="#76756f" stroke-width="1.5" stroke-dasharray="4 3"/>` : "";
+  const line = n > 1 ? `<polyline points="${punti.map((p, i) => `${x(i).toFixed(1)},${y(p.val).toFixed(1)}`).join(" ")}" fill="none" stroke="#4d9aff" stroke-width="2"/>` : "";
+  const dots = punti.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.val).toFixed(1)}" r="3" fill="#4d9aff"/>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${yl}${xl}${tgt}${line}${dots}</svg>`;
+}
+
+function vistaMonitoraggioVBT() {
+  const atl = DEMO.atleti.find(x => x.id === vbtState.atletaRif);
+  const esercizi = atl ? eserciziVbt(atl.id) : [];
+  if (atl && !vbtState.esercizio && esercizi.length) vbtState.esercizio = esercizi[0];
+  const serie = atl && vbtState.esercizio ? serieVbt(atl.id, vbtState.esercizio) : [];
+  const punti = serie.map(e => ({ label: typeof fmtDataAnno === "function" ? fmtDataAnno(e.data) : e.data, val: e.vbtEseguita, target: e.vbtTarget }));
+  const delta = serie.length > 1 ? serie[serie.length - 1].vbtEseguita - serie[0].vbtEseguita : null;
+
+  return `
+  <div class="card"><h3>Monitoraggio VBT</h3>
+    <p class="et" style="margin-top:2px">La velocità del bilanciere nel tempo, dalle sedute di palestra. A parità di carico, più la m/s sale = i pesi corrono di più = stai migliorando.</p></div>
+
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setVbtAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${vbtState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    ${atl && esercizi.length ? `<label class="lab" style="display:block;margin-top:12px">Esercizio</label>
+      <select onchange="setVbtEsercizio(this.value)" style="margin-top:6px">${esercizi.map(e => `<option ${vbtState.esercizio === e ? "selected" : ""}>${e}</option>`).join("")}</select>` : ""}
+  </div>
+
+  ${!atl ? `<div class="card"><p class="et">Scegli un atleta per vedere l'andamento della velocità del bilanciere.</p></div>`
+    : !esercizi.length ? `<div class="card"><p class="et">Nessun dato VBT per ${atl.nome}. Si riempie quando registra la velocità nelle sedute di palestra.</p></div>`
+    : `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <p class="et" style="margin:0">${vbtState.esercizio} · m/s eseguita <span style="color:var(--txt3)">(tratteggio = target)</span></p>
+          ${delta != null ? `<span class="et" style="color:${delta >= 0 ? "var(--verde)" : "var(--rosso)"}">${delta > 0 ? "+" : ""}${(Math.round(delta * 100) / 100).toFixed(2)} m/s</span>` : ""}
+        </div>
+        ${chartVBT(punti)}
+        <table class="ptab" style="min-width:0;margin-top:10px">
+          <thead><tr><th>Data</th><th>Carico</th><th>Eseg.</th><th>Target</th></tr></thead>
+          <tbody>${serie.map(e => {
+            const sotto = e.vbtTarget != null && e.vbtEseguita < e.vbtTarget * (1 - (CONFIG.soglie.vbtSottoPct / 100));
+            return `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(e.data) : e.data}</td><td>${e.carico != null ? e.carico + " kg" : "—"}</td><td class="pauto" style="color:${sotto ? "var(--rosso)" : "var(--verde)"}">${e.vbtEseguita.toFixed(2)}</td><td>${e.vbtTarget != null ? e.vbtTarget.toFixed(2) : "—"}</td></tr>`;
+          }).join("")}</tbody>
+        </table>
+      </div>`}`;
+}
