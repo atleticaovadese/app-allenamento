@@ -64,14 +64,14 @@ async function caricaDati() {
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
-    .select("id,nome,disciplina,specialita,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
+    .select("id,nome,disciplina,specialita,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
     .order("creato_il");
 
   const nuoviMon = {}, nuoviDiari = {}, nuovaDaFare = {};
   DEMO.atleti = (atl || []).map(a => {
     const pres = _PRES_DEMO[a.nome] || { mese: [0, 0], stag: [0, 0] };
     const pb = (a.pb || []).slice().sort((x, y) => rankDist(x.distanza) - rankDist(y.distanza))
-      .map(p => [p.distanza, p.tempo, fmtDataAnno(p.data), p.stagione, p.obiettivo, p.id, p.data || ""]);
+      .map(p => [p.distanza, p.tempo, fmtDataAnno(p.data), p.stagione, p.obiettivo, p.id, p.data || "", p.origine || "gara"]);
     const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtDataAnno(m.data), m.note || "", m.id, m.data || ""]);
     const salti = (a.test || []).map(t => [t.nome, t.valore, t.unita, fmtDataAnno(t.data), t.id, t.data || ""]);
     const scheda = {
@@ -117,6 +117,10 @@ async function caricaDati() {
   }
   // sessioni di test complete salvate (snapshot): aggancia al vero uuid
   DEMO.testSessioni = (DEMO.testSessioni || []).map(s => {
+    const nm = _oldToName[s.atletaId];
+    return (nm && _idByNome[nm]) ? { ...s, atletaId: _idByNome[nm] } : s;
+  });
+  DEMO.risultatiGara = (DEMO.risultatiGara || []).map(s => {
     const nm = _oldToName[s.atletaId];
     return (nm && _idByNome[nm]) ? { ...s, atletaId: _idByNome[nm] } : s;
   });
@@ -180,18 +184,29 @@ function _atl(id) { return DEMO.atleti.find(a => a.id === id); }
 
 async function creaPB(atletaId, d) {
   let id = "loc" + Date.now();
+  const origine = d.origine || "gara";
   if (haDB()) {
-    const { data, error } = await sb.from("pb").insert({ atleta_id: atletaId, distanza: d.distanza, tempo: d.tempo, data: d.data || null, stagione: d.stagione, obiettivo: d.obiettivo }).select("id").single();
+    const { data, error } = await sb.from("pb").insert({ atleta_id: atletaId, distanza: d.distanza, tempo: d.tempo, data: d.data || null, stagione: d.stagione, obiettivo: d.obiettivo, origine }).select("id").single();
     if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
     id = data.id;
   }
   const a = _atl(atletaId);
   if (a) {
-    a.scheda.pb.push([d.distanza, d.tempo, fmtDataAnno(d.data), d.stagione, d.obiettivo, id, d.data || ""]);
+    a.scheda.pb.push([d.distanza, d.tempo, fmtDataAnno(d.data), d.stagione, d.obiettivo, id, d.data || "", origine]);
     a.scheda.pb.sort((x, y) => rankDist(x[0]) - rankDist(y[0]));
     a.pb.push([d.distanza, d.tempo]);
   }
   return true;
+}
+// aggiorna il PB in allenamento per una distanza solo se il tempo è un nuovo migliore (meno = meglio)
+async function aggiornaPbAllenamento(atletaId, distanza, tempo) {
+  if (!atletaId || !distanza || !(tempo > 0)) return false;
+  const a = _atl(atletaId);
+  if (a) {
+    const attuale = (a.scheda.pb || []).filter(p => p[0] === distanza && (p[7] || "gara") === "allenamento").map(p => Number(p[1]));
+    if (attuale.length && Math.min(...attuale) <= tempo) return false; // non è un nuovo PB
+  }
+  return creaPB(atletaId, { distanza, tempo: Math.round(tempo * 100) / 100, data: new Date().toISOString().slice(0, 10), stagione: null, obiettivo: "", origine: "allenamento" });
 }
 
 async function creaMassimale(atletaId, d) {

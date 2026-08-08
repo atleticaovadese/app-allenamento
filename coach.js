@@ -544,3 +544,69 @@ function vistaDiarioCoach() {
     <p class="et" style="margin-top:2px">Prontezza e ultimo diario di ogni atleta</p></div>
     ${righe}`;
 }
+
+// ---------- monitoraggio: SCREENING (performance + carico) settimana / mesociclo ----------
+let screeningState = { atletaRif: "" };
+function setScreeningAtleta(id) { screeningState.atletaRif = id; disegna(); window.scrollTo(0, 0); }
+
+function bloccoScreening(atletaId, giorni, titolo) {
+  const oggiISO = new Date().toISOString().slice(0, 10);
+  const dalISO = new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
+  const inWin = d => d && d >= dalISO && d <= oggiISO;
+  const pista = (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && inWin(l.data));
+  const pistaPrima = (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && l.data < dalISO);
+  const vbt = (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.vbtEseguita != null && inWin(l.data));
+  const vbtPrima = (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.vbtEseguita != null && l.data < dalISO);
+  const gare = (DEMO.risultatiGara || []).filter(r => r.atletaId === atletaId && inWin(r.data));
+
+  const sedute = new Set([...pista.map(x => x.data), ...vbt.map(x => x.data)]).size;
+  const volume = pista.reduce((s, x) => s + (x.volume || 0), 0);
+  const dist = [...new Set(pista.map(x => x.distanza))].sort((a, b) => a - b);
+  let mig = 0, peg = 0;
+  const righeTempi = dist.map(d => {
+    const win = pista.filter(x => x.distanza === d).map(x => x.tempo).filter(t => t > 0);
+    const prima = pistaPrima.filter(x => x.distanza === d).map(x => x.tempo).filter(t => t > 0);
+    const best = win.length ? Math.min(...win) : null, bestPrima = prima.length ? Math.min(...prima) : null;
+    const delta = (best != null && bestPrima != null) ? best - bestPrima : null;
+    if (delta != null) { if (delta < 0) mig++; else if (delta > 0) peg++; }
+    const col = delta == null ? "var(--txt3)" : delta < 0 ? "var(--verde)" : delta > 0 ? "var(--rosso)" : "var(--txt2)";
+    return `<tr><td>${d} m</td><td class="pauto">${best != null ? best.toFixed(2) : "—"}</td><td style="color:${col}">${delta != null ? (delta > 0 ? "+" : "") + delta.toFixed(2) : "—"}</td></tr>`;
+  }).join("");
+  const vMedia = vbt.length ? vbt.reduce((s, x) => s + x.vbtEseguita, 0) / vbt.length : null;
+  const vPrima = vbtPrima.length ? vbtPrima.reduce((s, x) => s + x.vbtEseguita, 0) / vbtPrima.length : null;
+  const dVbt = (vMedia != null && vPrima != null) ? vMedia - vPrima : null;
+  const m = (DEMO.mon || {})[atletaId] || {};
+
+  const perf = sedute === 0 ? "🕓 nessun dato nel periodo"
+    : mig > peg ? "🟢 tempi in miglioramento" : peg > mig ? "🔴 tempi in calo" : "🟡 tempi stabili";
+  const caricoTxt = m.acwr ? `ACWR ${m.acwr} · forma ${m.forma || "—"} · prontezza ${m.prontezza || "—"}` : "—";
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <p class="et" style="margin:0">${titolo}</p><span class="et">ultimi ${giorni} giorni</span></div>
+    <div style="display:flex;gap:8px;margin:12px 0 4px">
+      ${[["Sedute", sedute], ["Volume pista", volume ? (volume >= 1000 ? (volume / 1000).toFixed(1) + " km" : volume + " m") : "—"], ["VBT media", vMedia != null ? vMedia.toFixed(2) : "—"], ["Gare", gare.length]]
+        .map(([l, v]) => `<div style="flex:1;background:var(--card2);border-radius:12px;padding:10px 4px;text-align:center"><p class="et" style="margin:0 0 2px">${l}</p><b style="font-size:16px">${v}</b></div>`).join("")}
+    </div>
+    ${dist.length ? `<p class="et" style="margin:10px 0 4px">Tempi per distanza (best · variazione vs prima)</p>
+      <table class="ptab" style="min-width:0"><thead><tr><th>Distanza</th><th>Best</th><th>Δ</th></tr></thead><tbody>${righeTempi}</tbody></table>` : ""}
+    <p style="margin-top:12px;font-weight:600">${perf}${dVbt != null ? ` · VBT ${dVbt >= 0 ? "+" : ""}${dVbt.toFixed(2)} m/s` : ""}</p>
+    <p class="et" style="margin-top:6px">Carico: <b style="color:${typeof colAcwr === "function" && m.acwr ? colAcwr(m.acwr) : "var(--txt2)"}">${caricoTxt}</b></p>
+    ${m.alert && m.alert.length ? `<p class="et" style="margin-top:4px">${m.alert.map(a => a[1]).join(" · ")}</p>` : ""}
+  </div>`;
+}
+
+function vistaScreening() {
+  const atl = DEMO.atleti.find(x => x.id === screeningState.atletaRif);
+  return `
+  <div class="card"><h3>Screening</h3>
+    <p class="et" style="margin-top:2px">Come sta andando l'atleta: tempi e ripetute (performance) + carico e freschezza, sulla settimana e sul mesociclo.</p></div>
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setScreeningAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${screeningState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+  </div>
+  ${atl ? `<p class="sez">Settimana</p>${bloccoScreening(atl.id, 7, "Questa settimana")}
+    <p class="sez">Mesociclo</p>${bloccoScreening(atl.id, 28, "Ultime 4 settimane")}`
+    : `<div class="card"><p class="et">Scegli un atleta per vedere lo screening.</p></div>`}`;
+}

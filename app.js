@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, nuovoTest: false, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, nuovoTest: false, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -25,7 +25,7 @@ const MENU_COACH = [
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
-    ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
+    ["screening", "Screening"], ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
   { k: "gare", ic: "★", l: "Gare" },
   { k: "report", ic: "✉", l: "Report settimanale" },
@@ -40,7 +40,7 @@ const DA_EXCEL = {
   template: "Template microcicli", piano: "Piano & Picco", periodizzazione: "Periodizzazione",
   test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "Test (CMJ/SJ)", "sprint-test": "Test (sprint)", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
-  "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", carico: "Carico & Forma",
+  "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", screening: "(nuovo: settimana/mesociclo)", carico: "Carico & Forma",
   infortuni: "Infortuni & Prevenzione", prevenzione: "Infortuni & Prevenzione (asimmetrie)", presenze: "Presenze", "diario-c": "Diario",
   "lib-sala": "Libreria Sala", "lib-mobilita": "Libreria Mobilita", "lib-video": "Libreria Video",
   "lib-plio": "Pliometria", gare: "Calendario gare", calendario: "Pista (mesocicli)", diario: "Diario",
@@ -111,7 +111,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.nuovoTest = false; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.nuovoTest = false; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -179,25 +179,101 @@ function vistaOggi() {
 function apriSeduta(id) { S.seduta = id; T.id = null; fermaTimer(); disegna(); window.scrollTo(0, 0); }
 
 // ---------- Gare (atleta e allenatore) ----------
+const DIST_GARA = ["60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "300 m", "400 m", "60 hs", "100 hs", "110 hs", "400 hs", "Altro"];
+function nomeAtletaGara(id) { const a = DEMO.atleti.find(x => x.id === id); return a ? a.nome : "—"; }
+
 function vistaGare() {
   const p = DEMO.prossimaGara;
-  const righe = DEMO.gareProssime.map(g => `
+  const prog = (DEMO.gareProssime || []).map(g => `
     <div class="riga">
       <div><div style="font-weight:500">${g.luogo}</div>
         <div class="et">${g.gara} · obiettivo ${g.obiettivo}</div></div>
       <b>${g.data}</b></div>`).join("");
+  const ris = (DEMO.risultatiGara || []).slice(0, 30).map(r => `
+    <div class="card" style="padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3 style="font-size:16px">${nomeAtletaGara(r.atletaId)}</h3>
+        <b style="font-size:17px">${r.tempo}${typeof r.tempo === "number" ? " s" : ""}</b></div>
+      <p class="et" style="margin-top:4px">${r.distanza}${r.gara ? " · " + r.gara : ""} · ${typeof fmtDataAnno === "function" ? fmtDataAnno(r.data) : r.data}</p>
+      <p class="et" style="margin-top:2px">${[r.posizione ? "pos. " + r.posizione : "", r.vento ? "vento " + r.vento : "", r.note].filter(Boolean).join(" · ") || ""}</p>
+      <button class="link-indietro" style="color:var(--rosso);margin-top:4px" onclick="eliminaRisultatoGara('${r.id}')">elimina</button>
+    </div>`).join("");
   return `
-  <div class="card"><h3>Calendario gare</h3>
-    <p class="et" style="margin-top:2px">La prossima e quelle in programma</p></div>
+  <div class="card"><h3>Gare</h3>
+    <p class="et" style="margin-top:2px">Registra i risultati: aggiornano in automatico i PB in gara dell'atleta. Sotto, il calendario.</p></div>
+
+  <button class="btn" style="margin-bottom:12px" onclick="apriRisultatoGara('')">＋ Registra risultato</button>
+
+  <p class="sez">Risultati recenti</p>
+  ${ris || `<div class="card"><p class="et">Nessun risultato registrato. Tocca «Registra risultato».</p></div>`}
+
+  <p class="sez">Prossima gara</p>
   <div class="card" style="border-color:var(--blu)">
-    <p class="et" style="color:var(--blu)">Prossima gara · tra ${p.traSettimane} settimane</p>
+    <p class="et" style="color:var(--blu)">tra ${p.traSettimane} settimane</p>
     <h3 style="margin-top:4px">${p.luogo}</h3>
     <p class="et" style="margin-top:2px">${p.gara} · obiettivo ${p.obiettivo}</p>
   </div>
   <div class="card">
     <p class="et" style="margin-bottom:6px">In programma</p>
-    ${righe || `<p class="et">Nessun'altra gara inserita.</p>`}
+    ${prog || `<p class="et">Nessun'altra gara inserita.</p>`}
   </div>`;
+}
+
+function apriRisultatoGara(atletaId) {
+  S.risultatoGara = { atletaId: atletaId || "", data: new Date().toISOString().slice(0, 10), gara: "", distanza: "100 m", tempo: "", vento: "", posizione: "", note: "" };
+  disegna(); window.scrollTo(0, 0);
+}
+function chiudiRisultatoGara() { S.risultatoGara = null; S.vista = "gare"; disegna(); window.scrollTo(0, 0); }
+function vistaRisultatoGaraForm() {
+  const f = S.risultatoGara;
+  return `<button class="indietro" onclick="chiudiRisultatoGara()">‹ Indietro</button>
+    <div class="card"><h3>Registra risultato</h3>
+      <p class="et" style="margin-top:2px">Aggiorna il PB in gara dell'atleta (se è un nuovo migliore).</p></div>
+    <div class="card">
+      <label class="lab">Atleta</label>
+      <select onchange="S.risultatoGara.atletaId=this.value" style="margin-top:6px">
+        <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${f.atletaId === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Data</label>
+          <input type="date" value="${f.data || ""}" oninput="S.risultatoGara.data=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Distanza / prova</label>
+          <select onchange="S.risultatoGara.distanza=this.value" style="margin-top:6px">${DIST_GARA.map(d => `<option ${f.distanza === d ? "selected" : ""}>${d}</option>`).join("")}</select></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Tempo (s)</label>
+          <input inputmode="decimal" value="${f.tempo}" placeholder="es. 10.85" oninput="S.risultatoGara.tempo=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Vento (m/s)</label>
+          <input inputmode="decimal" value="${f.vento}" placeholder="es. +1.2" oninput="S.risultatoGara.vento=this.value" style="margin-top:6px"></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Posizione</label>
+          <input inputmode="numeric" value="${f.posizione}" placeholder="es. 2" oninput="S.risultatoGara.posizione=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Gara / luogo</label>
+          <input value="${(f.gara || "").replace(/"/g, "&quot;")}" placeholder="es. Reg. Novara" oninput="S.risultatoGara.gara=this.value" style="margin-top:6px"></div>
+      </div>
+      <label class="lab" style="display:block;margin-top:12px">Note</label>
+      <textarea rows="2" oninput="S.risultatoGara.note=this.value" placeholder="condizioni, sensazioni…" style="margin-top:6px;width:100%">${(f.note || "").replace(/</g, "&lt;")}</textarea>
+    </div>
+    <button class="btn" onclick="salvaRisultatoGara()">Salva il risultato</button>`;
+}
+async function salvaRisultatoGara() {
+  const f = S.risultatoGara;
+  if (!f.atletaId) { alert("Scegli l'atleta."); return; }
+  const t = parseFloat(String(f.tempo).replace(",", "."));
+  if (!f.distanza || !(t > 0)) { alert("Distanza e tempo (valido) sono obbligatori."); return; }
+  const btn = document.querySelector(".main .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  DEMO.risultatiGara = DEMO.risultatiGara || [];
+  DEMO.risultatiGara.unshift({ id: "rg" + Date.now(), atletaId: f.atletaId, data: f.data, gara: (f.gara || "").trim(), distanza: f.distanza, tempo: Math.round(t * 100) / 100, vento: (f.vento || "").trim(), posizione: (f.posizione || "").trim(), note: (f.note || "").trim() });
+  if (typeof salvaCustom === "function") salvaCustom();
+  const ok = typeof creaPB === "function" ? await creaPB(f.atletaId, { distanza: f.distanza, tempo: Math.round(t * 100) / 100, data: f.data || null, stagione: null, obiettivo: "", origine: "gara" }) : true;
+  if (ok !== false) { S.risultatoGara = null; S.vista = "gare"; disegna(); window.scrollTo(0, 0); }
+  else if (btn) { btn.textContent = "Salva il risultato"; btn.disabled = false; }
+}
+function eliminaRisultatoGara(id) {
+  if (!confirm("Eliminare questo risultato? (il PB già aggiornato resta)")) return;
+  DEMO.risultatiGara = (DEMO.risultatiGara || []).filter(r => r.id !== id);
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
 }
 
 // ---------- Aiuto e glossario ----------
@@ -350,6 +426,7 @@ function disegna() {
   const menu = coach ? MENU_COACH : MENU_ATLETA;
   let corpo;
   if (S.infortunio) corpo = vistaInfortunioForm();
+  else if (S.risultatoGara) corpo = vistaRisultatoGaraForm();
   else if (S.seduta) corpo = vistaSeduta();
   else if (coach && S.atletaSel && S.mostraScheda) corpo = vistaSchedaAtleta();
   else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
@@ -375,6 +452,7 @@ function disegna() {
   else if (coach && S.vista === "vbt") corpo = vistaMonitoraggioVBT();
   else if (coach && S.vista === "test") corpo = vistaTest();
   else if (coach && S.vista === "template") corpo = vistaTemplate();
+  else if (coach && S.vista === "screening") corpo = vistaScreening();
   else if (coach && S.vista === "carico") corpo = vistaCarico();
   else if (coach && S.vista === "infortuni") corpo = vistaInfortuni();
   else if (coach && S.vista === "prevenzione") corpo = vistaPrevenzione();

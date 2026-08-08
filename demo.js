@@ -108,7 +108,9 @@ const DEMO = {
     { data: "2026-07-18", atletaId: "at1", esercizio: "Panca piana", carico: 84, peso: 84, serie: 4, rep: 4, volume: 1344, rpe: 8, vbtEseguita: 0.45, vbtTarget: 0.45 },
     { data: "2026-04-10", atletaId: "at1", esercizio: "Stacco", carico: 150, peso: 150, serie: 3, rep: 4, volume: 1800, rpe: 7.5, vbtEseguita: 0.36, vbtTarget: 0.40 },
     { data: "2026-05-15", atletaId: "at1", esercizio: "Stacco", carico: 150, peso: 150, serie: 3, rep: 4, volume: 1800, rpe: 8, vbtEseguita: 0.40, vbtTarget: 0.40 },
-    { data: "2026-06-20", atletaId: "at1", esercizio: "Stacco", carico: 160, peso: 160, serie: 3, rep: 3, volume: 1440, rpe: 8, vbtEseguita: 0.42, vbtTarget: 0.40 }
+    { data: "2026-06-20", atletaId: "at1", esercizio: "Stacco", carico: 160, peso: 160, serie: 3, rep: 3, volume: 1440, rpe: 8, vbtEseguita: 0.42, vbtTarget: 0.40 },
+    { data: "2026-08-02", atletaId: "at1", esercizio: "Squat", carico: 138, peso: 138, serie: 4, rep: 4, volume: 2208, rpe: 8, vbtEseguita: 0.58, vbtTarget: 0.55 },
+    { data: "2026-08-08", atletaId: "at1", esercizio: "Squat", carico: 138, peso: 138, serie: 4, rep: 4, volume: 2208, rpe: 8, vbtEseguita: 0.59, vbtTarget: 0.55 }
   ],
 
   // Registro Pista (si riempie dalle sedute di pista svolte): Tempo eseguito, Volume (m), Vel (m/s) per distanza.
@@ -124,7 +126,12 @@ const DEMO = {
     { data: "2026-07-18", atletaId: "at1", distanza: 60, tempo: 6.95, volume: 240, velocita: 8.63 },
     { data: "2026-04-10", atletaId: "at1", distanza: 150, tempo: 16.80, volume: 450, velocita: 8.93 },
     { data: "2026-05-15", atletaId: "at1", distanza: 150, tempo: 16.60, volume: 450, velocita: 9.04 },
-    { data: "2026-06-20", atletaId: "at1", distanza: 150, tempo: 16.45, volume: 300, velocita: 9.12 }
+    { data: "2026-06-20", atletaId: "at1", distanza: 150, tempo: 16.45, volume: 300, velocita: 9.12 },
+    { data: "2026-07-26", atletaId: "at1", distanza: 60, tempo: 6.93, volume: 240, velocita: 8.66 },
+    { data: "2026-08-02", atletaId: "at1", distanza: 60, tempo: 6.92, volume: 300, velocita: 8.67 },
+    { data: "2026-08-02", atletaId: "at1", distanza: 30, tempo: 3.80, volume: 150, velocita: 7.89 },
+    { data: "2026-08-08", atletaId: "at1", distanza: 60, tempo: 6.90, volume: 240, velocita: 8.70 },
+    { data: "2026-08-08", atletaId: "at1", distanza: 30, tempo: 3.79, volume: 150, velocita: 7.92 }
   ],
 
   // Monitoraggio per l'allenatore (per atleta)

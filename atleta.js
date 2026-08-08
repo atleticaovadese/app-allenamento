@@ -14,7 +14,7 @@ function schedaAtleta(a, mod) {
   const agg = (tipo, label) => mod
     ? `<button class="btn btn-2" style="margin-top:10px" onclick="apriAggiungi('${tipo}','${a.id}')">＋ ${label}</button>` : "";
 
-  const pb = (s.pb || []).map((r, i) => {
+  const pbRow = (r, i) => {
     const [d, t, data, stag, ob, id] = r;
     return `<div class="riga">
       <div style="flex:1;min-width:0">
@@ -23,7 +23,14 @@ function schedaAtleta(a, mod) {
         ${ob ? `<div style="font-size:12px;color:var(--blu);margin-top:2px">obiettivo ${ob} s</div>` : ""}
       </div>
       <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${t}</b>${del("pb", "pb", id, i)}</div></div>`;
-  }).join("");
+  };
+  const gruppoPb = (origine) => {
+    const filt = (s.pb || []).map((r, i) => [r, i]).filter(x => (x[0][7] || "gara") === origine);
+    const best = {};
+    filt.forEach(x => { const d = x[0][0], t = Number(x[0][1]); if (!(d in best) || t < Number(best[d][0][1])) best[d] = x; });
+    return Object.values(best).map(x => pbRow(x[0], x[1])).join("");
+  };
+  const pbGara = gruppoPb("gara"), pbAllen = gruppoPb("allenamento");
   const mx = (s.massimali || []).map((r, i) => {
     const [n, kg, data, note, id] = r;
     return `<div class="riga">
@@ -53,9 +60,14 @@ function schedaAtleta(a, mod) {
   </div>
 
   <div class="card">
-    <p class="et" style="margin-bottom:6px">Migliori prestazioni (PB)</p>
-    ${pb || `<p class="et">Nessun PB inserito.</p>`}
-    ${agg("pb", "Aggiungi PB")}
+    <p class="et" style="margin-bottom:6px">🏆 Migliori prestazioni in gara (PB)</p>
+    ${pbGara || `<p class="et">Nessun PB in gara. Registra un risultato dalla pagina Gare.</p>`}
+    ${agg("pb", "Aggiungi PB gara")}
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin-bottom:6px">🏋 Migliori prestazioni in allenamento (PB)</p>
+    ${pbAllen || `<p class="et">Nessun PB in allenamento. Si riempie dai test sprint e dalle sedute di pista.</p>`}
   </div>
 
   <div class="card">
@@ -143,7 +155,7 @@ async function salvaVoce(tipo, atletaId) {
   let ok = false;
   if (tipo === "pb") {
     if (!n1 || !v("f2")) { alert("Distanza e tempo sono obbligatori."); return; }
-    ok = await creaPB(atletaId, { distanza: n1, tempo: num(v("f2")), data: v("f3") || null, stagione: num(v("f4")), obiettivo: num(v("f5")) });
+    ok = await creaPB(atletaId, { distanza: n1, tempo: num(v("f2")), data: v("f3") || null, stagione: num(v("f4")), obiettivo: num(v("f5")), origine: "gara" });
   } else if (tipo === "massimale") {
     if (!n1 || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
     ok = await creaMassimale(atletaId, { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") });

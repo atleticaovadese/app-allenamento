@@ -972,7 +972,7 @@ async function salvaSprintTest() {
   const t = parseFloat(String(sprTState.tempo).replace(",", "."));
   if (!(t > 0)) { alert("Inserisci un tempo valido."); return; }
   const oggi = new Date().toISOString().slice(0, 10);
-  const ok = typeof creaPB === "function" ? await creaPB(a.id, { distanza: sprTState.dist, tempo: Math.round(t * 100) / 100, data: oggi, stagione: null, obiettivo: "" }) : false;
+  const ok = typeof creaPB === "function" ? await creaPB(a.id, { distanza: sprTState.dist, tempo: Math.round(t * 100) / 100, data: oggi, stagione: null, obiettivo: "", origine: "allenamento" }) : false;
   if (ok) { alert(`Salvato: ${sprTState.dist} ${t.toFixed(2)} s nella scheda di ${a.nome}.`); sprTState.tempo = ""; disegna(); }
 }
 function vistaSprintTest() {

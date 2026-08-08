@@ -31,6 +31,7 @@ function caricaCustom() {
     if (c.vbtLog) DEMO.vbtLog = c.vbtLog;
     if (c.pistaLog) DEMO.pistaLog = c.pistaLog;
     if (c.testSessioni) DEMO.testSessioni = c.testSessioni;
+    if (c.risultatiGara) DEMO.risultatiGara = c.risultatiGara;
   } catch (e) { /* niente da caricare */ }
 }
 
@@ -39,7 +40,7 @@ function salvaCustom() {
     localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify({
       esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
       piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
-      testSessioni: DEMO.testSessioni
+      testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara
     }));
   } catch (e) { /* localStorage non disponibile */ }
 }

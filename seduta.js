@@ -251,6 +251,9 @@ function chiudiSeduta(sid) {
       if (!fatti.length) return;
       const tmedio = fatti.reduce((a, b) => a + b, 0) / fatti.length;
       registraPista(aid, e.distanza, tmedio, e.ripetute * e.distanza, tmedio ? e.distanza / tmedio : null);
+      // miglior tempo della seduta su questa distanza → aggiorna PB in allenamento
+      const migliore = Math.min(...fatti);
+      if (typeof aggiornaPbAllenamento === "function") aggiornaPbAllenamento(aid, e.distanza + " m", migliore);
     });
   }
   s.chiusa = true; fermaTimer(); S.seduta = null; S.vista = "oggi"; disegna();
