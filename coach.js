@@ -127,6 +127,10 @@ function vistaNuovoAtleta() {
           <input inputmode="numeric" value="${a.peso_kg || ""}" placeholder="70"
             oninput="S.nuovoAtleta.peso_kg=this.value" style="margin-top:6px"></div>
       </div>
+
+      <label class="lab" style="display:block;margin-top:12px">Email per l'accesso <span style="color:var(--txt3)">(l'atleta si registrerà con questa)</span></label>
+      <input type="email" value="${(a.email || "").replace(/"/g, "&quot;")}" placeholder="atleta@esempio.it"
+        oninput="S.nuovoAtleta.email=this.value" style="margin-top:6px">
     </div>
     <button class="btn" onclick="salvaNuovoAtleta()">Salva atleta</button>`;
 }
@@ -137,6 +141,7 @@ async function salvaNuovoAtleta() {
   const btn = document.querySelector(".main .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
   const ok = await creaAtleta({
     nome: a.nome.trim(), disciplina: a.disciplina || "velocita", specialita: (a.specialita || "").trim(),
+    email: (a.email || "").trim(),
     categoria: (a.categoria || "").trim(), data_nascita: a.data_nascita || null, gamba_stacco: a.gamba_stacco || "",
     altezza_cm: a.altezza_cm ? Number(a.altezza_cm) : null, peso_kg: a.peso_kg ? Number(a.peso_kg) : null
   });
@@ -215,6 +220,15 @@ function vistaAtletaDettaglio() {
   </div>
 
   <div class="card">
+    <p class="et" style="margin-bottom:6px">Accesso atleta</p>
+    ${a.email
+      ? `<p style="font-size:14px"><b>${a.email}</b> ${a.haAccesso ? '<span class="pill p-verde">registrato</span>' : '<span class="pill p-giallo">in attesa</span>'}</p>
+         <p class="et" style="margin-top:6px">${a.haAccesso ? "L'atleta ha l'accesso attivo." : "Di' all'atleta di aprire l'app → «Sei un atleta? Registrati» e usare questa email."}</p>`
+      : `<p class="et">Nessuna email impostata: l'atleta non può ancora accedere.</p>`}
+    <button class="btn btn-2" style="margin-top:10px" onclick="cambiaEmailAtleta('${a.id}')">${a.email ? "Cambia email di accesso" : "Imposta email di accesso"}</button>
+  </div>
+
+  <div class="card">
     <p class="et" style="margin-bottom:8px">Apri</p>
     <div class="azioni">
       <button class="btn btn-2" onclick="apriSchedaAtleta()">Scheda: dati, PB, massimali, test</button>
@@ -224,6 +238,12 @@ function vistaAtletaDettaglio() {
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
     </div>
   </div>`;
+}
+async function cambiaEmailAtleta(id) {
+  const a = DEMO.atleti.find(x => x.id === id);
+  const em = prompt("Email di accesso dell'atleta (la userà per registrarsi):", (a && a.email) || "");
+  if (em === null) return;
+  if (typeof impostaEmailAtleta === "function") { const ok = await impostaEmailAtleta(id, em); if (ok) disegna(); }
 }
 
 // ---------- calendario squadra ----------

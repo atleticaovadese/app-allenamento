@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, nuovoTest: false, gruppo: "vel", pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, nuovoTest: false, gruppo: "vel", mostraRegistra: false, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -84,25 +84,38 @@ function ripristina() {
 }
 
 function vistaLogin() {
+  const reg = S.mostraRegistra;
   return `<div class="login">
     <h1>${CONFIG.nome}</h1>
-    <p class="sub">Allenamento e monitoraggio</p>
+    <p class="sub">${reg ? "Registrazione atleta" : "Allenamento e monitoraggio"}</p>
     <div id="loginErr" class="login-err" style="display:none"></div>
     <div class="campo"><label>Email</label><input id="inEmail" type="email" placeholder="nome@esempio.it"></div>
     <div class="campo"><label>Password</label>
-      <input id="inPwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')accediUI()"></div>
-    <button class="btn" onclick="accediUI()">Entra</button>
-    <div class="demo-nota"><b>Anteprima</b> — per provare l'interfaccia senza account:
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-2" onclick="entra('atleta')">Atleta (demo)</button>
-        <button class="btn btn-2" onclick="entra('coach')">Allenatore (demo)</button>
-      </div></div>
+      <input id="inPwd" type="password" placeholder="${reg ? "almeno 6 caratteri" : "••••••••"}" onkeydown="if(event.key==='Enter')${reg ? "registraUI()" : "accediUI()"}"></div>
+    ${reg
+      ? `<button class="btn" onclick="registraUI()">Registrati</button>
+         <p class="et" style="text-align:center;margin-top:12px">Usa l'email che ti ha dato l'allenatore.<br>
+           <button class="link-indietro" onclick="toggleRegistra()">Hai già l'accesso? Entra ›</button></p>`
+      : `<button class="btn" onclick="accediUI()">Entra</button>
+         <p class="et" style="text-align:center;margin-top:12px">
+           <button class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>
+         <div class="demo-nota"><b>Anteprima</b> — per provare l'interfaccia senza account:
+           <div style="display:flex;gap:8px;margin-top:10px">
+             <button class="btn btn-2" onclick="entra('atleta')">Atleta (demo)</button>
+             <button class="btn btn-2" onclick="entra('coach')">Allenatore (demo)</button>
+           </div></div>`}
   </div>`;
 }
+function toggleRegistra() { S.mostraRegistra = !S.mostraRegistra; disegna(); }
 function accediUI() {
   const email = ($("inEmail") || {}).value || "";
   const pwd = ($("inPwd") || {}).value || "";
   if (typeof accedi === "function") accedi(email, pwd);
+}
+function registraUI() {
+  const email = ($("inEmail") || {}).value || "";
+  const pwd = ($("inPwd") || {}).value || "";
+  if (typeof registraAtleta === "function") registraAtleta(email, pwd);
 }
 
 function apriMenu() { S.menu = !S.menu; aggiornaMenu(); }

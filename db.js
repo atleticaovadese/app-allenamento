@@ -44,8 +44,32 @@ async function accedi(email, password) {
       mostraErroreLogin("Email o password non corretti. Controlla la password, oppure reimpostala in Supabase.");
     return;
   }
+  try { await sb.rpc("collega_atleta"); } catch (e) { /* collega l'atleta al primo accesso se ha l'email impostata dal coach */ }
   await caricaDati();
   disegna();
+}
+
+// registrazione atleta: si iscrive con l'email che il coach ha messo nella sua scheda, poi si collega da solo
+async function registraAtleta(email, password) {
+  if (!sb) { mostraErroreLogin("Collegamento al database non disponibile."); return; }
+  if (!email || !password) { mostraErroreLogin("Scrivi email e password."); return; }
+  if (password.length < 6) { mostraErroreLogin("La password deve avere almeno 6 caratteri."); return; }
+  mostraErroreLogin(""); const e = document.getElementById("loginErr"); if (e) e.style.display = "none";
+  const btn = document.querySelector(".login .btn"); if (btn) { btn.textContent = "Registrazione…"; btn.disabled = true; }
+  const { data, error } = await sb.auth.signUp({ email: email.trim().toLowerCase(), password });
+  if (error) {
+    if (btn) { btn.textContent = "Registrati"; btn.disabled = false; }
+    const m = (error.message || "").toLowerCase();
+    mostraErroreLogin(m.includes("already") ? "Email già registrata: usa «Entra»." : "Registrazione non riuscita: " + error.message);
+    return;
+  }
+  if (data && data.session) {                 // conferma email disattivata → sei già dentro
+    try { await sb.rpc("collega_atleta"); } catch (e) {}
+    await caricaDati(); disegna();
+  } else {                                     // conferma email attiva → serve il link via email
+    if (btn) { btn.textContent = "Registrati"; btn.disabled = false; }
+    mostraErroreLogin("Ti abbiamo inviato un'email di conferma. Aprila, conferma l'account, poi torna qui e fai «Entra».");
+  }
 }
 
 async function disconnetti() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } }
@@ -64,7 +88,7 @@ async function caricaDati() {
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
-    .select("id,nome,disciplina,specialita,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
+    .select("id,nome,disciplina,specialita,email,profilo_id,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
     .order("creato_il");
 
   const nuoviMon = {}, nuoviDiari = {}, nuovaDaFare = {};
@@ -86,6 +110,7 @@ async function caricaDati() {
     if (_DAFARE_DEMO[a.nome]) nuovaDaFare[a.id] = _DAFARE_DEMO[a.nome];
     return {
       id: a.id, nome: a.nome, disciplina: a.disciplina, specialita: a.specialita,
+      email: a.email || "", haAccesso: !!a.profilo_id,
       presenzeMese: pres.mese, presenzeStagione: pres.stag,
       test: salti.slice(0, 3).map(([n, v, u]) => [n, v + " " + u, ""]),
       pb: pb.map(p => [p[0], p[1]]), massimali: massimali.map(m => [m[0], m[1]]),
@@ -190,6 +215,7 @@ async function creaAtleta(d) {
   if (haDB()) {
     const { data, error } = await sb.from("atleta").insert({
       societa_id: S.utente.societaId, nome: d.nome, disciplina: d.disciplina, specialita: d.specialita || null,
+      email: (d.email || "").trim().toLowerCase() || null,
       categoria: d.categoria || null, data_nascita: d.data_nascita || null, gamba_stacco: d.gamba_stacco || null,
       altezza_cm: d.altezza_cm || null, peso_kg: d.peso_kg || null
     }).select().single();
@@ -198,6 +224,16 @@ async function creaAtleta(d) {
   } else {
     aggiungiAtletaLocale({ id: "loc" + Date.now(), ...d });
   }
+  return true;
+}
+// imposta/aggiorna l'email di accesso di un atleta esistente (il coach la dà all'atleta per registrarsi)
+async function impostaEmailAtleta(atletaId, email) {
+  const em = (email || "").trim().toLowerCase();
+  if (haDB() && atletaId && !String(atletaId).startsWith("loc")) {
+    const { error } = await sb.from("atleta").update({ email: em || null }).eq("id", atletaId);
+    if (error) { alert("Errore: " + error.message); return false; }
+  }
+  const a = _atl(atletaId); if (a) a.email = em;
   return true;
 }
 
