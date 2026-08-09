@@ -81,6 +81,24 @@ function palCopiaSettimana() {
   savePalestra(); disegna();
 }
 
+// progressione: copia la settimana precedente aumentando Volume (rep) o Intensità (%1RM) di pct%
+function applicaProgrPal(s) {
+  if (s < 1) return;
+  const tSel = document.getElementById("pgpt-" + s), pSel = document.getElementById("pgpp-" + s);
+  const tipo = tSel ? tSel.value : "volume", pct = parseFloat(pSel ? pSel.value : "5");
+  const g = palGiornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
+  if (!prev || !(prev.righe || []).some(r => r.rep || r.perc)) { alert("Compila prima la settimana precedente."); return; }
+  const f = 1 + pct / 100;
+  cur.righe = prev.righe.map(r => {
+    const nr = { ...r };
+    if (tipo === "volume") { const rp = Number(r.rep); if (rp > 0) nr.rep = String(Math.max(1, Math.round(rp * f))); }
+    else { const p = Number(r.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round(p * f * 10) / 10)); }
+    return nr;
+  });
+  cur.nota = prev.nota || "";
+  savePalestra(); disegna();
+}
+
 function apriNotaPal(s) {
   const sett = palGiornoCorrente().settimane[s];
   mostraFoglio(`
@@ -189,6 +207,12 @@ function vistaProgrammaPalestra() {
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="palAddRiga(${s})">＋ esercizio</button>
         <span class="et">Volume: <b style="color:var(--verde);font-size:14px">${volumePalSett(sett).toLocaleString("it-IT")} kg</b></span>
       </div>
+      ${s > 0 ? `<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <span class="et" style="margin:0">↑ da sett. ${s}:</span>
+        <select id="pgpt-${s}" style="padding:7px 8px;width:auto;flex:none"><option value="volume">Volume</option><option value="intensita">Intensità</option></select>
+        <select id="pgpp-${s}" style="padding:7px 8px;width:auto;flex:none"><option>2.5</option><option>5</option><option>7.5</option><option>10</option></select>
+        <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPal(${s})">+% applica</button>
+      </div>` : ""}
       <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaPal(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
     </div>`;
   }).join("");
