@@ -9,9 +9,11 @@ function schedaAtleta(a, mod) {
     ["Altezza", an.altezza ? an.altezza + " cm" : ""], ["Peso rif.", an.peso ? an.peso + " kg" : ""],
     ["Disciplina", a.disciplina], ["Specialità", a.specialita]
   ];
-  const del = (tab, key, id, i) => mod
+  // mod: true/"full" = tutto editabile (coach); "pb" = solo i PB (atleta); false = sola lettura
+  const canEdit = (tipo) => mod === true || mod === "full" || mod === tipo;
+  const del = (tab, key, id, i) => canEdit(key === "massimali" ? "massimale" : key === "salti" ? "test" : "pb")
     ? `<button class="chiudi" style="font-size:15px" onclick="eliminaVoce('${tab}','${a.id}','${id}','${key}',${i})" aria-label="Elimina">✕</button>` : "";
-  const agg = (tipo, label) => mod
+  const agg = (tipo, label) => canEdit(tipo)
     ? `<button class="btn btn-2" style="margin-top:10px" onclick="apriAggiungi('${tipo}','${a.id}')">＋ ${label}</button>` : "";
 
   const pbRow = (r, i) => {
@@ -169,7 +171,7 @@ async function salvaVoce(tipo, atletaId) {
 // ---------- I miei dati (atleta) ----------
 function vistaIo() {
   const a = DEMO.atleti.find(x => x.id === S.utente.atletaId) || DEMO.atleti[0];
-  return schedaAtleta(a, false) + `
+  return schedaAtleta(a, "pb") + `
   <div class="card">
     <button class="btn btn-2" onclick="apriModificaDati('${a.id}')">✏️ Modifica i miei dati (specialità, categoria, nascita, altezza, peso…)</button>
     <p class="et" style="margin-top:8px">Per le presenze: <button class="link-indietro" onclick="vai('presenze')">apri Presenze ›</button></p>
