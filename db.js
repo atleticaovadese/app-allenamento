@@ -144,10 +144,32 @@ async function caricaDati() {
     DEMO.gareProssime = gare.slice(1).map(g => ({ data: fmtData(g.data), luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
     DEMO.gareRaw = gare.map(g => ({ data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
   }
+
+  // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
+  await caricaDatiDB();
 }
 
 // ---------- scrittura: nuovo atleta ----------
 function haDB() { return !!(sb && S.utente && S.utente.societaId); }
+
+// ---------- programmi & dati custom nel DB (JSON per società) ----------
+let _datiDBTimer = null;
+function salvaDatiDB() {
+  if (!haDB() || typeof bundleCustom !== "function") return;
+  clearTimeout(_datiDBTimer);
+  _datiDBTimer = setTimeout(async () => {
+    try {
+      await sb.from("societa_dati").upsert({ societa_id: S.utente.societaId, dati: bundleCustom(), updated_at: new Date().toISOString() });
+    } catch (e) { /* offline: resta salvato in locale, si sincronizza al prossimo salvataggio */ }
+  }, 1500);
+}
+async function caricaDatiDB() {
+  if (!haDB() || typeof applicaBundle !== "function") return;
+  try {
+    const { data } = await sb.from("societa_dati").select("dati").eq("societa_id", S.utente.societaId).maybeSingle();
+    if (data && data.dati) applicaBundle(data.dati);
+  } catch (e) { /* nessun dato nel DB: si usa demo/locale */ }
+}
 
 function aggiungiAtletaLocale(a) {
   const anag = {

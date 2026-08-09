@@ -16,33 +16,40 @@ function mergeEserciziCustom(lista) {
 }
 
 // All'avvio: rilegge ciò che l'allenatore ha salvato nel browser.
+// il pacchetto dei dati "custom" (programmi, librerie, log) — condiviso da localStorage e DB
+function bundleCustom() {
+  return {
+    esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
+    piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
+    testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara
+  };
+}
+function applicaBundle(c) {
+  if (!c) return;
+  DEMO.customEsercizi = c.esercizi || DEMO.customEsercizi || [];
+  if (typeof mergeEserciziCustom === "function") mergeEserciziCustom(DEMO.customEsercizi);
+  if (c.schede) DEMO.schede = c.schede;
+  if (c.schedeTipo) DEMO.schedeTipo = c.schedeTipo;
+  if (c.piano) DEMO.piano = c.piano;
+  if (c.pista) DEMO.pista = c.pista;
+  if (c.palestra) DEMO.palestra = c.palestra;
+  if (c.vbtLog) DEMO.vbtLog = c.vbtLog;
+  if (c.pistaLog) DEMO.pistaLog = c.pistaLog;
+  if (c.testSessioni) DEMO.testSessioni = c.testSessioni;
+  if (c.risultatiGara) DEMO.risultatiGara = c.risultatiGara;
+}
+
 function caricaCustom() {
   try {
     const raw = localStorage.getItem(CHIAVE_SALVATAGGIO);
-    if (!raw) return;
-    const c = JSON.parse(raw);
-    DEMO.customEsercizi = c.esercizi || [];
-    mergeEserciziCustom(DEMO.customEsercizi);
-    if (c.schede) DEMO.schede = c.schede;
-    if (c.schedeTipo) DEMO.schedeTipo = c.schedeTipo;
-    if (c.piano) DEMO.piano = c.piano;
-    if (c.pista) DEMO.pista = c.pista;
-    if (c.palestra) DEMO.palestra = c.palestra;
-    if (c.vbtLog) DEMO.vbtLog = c.vbtLog;
-    if (c.pistaLog) DEMO.pistaLog = c.pistaLog;
-    if (c.testSessioni) DEMO.testSessioni = c.testSessioni;
-    if (c.risultatiGara) DEMO.risultatiGara = c.risultatiGara;
+    if (raw) applicaBundle(JSON.parse(raw));
   } catch (e) { /* niente da caricare */ }
 }
 
 function salvaCustom() {
-  try {
-    localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify({
-      esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
-      piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
-      testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara
-    }));
-  } catch (e) { /* localStorage non disponibile */ }
+  try { localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify(bundleCustom())); }
+  catch (e) { /* localStorage non disponibile */ }
+  if (typeof salvaDatiDB === "function") salvaDatiDB(); // write-through al database (se collegato)
 }
 
 // --- sessioni di test complete (snapshot per data): si rivedono per intero ---
