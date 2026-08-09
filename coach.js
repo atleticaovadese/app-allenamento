@@ -232,6 +232,7 @@ function vistaAtletaDettaglio() {
     <p class="et" style="margin-bottom:8px">Apri</p>
     <div class="azioni">
       <button class="btn btn-2" onclick="apriSchedaAtleta()">Scheda: dati, PB, massimali, test</button>
+      <button class="btn btn-2" onclick="apriModificaDati('${a.id}')">Modifica dati anagrafici</button>
       <button class="btn btn-2" onclick="apriSeduta('s1')">Seduta di oggi</button>
       <button class="btn btn-2" onclick="vai('pista')">Programma</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>

@@ -110,7 +110,7 @@ async function caricaDati() {
     if (_DAFARE_DEMO[a.nome]) nuovaDaFare[a.id] = _DAFARE_DEMO[a.nome];
     return {
       id: a.id, nome: a.nome, disciplina: a.disciplina, specialita: a.specialita,
-      email: a.email || "", haAccesso: !!a.profilo_id,
+      email: a.email || "", haAccesso: !!a.profilo_id, dataNascita: a.data_nascita || "",
       presenzeMese: pres.mese, presenzeStagione: pres.stag,
       test: salti.slice(0, 3).map(([n, v, u]) => [n, v + " " + u, ""]),
       pb: pb.map(p => [p[0], p[1]]), massimali: massimali.map(m => [m[0], m[1]]),
@@ -155,6 +155,9 @@ async function caricaDati() {
     const mio = (atl || []).find(a => a.profilo_id === user.id);
     if (mio) S.utente.atletaId = mio.id;
     else if (DEMO.atleti[0]) S.utente.atletaId = DEMO.atleti[0].id;
+    // primo accesso / profilo incompleto → apri subito "I miei dati" da compilare
+    const a = DEMO.atleti.find(x => x.id === S.utente.atletaId);
+    if (a && profiloIncompleto(a) && typeof apriModificaDati === "function") apriModificaDati(a.id);
   }
 
   // infortuni aperti
@@ -176,6 +179,12 @@ async function caricaDati() {
 
 // ---------- scrittura: nuovo atleta ----------
 function haDB() { return !!(sb && S.utente && S.utente.societaId); }
+
+// profilo da completare al primo accesso: manca specialità, nascita, altezza o peso
+function profiloIncompleto(a) {
+  const an = (a && a.scheda && a.scheda.anagrafica) || {};
+  return !a || !a.specialita || !a.dataNascita || !an.altezza || !an.peso;
+}
 
 // ---------- programmi & dati custom nel DB (JSON per società) ----------
 let _datiDBTimer = null;
@@ -204,6 +213,7 @@ function aggiungiAtletaLocale(a) {
   };
   DEMO.atleti.push({
     id: a.id, nome: a.nome, disciplina: a.disciplina, specialita: a.specialita,
+    email: a.email || "", haAccesso: !!a.profilo_id, dataNascita: a.data_nascita || "",
     presenzeMese: [0, 0], presenzeStagione: [0, 0], test: [], pb: [], massimali: [],
     scheda: { anagrafica: anag, pb: [], massimali: [], salti: [] }
   });
@@ -234,6 +244,28 @@ async function impostaEmailAtleta(atletaId, email) {
     if (error) { alert("Errore: " + error.message); return false; }
   }
   const a = _atl(atletaId); if (a) a.email = em;
+  return true;
+}
+// aggiorna l'anagrafica dell'atleta (può farlo l'atleta stesso dal suo profilo, o il coach)
+async function aggiornaAnagrafica(atletaId, d) {
+  if (haDB() && atletaId && !String(atletaId).startsWith("loc")) {
+    const { error } = await sb.from("atleta").update({
+      disciplina: d.disciplina || "velocita", specialita: d.specialita || null, categoria: d.categoria || null,
+      data_nascita: d.data_nascita || null, gamba_stacco: d.gamba_stacco || null,
+      altezza_cm: d.altezza_cm != null ? d.altezza_cm : null, peso_kg: d.peso_kg != null ? d.peso_kg : null
+    }).eq("id", atletaId);
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+  }
+  const a = _atl(atletaId);
+  if (a) {
+    a.disciplina = d.disciplina || "velocita"; a.specialita = d.specialita || ""; a.dataNascita = d.data_nascita || "";
+    a.scheda = a.scheda || {}; a.scheda.anagrafica = a.scheda.anagrafica || {};
+    const an = a.scheda.anagrafica;
+    an.categoria = d.categoria || "";
+    an.anno = d.data_nascita ? new Date(d.data_nascita).getFullYear() : "";
+    an.nascita = d.data_nascita ? new Date(d.data_nascita).toLocaleDateString("it-IT") : "";
+    an.gambaStacco = d.gamba_stacco || ""; an.altezza = d.altezza_cm; an.peso = d.peso_kg;
+  }
   return true;
 }
 

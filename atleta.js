@@ -171,9 +171,68 @@ function vistaIo() {
   const a = DEMO.atleti.find(x => x.id === S.utente.atletaId) || DEMO.atleti[0];
   return schedaAtleta(a, false) + `
   <div class="card">
-    <p class="et">I dati li tiene aggiornati l'allenatore. Per vedere le presenze:
-      <button class="link-indietro" onclick="vai('presenze')">apri Presenze ›</button></p>
+    <button class="btn btn-2" onclick="apriModificaDati('${a.id}')">✏️ Modifica i miei dati (specialità, categoria, nascita, altezza, peso…)</button>
+    <p class="et" style="margin-top:8px">Per le presenze: <button class="link-indietro" onclick="vai('presenze')">apri Presenze ›</button></p>
   </div>`;
+}
+
+// form anagrafica editabile: lo apre l'atleta (i suoi dati) o il coach (di un atleta)
+function apriModificaDati(atletaId) {
+  const a = DEMO.atleti.find(x => x.id === atletaId); if (!a) return;
+  const an = (a.scheda && a.scheda.anagrafica) || {};
+  S.modificaDati = {
+    atletaId, disciplina: a.disciplina || "velocita", specialita: a.specialita || "",
+    categoria: an.categoria || "", data_nascita: a.dataNascita || "",
+    gamba_stacco: an.gambaStacco || "", altezza_cm: an.altezza || "", peso_kg: an.peso || ""
+  };
+  disegna(); window.scrollTo(0, 0);
+}
+function chiudiModificaDati() { S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
+function vistaModificaDati() {
+  const m = S.modificaDati, a = DEMO.atleti.find(x => x.id === m.atletaId);
+  const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["palestra", "Solo palestra"]];
+  const spec = (typeof SPEC_DISC !== "undefined" ? SPEC_DISC[m.disciplina] : null) || [];
+  return `<button class="indietro" onclick="chiudiModificaDati()">‹ Indietro</button>
+    <div class="card"><h3>I miei dati</h3>
+      <p class="et" style="margin-top:2px">${a ? a.nome : ""} · completa o aggiorna il profilo.</p></div>
+    <div class="card">
+      <label class="lab">Disciplina (gruppo)</label>
+      <select onchange="S.modificaDati.disciplina=this.value; S.modificaDati.specialita=''; disegna()" style="margin-top:6px">
+        ${disc.map(([k, l]) => `<option value="${k}" ${m.disciplina === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Specialità</label>
+          ${spec.length
+            ? `<select onchange="S.modificaDati.specialita=this.value" style="margin-top:6px"><option value="">— scegli —</option>${spec.map(x => `<option ${m.specialita === x ? "selected" : ""}>${x}</option>`).join("")}</select>`
+            : `<input value="${(m.specialita || "").replace(/"/g, "&quot;")}" placeholder="—" oninput="S.modificaDati.specialita=this.value" style="margin-top:6px">`}</div>
+        <div><label class="lab">Categoria</label>
+          <input value="${(m.categoria || "").replace(/"/g, "&quot;")}" placeholder="Es. Allievi" oninput="S.modificaDati.categoria=this.value" style="margin-top:6px"></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Data di nascita</label>
+          <input type="date" value="${m.data_nascita || ""}" oninput="S.modificaDati.data_nascita=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Gamba di stacco</label>
+          <select onchange="S.modificaDati.gamba_stacco=this.value" style="margin-top:6px">
+            <option value="">—</option><option ${m.gamba_stacco === "Destra" ? "selected" : ""}>Destra</option><option ${m.gamba_stacco === "Sinistra" ? "selected" : ""}>Sinistra</option></select></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Altezza (cm)</label>
+          <input inputmode="numeric" value="${m.altezza_cm || ""}" placeholder="178" oninput="S.modificaDati.altezza_cm=this.value" style="margin-top:6px"></div>
+        <div><label class="lab">Peso (kg)</label>
+          <input inputmode="numeric" value="${m.peso_kg || ""}" placeholder="70" oninput="S.modificaDati.peso_kg=this.value" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <button class="btn" onclick="salvaModificaDati()">Salva i miei dati</button>`;
+}
+async function salvaModificaDati() {
+  const m = S.modificaDati;
+  const btn = document.querySelector(".main .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  const ok = typeof aggiornaAnagrafica === "function" ? await aggiornaAnagrafica(m.atletaId, {
+    disciplina: m.disciplina, specialita: (m.specialita || "").trim(), categoria: (m.categoria || "").trim(),
+    data_nascita: m.data_nascita || null, gamba_stacco: m.gamba_stacco || null,
+    altezza_cm: m.altezza_cm ? Number(m.altezza_cm) : null, peso_kg: m.peso_kg ? Number(m.peso_kg) : null
+  }) : false;
+  if (ok) { S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
+  else if (btn) { btn.textContent = "Salva i miei dati"; btn.disabled = false; }
 }
 
 // ---------- Scheda atleta vista dall'allenatore ----------
