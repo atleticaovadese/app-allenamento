@@ -121,20 +121,39 @@ function pistaCopiaSettimana() {
   savePista(); disegna();
 }
 
-// progressione: copia la settimana precedente aumentando Volume (ripetute) o Intensità (% vel) di pct%
+// opzioni % progressione: Volume in passi ampi, Intensità in punti percentuali fini
+const PROG_VOL = [5, 10, 15, 20, 30, 40];
+const PROG_INT = [2.5, 5, 7.5, 10];
+// cambia le opzioni del menu % quando si sceglie Volume o Intensità
+function progSwitch(tId, pId) {
+  const t = document.getElementById(tId), p = document.getElementById(pId);
+  if (!t || !p) return;
+  const opts = t.value === "volume" ? PROG_VOL : PROG_INT;
+  p.innerHTML = opts.map(o => `<option>${o}</option>`).join("");
+}
+// progressione: copia la settimana precedente aumentando Volume (ripetute ×%) o Intensità (% vel: +punti)
 function applicaProgrPista(s) {
   if (s < 1) return;
   const tSel = document.getElementById("pgt-" + s), pSel = document.getElementById("pgp-" + s);
-  const tipo = tSel ? tSel.value : "volume", pct = parseFloat(pSel ? pSel.value : "5");
+  const tipo = tSel ? tSel.value : "volume", pct = parseFloat(pSel ? pSel.value : "10");
   const g = giornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
   if (!prev || !(prev.righe || []).some(r => r.n || r.perc)) { alert("Compila prima la settimana precedente."); return; }
   const f = 1 + pct / 100;
   cur.righe = prev.righe.map(r => {
     const nr = { ...r };
     if (tipo === "volume") { const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f))); }
-    else { const p = Number(r.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round(p * f * 10) / 10)); }
+    else { const p = Number(r.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 85 + 2.5 = 87.5
     return nr;
   });
+  cur.nota = prev.nota || "";
+  savePista(); disegna();
+}
+// scarico: dimezza il volume (ripetute) della settimana precedente, intensità invariata
+function applicaScaricoPista(s) {
+  if (s < 1) return;
+  const g = giornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
+  if (!prev || !(prev.righe || []).some(r => r.n)) { alert("Compila prima la settimana precedente."); return; }
+  cur.righe = prev.righe.map(r => { const nr = { ...r }; const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n / 2))); return nr; });
   cur.nota = prev.nota || "";
   savePista(); disegna();
 }
@@ -309,12 +328,13 @@ function vistaProgrammaPista() {
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaAddRiga(${s})">＋ riga</button>
         <span class="et">Volume: <b style="color:var(--verde);font-size:14px">${volumeSett(sett).toLocaleString("it-IT")} m</b></span>
       </div>
-      ${s > 0 ? `<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      ${s > 0 && !scar ? `<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
         <span class="et" style="margin:0">↑ da sett. ${s}:</span>
-        <select id="pgt-${s}" style="padding:7px 8px;width:auto;flex:none"><option value="volume">Volume</option><option value="intensita">Intensità</option></select>
-        <select id="pgp-${s}" style="padding:7px 8px;width:auto;flex:none"><option>2.5</option><option>5</option><option>7.5</option><option>10</option></select>
+        <select id="pgt-${s}" onchange="progSwitch('pgt-${s}','pgp-${s}')" style="padding:7px 8px;width:auto;flex:none"><option value="volume">Volume</option><option value="intensita">Intensità</option></select>
+        <select id="pgp-${s}" style="padding:7px 8px;width:auto;flex:none">${PROG_VOL.map(o => `<option>${o}</option>`).join("")}</select>
         <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPista(${s})">+% applica</button>
       </div>` : ""}
+      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPista(${s})">⬇ Scarico: volume al 50% della sett. ${s}</button>` : ""}
       <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
     </div>`;
   }).join("");
