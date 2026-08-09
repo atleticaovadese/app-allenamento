@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, nuovoTest: false, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, nuovoTest: false, gruppo: "vel", pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------

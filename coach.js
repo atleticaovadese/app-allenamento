@@ -7,9 +7,9 @@ const STATO = {
 };
 const TIPO_CELLA = { pista: "pista", palestra: "palestra", gara: "gara", salto: "salto" };
 
-function triage() {
+function triage(lista) {
   const c = { v: 0, w: 0, r: 0 };
-  DEMO.atleti.forEach(a => { const s = DEMO.mon[a.id]; if (s) c[s.stato]++; });
+  (lista || DEMO.atleti).forEach(a => { const s = DEMO.mon[a.id]; if (s) c[s.stato]++; });
   return c;
 }
 
@@ -22,10 +22,33 @@ function colAcwr(v) { const n = parseFloat(v); return n >= 1.5 ? "var(--rosso)" 
 function colProntezza(v) { const n = parseFloat(v); return n >= 3.5 ? "var(--verde)" : n >= 2.5 ? "var(--giallo)" : "var(--rosso)"; }
 function nomeAtleta(id) { return (DEMO.atleti.find(a => a.id === id) || {}).nome || id; }
 
+// gruppi per disciplina: si toccano per vedere solo gli atleti di quel gruppo
+const GRUPPI = [
+  ["vel", "Velocisti / Saltatori", ["velocita", "velocità", "salti", "palestra"]],
+  ["lanci", "Lanciatori", ["lanci"]],
+  ["mezzo", "Mezzofondo / Fondo", ["mezzofondo", "fondo", "mezzofondo/fondo"]]
+];
+function gruppoDi(a) {
+  const d = (a.disciplina || "").toLowerCase();
+  const g = GRUPPI.find(x => x[2].includes(d));
+  return g ? g[0] : "vel"; // default: velocisti/saltatori (il sistema principale)
+}
+function nomeGruppo(k) { const g = GRUPPI.find(x => x[0] === k); return g ? g[1] : "Tutti"; }
+function atletiDelGruppo(gk) { return DEMO.atleti.filter(a => gruppoDi(a) === gk); }
+function setGruppo(gk) { S.gruppo = gk; disegna(); window.scrollTo(0, 0); }
+function chipsGruppi() {
+  return `<div class="tabbar" style="margin-bottom:11px">${GRUPPI.map(([k, l]) => {
+    const n = atletiDelGruppo(k).length;
+    return `<button class="${S.gruppo === k ? "on" : ""}" onclick="setGruppo('${k}')">${l}${n ? " · " + n : ""}</button>`;
+  }).join("")}</div>`;
+}
+
 // ---------- squadra (ingresso coach) ----------
 function vistaSquadra() {
-  const t = triage();
+  const lista = atletiDelGruppo(S.gruppo);
+  const t = triage(lista);
   return `
+  ${chipsGruppi()}
   <div class="quadri" style="margin-bottom:11px">
     <div class="q" onclick="vai('report')"><div class="k">Da vedere subito</div>
       <div class="v" style="color:var(--rosso)">${t.r}</div></div>
@@ -34,24 +57,33 @@ function vistaSquadra() {
     <div class="q" onclick="vai('report')"><div class="k">In regola</div>
       <div class="v" style="color:var(--verde)">${t.v}</div></div>
   </div>
-  ${listaAtleti()}`;
+  ${listaAtleti(lista)}`;
 }
 
 function vistaAtleti() {
   if (S.nuovoAtleta) return vistaNuovoAtleta();
+  const lista = atletiDelGruppo(S.gruppo);
   return `<div class="card"><h3>Atleti</h3>
-    <p class="et" style="margin-top:2px">${DEMO.atleti.length} · tocca per il cruscotto</p></div>
+    <p class="et" style="margin-top:2px">${nomeGruppo(S.gruppo)} · ${lista.length} di ${DEMO.atleti.length} · tocca per il cruscotto</p></div>
+    ${chipsGruppi()}
     <button class="btn" style="margin-bottom:12px" onclick="apriNuovoAtleta()">＋ Nuovo atleta</button>
-    ${listaAtleti()}`;
+    ${listaAtleti(lista)}`;
 }
 
 // ---------- nuovo atleta (salva nel database) ----------
 function apriNuovoAtleta() { S.nuovoAtleta = { disciplina: "velocita" }; disegna(); window.scrollTo(0, 0); }
 function chiudiNuovoAtleta() { S.nuovoAtleta = null; disegna(); window.scrollTo(0, 0); }
 
+const SPEC_DISC = {
+  velocita: ["60 m", "100 m", "200 m", "400 m", "60 hs", "100 hs", "110 hs", "400 hs", "Salto in lungo", "Salto in alto", "Salto triplo", "Salto con l'asta"],
+  lanci: ["Peso", "Martello", "Disco", "Giavellotto"],
+  mezzofondo: ["500 m", "600 m", "800 m", "1000 m", "1200 m", "1500 m", "2000 m", "2000 siepi", "3000 m", "3000 siepi", "5000 m", "10000 m", "Mezza maratona", "Maratona", "5 km strada/campestre", "10 km strada/campestre"],
+  palestra: []
+};
 function vistaNuovoAtleta() {
   const a = S.nuovoAtleta;
-  const disc = [["velocita", "Velocità"], ["mezzofondo", "Mezzofondo"], ["lanci", "Lanci"], ["palestra", "Solo palestra"]];
+  const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["palestra", "Solo palestra"]];
+  const spec = SPEC_DISC[a.disciplina] || [];
   return `<button class="indietro" onclick="chiudiNuovoAtleta()">‹ Indietro</button>
     <div class="card"><h3>Nuovo atleta</h3>
       <p class="et" style="margin-top:2px">Si salva nel database e compare nella squadra.</p></div>
@@ -60,15 +92,16 @@ function vistaNuovoAtleta() {
       <input value="${(a.nome || "").replace(/"/g, "&quot;")}" placeholder="Es. Giulia Rossi"
         oninput="S.nuovoAtleta.nome=this.value" style="margin-top:6px">
 
-      <label class="lab" style="display:block;margin-top:12px">Disciplina</label>
-      <select onchange="S.nuovoAtleta.disciplina=this.value" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Disciplina (gruppo)</label>
+      <select onchange="S.nuovoAtleta.disciplina=this.value; S.nuovoAtleta.specialita=''; disegna()" style="margin-top:6px">
         ${disc.map(([k, l]) => `<option value="${k}" ${a.disciplina === k ? "selected" : ""}>${l}</option>`).join("")}
       </select>
 
       <div class="griglia2" style="margin-top:12px">
         <div><label class="lab">Specialità</label>
-          <input value="${(a.specialita || "").replace(/"/g, "&quot;")}" placeholder="100 m"
-            oninput="S.nuovoAtleta.specialita=this.value" style="margin-top:6px"></div>
+          ${spec.length
+            ? `<select onchange="S.nuovoAtleta.specialita=this.value" style="margin-top:6px"><option value="">— scegli —</option>${spec.map(x => `<option ${a.specialita === x ? "selected" : ""}>${x}</option>`).join("")}</select>`
+            : `<input value="${(a.specialita || "").replace(/"/g, "&quot;")}" placeholder="—" oninput="S.nuovoAtleta.specialita=this.value" style="margin-top:6px">`}</div>
         <div><label class="lab">Categoria</label>
           <input value="${(a.categoria || "").replace(/"/g, "&quot;")}" placeholder="Allievi"
             oninput="S.nuovoAtleta.categoria=this.value" style="margin-top:6px"></div>
@@ -111,10 +144,12 @@ async function salvaNuovoAtleta() {
   else if (btn) { btn.textContent = "Salva atleta"; btn.disabled = false; }
 }
 
-function listaAtleti() {
+function listaAtleti(lista) {
   // ordinati per urgenza: rosso, giallo, verde
   const ord = { r: 0, w: 1, v: 2 };
-  const arr = [...DEMO.atleti].sort((a, b) => ord[DEMO.mon[a.id].stato] - ord[DEMO.mon[b.id].stato]);
+  const base = lista || DEMO.atleti;
+  const arr = [...base].sort((a, b) => ord[DEMO.mon[a.id].stato] - ord[DEMO.mon[b.id].stato]);
+  if (!arr.length) return `<div class="card"><p class="et">Nessun atleta in questo gruppo. Aggiungilo da «Atleti» scegliendo la disciplina.</p></div>`;
   return arr.map(a => {
     const s = DEMO.mon[a.id], [, , col] = STATO[s.stato];
     return `<div class="card riga-a" onclick="apriAtleta('${a.id}')">
@@ -220,9 +255,10 @@ function vistaCalendarioSquadra() {
 
 // ---------- report della domenica ----------
 function vistaReport() {
-  const r = DEMO.report, t = triage();
+  const lista = atletiDelGruppo(S.gruppo);
+  const r = DEMO.report, t = triage(lista);
   const ord = { r: 0, w: 1, v: 2 };
-  const arr = [...DEMO.atleti].sort((a, b) => ord[DEMO.mon[a.id].stato] - ord[DEMO.mon[b.id].stato]);
+  const arr = [...lista].sort((a, b) => ord[DEMO.mon[a.id].stato] - ord[DEMO.mon[b.id].stato]);
 
   const schede = arr.map(a => {
     const s = DEMO.mon[a.id];
@@ -248,8 +284,9 @@ function vistaReport() {
   return `
   <div class="card">
     <h3>Report settimanale</h3>
-    <p class="et" style="margin-top:2px">${r.settimana}</p>
+    <p class="et" style="margin-top:2px">${nomeGruppo(S.gruppo)} · ${r.settimana}</p>
   </div>
+  ${chipsGruppi()}
   <div class="quadri" style="margin-bottom:11px">
     <div class="q"><div class="k">Da vedere subito</div><div class="v" style="color:var(--rosso)">${t.r}</div></div>
     <div class="q"><div class="k">Tieni d'occhio</div><div class="v" style="color:var(--giallo)">${t.w}</div></div>
