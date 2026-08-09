@@ -88,13 +88,16 @@ function applicaProgrPal(s) {
   const g = palGiornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
   if (!prev || !(prev.righe || []).some(r => r.rep || r.perc)) { alert("Compila prima la settimana precedente."); return; }
   const f = 1 + pct / 100;
-  cur.righe = prev.righe.map(r => {
-    const nr = { ...r };
-    if (tipo === "volume") { const rp = Number(r.rep); if (rp > 0) nr.rep = String(Math.max(1, Math.round(rp * f))); }
-    else { const p = Number(r.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 80 + 2.5 = 82.5
+  const base = cur.righe || [];
+  const curVuota = !base.some(r => r.rep || r.perc || r.esercizio);
+  // il valore modificato si calcola dalla settimana precedente; l'ALTRA dimensione (e le modifiche già fatte) restano
+  cur.righe = prev.righe.map((pr, i) => {
+    const nr = { ...((!curVuota && base[i]) ? base[i] : pr) };
+    if (tipo === "volume") { const rp = Number(pr.rep); if (rp > 0) nr.rep = String(Math.max(1, Math.round(rp * f))); }
+    else { const p = Number(pr.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 80 + 2.5 = 82.5
     return nr;
   });
-  cur.nota = prev.nota || "";
+  if (curVuota) cur.nota = prev.nota || "";
   savePalestra(); disegna();
 }
 // scarico: dimezza il volume (rep) della settimana precedente, intensità invariata

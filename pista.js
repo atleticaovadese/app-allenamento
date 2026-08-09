@@ -139,13 +139,16 @@ function applicaProgrPista(s) {
   const g = giornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
   if (!prev || !(prev.righe || []).some(r => r.n || r.perc)) { alert("Compila prima la settimana precedente."); return; }
   const f = 1 + pct / 100;
-  cur.righe = prev.righe.map(r => {
-    const nr = { ...r };
-    if (tipo === "volume") { const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f))); }
-    else { const p = Number(r.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 85 + 2.5 = 87.5
+  const base = cur.righe || [];
+  const curVuota = !base.some(r => r.n || r.perc || r.contenuto);
+  // il valore modificato si calcola dalla settimana precedente; l'ALTRA dimensione (e le modifiche già fatte) restano
+  cur.righe = prev.righe.map((pr, i) => {
+    const nr = { ...((!curVuota && base[i]) ? base[i] : pr) };
+    if (tipo === "volume") { const n = Number(pr.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f))); }
+    else { const p = Number(pr.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 85 + 2.5 = 87.5
     return nr;
   });
-  cur.nota = prev.nota || "";
+  if (curVuota) cur.nota = prev.nota || "";
   savePista(); disegna();
 }
 // scarico: dimezza il volume (ripetute) della settimana precedente, intensità invariata
