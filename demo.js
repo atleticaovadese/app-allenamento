@@ -134,6 +134,11 @@ const DEMO = {
     { data: "2026-08-08", atletaId: "at1", distanza: 30, tempo: 3.79, volume: 150, velocita: 7.92 }
   ],
 
+  // Risultati gara (si riempie da Gare): alimenta i PB in gara e lo screening.
+  risultatiGara: [
+    { id: "rg-demo1", atletaId: "at1", data: "2026-08-03", gara: "Reg. Novara", distanza: "100 m", tempo: 10.85, vento: "+1.1", posizione: "2", note: "buona partenza" }
+  ],
+
   // Monitoraggio per l'allenatore (per atleta)
   mon: {
     at1: { stato: "v", acwr: "1.12", forma: "+4.2", prontezza: "3.9", aderenza: 90,

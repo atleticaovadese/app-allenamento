@@ -5,6 +5,7 @@ function ytEmbed(u) {
   if (!u) return "";
   let m;
   if (m = u.match(/youtu\.be\/([\w-]+)/)) return "https://www.youtube-nocookie.com/embed/" + m[1];
+  if (m = u.match(/shorts\/([\w-]+)/)) return "https://www.youtube-nocookie.com/embed/" + m[1];
   if (m = u.match(/[?&]v=([\w-]+)/)) return "https://www.youtube-nocookie.com/embed/" + m[1];
   if (m = u.match(/[?&]list=([\w-]+)/)) return "https://www.youtube-nocookie.com/embed/videoseries?list=" + m[1];
   return "";

@@ -10,7 +10,7 @@ const MENU_ATLETA = [
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
   { k: "io", ic: "◉", l: "I miei dati" },
   { k: "presenze", ic: "◍", l: "Presenze" },
-  { k: "aiuto", ic: "?", l: "Aiuto e glossario" }
+  { k: "aiuto", ic: "?", l: "Guida e glossario" }
 ];
 
 const MENU_COACH = [
@@ -30,7 +30,7 @@ const MENU_COACH = [
   { k: "gare", ic: "★", l: "Gare" },
   { k: "report", ic: "✉", l: "Report settimanale" },
   { k: "dati", ic: "⇅", l: "Import / Export" },
-  { k: "aiuto", ic: "?", l: "Aiuto e glossario" }
+  { k: "aiuto", ic: "?", l: "Guida e glossario" }
 ];
 
 // Da quale foglio dell'Excel arriva ogni voce (serve a non perdere niente)
@@ -326,7 +326,21 @@ const GLOSSARIO = [
   ["Test e salti", "CMJ e SJ", "Due salti che misurano la forza esplosiva.",
     "<b>CMJ</b> (Counter Movement Jump) = salto con contromovimento (ti pieghi e risali): usa l'elasticità. <b>SJ</b> (Squat Jump) = parti da fermo piegato, senza rimbalzo: misura la forza pura. La differenza tra i due dice quanto sfrutti l'elasticità."],
   ["Test e salti", "RSI", "Quanto sei reattivo nei salti.",
-    "Reactive Strength Index = altezza del salto ÷ tempo di contatto a terra (di solito col drop jump). Più è alto, più sei esplosivo e 'rigido' al contatto — qualità chiave nello sprint. Si misura con app tipo My Jump."],
+    "Reactive Strength Index = altezza del salto ÷ tempo di contatto a terra (di solito col drop jump). Più è alto, più sei esplosivo e 'rigido' al contatto — qualità chiave nello sprint. Si misura con app tipo My Jump. Rif.: &lt;1.5 scarso · 1.5-2.0 medio · 2.0-2.5 buono · &gt;2.5 ottimo."],
+  ["Test e salti", "Squat Jump (SJ)", "Salto da fermo, senza rimbalzo.",
+    "Parti da in piedi, scendi a ginocchia ~90° e <b>fermati 2-3 secondi</b>; poi salti più in alto possibile <b>senza riabbassarti</b> (nessun contromovimento). Mani ai fianchi. Misura la <b>forza esplosiva pura</b>. Se ti abbassi prima di saltare stai facendo un CMJ e il dato non vale."],
+  ["Test e salti", "Drop Jump", "Il rimbalzo dopo la caduta.",
+    "Scendi da un rialzo (20-60 cm) lasciandoti cadere (non salti verso l'alto dal box) e appena tocchi terra <b>risalti subito</b> col minimo tempo di contatto. Serve a misurare l'RSI e a trovare l'altezza di caduta ottimale."],
+  ["Test e salti", "hPO", "La distanza di spinta nel salto.",
+    "Push-off distance: l'altezza dell'anca (grande trocantere) a fine spinta in punta di piedi <b>meno</b> quella nella posizione di partenza (~90°). Serve al Profilo F-V salti. Si misura una volta, tipico 0.30-0.40 m."],
+  ["Test e salti", "F0 / V0 / Pmax", "I numeri del profilo forza-velocità.",
+    "<b>F0</b> = forza massima teorica (a velocità zero). <b>V0</b> = velocità massima teorica (a carico zero). <b>Pmax</b> = potenza massima (F0×V0/4). Lo squilibrio tra la tua pendenza e quella ottimale dice se ti manca più forza o più velocità."],
+  ["Test e salti", "RFmax / Vmax", "Efficacia e velocità nello sprint.",
+    "<b>Vmax</b> = velocità massima raggiunta nello sprint. <b>RFmax</b> = massima percentuale di forza applicata in orizzontale (efficacia tecnica della spinta): rif. velocisti ~45-60%. Bassa = spingi troppo verso il basso, poco in avanti."],
+  ["Prevenzione", "Asimmetria dx/sx (LSI)", "Differenza tra le due gambe.",
+    "Limb Symmetry Index: differenza percentuale tra lato destro e sinistro in un test (forza, mobilità, salto monopodalico). <b>&lt;10% ok · 10-15% attenzione · &gt;15% bandiera</b> (rischio infortunio, da correggere lavorando sul lato debole)."],
+  ["Prevenzione", "KTW / AKE", "Due test di mobilità.",
+    "<b>KTW</b> (Knee-To-Wall) = mobilità della caviglia in dorsiflessione (ginocchio verso il muro, tallone a terra; misuri la distanza alluce-muro). <b>AKE</b> (Active Knee Extension) = estensibilità degli ischiocrurali (supino, anca a 90°, estendi il ginocchio; misuri i gradi mancanti). Confronta sempre dx/sx."],
 
   ["Periodizzazione", "Mesociclo e Blocco", "Come è organizzato il programma.",
     "Il <b>mesociclo</b> è una fase di 3-4 settimane con un obiettivo, con le prime settimane in carico e l'ultima di <b>scarico</b>. Più mesocicli in fila formano la stagione, costruita da Piano & Picco verso la gara importante."],
@@ -353,12 +367,60 @@ const GLOSSARIO = [
   ["Prestazioni e costanza", "PB e Stagione", "I tuoi migliori tempi.",
     "<b>PB</b> (Personal Best) = miglior tempo di sempre su quella distanza. <b>Stagione</b> = miglior tempo dell'anno in corso. <b>Obiettivo</b> = il tempo a cui punti. Nella scheda atleta li vedi affiancati."],
   ["Prestazioni e costanza", "Aderenza", "Quanto segui il programma.",
-    "Percentuale di allenamenti fatti su quelli programmati (es. 27 su 30 = 90%). È il primo segnale di costanza: un'aderenza che cala spesso anticipa cali di forma o fastidi."]
+    "Percentuale di allenamenti fatti su quelli programmati (es. 27 su 30 = 90%). È il primo segnale di costanza: un'aderenza che cala spesso anticipa cali di forma o fastidi."],
+
+  ["Screening e gare", "PB in gara / in allenamento", "I record, separati.",
+    "L'app tiene due liste. <b>PB in gara</b> = migliori tempi in competizione, dai risultati che registri nelle Gare. <b>PB in allenamento</b> = migliori tempi nelle sedute (pista) e nei test sprint. Così vedi il vero valore di gara e quello che esprimi in allenamento."],
+  ["Screening e gare", "Screening", "Come sta andando l'atleta.",
+    "Riepilogo su <b>settimana</b> e <b>mesociclo</b>: sedute, volume in pista, velocità VBT, gare, e soprattutto i <b>tempi per distanza</b> con la variazione rispetto al periodo precedente (verde = migliora, rosso = peggiora). Integra anche il <b>carico</b> (ACWR, forma, prontezza) per capire performance e freschezza insieme."],
+  ["Screening e gare", "Mesociclo", "Il blocco di 3-4 settimane.",
+    "Fase di allenamento con un obiettivo, di solito 3-4 settimane (le prime in carico, l'ultima di scarico). Lo screening del mesociclo mostra il trend su tutto il blocco: utile per capire se hai spostato la qualità che volevi."]
 ];
 
+// Guida all'app: [titolo, riga breve, spiegazione HTML]. Si tocca per leggere tutto.
+const GUIDA = [
+  ["Come funziona l'app", "Panoramica in 30 secondi",
+    "Metis Performance replica il tuo Excel di programmazione velocità in un'app. Come allenatore hai: <b>Squadra</b> (colpo d'occhio), <b>Atleti</b> (scheda con PB, massimali, test), <b>Programma</b> (pista, palestra, piano annuale), <b>Analisi/Test</b> (calcolatori e batteria di test), <b>Monitoraggio</b> (screening, carico, infortuni, prevenzione), <b>Gare</b> e <b>Librerie</b> di esercizi con video.<br><br>I dati anagrafici, PB, massimali, test e infortuni stanno nel <b>database</b> (condiviso tra gli allenatori). I programmi e i calcoli restano per ora salvati sul dispositivo."],
+  ["Squadra", "Il colpo d'occhio giornaliero",
+    "La schermata iniziale dell'allenatore: per ogni atleta vedi lo stato (verde/giallo/rosso) da ACWR, forma, prontezza e aderenza, gli alert (asimmetrie, diario non compilato, sedute saltate) e la settimana di allenamento. Serve a capire in un attimo chi seguire."],
+  ["Atleti e scheda", "Anagrafica, PB, massimali, test",
+    "In <b>Atleti</b> aggiungi gli atleti e apri la loro <b>scheda</b>. Trovi: dati anagrafici, <b>🏆 PB in gara</b> (dai risultati delle Gare) e <b>🏋 PB in allenamento</b> (dai test sprint e dalle sedute di pista), <b>massimali di forza</b> e <b>salti/test</b>. Puoi aggiungere/eliminare voci; tutto si salva nel database."],
+  ["Programma — Pista", "I mesocicli di corsa",
+    "Imposti la settimana di pista (giorni × settimane) con le ripetute, i target di tempo e il riscaldamento (attivazione, mobilità, andature, ostacoli). Il mesociclo arriva dal Piano & Picco; nella settimana di scarico il volume cala in automatico. Il volume è la somma dei metri."],
+  ["Programma — Palestra", "Forza, VBT e scarico",
+    "Costruisci le sedute di forza: esercizi, serie, rep, %1RM (il peso si calcola dal massimale), TUT e velocità VBT target. Nella settimana di scarico i carichi degli esercizi con massimale scendono al 60% (modificabile) e la card diventa gialla."],
+  ["Piano, Periodizzazione, Template", "La stagione",
+    "<b>Piano & Picco</b>: pianifichi i picchi verso le gare importanti e vedi i grafici volume/intensità. <b>Periodizzazione</b>: la guida ai blocchi (AA, forza max, conversione, mantenimento). <b>Template microcicli</b>: schemi di settimana-tipo pronti."],
+  ["Analisi e Test", "I calcolatori e la batteria",
+    "La pagina <b>Test</b> è l'organizzatore: scegli l'atleta, premi <b>＋ Nuovo test</b> e scegli cosa fare (Prevenzione, CMJ/SJ, Sprint, Profilo F-V sprint, Drop Jump & RSI, Traino, Stima 1RM, Profilo F-V salti). In ogni test c'è <b>📖 Come si fa</b> (spiegazione passo-passo + video) e il pulsante per <b>salvare</b>: i risultati entrano nella scheda e nella progressione. Trovi anche il protocollo consigliato (ogni 8 settimane)."],
+  ["Monitoraggio — Screening", "Come reagisce l'atleta",
+    "Scegli l'atleta e vedi due riquadri, <b>Settimana</b> e <b>Mesociclo</b>: sedute, volume pista, VBT, gare, e i <b>tempi per distanza</b> con la variazione (verde = migliora). Un verdetto riassume l'andamento, con anche carico e freschezza (ACWR, forma, prontezza)."],
+  ["Monitoraggio — Carico e forma", "ACWR, fitness, fatica",
+    "Il carico di ogni seduta (RPE × durata) costruisce fitness (CTL), fatica (ATL) e forma (TSB). L'<b>ACWR</b> (carico recente ÷ abituale) dice se stai aumentando troppo in fretta: zona ideale 0.8-1.3, sopra 1.5 rischio. Colorato verde/giallo/rosso."],
+  ["Infortuni e Prevenzione", "Registro e asimmetrie",
+    "In <b>Infortuni</b> registri fastidi/infortuni (zona, lato, tipo, gravità, durata, stato) e li segni risolti; puoi segnalarne uno anche durante la seduta. In <b>Prevenzione</b> inserisci i test di asimmetria dx/sx (caviglia, hamstring, anca, salto monopodalico): l'app calcola la % e ti dice cosa fare sul lato debole, con gli esercizi (Nordic, Copenhagen…)."],
+  ["Gare", "Risultati e calendario",
+    "Con <b>＋ Registra risultato</b> segni data, distanza, tempo, vento, posizione: aggiorna in automatico il <b>PB in gara</b> dell'atleta e compare nello screening. Sotto trovi il calendario delle gare in programma."],
+  ["Librerie e Diario", "Esercizi con video, benessere",
+    "Le <b>Librerie</b> (Sala, Mobilità, Pliometria, Video) raccolgono gli esercizi con muscoli, indicazioni e video che si aprono dentro l'app. Il <b>Diario</b> raccoglie il benessere quotidiano degli atleti (sonno, stress, dolori, energia) da cui nasce la prontezza."]
+];
+function apriGuida(i) {
+  const [t, , dett] = GUIDA[i];
+  mostraFoglio(`
+    <div class="foglio-top"><h3>${t}</h3>
+      <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <div style="font-size:15px;line-height:1.7">${dett}</div>`);
+}
+
 function vistaAiuto() {
-  let h = `<div class="card"><h3>Aiuto e glossario</h3>
-    <p class="et" style="margin-top:2px">Tutti i termini e gli acronimi che vedi nell'app e nell'Excel. Tocca una voce per leggere tutto.</p></div>`;
+  let h = `<div class="card"><h3>Guida e glossario</h3>
+    <p class="et" style="margin-top:2px">Come si usa l'app, spiegata sezione per sezione, e tutti i termini/acronimi. Tocca una voce per leggere tutto.</p></div>
+    <p class="sez">Guida all'app</p>
+    ${GUIDA.map(([t, breve], i) => `<div class="lib-row" onclick="apriGuida(${i})">
+      <div style="flex:1;min-width:0"><div style="font-weight:600">${t}</div>
+        <div class="et" style="margin-top:1px">${breve}</div></div>
+      <span class="freccia">›</span></div>`).join("")}
+    <p class="sez" style="margin-top:16px">Glossario</p>`;
   let sez = null;
   GLOSSARIO.forEach(([s, t, breve], i) => {
     if (s !== sez) { h += `<p class="sez">${s}</p>`; sez = s; }

@@ -41,25 +41,44 @@ const TEST_HUB = [
 ];
 
 // spiegazione + video per ogni test: [titolo, testo, urlVideoEmbed, ricercaYouTube]
+// [titolo, teaser (riga breve), spiegazione HTML completa, url video, ricerca YouTube]
 const TEST_INFO = {
-  cmj: ["CMJ e SJ (salti verticali)", "CMJ: mani ai fianchi, contromovimento rapido e salto in un'unica azione. SJ: parti fermo con ginocchia a ~90° (2 s, senza contromovimento) e salti. Altezza dal tempo di volo (My Jump). Il CMJ−SJ = quanto sfrutti l'elastico.", "", "counter+movement+jump+test+my+jump"],
-  "sprint-test": ["Sprint — tempi", "Accelerazione: da fermo o dai blocchi (20-30 m). Velocità massima: 30 m lanciato con rincorsa. Fotocellule o video ad alta frequenza, stesse condizioni ogni volta. Meno tempo = meglio.", "", "sprint+timing+gates+test"],
-  "fv-sprint": ["Profilo F-V Sprint", "Uno sprint massimale con i tempi parziali (o da MySprint): il modello Samozino-Morin stima F0 (forza a inizio spinta), V0 (velocità max), Pmax e RFmax. Fresco, a massima spinta.", "", "sprint+force+velocity+profile+morin"],
-  dropjump: ["Drop Jump & RSI", "Scendi da un rialzo (20-60 cm), tocca e risalta subito col minimo tempo di contatto. Misura contatto e altezza del salto: RSI = altezza ÷ contatto. Prova più altezze per trovare l'ottimale.", "", "drop+jump+RSI+test"],
-  traino: ["Traino / Sled", "Sprint sulla stessa distanza senza traino e con 1-2 carichi, a massima spinta. Dal calo di velocità il modello Morin-Samozino stima V0 e i carichi per ogni zona.", "", "resisted+sprint+sled+test"],
-  stima1rm: ["Stima 1RM da VBT", "3-5 serie a carichi crescenti con massima intenzione, registrando la velocità media (encoder/app). La retta carico-velocità stima l'1RM alla MVT, senza fare il massimale vero.", "", "velocity+based+training+1RM"],
-  fv: ["Profilo F-V salti", "Squat jump (NON CMJ) a carichi crescenti; con massa e distanza di spinta (hPO) il modello Samozino stima F0, V0, Pmax e lo squilibrio forza-velocità → cosa allenare.", "", "squat+jump+force+velocity+profile"]
+  cmj: ["CMJ e SJ (salti verticali)", "Come si fa il salto e la differenza elastica",
+    "<b>Due salti, mani sempre ai fianchi.</b><br><br><b>CMJ (con contromovimento):</b> in piedi, ti pieghi rapidamente (~90°) e risali <b>in un'unica azione</b> esplosiva, saltando più in alto possibile. Sfrutta l'elastico.<br><br><b>SJ (squat jump):</b> scendi a ginocchia ~90° e <b>resta fermo 2-3 secondi</b> in quella posizione, poi salti <b>senza riabbassarti</b> (niente rimbalzo). Misura la forza pura.<br><br><b>Come rilevare:</b> altezza col telefono (My Jump) o pedana; 2-3 tentativi per salto, tieni il migliore.<br><br>La <b>differenza CMJ − SJ</b> dice quanto usi l'elastico: alta = ottimo ciclo allungamento-accorciamento; vicino a 0 = da migliorare la reattività.", "", "counter+movement+jump+squat+jump+my+jump"],
+  "sprint-test": ["Sprint — tempi", "Accelerazione e velocità massima, come cronometrare",
+    "Stesse condizioni ogni volta (pista, scarpe, riscaldamento).<br><br><b>Accelerazione:</b> 20-30 m da fermo o dai blocchi, sempre nello stesso modo.<br><b>Velocità massima:</b> 30 m <b>lanciato</b> — fai ~20-30 m di rincorsa e cronometri solo i 30 m centrali.<br><br><b>Come rilevare:</b> meglio le fotocellule; in alternativa video ad alta frequenza (120-240 fps) con riferimenti a terra ogni 5-10 m.<br><br>Meno tempo = meglio. Registra il migliore di 2-3 prove ben recuperate.", "", "sprint+timing+test"],
+  "fv-sprint": ["Profilo F-V Sprint", "Come rilevarlo (anche senza MySprint)",
+    "Misura il forza-velocità della corsa da <b>uno sprint massimale</b> di 30-40 m, da riposato.<br><br><b>SENZA MySprint (tempi parziali):</b><br>1) Parti da fermo (3 punti o blocchi), sempre uguale.<br>2) Cronometra il <b>tempo cumulato</b> a più distanze: 5, 10, 15, 20, 30, 40 m. Bastano 2-3 punti, meglio 4-5. Usa fotocellule o video 240 fps con riferimenti a terra.<br>3) Inserisci i tempi nelle righe → il foglio calcola Vmax, F0, V0, Pmax, RFmax.<br>4) Inserisci anche <b>massa</b> e <b>altezza</b> (servono per la resistenza dell'aria); temperatura, vento e pressione se li hai (affinano la stima).<br><br><b>CON MySprint:</b> passa a «MySprint» e incolla F0/kg, V0, Pmax/kg, RFmax, Sfv/kg dall'app.<br><br>A massima spinta; ripeti nelle stesse condizioni.", "", "sprint+force+velocity+profile+morin"],
+  dropjump: ["Drop Jump & RSI", "Come si esegue, la progressione e quanti tentativi",
+    "Misura la <b>reattività</b>: quanto rimbalzi in fretta.<br><br>1) Sali su un rialzo e <b>lasciati cadere</b> giù (NON saltare verso l'alto dal box), atterrando sull'avampiede.<br>2) Appena tocchi terra <b>risalta subito</b> più in alto possibile, con il <b>minimo tempo di contatto</b> (immagina il terreno che scotta).<br>3) Misura tempo di contatto e altezza del salto (My Jump / OVR / pedana).<br><br><b>Progressione di altezze:</b> parti da 20 cm e sali → 30, 40, 50, 60 cm. Per <b>ogni altezza fai 2-3 tentativi</b> e tieni il migliore.<br><br>L'<b>RSI = altezza ÷ tempo di contatto</b>: l'altezza con l'RSI più alto è la tua <b>ottimale</b> per allenare i drop jump. Inseriscile tutte nella tabella: l'app segna l'ottimale con ★.<br><br>⚠️ Se le ginocchia si piegano molto o il contatto supera ~0.25 s stai facendo forza, non reattività: scendi di altezza.", "", "drop+jump+RSI+reactive+strength"],
+  traino: ["Traino / Sled", "Come trovare i carichi giusti",
+    "Trova i carichi di traino (sled) per ogni obiettivo, col metodo Morin-Samozino.<br><br>1) Fai alcuni sprint sulla <b>stessa distanza</b> (20-30 m) a massima spinta: uno <b>senza traino (0 kg)</b> e 1-2 con carichi diversi.<br>2) Cronometra ogni prova → il foglio calcola la velocità e stima V0 e la pendenza.<br>3) Ottieni i <b>carichi per zona</b> dal calo di velocità: tecnica, velocità, potenza, forza.<br><br>Recupera bene tra le prove (è molto affaticante: mettila per ultima). Serve il peso corporeo per il %BM.", "", "resisted+sprint+sled+load+velocity"],
+  stima1rm: ["Stima 1RM da VBT", "Come stimarlo senza fare il massimale",
+    "Stima l'1RM dalla velocità del bilanciere, senza andare a cedimento.<br><br>1) Scegli l'esercizio; fai <b>3-5 singole a carichi crescenti</b> (es. 60, 70, 80, 85%), ognuna alla <b>massima velocità possibile</b>.<br>2) Registra la <b>velocità media</b> di ogni alzata (encoder o app VBT).<br>3) La retta carico-velocità stima l'1RM alla <b>MVT</b> (velocità minima dell'esercizio).<br><br>Più alto è l'R², più affidabile la stima. Da riposato; ripeti ogni ~8 settimane per ricalibrare le percentuali.", "", "velocity+based+training+1RM+estimation"],
+  fv: ["Profilo F-V salti", "Squat jump: come tenerlo fermo e cosa serve",
+    "<b>Squat jump — NON è il CMJ.</b><br><br>1) Mani ai fianchi, piedi larghezza spalle.<br>2) Scendi in mezzo squat (ginocchia ~90°) e <b>FERMATI 2-3 secondi</b> in questa posizione: niente rimbalzo, niente molleggio.<br>3) Al via <b>salta più in alto possibile senza riabbassarti prima</b> (nessun contromovimento).<br>4) Atterra e ripeti.<br><br><b>Come rilevare:</b> altezza col telefono (My Jump) o pedana. Fai il test a <b>carichi crescenti</b>: a corpo libero, poi bilanciere leggero, +10/20 kg per volta (2-6 prove, 2-3 tentativi per carico, tieni il migliore).<br><br>Servono anche <b>massa corporea</b> e <b>hPO</b> (distanza di spinta): altezza dell'anca a fine spinta in punta di piedi <b>meno</b> quella nella posizione di partenza; misurala una volta (~0.30-0.40 m).<br><br>⚠️ Se ti abbassi prima di saltare stai facendo un CMJ: il dato non è valido. Guarda il video.",
+    "https://youtube.com/shorts/UYUjHgzXgeU", "squat+jump+test+force+velocity"]
 };
-function apriTestInfo(k) { const x = TEST_INFO[k]; if (x && typeof apriVideo === "function") apriVideo(x[0], x[2] || "", "", x[1], ""); }
-// blocco "Come si fa" riusabile: spiegazione sempre + video in-app se disponibile, altrimenti ricerca YouTube
+// apre la finestra "Come si fa": spiegazione completa + video in-app (o ricerca)
+function apriComeSiFa(k) {
+  const x = TEST_INFO[k]; if (!x || typeof mostraFoglio !== "function") return;
+  const emb = x[3] && typeof ytEmbed === "function" ? ytEmbed(x[3]) : "";
+  const video = emb
+    ? `<div class="yt-wrap"><iframe src="${emb}" title="${x[0]}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>
+       <a class="et" style="display:block;text-align:center;margin-top:8px;color:var(--blu)" href="${x[3]}" target="_blank" rel="noopener">apri su YouTube ↗</a>`
+    : (x[4] ? `<a class="lib-row" style="text-decoration:none;color:inherit" href="https://www.youtube.com/results?search_query=${x[4]}" target="_blank" rel="noopener"><div style="flex:1;font-weight:500">Cerca il video su YouTube</div><span class="vid-ic">▶</span><span class="freccia">↗</span></a>` : "");
+  mostraFoglio(`
+    <div class="foglio-top"><h3>${x[0]}</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <div style="font-size:15px;line-height:1.7">${x[2]}</div>
+    ${video ? `<div style="margin-top:14px">${video}</div>` : ""}`);
+}
+// riga "Come si fa" cliccabile → apre la finestra ben formattata
 function bloccoComeSiFa(k) {
   const x = TEST_INFO[k]; if (!x) return "";
-  const emb = x[2] && typeof ytEmbed === "function" ? ytEmbed(x[2]) : "";
-  const azione = emb
-    ? `<div class="lib-row" style="margin-top:10px" onclick="apriTestInfo('${k}')"><div style="flex:1;font-weight:500">Spiegazione e video</div><span class="vid-ic">▶</span><span class="freccia">›</span></div>`
-    : (x[3] ? `<a class="lib-row" style="margin-top:10px;text-decoration:none;color:inherit" href="https://www.youtube.com/results?search_query=${x[3]}" target="_blank" rel="noopener"><div style="flex:1;font-weight:500">Cerca il video</div><span class="vid-ic">▶</span><span class="freccia">↗</span></a>` : "");
-  return `<div class="card"><p class="et" style="margin-bottom:6px">Come si fa</p>
-    <p style="font-size:14px;line-height:1.55;color:var(--txt2)">${x[1]}</p>${azione}</div>`;
+  return `<div class="lib-row" style="margin-bottom:11px" onclick="apriComeSiFa('${k}')">
+    <div style="flex:1;min-width:0"><div style="font-weight:600">📖 Come si fa</div>
+      <div class="et" style="margin-top:1px">${x[1]}</div></div>
+    ${x[3] ? '<span class="vid-ic">▶</span>' : ""}<span class="freccia">›</span></div>`;
 }
 function toggleNuovoTest() { S.nuovoTest = !S.nuovoTest; disegna(); if (S.nuovoTest) window.scrollTo(0, 0); }
 

@@ -590,6 +590,9 @@ function bloccoScreening(atletaId, giorni, titolo) {
     </div>
     ${dist.length ? `<p class="et" style="margin:10px 0 4px">Tempi per distanza (best · variazione vs prima)</p>
       <table class="ptab" style="min-width:0"><thead><tr><th>Distanza</th><th>Best</th><th>Δ</th></tr></thead><tbody>${righeTempi}</tbody></table>` : ""}
+    ${gare.length ? `<p class="et" style="margin:10px 0 4px">🏁 Gare nel periodo</p>
+      <table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Prova</th><th>Tempo</th><th>Pos.</th></tr></thead>
+      <tbody>${gare.slice().sort((a, b) => (a.data < b.data ? 1 : -1)).map(g => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(g.data) : g.data}</td><td>${g.distanza}${g.gara ? " · " + g.gara : ""}</td><td class="pauto">${g.tempo}</td><td>${g.posizione || "—"}</td></tr>`).join("")}</tbody></table>` : ""}
     <p style="margin-top:12px;font-weight:600">${perf}${dVbt != null ? ` · VBT ${dVbt >= 0 ? "+" : ""}${dVbt.toFixed(2)} m/s` : ""}</p>
     <p class="et" style="margin-top:6px">Carico: <b style="color:${typeof colAcwr === "function" && m.acwr ? colAcwr(m.acwr) : "var(--txt2)"}">${caricoTxt}</b></p>
     ${m.alert && m.alert.length ? `<p class="et" style="margin-top:4px">${m.alert.map(a => a[1]).join(" · ")}</p>` : ""}
