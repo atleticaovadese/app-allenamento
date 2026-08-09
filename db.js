@@ -155,9 +155,9 @@ async function caricaDati() {
     const mio = (atl || []).find(a => a.profilo_id === user.id);
     if (mio) S.utente.atletaId = mio.id;
     else if (DEMO.atleti[0]) S.utente.atletaId = DEMO.atleti[0].id;
-    // primo accesso / profilo incompleto → apri subito "I miei dati" da compilare
+    // primo accesso / profilo incompleto → avvia l'onboarding: apri subito "I miei dati"
     const a = DEMO.atleti.find(x => x.id === S.utente.atletaId);
-    if (a && profiloIncompleto(a) && typeof apriModificaDati === "function") apriModificaDati(a.id);
+    if (a && profiloIncompleto(a) && typeof apriModificaDati === "function") { S.onboarding = "dati"; apriModificaDati(a.id); }
   }
 
   // infortuni aperti

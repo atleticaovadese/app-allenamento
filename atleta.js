@@ -171,7 +171,14 @@ async function salvaVoce(tipo, atletaId) {
 // ---------- I miei dati (atleta) ----------
 function vistaIo() {
   const a = DEMO.atleti.find(x => x.id === S.utente.atletaId) || DEMO.atleti[0];
-  return schedaAtleta(a, "pb") + `
+  const banner = S.onboarding === "personali"
+    ? `<div class="card" style="border-color:var(--blu);background:var(--blu-bg)">
+        <p style="font-weight:600;color:var(--blu)">Passo 2 di 3 · I tuoi personali</p>
+        <p style="font-size:14px;line-height:1.6;margin-top:6px">Aggiungi qui i tuoi <b>PB di gara</b> col pulsante «＋ Aggiungi PB gara» (puoi farlo anche dopo). Quando hai finito, continua:</p>
+        <button class="btn" style="margin-top:10px" onclick="setOnboarding('tour')">Continua al tutorial ›</button>
+      </div>`
+    : "";
+  return banner + schedaAtleta(a, "pb") + `
   <div class="card">
     <button class="btn btn-2" onclick="apriModificaDati('${a.id}')">✏️ Modifica i miei dati (specialità, categoria, nascita, altezza, peso…)</button>
     <p class="et" style="margin-top:8px">Per le presenze: <button class="link-indietro" onclick="vai('presenze')">apri Presenze ›</button></p>
@@ -233,8 +240,11 @@ async function salvaModificaDati() {
     data_nascita: m.data_nascita || null, gamba_stacco: m.gamba_stacco || null,
     altezza_cm: m.altezza_cm ? Number(m.altezza_cm) : null, peso_kg: m.peso_kg ? Number(m.peso_kg) : null
   }) : false;
-  if (ok) { S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
-  else if (btn) { btn.textContent = "Salva i miei dati"; btn.disabled = false; }
+  if (ok) {
+    S.modificaDati = null;
+    if (S.onboarding === "dati") { S.onboarding = "personali"; S.vista = "io"; } // porta ai personali
+    disegna(); window.scrollTo(0, 0);
+  } else if (btn) { btn.textContent = "Salva i miei dati"; btn.disabled = false; }
 }
 
 // ---------- Scheda atleta vista dall'allenatore ----------

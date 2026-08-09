@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", mostraRegistra: false, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", mostraRegistra: false, onboarding: null, tourStep: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -428,6 +428,7 @@ function apriGuida(i) {
 function vistaAiuto() {
   let h = `<div class="card"><h3>Guida e glossario</h3>
     <p class="et" style="margin-top:2px">Come si usa l'app, spiegata sezione per sezione, e tutti i termini/acronimi. Tocca una voce per leggere tutto.</p></div>
+    ${S.utente && S.utente.ruolo === "atleta" ? `<button class="btn btn-2" style="margin-bottom:12px" onclick="setOnboarding('tour')">▶ Rivedi il tutorial</button>` : ""}
     <p class="sez">Guida all'app</p>
     ${GUIDA.map(([t, breve], i) => `<div class="lib-row" onclick="apriGuida(${i})">
       <div style="flex:1;min-width:0"><div style="font-weight:600">${t}</div>
@@ -468,6 +469,40 @@ function apriGlossario(i) {
     <p style="font-size:15px;line-height:1.7">${dett}</p>`);
 }
 
+// ---------- onboarding atleta: dati → personali → tutorial guidato ----------
+const TOUR = [
+  ["", "Metis Performance", "«Chi non pianifica è destinato a fallire.»"],
+  ["◧", "Oggi — le tue sedute", "Nella pagina <b>Oggi</b> c'è l'allenamento del giorno (pista o palestra): aprilo, segna i tempi o le serie mentre ti alleni e <b>chiudi la seduta</b> quando hai finito (con durata e RPE)."],
+  ["✎", "Diario — ogni giorno", "Ogni mattina compila il <b>Diario</b> (sonno, stress, dolori, energia): bastano 30 secondi e aiuta l'allenatore a dosare il carico. Sii onesto, non lo vedi tu il punteggio."],
+  ["◉", "I miei dati e i personali", "In <b>I miei dati</b> ci sono la tua anagrafica e i tuoi <b>PB (personali)</b>. Tienili aggiornati: puoi aggiungere tu i tuoi record di gara col pulsante «＋ Aggiungi PB gara»."],
+  ["▤", "Librerie con i video", "In <b>Librerie</b> (Sala, Mobilità, Pliometria, Video) trovi gli esercizi spiegati, con i video che si aprono dentro l'app: usale quando non ricordi un esercizio."],
+  ["◍", "Presenze e Calendario", "In <b>Presenze</b> vedi quanti allenamenti hai fatto; nel <b>Calendario</b> il programma della settimana."],
+  ["?", "Guida e glossario", "Non sai cosa vuol dire un termine (RSI, ACWR, TUT…)? È tutto spiegato in <b>Guida e glossario</b>. Puoi rivedere questo tutorial da lì quando vuoi. Buon allenamento! 💪"]
+];
+function setOnboarding(fase) { S.onboarding = fase; S.tourStep = 0; if (fase !== "tour") S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
+function tourAvanti() { if (S.tourStep < TOUR.length - 1) { S.tourStep++; disegna(); window.scrollTo(0, 0); } else tourFine(); }
+function tourIndietro() { if (S.tourStep > 0) { S.tourStep--; disegna(); window.scrollTo(0, 0); } }
+function tourFine() { S.onboarding = null; S.tourStep = 0; S.vista = "oggi"; disegna(); window.scrollTo(0, 0); }
+function vistaTutorial() {
+  const [ic, tit, txt] = TOUR[S.tourStep] || TOUR[0];
+  const n = TOUR.length, ultimo = S.tourStep === n - 1, primo = S.tourStep === 0;
+  const punti = TOUR.map((_, i) => `<span style="width:8px;height:8px;border-radius:50%;background:${i === S.tourStep ? "var(--blu)" : "var(--line2)"}"></span>`).join("");
+  return `
+  <div style="min-height:70vh;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:20px 8px">
+    ${primo
+      ? `<img src="icon-192.png" alt="logo" style="width:104px;height:104px;border-radius:24px;margin:0 auto 18px;display:block;box-shadow:0 8px 30px rgba(0,0,0,.35)">`
+      : `<div style="font-size:54px;margin-bottom:14px">${ic}</div>`}
+    <h2 style="font-size:${primo ? "28" : "24"}px;margin-bottom:12px">${tit}</h2>
+    <p style="font-size:${primo ? "18" : "16"}px;line-height:1.7;color:var(--txt2);max-width:520px;margin:0 auto;${primo ? "font-style:italic" : ""}">${txt}</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin:22px 0">${punti}</div>
+    <div style="display:flex;gap:10px;max-width:420px;margin:0 auto;width:100%">
+      ${S.tourStep > 0 ? `<button class="btn btn-2" onclick="tourIndietro()">‹ Indietro</button>` : ""}
+      <button class="btn" onclick="tourAvanti()">${ultimo ? "Inizia! 🚀" : "Avanti ›"}</button>
+    </div>
+    <button class="link-indietro" style="margin-top:14px" onclick="tourFine()">Salta il tutorial</button>
+  </div>`;
+}
+
 function vistaInArrivo(titolo, foglio) {
   return `<div class="card">
     <h3>${titolo}</h3>
@@ -500,7 +535,8 @@ function disegna() {
   const coach = S.utente.ruolo === "coach";
   const menu = coach ? MENU_COACH : MENU_ATLETA;
   let corpo;
-  if (S.modificaDati) corpo = vistaModificaDati();
+  if (S.onboarding === "tour") corpo = vistaTutorial();
+  else if (S.modificaDati) corpo = vistaModificaDati();
   else if (S.infortunio) corpo = vistaInfortunioForm();
   else if (S.risultatoGara) corpo = vistaRisultatoGaraForm();
   else if (S.seduta) corpo = vistaSeduta();
