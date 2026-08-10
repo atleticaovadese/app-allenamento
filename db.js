@@ -173,6 +173,11 @@ async function caricaDati() {
     DEMO.gareRaw = gare.map(g => ({ data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
   }
 
+  // login reale: parto PULITO dai dati/programmi DEMO (Leonardo & co.), poi carico solo ciò che è salvato nel DB
+  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = [];
+  DEMO.pista = { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [typeof mesoVuoto === "function" ? mesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
+  DEMO.palestra = { atletaRif: "", mesocicli: [typeof palMesoVuoto === "function" ? palMesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
+
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
   await caricaDatiDB();
 }
