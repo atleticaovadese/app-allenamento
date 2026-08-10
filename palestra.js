@@ -132,7 +132,8 @@ function vistaProgrammaPalestra() {
 
   const testa = `
     <div class="card"><h3>Programma Palestra</h3>
-      <p class="et" style="margin-top:2px">Scrivi esercizio, serie, rep, %1RM, TUT e velocità target: il <b>peso</b> esce da solo dai massimali dell'atleta (%1RM × 1RM). Il volume in kg è automatico.</p></div>
+      <p class="et" style="margin-top:2px">Scrivi esercizio, serie, rep, %1RM, TUT e velocità target: il <b>peso</b> esce da solo dai massimali dell'atleta (%1RM × 1RM). Il volume in kg è automatico.</p>
+      <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
     <div class="card">
       <label class="lab">Atleta di riferimento (per il peso dai massimali)</label>
       <select onchange="setPalTop('atletaRif',this.value)" style="margin-top:6px">

@@ -68,7 +68,8 @@ function entra(ruolo) {
   S.utente = DEMO.utenti.find(u => u.ruolo === ruolo);
   S.vista = ruolo === "coach" ? "squadra" : "oggi";
   localStorage.setItem("utente", S.utente.id);
-  if (typeof _installaProgrammaDemo === "function") _installaProgrammaDemo(); // programma demo pulito (ignora dati vecchi salvati)
+  // programma demo pulito SOLO al primo login della sessione (poi conserva le modifiche fatte in demo)
+  if (!window._demoProgFatto && typeof _installaProgrammaDemo === "function") { _installaProgrammaDemo(); window._demoProgFatto = true; }
   if (typeof allineaDemoProgramma === "function") allineaDemoProgramma();
   disegna();
 }

@@ -239,7 +239,8 @@ function vistaProgrammaPista() {
   // header profilo + PB
   const testa = `
     <div class="card"><h3>Programma Pista</h3>
-      <p class="et" style="margin-top:2px">Scrivi contenuto, distanza, n°, recupero e % velocità: il <b>tempo richiesto</b> e la <b>m/s</b> escono da soli dal PB. Il volume è automatico.</p></div>
+      <p class="et" style="margin-top:2px">Scrivi contenuto, distanza, n°, recupero e % velocità: il <b>tempo richiesto</b> e la <b>m/s</b> escono da soli dal PB. Il volume è automatico.</p>
+      <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
     <div class="card">
       <div class="griglia2">
         <div><label class="lab">Profilo velocità</label>
