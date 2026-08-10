@@ -262,3 +262,26 @@ const DEMO = {
       durata: 85, rpe: 8, fastidi: false, chiusa: true }
   ]
 };
+
+// --- Programma DEMO (velocisti) per l'anteprima: allineato alla settimana corrente all'avvio ---
+function _sett4(righe) { return [0, 1, 2, 3].map(() => ({ righe: righe.map(r => ({ ...r })), nota: "" })); }
+DEMO.pista = {
+  profilo: "100m M", pbManuale: "10.90", atletaRif: "at1",
+  mesocicli: [{
+    _demo: true, ciclo: "", blocco: "AA", inizio: "", focus: "Accelerazione",
+    giorni: [
+      { giornoSett: "lun", risc: {}, settimane: _sett4([{ contenuto: "acc", distanza: "30", n: "6", rec: "4'", perc: "95" }, { contenuto: "lanci", distanza: "60", n: "4", rec: "6'", perc: "100" }]) },
+      { giornoSett: "gio", risc: {}, settimane: _sett4([{ contenuto: "tempo", distanza: "120", n: "5", rec: "3'", perc: "85" }]) }
+    ]
+  }]
+};
+DEMO.palestra = {
+  atletaRif: "at1",
+  mesocicli: [{
+    _demo: true, ciclo: "", blocco: "Mx-S", inizio: "", focus: "Forza massima",
+    giorni: [
+      { giornoSett: "mar", settimane: _sett4([{ esercizio: "Squat", serie: "4", rep: "5", perc: "85", rec: "180", tut: "3-1-0-1", vbt: "0.55", peso: "" }, { esercizio: "Hip thrust", serie: "3", rep: "8", perc: "", rec: "120", tut: "", vbt: "", peso: "90" }]) },
+      { giornoSett: "sab", settimane: _sett4([{ esercizio: "Stacco", serie: "4", rep: "4", perc: "80", rec: "180", tut: "", vbt: "", peso: "" }, { esercizio: "Nordic hamstring", serie: "3", rep: "6", perc: "", rec: "120", tut: "4-0-0", vbt: "", peso: "" }]) }
+    ]
+  }]
+};

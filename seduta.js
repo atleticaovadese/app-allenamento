@@ -1,7 +1,7 @@
 // Schermata della seduta: pista e palestra.
 const T = { id: null, sec: 0, handle: null };   // timer di recupero
 
-function sedutaDaId(id) { return DEMO.sedute.find(s => s.id === id); }
+function sedutaDaId(id) { return DEMO.sedute.find(s => s.id === id) || (typeof sedutaGen === "function" ? sedutaGen(id) : null); }
 
 // ---------- riscaldamento (comune) ----------
 function bloccoRiscaldamento(s) {

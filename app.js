@@ -1,5 +1,5 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", mostraRegistra: false, onboarding: null, tourStep: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", mostraRegistra: false, onboarding: null, tourStep: 0, calOff: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------
@@ -68,6 +68,7 @@ function entra(ruolo) {
   S.utente = DEMO.utenti.find(u => u.ruolo === ruolo);
   S.vista = ruolo === "coach" ? "squadra" : "oggi";
   localStorage.setItem("utente", S.utente.id);
+  if (typeof allineaDemoProgramma === "function") allineaDemoProgramma();
   disegna();
 }
 function esci() {
@@ -124,7 +125,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -134,21 +135,20 @@ function atletaCorrente() {
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
   const a = atletaCorrente(), m = DEMO.mesociclo, g = DEMO.prossimaGara;
-  const s = DEMO.sedute.find(x => x.quando === "oggi");
-  const lavoro = s.tipo === "pista"
-    ? s.elementi.map(e => `${e.ripetute}×${e.distanza} m`).join(" · ")
-    : s.esercizi.slice(0, 3).map(e => e.nome).join(" · ");
+  const oggiSed = typeof seduteDelGiorno === "function" ? seduteDelGiorno(oggiISO(), false) : [];
+  const cardOggi = oggiSed.length
+    ? oggiSed.map(s => `<div class="card oggi" onclick="apriSeduta('${s.id}')">
+        <p class="et">Allenamento di oggi</p>
+        <h3>${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
+        <p class="et" style="color:#dbe9ff">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</p></div>`).join("")
+    : `<div class="card"><p class="et">Nessun allenamento programmato oggi — riposo o guarda il <button class="link-indietro" onclick="vai('calendario')">calendario ›</button></p></div>`;
   const tacche = Array.from({ length: m.settimaneTotali },
     (_, i) => `<i class="${i < m.settimanaCorrente ? "on" : ""}"></i>`).join("");
   const ad = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
   const d = DEMO.diarioOggi, fatto = d.salvato && diarioCompleto(d);
 
   return `
-  <div class="card oggi" onclick="apriSeduta('${s.id}')">
-    <p class="et">Allenamento di oggi</p>
-    <h3>${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
-    <p class="et" style="color:#dbe9ff">${lavoro}</p>
-  </div>
+  ${cardOggi}
 
   <div class="quadri">
     <div class="q wide" onclick="vai('calendario')">

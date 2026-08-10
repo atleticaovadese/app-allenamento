@@ -307,17 +307,29 @@ function vistaPresenze() {
 
 // ---------- Calendario: mese / mesociclo ----------
 function vistaCalendario() {
-  const modo = S.calModo || "mesociclo";
-  const testa = `
-    <div class="card" style="padding:10px 12px">
-      <div class="switch">
-        <button class="${modo === "mese" ? "on" : ""}" onclick="setCal('mese')">Mese</button>
-        <button class="${modo === "mesociclo" ? "on" : ""}" onclick="setCal('mesociclo')">Mesociclo</button>
-      </div>
-    </div>`;
-  return testa + (modo === "mesociclo" ? calMesociclo() : calMese());
+  const off = S.calOff || 0;
+  const sett = typeof settimanaProgramma === "function" ? settimanaProgramma(off) : [];
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+  const dNum = iso => new Date(iso + "T00:00:00").getDate();
+  const range = sett.length ? `${dNum(sett[0].dataISO)} – ${dNum(sett[6].dataISO)} ${MESI_FULL[new Date(sett[6].dataISO + "T00:00:00").getMonth()]}` : "";
+  const haQualcosa = sett.some(d => d.sedute.length);
+  return `
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px">
+    <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="calSett(-1)">‹</button>
+    <div style="text-align:center"><b>${off === 0 ? "Questa settimana" : (off > 0 ? "+" + off : off) + " sett"}</b><div class="et">${range}</div></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="calSett(1)">›</button>
+  </div>
+  ${sett.map(d => `<div class="card"${d.oggi ? ' style="border-color:var(--blu)"' : ""}>
+    <p style="font-weight:600${d.oggi ? ";color:var(--blu)" : ""}">${cap(d.nomeGiorno)} ${dNum(d.dataISO)}${d.oggi ? " · oggi" : ""}</p>
+    ${d.sedute.length ? d.sedute.map(s => `<div class="lib-row" style="margin-top:8px" onclick="apriSeduta('${s.id}')">
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra"} · giorno ${s.giorno}</div>
+        <div class="et" style="margin-top:1px">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</div></div>
+      <span class="freccia">›</span></div>`).join("")
+      : `<p class="et" style="margin-top:6px">Riposo</p>`}
+  </div>`).join("")}
+  ${!haQualcosa ? `<div class="card"><p class="et">Nessun allenamento programmato in questa settimana. Il programma lo imposta l'allenatore.</p></div>` : ""}`;
 }
-function setCal(m) { S.calModo = m; disegna(); }
+function calSett(d) { S.calOff = (S.calOff || 0) + d; disegna(); window.scrollTo(0, 0); }
 
 function calMesociclo() {
   const m = DEMO.mesociclo;
