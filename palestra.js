@@ -33,6 +33,21 @@ function palPeso(r) {
   const man = parseFloat(String(r.peso).replace(",", "."));
   return isNaN(man) ? null : man;                                            // manuale (accessori senza massimale)
 }
+
+// --- PER ATLETA: il peso si calcola sul massimale del singolo atleta (accessori senza massimale → peso manuale del madre) ---
+function massimaleAtleta(atleta, esercizio) {
+  if (!atleta || !atleta.scheda || !esercizio) return null;
+  const rows = (atleta.scheda.massimali || []).filter(m => m[0] === esercizio && m[1] != null);
+  if (!rows.length) return null;
+  rows.sort((x, y) => (x[5] || "") < (y[5] || "") ? -1 : (x[5] || "") > (y[5] || "") ? 1 : 0);
+  return Number(rows[rows.length - 1][1]);   // il più recente
+}
+function palPesoAtleta(atleta, r) {
+  const rm = massimaleAtleta(atleta, r.esercizio);
+  if (rm != null && r.perc) return Math.round(rm * Number(r.perc) / 100);
+  const man = parseFloat(String(r.peso).replace(",", "."));
+  return isNaN(man) ? null : man;
+}
 function volumePalSett(sett) {
   return (sett.righe || []).reduce((t, r) => { const w = palPeso(r); return t + (Number(r.serie) || 0) * (Number(r.rep) || 0) * (w || 0); }, 0);
 }

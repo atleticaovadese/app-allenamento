@@ -76,19 +76,20 @@ function vistaPista(s) {
     const caselle = e.tempi.map((t, i) => {
       const v = t === null ? "" : t;
       let cls = "";
-      if (t !== null) {
+      if (t !== null && e.target != null) {
         const peggio = (t - e.target) / e.target * 100;
         cls = peggio > CONFIG.soglie.pistaPeggioPct ? "male" : "bene";
       }
       return `<input class="tempo ${cls}" inputmode="decimal" value="${v}" placeholder="—"
         onchange="segnaTempo('${s.id}','${e.id}',${i},this.value)">`;
     }).join("");
+    const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <h3>${e.ripetute} × ${e.distanza} m</h3>
-        <span class="et" style="margin:0">${e.percentuale}% · rec ${e.recupero}</span>
+        <span class="et" style="margin:0">${meta}</span>
       </div>
-      <p class="et" style="margin:4px 0 10px">obiettivo <b>${e.target.toFixed(2)} s</b> · volume ${e.ripetute * e.distanza} m</p>
+      <p class="et" style="margin:4px 0 10px">${e.target != null ? "obiettivo <b>" + e.target.toFixed(2) + " s</b> · " : ""}volume ${e.ripetute * e.distanza} m</p>
       <div class="tempi">${caselle}</div>
     </div>`;
   }).join("")}
@@ -262,6 +263,8 @@ function chiudiSeduta(sid) {
 // ---------- ingresso ----------
 function vistaSeduta() {
   const s = sedutaDaId(S.seduta);
+  if (!s) return `<button class="indietro" onclick="tornaIndietro()">‹ Indietro</button>
+    <div class="card"><p class="et">Questa seduta non è più disponibile (il programma è cambiato). Torna indietro.</p></div>`;
   const corpo = s.tipo === "pista" ? vistaPista(s) : vistaPalestra(s);
   return `<button class="indietro" onclick="tornaIndietro()">‹ Indietro</button>
     <div class="card" style="background:var(--blu);color:#fff;border:0">

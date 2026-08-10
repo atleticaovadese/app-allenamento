@@ -136,7 +136,8 @@ function atletaCorrente() {
 
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
-  const a = atletaCorrente(), m = DEMO.mesociclo, g = DEMO.prossimaGara;
+  const a = atletaCorrente(), g = DEMO.prossimaGara;
+  const pos = typeof posizioneProgramma === "function" ? posizioneProgramma() : null;
   const oggiSed = typeof seduteDelGiorno === "function" ? seduteDelGiorno(oggiISO(), false) : [];
   const cardOggi = oggiSed.length
     ? oggiSed.map(s => `<div class="card oggi" onclick="apriSeduta('${s.id}')">
@@ -144,8 +145,8 @@ function vistaOggi() {
         <h3>${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
         <p class="et" style="color:#dbe9ff">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</p></div>`).join("")
     : `<div class="card"><p class="et">Nessun allenamento programmato oggi — riposo o guarda il <button class="link-indietro" onclick="vai('calendario')">calendario ›</button></p></div>`;
-  const tacche = Array.from({ length: m.settimaneTotali },
-    (_, i) => `<i class="${i < m.settimanaCorrente ? "on" : ""}"></i>`).join("");
+  const tacche = pos ? Array.from({ length: pos.tot },
+    (_, i) => `<i class="${i < pos.sett ? "on" : ""}"></i>`).join("") : "";
   const ad = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
   const d = DEMO.diarioOggi, fatto = d.salvato && diarioCompleto(d);
 
@@ -153,12 +154,12 @@ function vistaOggi() {
   ${cardOggi}
 
   <div class="quadri">
-    <div class="q wide" onclick="vai('calendario')">
+    ${pos ? `<div class="q wide" onclick="vai('calendario')">
       <div><div class="k">Dove sei nel programma</div>
-        <div class="v s">Mesociclo ${m.numero} — ${m.blocco}</div>
-        <div class="d">settimana ${m.settimanaCorrente} di ${m.settimaneTotali} · ${m.dal} – ${m.al}</div></div>
+        <div class="v s">${pos.titolo}</div>
+        <div class="d">settimana ${pos.sett} di ${pos.tot} · ${pos.dal} – ${pos.al}</div></div>
       <div class="tacche">${tacche}</div>
-    </div>
+    </div>` : ""}
 
     <div class="q" onclick="vai('diario')">
       <div class="k">Diario di oggi</div>

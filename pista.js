@@ -202,6 +202,41 @@ function pistaTempo(distanza, perc) {
   const coeff = co[Number(distanza)]; if (coeff == null) return null;
   return pb * coeff / (Number(perc) / 100);
 }
+
+// --- PER ATLETA: il tempo target si calcola sul PB del singolo atleta ---
+// PB dell'atleta ESATTAMENTE su una distanza (numero → "60 m"). Prende il MIGLIORE se ce n'è più d'uno.
+function pbAtletaDist(atleta, distanza) {
+  if (!atleta || !atleta.scheda) return null;
+  const label = distanza + " m";
+  const tempi = (atleta.scheda.pb || [])
+    .filter(r => r[0] === label && r[1] != null && r[1] !== "")
+    .map(r => parseFloat(String(r[1]).replace(",", ".")))
+    .filter(v => !isNaN(v));
+  return tempi.length ? Math.min(...tempi) : null;
+}
+// tempo "al 100%" dell'atleta sulla distanza D: PB esatto se c'è, altrimenti stima dalla distanza-ancora
+// (D<=60 → dai 60 m; D>60 → dai 100 m; fallback al PB di riferimento del profilo), ri-scalando con la curva.
+function baseAtletaDist(atleta, D) {
+  const diretto = pbAtletaDist(atleta, D);
+  if (diretto != null) return diretto;                 // PB reale su quella distanza
+  const p = pistaInit();
+  const co = p.profilo ? PISTA_COEFF[p.profilo] : null;
+  if (!co || co[D] == null) return null;
+  const refDist = p.profilo.indexOf("400") === 0 ? 400 : p.profilo.indexOf("200") === 0 ? 200 : 100;
+  const ancore = (D <= 60 ? [60, 100, refDist] : [100, refDist, 60]).filter((v, i, a) => a.indexOf(v) === i);
+  for (const anc of ancore) {
+    const pbAnc = pbAtletaDist(atleta, anc);
+    if (pbAnc != null && co[anc] != null) return pbAnc * co[D] / co[anc];   // ri-scalatura sulla curva
+  }
+  return null;
+}
+function pistaTempoAtleta(atleta, distanza, perc) {
+  const D = Number(distanza);
+  if (!atleta || !D || !perc) return null;
+  const base = baseAtletaDist(atleta, D);
+  if (base == null) return null;
+  return base / (Number(perc) / 100);   // % di velocità: 95% → tempo = base / 0.95
+}
 function volumeSett(sett) {
   return (sett.righe || []).reduce((t, r) => t + (Number(r.distanza) || 0) * (Number(r.n) || 0), 0);
 }

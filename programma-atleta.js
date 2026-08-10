@@ -35,43 +35,50 @@ function _cacheSeduta(s) {
 }
 function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
 
-function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso) {
+function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
   const righe = ((sett && sett.righe) || []).filter(r => r.distanza && Number(r.n) > 0);
   if (!righe.length) return null;
+  const aid = (atleta && atleta.id) || "x";
   const elementi = righe.map((r, i) => {
-    const n = Number(r.n), t = typeof pistaTempo === "function" ? pistaTempo(r.distanza, r.perc) : null;
+    const n = Number(r.n);
+    const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, r.distanza, r.perc)
+      : (typeof pistaTempo === "function" ? pistaTempo(r.distanza, r.perc) : null);
     return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: Number(r.perc) || null, recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
   });
   return _cacheSeduta({
-    id: "gen-p-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO),
+    id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO),
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
-function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso) {
+function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
   const righe = ((sett && sett.righe) || []).filter(r => r.esercizio);
   if (!righe.length) return null;
+  const aid = (atleta && atleta.id) || "x";
   const esercizi = righe.map((r, i) => {
-    const serie = Number(r.serie) || 0, peso = typeof palPeso === "function" ? palPeso(r) : null;
+    const serie = Number(r.serie) || 0;
+    const peso = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r)
+      : (typeof palPeso === "function" ? palPeso(r) : null);
     const rec = String(r.rec || ""), recSec = rec.indexOf("'") >= 0 ? (parseFloat(rec) * 60) : (parseInt(rec) || null);
     return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: Number(r.perc) || null, peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, vbt: Array(serie).fill(null) };
   });
   return _cacheSeduta({
-    id: "gen-l-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO),
+    id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO),
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
     esercizi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
 
-// sedute (pista + palestra) del programma madre per una data
-function seduteDelGiorno(dataISO, clamp) {
+// sedute (pista + palestra) del programma madre per una data, personalizzate sul PB/massimale dell'ATLETA
+function seduteDelGiorno(dataISO, clamp, atleta) {
+  atleta = atleta || (typeof atletaCorrente === "function" ? atletaCorrente() : null);
   const wd = GG_ISO[wdIdx(dataISO)], out = [];
   const pa = mesoAttivo(DEMO.pista, dataISO, clamp);
-  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (g.giornoSett === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m); if (s) out.push(s); } });
+  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (g.giornoSett === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta); if (s) out.push(s); } });
   const pl = mesoAttivo(DEMO.palestra, dataISO, clamp);
-  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (g.giornoSett === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m); if (s) out.push(s); } });
+  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (g.giornoSett === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(s); } });
   return out;
 }
 
@@ -87,6 +94,21 @@ function settimanaProgramma(off) {
   }
   return giorni;
 }
+// posizione nel programma madre oggi (per la card "Dove sei nel programma") — null se nessun mesociclo attivo
+function posizioneProgramma() {
+  const oggi = oggiISO();
+  const pa = mesoAttivo(DEMO.pista, oggi, false) || mesoAttivo(DEMO.palestra, oggi, false);
+  if (!pa) return null;
+  const m = pa.m, tot = nSettDi(m), sett = pa.settIdx + 1;
+  const inizio = new Date(m.inizio + "T00:00:00");
+  const fine = new Date(inizio.getTime() + (tot * 7 - 1) * 86400000);
+  const fmt = d => d.getDate() + " " + MESI_FULL[d.getMonth()].slice(0, 3);
+  return {
+    titolo: m.ciclo || m.blocco || m.focus || "Programma in corso",
+    sett, tot, dal: fmt(inizio), al: fmt(fine)
+  };
+}
+
 // riepilogo breve di una seduta generata
 function riepilogoSeduta(s) {
   if (s.tipo === "pista") return (s.elementi || []).map(e => `${e.ripetute}×${e.distanza} m`).join(" · ");

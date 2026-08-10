@@ -238,7 +238,12 @@ function vistaAtletaDettaglio() {
     <div class="azioni">
       <button class="btn btn-2" onclick="apriSchedaAtleta()">Scheda: dati, PB, massimali, test</button>
       <button class="btn btn-2" onclick="apriModificaDati('${a.id}')">Modifica dati anagrafici</button>
-      <button class="btn btn-2" onclick="apriSeduta('s1')">Seduta di oggi</button>
+      ${(() => {
+        const sog = typeof seduteDelGiorno === "function" ? seduteDelGiorno(oggiISO(), false, a) : [];
+        return sog.length
+          ? sog.map(s => `<button class="btn btn-2" onclick="apriSeduta('${s.id}')">Seduta di oggi: ${s.tipo === "pista" ? "Pista" : "Palestra"}</button>`).join("")
+          : `<button class="btn btn-2" disabled style="opacity:.5">Nessuna seduta oggi</button>`;
+      })()}
       <button class="btn btn-2" onclick="vai('pista')">Programma</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
