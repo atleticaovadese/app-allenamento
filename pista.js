@@ -245,9 +245,9 @@ function vistaProgrammaPista() {
         <div><label class="lab">Profilo velocità</label>
           <select onchange="setPistaTop('profilo',this.value)" style="margin-top:6px">
             <option value="">—</option>${optSel(p.profilo, PISTA_PROFILI, false)}</select></div>
-        <div><label class="lab">Atleta di riferimento</label>
+        <div><label class="lab">Riferimento tempi</label>
           <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">
-            <option value="">— (PB a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
+            <option value="">🎯 Programma madre (PB a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
       </div>
       <div style="margin-top:10px">
         <label class="lab">PB di riferimento (s) ${p.atletaRif ? "<span style='color:var(--txt3)'>(dall'atleta)</span>" : ""}</label>

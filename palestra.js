@@ -136,7 +136,7 @@ function vistaProgrammaPalestra() {
     <div class="card">
       <label class="lab">Atleta di riferimento (per il peso dai massimali)</label>
       <select onchange="setPalTop('atletaRif',this.value)" style="margin-top:6px">
-        <option value="">— (peso a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+        <option value="">🎯 Programma madre (peso a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
       <p class="et" style="margin-top:8px">${p.atletaRif ? "Il peso usa l'<b>ultimo</b> massimale: dopo un test (Analisi → Stima 1RM) i pesi dei microcicli si <b>ricalibrano da soli</b>. Per gli accessori senza massimale lo scrivi a mano." : "Scegli un atleta per calcolare i pesi dai suoi massimali."}</p>
     </div>`;
 
