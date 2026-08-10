@@ -190,7 +190,7 @@ function apriModificaDati(atletaId) {
   const a = DEMO.atleti.find(x => x.id === atletaId); if (!a) return;
   const an = (a.scheda && a.scheda.anagrafica) || {};
   S.modificaDati = {
-    atletaId, disciplina: a.disciplina || "velocita", specialita: a.specialita || "",
+    atletaId, nome: a.nome || "", disciplina: a.disciplina || "velocita", specialita: a.specialita || "",
     categoria: an.categoria || "", data_nascita: a.dataNascita || "",
     gamba_stacco: an.gambaStacco || "", altezza_cm: an.altezza || "", peso_kg: an.peso || ""
   };
@@ -205,7 +205,9 @@ function vistaModificaDati() {
     <div class="card"><h3>I miei dati</h3>
       <p class="et" style="margin-top:2px">${a ? a.nome : ""} · completa o aggiorna il profilo.</p></div>
     <div class="card">
-      <label class="lab">Disciplina (gruppo)</label>
+      <label class="lab">Nome e cognome</label>
+      <input value="${(m.nome || "").replace(/"/g, "&quot;")}" placeholder="Nome Cognome" oninput="S.modificaDati.nome=this.value" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">Disciplina (gruppo)</label>
       <select onchange="S.modificaDati.disciplina=this.value; S.modificaDati.specialita=''; disegna()" style="margin-top:6px">
         ${disc.map(([k, l]) => `<option value="${k}" ${m.disciplina === k ? "selected" : ""}>${l}</option>`).join("")}</select>
       <div class="griglia2" style="margin-top:12px">
@@ -214,7 +216,7 @@ function vistaModificaDati() {
             ? `<select onchange="S.modificaDati.specialita=this.value" style="margin-top:6px"><option value="">— scegli —</option>${spec.map(x => `<option ${m.specialita === x ? "selected" : ""}>${x}</option>`).join("")}</select>`
             : `<input value="${(m.specialita || "").replace(/"/g, "&quot;")}" placeholder="—" oninput="S.modificaDati.specialita=this.value" style="margin-top:6px">`}</div>
         <div><label class="lab">Categoria</label>
-          <input value="${(m.categoria || "").replace(/"/g, "&quot;")}" placeholder="Es. Allievi" oninput="S.modificaDati.categoria=this.value" style="margin-top:6px"></div>
+          ${typeof selCategoria === "function" ? selCategoria(m.categoria, "S.modificaDati.categoria=this.value") : `<input value="${(m.categoria || "").replace(/"/g, "&quot;")}" oninput="S.modificaDati.categoria=this.value" style="margin-top:6px">`}</div>
       </div>
       <div class="griglia2" style="margin-top:12px">
         <div><label class="lab">Data di nascita</label>
@@ -235,8 +237,9 @@ function vistaModificaDati() {
 async function salvaModificaDati() {
   const m = S.modificaDati;
   const btn = document.querySelector(".main .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  if (!(m.nome || "").trim()) { alert("Scrivi il nome."); if (btn) { btn.textContent = "Salva i miei dati"; btn.disabled = false; } return; }
   const ok = typeof aggiornaAnagrafica === "function" ? await aggiornaAnagrafica(m.atletaId, {
-    disciplina: m.disciplina, specialita: (m.specialita || "").trim(), categoria: (m.categoria || "").trim(),
+    nome: m.nome.trim(), disciplina: m.disciplina, specialita: (m.specialita || "").trim(), categoria: (m.categoria || "").trim(),
     data_nascita: m.data_nascita || null, gamba_stacco: m.gamba_stacco || null,
     altezza_cm: m.altezza_cm ? Number(m.altezza_cm) : null, peso_kg: m.peso_kg ? Number(m.peso_kg) : null
   }) : false;

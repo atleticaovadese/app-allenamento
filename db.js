@@ -246,18 +246,33 @@ async function impostaEmailAtleta(atletaId, email) {
   const a = _atl(atletaId); if (a) a.email = em;
   return true;
 }
+// elimina un atleta e tutti i suoi dati collegati (solo coach)
+async function eliminaAtleta(atletaId) {
+  if (haDB() && atletaId && !String(atletaId).startsWith("loc")) {
+    const { error } = await sb.from("atleta").delete().eq("id", atletaId);
+    if (error) { alert("Errore nell'eliminazione: " + error.message); return false; }
+  }
+  DEMO.atleti = (DEMO.atleti || []).filter(a => a.id !== atletaId);
+  if (DEMO.mon) delete DEMO.mon[atletaId];
+  if (DEMO.diariCoach) delete DEMO.diariCoach[atletaId];
+  if (DEMO.report && DEMO.report.daFare) delete DEMO.report.daFare[atletaId];
+  return true;
+}
 // aggiorna l'anagrafica dell'atleta (può farlo l'atleta stesso dal suo profilo, o il coach)
 async function aggiornaAnagrafica(atletaId, d) {
+  const patch = {
+    disciplina: d.disciplina || "velocita", specialita: d.specialita || null, categoria: d.categoria || null,
+    data_nascita: d.data_nascita || null, gamba_stacco: d.gamba_stacco || null,
+    altezza_cm: d.altezza_cm != null ? d.altezza_cm : null, peso_kg: d.peso_kg != null ? d.peso_kg : null
+  };
+  if (d.nome != null && d.nome.trim()) patch.nome = d.nome.trim();
   if (haDB() && atletaId && !String(atletaId).startsWith("loc")) {
-    const { error } = await sb.from("atleta").update({
-      disciplina: d.disciplina || "velocita", specialita: d.specialita || null, categoria: d.categoria || null,
-      data_nascita: d.data_nascita || null, gamba_stacco: d.gamba_stacco || null,
-      altezza_cm: d.altezza_cm != null ? d.altezza_cm : null, peso_kg: d.peso_kg != null ? d.peso_kg : null
-    }).eq("id", atletaId);
+    const { error } = await sb.from("atleta").update(patch).eq("id", atletaId);
     if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
   }
   const a = _atl(atletaId);
   if (a) {
+    if (patch.nome) { a.nome = patch.nome; if (S.utente && S.utente.atletaId === atletaId) S.utente.nome = patch.nome; }
     a.disciplina = d.disciplina || "velocita"; a.specialita = d.specialita || ""; a.dataNascita = d.data_nascita || "";
     a.scheda = a.scheda || {}; a.scheda.anagrafica = a.scheda.anagrafica || {};
     const an = a.scheda.anagrafica;

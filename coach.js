@@ -74,6 +74,12 @@ function vistaAtleti() {
 function apriNuovoAtleta() { S.nuovoAtleta = { disciplina: "velocita" }; disegna(); window.scrollTo(0, 0); }
 function chiudiNuovoAtleta() { S.nuovoAtleta = null; disegna(); window.scrollTo(0, 0); }
 
+const CATEGORIE = ["Cadetti/e", "Allievi/e", "Juniores", "Promesse", "Senior", "SM/SF 35", "SM/SF 40", "SM/SF 45", "SM/SF 50"];
+// menu a tendina categoria; mantiene un valore fuori lista se già presente
+function selCategoria(cur, onchangeExpr) {
+  const extra = cur && !CATEGORIE.includes(cur) ? [cur] : [];
+  return `<select onchange="${onchangeExpr}" style="margin-top:6px"><option value="">— scegli —</option>${[...CATEGORIE, ...extra].map(c => `<option ${cur === c ? "selected" : ""}>${c}</option>`).join("")}</select>`;
+}
 const SPEC_DISC = {
   velocita: ["60 m", "100 m", "200 m", "400 m", "60 hs", "100 hs", "110 hs", "400 hs", "Salto in lungo", "Salto in alto", "Salto triplo", "Salto con l'asta"],
   lanci: ["Peso", "Martello", "Disco", "Giavellotto"],
@@ -103,8 +109,7 @@ function vistaNuovoAtleta() {
             ? `<select onchange="S.nuovoAtleta.specialita=this.value" style="margin-top:6px"><option value="">— scegli —</option>${spec.map(x => `<option ${a.specialita === x ? "selected" : ""}>${x}</option>`).join("")}</select>`
             : `<input value="${(a.specialita || "").replace(/"/g, "&quot;")}" placeholder="—" oninput="S.nuovoAtleta.specialita=this.value" style="margin-top:6px">`}</div>
         <div><label class="lab">Categoria</label>
-          <input value="${(a.categoria || "").replace(/"/g, "&quot;")}" placeholder="Allievi"
-            oninput="S.nuovoAtleta.categoria=this.value" style="margin-top:6px"></div>
+          ${selCategoria(a.categoria, "S.nuovoAtleta.categoria=this.value")}</div>
       </div>
 
       <div class="griglia2" style="margin-top:12px">
@@ -238,7 +243,14 @@ function vistaAtletaDettaglio() {
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
     </div>
-  </div>`;
+  </div>
+
+  <button class="btn btn-2" style="color:var(--rosso);border-color:rgba(255,107,107,.4)" onclick="eliminaAtletaUI('${a.id}')">🗑 Elimina atleta</button>`;
+}
+async function eliminaAtletaUI(id) {
+  const a = DEMO.atleti.find(x => x.id === id);
+  if (!confirm(`Eliminare ${a ? a.nome : "l'atleta"} e tutti i suoi dati (PB, massimali, test, infortuni)? Non è reversibile.`)) return;
+  if (typeof eliminaAtleta === "function") { const ok = await eliminaAtleta(id); if (ok) { S.atletaSel = null; S.vista = "atleti"; disegna(); window.scrollTo(0, 0); } }
 }
 async function cambiaEmailAtleta(id) {
   const a = DEMO.atleti.find(x => x.id === id);
