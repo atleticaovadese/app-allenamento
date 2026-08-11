@@ -170,9 +170,15 @@ function vistaImportExport() {
     </label>
   </div>
 
+  <div class="card" style="border-color:var(--blu)">
+    <p style="font-weight:600;margin-bottom:4px">📊 Report Excel (con grafici)</p>
+    <p class="et" style="margin-bottom:10px">Un file Excel bello e pronto: fogli formattati (Squadra, Allenamenti svolti, PB, Presenze) con colori e <b>grafici</b> di aderenza e ACWR. Ideale per presentazioni e conferenze.</p>
+    <button class="btn" onclick="esportaXlsx()">⬇ Scarica il report Excel (.xlsx)</button>
+  </div>
+
   <div class="card">
-    <p style="font-weight:600;margin-bottom:4px">Esporta per Excel (CSV)</p>
-    <p class="et" style="margin-bottom:10px">File CSV leggeri che si aprono direttamente in Excel. Per analizzare i dati o farci grafici e tabelle.</p>
+    <p style="font-weight:600;margin-bottom:4px">Esporta per Excel (CSV singoli)</p>
+    <p class="et" style="margin-bottom:10px">File CSV leggeri, un dato per file, se ti serve solo una tabella da analizzare.</p>
     <div class="azioni">
       <button class="btn btn-2" onclick="esportaSvoltiCSV()">⬇ Allenamenti svolti</button>
       <button class="btn btn-2" onclick="esportaPbCSV()">⬇ PB e massimali</button>
