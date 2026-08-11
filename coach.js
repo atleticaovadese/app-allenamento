@@ -674,10 +674,10 @@ function bloccoSposta(atletaId, tipo, prog) {
     const spostato = cur && cur !== g.giornoSett;
     const opts = `<option value="">Come il madre (${GG_LABEL[g.giornoSett] || g.giornoSett})</option>` +
       GG_ORDER.map(w => `<option value="${w}" ${cur === w ? "selected" : ""}>${GG_LABEL[w]}</option>`).join("");
-    return `<div class="riga" style="align-items:center;gap:10px">
-      <div style="flex:1;min-width:0"><div style="font-weight:500">Giorno ${gi + 1}</div>
-        <div class="et">madre: ${GG_LABEL[g.giornoSett] || g.giornoSett}${spostato ? ` → <b style="color:var(--blu)">${GG_LABEL[cur]}</b>` : ""}</div></div>
-      <select onchange="setOverrideGiorno('${atletaId}','${tipo}',${gi},this.value)">${opts}</select>
+    return `<div style="margin-bottom:14px">
+      <div style="font-weight:500">Giorno ${gi + 1}</div>
+      <div class="et" style="margin:2px 0 6px">madre: ${GG_LABEL[g.giornoSett] || g.giornoSett}${spostato ? ` → <b style="color:var(--blu)">${GG_LABEL[cur]}</b>` : ""}</div>
+      <select style="width:100%" onchange="setOverrideGiorno('${atletaId}','${tipo}',${gi},this.value)">${opts}</select>
     </div>`;
   }).join("");
   return `<div class="card"><p class="et" style="margin-bottom:8px">${tipo === "pista" ? "Pista" : "Palestra"}</p>${righe}</div>`;
