@@ -188,6 +188,7 @@ async function caricaDati() {
     Object.keys(DEMO.diariStorico).forEach(aid => {
       const ult = DEMO.diariStorico[aid][0];
       DEMO.diariCoach[aid] = { compilato: true, ultimo: (typeof fmtDataAnno === "function" ? fmtDataAnno(ult.data) : ult.data), prontezza: ult.prontezza != null ? String(ult.prontezza) : "—", sonno: ult.oreSonno, nota: ult.note };
+      if (ult.prontezza != null && DEMO.mon[aid]) DEMO.mon[aid].prontezza = String(ult.prontezza);   // prontezza reale nel monitoraggio
     });
     if (prof.ruolo === "atleta" && S.utente.atletaId) {
       const oggiStr = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
@@ -203,6 +204,32 @@ async function caricaDati() {
 
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
   await caricaDatiDB();
+
+  // TAPPA 4 — sedute svolte dagli atleti: ricostruisco pistaLog/vbtLog (screening/andamento/VBT) + carico reale
+  try {
+    const sv0 = new Date(Date.now() - 120 * 86400000);
+    const dalSv = sv0.getFullYear() + "-" + String(sv0.getMonth() + 1).padStart(2, "0") + "-" + String(sv0.getDate()).padStart(2, "0");
+    const { data: svolte } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,durata_min,rpe,dati").eq("chiusa", true).gte("data", dalSv).order("data", { ascending: false });
+    DEMO.pistaLog = []; DEMO.vbtLog = [];
+    (svolte || []).forEach(sv => {
+      const d = sv.dati || {};
+      if (sv.tipo === "pista") {
+        (d.elementi || []).forEach(e => {
+          const fatti = (e.tempi || []).filter(v => v != null);
+          if (!fatti.length) return;
+          const tmed = fatti.reduce((a, b) => a + b, 0) / fatti.length;
+          DEMO.pistaLog.push({ data: sv.data, atletaId: sv.atleta_id, distanza: Number(e.distanza), tempo: Math.round(tmed * 100) / 100, volume: (e.ripetute || 0) * (e.distanza || 0), velocita: tmed ? Math.round(e.distanza / tmed * 100) / 100 : null });
+        });
+      } else {
+        (d.esercizi || []).forEach(x => {
+          const fatte = (x.vbt || []).filter(v => v != null);
+          const vmed = fatte.length ? fatte.reduce((a, b) => a + b, 0) / fatte.length : null;
+          DEMO.vbtLog.push({ data: sv.data, atletaId: sv.atleta_id, esercizio: x.nome, peso: x.peso != null ? x.peso : null, carico: x.peso != null ? x.peso : null, serie: x.serie, rep: x.rep, volume: (x.peso && x.serie && x.rep) ? x.serie * x.rep * x.peso : null, rpe: sv.rpe, vbtEseguita: vmed != null ? Math.round(vmed * 100) / 100 : null, vbtTarget: x.vbtTarget != null ? x.vbtTarget : null });
+        });
+      }
+    });
+    if (typeof ricalcolaCarico === "function") ricalcolaCarico(svolte || []);
+  } catch (e) { /* tabella seduta_svolta assente o offline */ }
 }
 
 // ---------- scrittura: nuovo atleta ----------
@@ -243,6 +270,42 @@ async function salvaDiarioDB(dataISO, d) {
     ore_sonno: d.oreSonno, sonno_qualita: d.sonno_qualita, stress: d.stress, dolori: d.dolori, energia: d.energia,
     peso: d.peso, ciclo: !!d.ciclo, fastidi: !!d.fastidi, dove_fastidi: d.doveFastidi || null, note: d.note || null
   }, { onConflict: "atleta_id,data" });
+}
+
+// TAPPA 4 — seduta svolta dall'atleta → DB (upsert per atleta+chiave). Solo l'atleta scrive la propria (RLS).
+async function salvaSedutaSvoltaDB(s) {
+  if (!haDB() || !s) return;
+  const aid = S.utente && S.utente.atletaId;
+  if (!aid) return;
+  const dati = s.tipo === "pista"
+    ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi })) }
+    : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, vbtTarget: x.vbtTarget, vbt: x.vbt })) };
+  try {
+    await sb.from("seduta_svolta").upsert({
+      atleta_id: aid, chiave: s.id, tipo: s.tipo,
+      data: s.dataISO || (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)),
+      durata_min: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, giorno: s.giorno || null, chiusa: true, dati
+    }, { onConflict: "atleta_id,chiave" });
+  } catch (e) { /* offline: resta in locale */ }
+}
+
+// carico reale dalle sedute svolte (sRPE = rpe × durata): ACWR + forma (TSB) per atleta
+function ricalcolaCarico(svolte) {
+  const dayMs = 86400000, oggi = Date.now(), perA = {};
+  (svolte || []).forEach(sv => {
+    const load = (Number(sv.rpe) || 0) * (Number(sv.durata_min) || 0);
+    if (!load) return;
+    (perA[sv.atleta_id] = perA[sv.atleta_id] || []).push({ t: new Date(sv.data + "T00:00:00").getTime(), load });
+  });
+  Object.keys(perA).forEach(aid => {
+    const arr = perA[aid];
+    const win = g => arr.filter(x => (oggi - x.t) / dayMs < g).reduce((s, x) => s + x.load, 0);
+    const acute = win(7), chronic = win(28);
+    const acwr = chronic > 0 ? Math.round(acute / (chronic / 4) * 100) / 100 : null;
+    const tsb = Math.round((chronic / 28 - acute / 7) * 10) / 10;
+    const m = DEMO.mon[aid] = DEMO.mon[aid] || monDefault();
+    if (acwr != null) { m.acwr = String(acwr); m.forma = (tsb >= 0 ? "+" : "") + tsb; m.stato = (acwr > 1.5 || acwr < 0.8) ? "r" : (acwr > 1.3 ? "w" : "v"); }
+  });
 }
 
 function aggiungiAtletaLocale(a) {

@@ -48,7 +48,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta) {
     return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: Number(r.perc) || null, recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
   });
   return _cacheSeduta({
-    id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO),
+    id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
@@ -67,7 +67,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: Number(r.perc) || null, peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, vbt: Array(serie).fill(null) };
   });
   return _cacheSeduta({
-    id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO),
+    id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
     esercizi, durata: null, rpe: null, fastidi: false, chiusa: false
   });

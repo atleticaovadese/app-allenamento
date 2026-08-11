@@ -231,7 +231,7 @@ function segnaChiusura(sid, campo, val) {
   const s = sedutaDaId(sid);
   s[campo] = (campo === "fastidi") ? val : (val === "" ? null : Number(val));
 }
-function chiudiSeduta(sid) {
+async function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
   if (s.durata === null || s.rpe === null) { alert("Scrivi durata e RPE prima di chiudere."); return; }
   // palestra: registra la seduta (Serie/Rep/Peso/Volume/RPE/VBT) → Monitoraggio VBT + Andamento Palestra
@@ -257,7 +257,10 @@ function chiudiSeduta(sid) {
       if (typeof aggiornaPbAllenamento === "function") aggiornaPbAllenamento(aid, e.distanza + " m", migliore);
     });
   }
-  s.chiusa = true; fermaTimer(); S.seduta = null; S.vista = "oggi"; disegna();
+  s.chiusa = true;
+  // TAPPA 4: la seduta svolta va al coach (DB) → screening/andamento/VBT/carico reali
+  if (typeof salvaSedutaSvoltaDB === "function") { try { await salvaSedutaSvoltaDB(s); } catch (e) { /* offline: resta in locale */ } }
+  fermaTimer(); S.seduta = null; S.vista = "oggi"; disegna();
 }
 
 // ---------- ingresso ----------
