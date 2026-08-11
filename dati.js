@@ -21,7 +21,7 @@ function bundleCustom() {
   return {
     esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
     piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
-    testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara
+    testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara, overrideGiorni: DEMO.overrideGiorni || {}
   };
 }
 function applicaBundle(c) {
@@ -37,6 +37,7 @@ function applicaBundle(c) {
   if (c.pistaLog) DEMO.pistaLog = c.pistaLog;
   if (c.testSessioni) DEMO.testSessioni = c.testSessioni;
   if (c.risultatiGara) DEMO.risultatiGara = c.risultatiGara;
+  if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
 }
 
 function caricaCustom() {

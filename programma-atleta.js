@@ -71,14 +71,23 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   });
 }
 
+// giorno-settimana EFFETTIVO di un giorno del programma per un atleta:
+// se il coach ha spostato quel giorno per lui (override) usa quello, altrimenti quello del madre.
+function giornoSettEff(atleta, tipo, gi, g) {
+  const ov = atleta && DEMO.overrideGiorni && DEMO.overrideGiorni[atleta.id];
+  const w = ov && ov[tipo] && ov[tipo][gi];
+  return w || g.giornoSett;
+}
+
 // sedute (pista + palestra) del programma madre per una data, personalizzate sul PB/massimale dell'ATLETA
+// e sui giorni spostati per lui (Tappa 3b)
 function seduteDelGiorno(dataISO, clamp, atleta) {
   atleta = atleta || (typeof atletaCorrente === "function" ? atletaCorrente() : null);
   const wd = GG_ISO[wdIdx(dataISO)], out = [];
   const pa = mesoAttivo(DEMO.pista, dataISO, clamp);
-  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (g.giornoSett === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta); if (s) out.push(s); } });
+  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta); if (s) out.push(s); } });
   const pl = mesoAttivo(DEMO.palestra, dataISO, clamp);
-  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (g.giornoSett === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(s); } });
+  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(s); } });
   return out;
 }
 

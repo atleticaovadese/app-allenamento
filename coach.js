@@ -245,6 +245,7 @@ function vistaAtletaDettaglio() {
           : `<button class="btn btn-2" disabled style="opacity:.5">Nessuna seduta oggi</button>`;
       })()}
       <button class="btn btn-2" onclick="vai('pista')">Programma</button>
+      <button class="btn btn-2" onclick="apriSpostaGiorni('${a.id}')">Sposta giorni (personalizza)</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
     </div>
@@ -642,6 +643,53 @@ function vistaDiarioAtleta() {
     <div class="card"><h3>Diario · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Giorno per giorno${storia.length ? ` · ${storia.length} inserimenti` : ""}</p></div>
     ${giorni || `<div class="card"><p class="et">Nessun diario registrato ancora per ${a.nome}.</p></div>`}`;
+}
+
+// ---------- TAPPA 3b: sposta i giorni di un atleta (override sul madre, senza toccarlo) ----------
+const GG_LABEL = { lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì", ven: "Venerdì", sab: "Sabato", dom: "Domenica" };
+const GG_ORDER = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
+function apriSpostaGiorni(id) { S.spostaGiorni = id; disegna(); window.scrollTo(0, 0); }
+function chiudiSpostaGiorni() { S.spostaGiorni = null; disegna(); window.scrollTo(0, 0); }
+function _mesoRif(prog) {
+  const act = (typeof mesoAttivo === "function") ? mesoAttivo(prog, oggiISO(), true) : null;
+  return act ? act.m : ((prog && prog.mesocicli && prog.mesocicli[0]) || null);
+}
+function setOverrideGiorno(atletaId, tipo, gi, wd) {
+  DEMO.overrideGiorni = DEMO.overrideGiorni || {};
+  const a = DEMO.overrideGiorni[atletaId] = DEMO.overrideGiorni[atletaId] || {};
+  const t = a[tipo] = a[tipo] || {};
+  if (wd) t[gi] = wd; else delete t[gi];
+  if (Object.keys(t).length === 0) delete a[tipo];
+  if (Object.keys(a).length === 0) delete DEMO.overrideGiorni[atletaId];
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
+function bloccoSposta(atletaId, tipo, prog) {
+  const m = _mesoRif(prog);
+  const giorniProg = (m && m.giorni || []).map((g, gi) => ({ g, gi })).filter(x => x.g.giornoSett);
+  if (!giorniProg.length) return `<div class="card"><p class="et" style="margin:0">${tipo === "pista" ? "Pista" : "Palestra"}: nessun giorno programmato nel madre.</p></div>`;
+  const ov = (DEMO.overrideGiorni && DEMO.overrideGiorni[atletaId] && DEMO.overrideGiorni[atletaId][tipo]) || {};
+  const righe = giorniProg.map(({ g, gi }) => {
+    const cur = ov[gi] || "";
+    const spostato = cur && cur !== g.giornoSett;
+    const opts = `<option value="">Come il madre (${GG_LABEL[g.giornoSett] || g.giornoSett})</option>` +
+      GG_ORDER.map(w => `<option value="${w}" ${cur === w ? "selected" : ""}>${GG_LABEL[w]}</option>`).join("");
+    return `<div class="riga" style="align-items:center;gap:10px">
+      <div style="flex:1;min-width:0"><div style="font-weight:500">Giorno ${gi + 1}</div>
+        <div class="et">madre: ${GG_LABEL[g.giornoSett] || g.giornoSett}${spostato ? ` → <b style="color:var(--blu)">${GG_LABEL[cur]}</b>` : ""}</div></div>
+      <select onchange="setOverrideGiorno('${atletaId}','${tipo}',${gi},this.value)">${opts}</select>
+    </div>`;
+  }).join("");
+  return `<div class="card"><p class="et" style="margin-bottom:8px">${tipo === "pista" ? "Pista" : "Palestra"}</p>${righe}</div>`;
+}
+function vistaSpostaGiorni() {
+  const a = DEMO.atleti.find(x => x.id === S.spostaGiorni);
+  if (!a) { S.spostaGiorni = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
+  return `<button class="indietro" onclick="chiudiSpostaGiorni()">‹ Torna all'atleta</button>
+    <div class="card"><h3>Sposta giorni · ${a.nome}</h3>
+      <p class="et" style="margin-top:2px">Scegli in che giorno della settimana ${a.nome} fa ogni seduta. Non cambia il programma madre: vale solo per lui. "Come il madre" = giorno standard. Si salva da solo.</p></div>
+    ${bloccoSposta(a.id, "pista", DEMO.pista)}
+    ${bloccoSposta(a.id, "palestra", DEMO.palestra)}`;
 }
 
 // ---------- monitoraggio: SCREENING (performance + carico) settimana / mesociclo ----------
