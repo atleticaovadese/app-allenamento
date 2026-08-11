@@ -247,6 +247,7 @@ function vistaAtletaDettaglio() {
       <button class="btn btn-2" onclick="vai('pista')">Programma</button>
       <button class="btn btn-2" onclick="apriSpostaGiorni('${a.id}')">Sposta giorni (personalizza)</button>
       <button class="btn btn-2" onclick="apriAdatta('${a.id}')">Adatta contenuto (per lui)</button>
+      <button class="btn btn-2" onclick="apriSeduteSvolte('${a.id}')">Allenamenti svolti</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
     </div>
@@ -825,6 +826,49 @@ function vistaAdatta() {
     ${tipoTab}
     ${selettori}
     ${corpo}`;
+}
+
+// ---------- TAPPA 4: allenamenti SVOLTI da un atleta (cronologia) ----------
+function apriSeduteSvolte(id) { S.sedSvolte = id; disegna(); window.scrollTo(0, 0); }
+function chiudiSeduteSvolte() { S.sedSvolte = null; disegna(); window.scrollTo(0, 0); }
+function vistaSeduteSvolte() {
+  const a = DEMO.atleti.find(x => x.id === S.sedSvolte);
+  if (!a) { S.sedSvolte = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
+  const lista = (((DEMO.seduteSvolte || {})[a.id]) || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  const dl = v => typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v;
+  const cards = lista.map(sv => {
+    const d = sv.dati || {};
+    let corpo = "";
+    if (sv.tipo === "pista") {
+      corpo = (d.elementi || []).map(e => {
+        const fatti = (e.tempi || []).filter(v => v != null);
+        const tstr = fatti.length ? fatti.map(t => Number(t).toFixed(2)).join(" · ") : "—";
+        const best = fatti.length ? Math.min(...fatti) : null;
+        const col = (best != null && e.target != null) ? (best <= e.target ? "var(--verde)" : "var(--rosso)") : "var(--txt2)";
+        return `<div class="riga" style="align-items:baseline"><div style="flex:1;min-width:0"><b>${e.ripetute}×${e.distanza} m</b>${e.percentuale ? ` <span class="et">${e.percentuale}%</span>` : ""}
+          <div class="et">tempi ${tstr}${e.target != null ? ` · obiettivo ${Number(e.target).toFixed(2)}` : ""}</div></div>
+          ${best != null ? `<b style="color:${col}">${best.toFixed(2)}</b>` : ""}</div>`;
+      }).join("");
+    } else {
+      corpo = (d.esercizi || []).map(x => {
+        const fatte = (x.vbt || []).filter(v => v != null);
+        const vmed = fatte.length ? (fatte.reduce((s, v) => s + v, 0) / fatte.length) : null;
+        return `<div class="riga" style="align-items:baseline"><div style="flex:1;min-width:0"><b>${x.nome}</b> <span class="et">${x.serie || "?"}×${x.rep || "?"}${x.peso ? ` @${x.peso} kg` : ""}</span>
+          ${vmed != null ? `<div class="et">VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}</div>` : ""}</div></div>`;
+      }).join("");
+    }
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3 style="font-size:16px">${dl(sv.data)} · ${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.giorno ? " · g" + sv.giorno : ""}</h3>
+        <span class="et">${sv.durata_min ? sv.durata_min + "′" : ""}${sv.rpe ? " · RPE " + sv.rpe : ""}</span></div>
+      ${sv.fastidi ? `<p class="et" style="color:var(--rosso);margin-top:4px">⚠ ha segnalato un fastidio</p>` : ""}
+      <div style="margin-top:8px">${corpo || `<span class="et">Nessun dato inserito.</span>`}</div>
+    </div>`;
+  }).join("");
+  return `<button class="indietro" onclick="chiudiSeduteSvolte()">‹ Torna all'atleta</button>
+    <div class="card"><h3>Allenamenti svolti · ${a.nome}</h3>
+      <p class="et" style="margin-top:2px">Cosa ha davvero fatto, dal più recente${lista.length ? ` · ${lista.length} sedute` : ""}.</p></div>
+    ${cards || `<div class="card"><p class="et">Nessun allenamento chiuso ancora da ${a.nome}. Compaiono qui quando l'atleta chiude una seduta.</p></div>`}`;
 }
 
 // ---------- monitoraggio: SCREENING (performance + carico) settimana / mesociclo ----------

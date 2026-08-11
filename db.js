@@ -205,13 +205,14 @@ async function caricaDati() {
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
   await caricaDatiDB();
 
-  // TAPPA 4 — sedute svolte dagli atleti: ricostruisco pistaLog/vbtLog (screening/andamento/VBT) + carico reale
+  // TAPPA 4 — sedute svolte: pistaLog/vbtLog + carico + storico per la vista + presenze/aderenza reali
   try {
-    const sv0 = new Date(Date.now() - 120 * 86400000);
-    const dalSv = sv0.getFullYear() + "-" + String(sv0.getMonth() + 1).padStart(2, "0") + "-" + String(sv0.getDate()).padStart(2, "0");
-    const { data: svolte } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,durata_min,rpe,dati").eq("chiusa", true).gte("data", dalSv).order("data", { ascending: false });
-    DEMO.pistaLog = []; DEMO.vbtLog = [];
+    const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const sv0 = new Date(Date.now() - 180 * 86400000);
+    const { data: svolte } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,giorno,durata_min,rpe,fastidi,dati").eq("chiusa", true).gte("data", isoL(sv0)).order("data", { ascending: false });
+    DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.seduteSvolte = {};
     (svolte || []).forEach(sv => {
+      (DEMO.seduteSvolte[sv.atleta_id] = DEMO.seduteSvolte[sv.atleta_id] || []).push(sv);
       const d = sv.dati || {};
       if (sv.tipo === "pista") {
         (d.elementi || []).forEach(e => {
@@ -229,6 +230,23 @@ async function caricaDati() {
       }
     });
     if (typeof ricalcolaCarico === "function") ricalcolaCarico(svolte || []);
+
+    // presenze / aderenza reali: fatte = seduta_svolta, programmate = dal programma (con override)
+    const oggiStr = (typeof oggiISO === "function") ? oggiISO() : isoL(new Date());
+    const meseStart = oggiStr.slice(0, 8) + "01";
+    const _n = new Date();
+    const stagStart = isoL(_n.getMonth() >= 8 ? new Date(_n.getFullYear(), 8, 1) : new Date(_n.getFullYear() - 1, 8, 1));
+    let stagRows = [];
+    try { const { data } = await sb.from("seduta_svolta").select("atleta_id,data").eq("chiusa", true).gte("data", stagStart); stagRows = data || []; } catch (e) { /* ignora */ }
+    (DEMO.atleti || []).forEach(a => {
+      const doneM = (svolte || []).filter(s => s.atleta_id === a.id && s.data >= meseStart && s.data <= oggiStr).length;
+      const doneS = stagRows.filter(s => s.atleta_id === a.id && s.data <= oggiStr).length;
+      const progM = (typeof contaProgrammate === "function") ? contaProgrammate(a, meseStart, oggiStr) : 0;
+      const progS = (typeof contaProgrammate === "function") ? contaProgrammate(a, stagStart, oggiStr) : 0;
+      a.presenzeMese = [doneM, Math.max(progM, doneM)];
+      a.presenzeStagione = [doneS, Math.max(progS, doneS)];
+      if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progS > 0 ? Math.round(doneS / progS * 100) : (doneS > 0 ? 100 : 0);
+    });
   } catch (e) { /* tabella seduta_svolta assente o offline */ }
 }
 

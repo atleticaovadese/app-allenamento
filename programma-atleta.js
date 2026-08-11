@@ -87,6 +87,29 @@ function overrideRighe(atleta, tipo, gi, wk) {
   return (o && o[tipo] && o[tipo][gi] && o[tipo][gi][wk]) || null;
 }
 
+// TAPPA 4 — conta le sedute PROGRAMMATE per un atleta tra due date ISO (rispetta sposta-giorni + override contenuto)
+function contaProgrammate(atleta, fromISO, toISO) {
+  let n = 0, guard = 0;
+  const to = new Date(toISO + "T00:00:00").getTime();
+  const d = new Date(fromISO + "T00:00:00");
+  while (d.getTime() <= to && guard++ < 800) {
+    const dataISO = isoDiData(d), wd = GG_ISO[wdIdx(dataISO)];
+    [["pista", DEMO.pista], ["palestra", DEMO.palestra]].forEach(([tipo, prog]) => {
+      const pa = mesoAttivo(prog, dataISO, false);
+      if (!pa) return;
+      (pa.m.giorni || []).forEach((g, gi) => {
+        if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
+        const sett = g.settimane && g.settimane[pa.settIdx];
+        const righe = overrideRighe(atleta, tipo, gi, pa.settIdx) || (sett && sett.righe) || [];
+        const ok = tipo === "pista" ? righe.some(r => r.distanza && Number(r.n) > 0) : righe.some(r => r.esercizio);
+        if (ok) n++;
+      });
+    });
+    d.setDate(d.getDate() + 1);
+  }
+  return n;
+}
+
 // sedute (pista + palestra) del programma madre per una data, personalizzate sul PB/massimale dell'ATLETA
 // e sui giorni spostati per lui (Tappa 3b)
 function seduteDelGiorno(dataISO, clamp, atleta) {

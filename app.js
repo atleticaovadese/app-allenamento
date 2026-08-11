@@ -128,7 +128,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -481,11 +481,12 @@ function apriGlossario(i) {
 // ---------- onboarding atleta: dati → personali → tutorial guidato ----------
 const TOUR = [
   ["", "Metis Performance", "«Chi non pianifica è destinato a fallire.»"],
-  ["◧", "Oggi — le tue sedute", "Nella pagina <b>Oggi</b> c'è l'allenamento del giorno (pista o palestra): aprilo, segna i tempi o le serie mentre ti alleni e <b>chiudi la seduta</b> quando hai finito (con durata e RPE)."],
+  ["◧", "Oggi — le tue sedute", "Nella pagina <b>Oggi</b> trovi l'allenamento del giorno preparato dall'allenatore (pista o palestra): aprilo, segna i tempi o le serie mentre ti alleni e <b>chiudi la seduta</b> con durata e RPE. Così i tuoi dati tornano all'allenatore."],
   ["✎", "Diario — ogni giorno", "Ogni mattina compila il <b>Diario</b> (sonno, stress, dolori, energia): bastano 30 secondi e aiuta l'allenatore a dosare il carico. Sii onesto, non lo vedi tu il punteggio."],
-  ["◉", "I miei dati e i personali", "In <b>I miei dati</b> ci sono la tua anagrafica e i tuoi <b>PB (personali)</b>. Tienili aggiornati: puoi aggiungere tu i tuoi record di gara col pulsante «＋ Aggiungi PB gara»."],
+  ["◉", "I miei dati e i personali", "In <b>I miei dati</b> ci sono la tua anagrafica e i tuoi <b>PB (personali)</b>. Tienili aggiornati: dai tuoi PB l'app calcola i <b>tempi da fare</b> in allenamento, su misura per te."],
+  ["★", "Gare — i tuoi risultati", "In <b>Gare</b> vedi le prossime gare e registri i tuoi risultati con «＋ Registra risultato»: il tempo aggiorna in automatico il tuo <b>PB in gara</b>."],
   ["▤", "Librerie con i video", "In <b>Librerie</b> (Sala, Mobilità, Pliometria, Video) trovi gli esercizi spiegati, con i video che si aprono dentro l'app: usale quando non ricordi un esercizio."],
-  ["◍", "Presenze e Calendario", "In <b>Presenze</b> vedi quanti allenamenti hai fatto; nel <b>Calendario</b> il programma della settimana."],
+  ["◍", "Presenze e Calendario", "In <b>Presenze</b> vedi quanti allenamenti hai fatto sul totale programmato; nel <b>Calendario</b> il tuo programma della settimana, giorno per giorno."],
   ["?", "Guida e glossario", "Non sai cosa vuol dire un termine (RSI, ACWR, TUT…)? È tutto spiegato in <b>Guida e glossario</b>. Puoi rivedere questo tutorial da lì quando vuoi. Buon allenamento! 💪"]
 ];
 function setOnboarding(fase) { S.onboarding = fase; S.tourStep = 0; if (fase !== "tour") S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
@@ -551,6 +552,7 @@ function disegna() {
   else if (S.seduta) corpo = vistaSeduta();
   else if (coach && S.spostaGiorni) corpo = vistaSpostaGiorni();
   else if (coach && S.adatta) corpo = vistaAdatta();
+  else if (coach && S.sedSvolte) corpo = vistaSeduteSvolte();
   else if (coach && S.atletaSel && S.mostraScheda) corpo = vistaSchedaAtleta();
   else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
   else if (coach && S.diarioAtleta) corpo = vistaDiarioAtleta();

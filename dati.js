@@ -170,8 +170,97 @@ function vistaImportExport() {
     </label>
   </div>
 
+  <div class="card">
+    <p style="font-weight:600;margin-bottom:4px">Esporta per Excel (CSV)</p>
+    <p class="et" style="margin-bottom:10px">File CSV leggeri che si aprono direttamente in Excel. Per analizzare i dati o farci grafici e tabelle.</p>
+    <div class="azioni">
+      <button class="btn btn-2" onclick="esportaSvoltiCSV()">⬇ Allenamenti svolti</button>
+      <button class="btn btn-2" onclick="esportaPbCSV()">⬇ PB e massimali</button>
+      <button class="btn btn-2" onclick="esportaProgrammaCSV()">⬇ Programma</button>
+      <button class="btn btn-2" onclick="esportaPresenzeCSV()">⬇ Presenze e aderenza</button>
+    </div>
+  </div>
+
   <div class="card" style="border-color:var(--line2)">
     <p class="et">Adesso · <b>${nRoutine}</b> routine di riscaldamento · <b>${nCustom}</b> esercizi aggiunti da te</p>
-    <p class="et" style="margin-top:8px">Quando collegheremo il database, l'export diventerà l'<b>Excel completo per atleta</b> e gli esercizi che aggiungi qui finiranno automaticamente nella libreria dell'Excel.</p>
+    <p class="et" style="margin-top:8px">Il <b>.json</b> è il backup completo (salva/ripristina tutto). I <b>CSV</b> sono per portare i dati in Excel.</p>
   </div>`;
+}
+
+// ---------- export CSV (Excel) — nessuna libreria, apri direttamente in Excel ----------
+function _csvCell(v) { v = (v == null ? "" : String(v)); return /[";\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function scaricaCSV(nome, righe) {
+  const csv = (righe || []).map(r => r.map(_csvCell).join(";")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nome; document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function _nomeAtl(id) { const a = (DEMO.atleti || []).find(x => x.id === id); return a ? a.nome : id; }
+
+function esportaSvoltiCSV() {
+  const righe = [["Atleta", "Data", "Tipo", "Giorno", "Durata (min)", "RPE", "Fastidio", "Voce", "Prescrizione", "%", "Obiettivo", "Svolto", "Migliore/Media"]];
+  const ss = DEMO.seduteSvolte || {};
+  Object.keys(ss).forEach(aid => {
+    (ss[aid] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1).forEach(sv => {
+      const d = sv.dati || {};
+      const base = [_nomeAtl(aid), sv.data, sv.tipo, sv.giorno || "", sv.durata_min || "", sv.rpe || "", sv.fastidi ? "sì" : ""];
+      if (sv.tipo === "pista") {
+        (d.elementi || []).forEach(e => {
+          const fatti = (e.tempi || []).filter(v => v != null);
+          const best = fatti.length ? Math.min(...fatti) : "";
+          righe.push(base.concat([e.distanza + " m", e.ripetute + "×" + e.distanza, e.percentuale || "", e.target != null ? e.target : "", fatti.map(t => Number(t).toFixed(2)).join(" · "), best !== "" ? Number(best).toFixed(2) : ""]));
+        });
+      } else {
+        (d.esercizi || []).forEach(x => {
+          const fatte = (x.vbt || []).filter(v => v != null);
+          const vmed = fatte.length ? (fatte.reduce((s, v) => s + v, 0) / fatte.length).toFixed(2) : "";
+          righe.push(base.concat([x.nome, (x.serie || "") + "×" + (x.rep || "") + (x.peso ? " @" + x.peso + "kg" : ""), x.percentuale || "", x.vbtTarget != null ? x.vbtTarget : "", fatte.map(v => Number(v).toFixed(2)).join(" · "), vmed]));
+        });
+      }
+    });
+  });
+  if (righe.length <= 1) { alert("Nessun allenamento svolto ancora da esportare."); return; }
+  scaricaCSV("metis-allenamenti-svolti.csv", righe);
+}
+function esportaPbCSV() {
+  const righe = [["Atleta", "Categoria", "Tipo", "Voce", "Valore", "Data", "Origine"]];
+  (DEMO.atleti || []).forEach(a => {
+    const cat = (a.scheda && a.scheda.anagrafica && a.scheda.anagrafica.categoria) || "";
+    ((a.scheda && a.scheda.pb) || []).forEach(p => righe.push([a.nome, cat, "PB", p[0], p[1], p[2] || "", p[7] || ""]));
+    ((a.scheda && a.scheda.massimali) || []).forEach(m => righe.push([a.nome, cat, "Massimale", m[0], m[1] + " kg", m[2] || "", ""]));
+  });
+  if (righe.length <= 1) { alert("Nessun PB/massimale da esportare."); return; }
+  scaricaCSV("metis-pb-massimali.csv", righe);
+}
+function esportaProgrammaCSV() {
+  const righe = [["Tipo", "Mesociclo", "Giorno n°", "Giorno sett.", "Settimana", "Voce", "Distanza/Serie", "N/Rep", "%", "Rec", "Peso/TUT"]];
+  const dump = (prog, tipo) => {
+    ((prog && prog.mesocicli) || []).forEach((m, mi) => {
+      const mLabel = ((m.ciclo ? "ciclo " + m.ciclo : "") + (m.focus ? " " + m.focus : "")).trim() || ("Mesociclo " + (mi + 1));
+      (m.giorni || []).forEach((g, gi) => {
+        (g.settimane || []).forEach((sett, wi) => {
+          (sett.righe || []).forEach(r => {
+            if (tipo === "pista") { if (!r.distanza && !r.contenuto) return; righe.push(["Pista", mLabel, gi + 1, g.giornoSett || "", wi + 1, r.contenuto || "", r.distanza || "", r.n || "", r.perc || "", r.rec || "", ""]); }
+            else { if (!r.esercizio) return; righe.push(["Palestra", mLabel, gi + 1, g.giornoSett || "", wi + 1, r.esercizio || "", r.serie || "", r.rep || "", r.perc || "", r.rec || "", r.peso || r.tut || ""]); }
+          });
+        });
+      });
+    });
+  };
+  dump(DEMO.pista, "pista"); dump(DEMO.palestra, "palestra");
+  if (righe.length <= 1) { alert("Nessun programma da esportare."); return; }
+  scaricaCSV("metis-programma.csv", righe);
+}
+function esportaPresenzeCSV() {
+  const righe = [["Atleta", "Disciplina", "Specialità", "Fatte (mese)", "Programmate (mese)", "Fatte (stagione)", "Programmate (stagione)", "Aderenza %", "ACWR", "Forma (TSB)", "Prontezza"]];
+  (DEMO.atleti || []).forEach(a => {
+    const m = (DEMO.mon || {})[a.id] || {};
+    const pm = a.presenzeMese || [0, 0], ps = a.presenzeStagione || [0, 0];
+    righe.push([a.nome, a.disciplina || "", a.specialita || "", pm[0], pm[1], ps[0], ps[1], m.aderenza != null ? m.aderenza : "", m.acwr || "", m.forma || "", m.prontezza || ""]);
+  });
+  if (righe.length <= 1) { alert("Nessun atleta da esportare."); return; }
+  scaricaCSV("metis-presenze.csv", righe);
 }
