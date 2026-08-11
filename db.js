@@ -197,7 +197,7 @@ async function caricaDati() {
   } catch (e) { /* tabella diario assente o offline: si usa il locale */ }
 
   // login reale: parto PULITO dai dati/programmi DEMO (Leonardo & co.), poi carico solo ciò che è salvato nel DB
-  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {};
+  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {};
   DEMO.pista = { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [typeof mesoVuoto === "function" ? mesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
   DEMO.palestra = { atletaRif: "", mesocicli: [typeof palMesoVuoto === "function" ? palMesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
 

@@ -37,7 +37,8 @@ function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
 
 function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
-  const righe = ((sett && sett.righe) || []).filter(r => r.distanza && Number(r.n) > 0);
+  const ovR = overrideRighe(atleta, "pista", giornoNum - 1, settIdx);
+  const righe = (ovR || (sett && sett.righe) || []).filter(r => r.distanza && Number(r.n) > 0);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
   const elementi = righe.map((r, i) => {
@@ -54,7 +55,8 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta) {
 }
 function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
-  const righe = ((sett && sett.righe) || []).filter(r => r.esercizio);
+  const ovR = overrideRighe(atleta, "palestra", giornoNum - 1, settIdx);
+  const righe = (ovR || (sett && sett.righe) || []).filter(r => r.esercizio);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
   const esercizi = righe.map((r, i) => {
@@ -77,6 +79,12 @@ function giornoSettEff(atleta, tipo, gi, g) {
   const ov = atleta && DEMO.overrideGiorni && DEMO.overrideGiorni[atleta.id];
   const w = ov && ov[tipo] && ov[tipo][gi];
   return w || g.giornoSett;
+}
+
+// TAPPA 3c — righe di contenuto personalizzate per un atleta (giorno gi, settimana wk): null se usa il madre
+function overrideRighe(atleta, tipo, gi, wk) {
+  const o = atleta && DEMO.overrideContenuto && DEMO.overrideContenuto[atleta.id];
+  return (o && o[tipo] && o[tipo][gi] && o[tipo][gi][wk]) || null;
 }
 
 // sedute (pista + palestra) del programma madre per una data, personalizzate sul PB/massimale dell'ATLETA
