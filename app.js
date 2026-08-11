@@ -89,18 +89,20 @@ function ripristina() {
 
 function vistaLogin() {
   const reg = S.mostraRegistra;
+  let savedEmail = ""; try { savedEmail = localStorage.getItem("metis_email") || ""; } catch (e) { }
   return `<div class="login">
     <h1>${CONFIG.nome}</h1>
-    <p class="sub">${reg ? "Registrazione atleta" : "Allenamento e monitoraggio"}</p>
+    <p class="sub" style="font-style:italic">${reg ? "Registrazione atleta" : "«Chi non pianifica è destinato a fallire.»"}</p>
     <div id="loginErr" class="login-err" style="display:none"></div>
-    <div class="campo"><label>Email</label><input id="inEmail" type="email" placeholder="nome@esempio.it"></div>
+    <div class="campo"><label>Email</label><input id="inEmail" type="email" placeholder="nome@esempio.it" value="${(reg ? "" : savedEmail).replace(/"/g, "&quot;")}"></div>
     <div class="campo"><label>Password</label>
       <input id="inPwd" type="password" placeholder="${reg ? "almeno 6 caratteri" : "••••••••"}" onkeydown="if(event.key==='Enter')${reg ? "registraUI()" : "accediUI()"}"></div>
     ${reg
       ? `<button class="btn" onclick="registraUI()">Registrati</button>
          <p class="et" style="text-align:center;margin-top:12px">Usa l'email che ti ha dato l'allenatore.<br>
            <button class="link-indietro" onclick="toggleRegistra()">Hai già l'accesso? Entra ›</button></p>`
-      : `<button class="btn" onclick="accediUI()">Entra</button>
+      : `<label class="check" style="margin:4px 2px 14px"><input type="checkbox" id="inRicorda" ${savedEmail ? "checked" : ""}><span>Ricorda la mia email</span></label>
+         <button class="btn" onclick="accediUI()">Entra</button>
          <p class="et" style="text-align:center;margin-top:12px">
            <button class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>`}
   </div>`;
@@ -109,6 +111,8 @@ function toggleRegistra() { S.mostraRegistra = !S.mostraRegistra; disegna(); }
 function accediUI() {
   const email = ($("inEmail") || {}).value || "";
   const pwd = ($("inPwd") || {}).value || "";
+  const ric = ($("inRicorda") || {}).checked;
+  try { if (ric && email.trim()) localStorage.setItem("metis_email", email.trim().toLowerCase()); else localStorage.removeItem("metis_email"); } catch (e) { }
   if (typeof accedi === "function") accedi(email, pwd);
 }
 function registraUI() {
@@ -400,7 +404,16 @@ const GLOSSARIO = [
 ];
 
 // Guida all'app: [titolo, riga breve, spiegazione HTML]. Si tocca per leggere tutto.
+const METIS_LONG = `<p style="font-size:16px;font-weight:600;color:var(--txt)">«Chi non pianifica è destinato a fallire.»</p>
+<p>Nella cultura greca, <i>Mētis</i> rappresenta l'intelligenza strategica, la saggezza pratica e la capacità di prevedere, adattarsi e scegliere la strada migliore per raggiungere un obiettivo.</p>
+<p>Da questa filosofia nasce <b>Metis Performance</b>. Un'app che non vuole dirti come allenare e non vuole sostituirsi all'esperienza, alle competenze e alle decisioni dell'allenatore. Vuole essere il tuo alleato, in pista, in palestra e fuori dal campo.</p>
+<p>Uno strumento pensato per chi allena un singolo atleta o un'intera squadra e vuole avere tutto sotto mano: pianificare e programmare con semplicità, monitorare il lavoro svolto, analizzare il percorso e organizzare ciò che verrà.</p>
+<p>Perché dietro ogni prestazione ci sono delle scelte. Dietro ogni obiettivo c'è un percorso. E dietro ogni grande risultato c'è una strategia.</p>
+<p style="font-weight:600;color:var(--txt)">Pianifica. Programma. Monitora. Analizza. Adatta.</p>
+<p>Le decisioni restano tue. <b>Metis ti aiuta a renderle migliori.</b> Per costruire, giorno dopo giorno, insieme ai tuoi atleti, la migliore versione di voi stessi.</p>
+<p style="font-style:italic;color:var(--txt)">Questo è Metis Performance.<br>Intelligenza nella pianificazione. Strategia nell'allenamento. Visione nella performance.</p>`;
 const GUIDA = [
+  ["Cos'è Metis Performance", "La filosofia e lo scopo dell'app", METIS_LONG],
   ["Come funziona l'app", "Panoramica in 30 secondi",
     "Metis Performance replica il tuo Excel di programmazione velocità in un'app. Come allenatore hai: <b>Squadra</b> (colpo d'occhio), <b>Atleti</b> (scheda con PB, massimali, test), <b>Programma</b> (pista, palestra, piano annuale), <b>Analisi/Test</b> (calcolatori e batteria di test), <b>Monitoraggio</b> (screening, carico, infortuni, prevenzione), <b>Gare</b> e <b>Librerie</b> di esercizi con video.<br><br>I dati anagrafici, PB, massimali, test e infortuni stanno nel <b>database</b> (condiviso tra gli allenatori). I programmi e i calcoli restano per ora salvati sul dispositivo."],
   ["Squadra", "Il colpo d'occhio giornaliero",
@@ -479,8 +492,13 @@ function apriGlossario(i) {
 }
 
 // ---------- onboarding atleta: dati → personali → tutorial guidato ----------
+// Testo introduttivo (prima schermata del tutorial)
+const METIS_INTRO = `<b style="font-size:18px">«Chi non pianifica è destinato a fallire.»</b><br><br>
+Nella cultura greca, <i>Mētis</i> rappresenta l'intelligenza strategica, la saggezza pratica e la capacità di prevedere e scegliere la strada migliore.<br><br>
+Da questa filosofia nasce <b>Metis Performance</b>: non per sostituire l'allenatore, non per dirti come allenare, ma per essere il tuo alleato nella <b>pianificazione</b>, nella <b>programmazione</b> e nel <b>monitoraggio</b> dell'allenamento.<br><br>
+Le decisioni restano tue. <b>Metis ti aiuta a renderle migliori.</b>`;
 const TOUR = [
-  ["", "Metis Performance", "«Chi non pianifica è destinato a fallire.»"],
+  ["", "Metis Performance", METIS_INTRO],
   ["◧", "Oggi — le tue sedute", "Nella pagina <b>Oggi</b> trovi l'allenamento del giorno preparato dall'allenatore (pista o palestra): aprilo, segna i tempi o le serie mentre ti alleni e <b>chiudi la seduta</b> con durata e RPE. Così i tuoi dati tornano all'allenatore."],
   ["✎", "Diario — ogni giorno", "Ogni mattina compila il <b>Diario</b> (sonno, stress, dolori, energia): bastano 30 secondi e aiuta l'allenatore a dosare il carico. Sii onesto, non lo vedi tu il punteggio."],
   ["◉", "I miei dati e i personali", "In <b>I miei dati</b> ci sono la tua anagrafica e i tuoi <b>PB (personali)</b>. Tienili aggiornati: dai tuoi PB l'app calcola i <b>tempi da fare</b> in allenamento, su misura per te."],
@@ -491,7 +509,7 @@ const TOUR = [
 ];
 // Tutorial ALLENATORE (per i tecnici che aggiungi)
 const TOUR_COACH = [
-  ["", "Metis Performance", "«Chi non pianifica è destinato a fallire.»"],
+  ["", "Metis Performance", METIS_INTRO],
   ["◧", "Squadra — il colpo d'occhio", "La schermata <b>Squadra</b> ti mostra ogni atleta con lo stato (verde/giallo/rosso) da carico, forma, prontezza e aderenza, più gli alert (diario mancante, sedute saltate, fastidi). In un attimo capisci chi seguire."],
   ["◉", "Atleti e schede", "In <b>Atleti</b> aggiungi gli atleti (nome + email), apri la loro scheda con PB, massimali e test, e ne modifichi i dati. Ogni atleta è raggruppato per disciplina (velocità, lanci, mezzofondo)."],
   ["▦", "Programma madre", "In <b>Programma → Pista/Palestra</b> scrivi il programma UNA volta per tutta la società: distanze e % velocità (i tempi escono dal PB di ogni atleta), esercizi e %1RM (il peso dal massimale). Si salva da solo e gli atleti lo vedono subito sul loro calendario."],
@@ -520,7 +538,7 @@ function vistaTutorial() {
       ? `<img src="icon-192.png" alt="logo" style="width:104px;height:104px;border-radius:24px;margin:0 auto 18px;display:block;box-shadow:0 8px 30px rgba(0,0,0,.35)">`
       : `<div style="font-size:54px;margin-bottom:14px">${ic}</div>`}
     <h2 style="font-size:${primo ? "28" : "24"}px;margin-bottom:12px">${tit}</h2>
-    <p style="font-size:${primo ? "18" : "16"}px;line-height:1.7;color:var(--txt2);max-width:520px;margin:0 auto;${primo ? "font-style:italic" : ""}">${txt}</p>
+    <p style="font-size:${primo ? "15" : "16"}px;line-height:1.7;color:var(--txt2);max-width:540px;margin:0 auto;${primo ? "text-align:left" : ""}">${txt}</p>
     <div style="display:flex;gap:8px;justify-content:center;margin:22px 0">${punti}</div>
     <div style="display:flex;gap:10px;max-width:420px;margin:0 auto;width:100%">
       ${S.tourStep > 0 ? `<button class="btn btn-2" onclick="tourIndietro()">‹ Indietro</button>` : ""}
