@@ -7,6 +7,7 @@ const MENU_ATLETA = [
   { k: "oggi", ic: "◧", l: "Oggi" },
   { k: "calendario", ic: "▦", l: "Calendario" },
   { k: "diario", ic: "✎", l: "Diario" },
+  { k: "gare", ic: "★", l: "Gare" },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
   { k: "io", ic: "◉", l: "I miei dati" },
   { k: "presenze", ic: "◍", l: "Presenze" },
@@ -127,7 +128,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.atletaSel = null; S.diarioAtleta = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -200,27 +201,29 @@ function nomeAtletaGara(id) { const a = DEMO.atleti.find(x => x.id === id); retu
 
 function vistaGare() {
   const p = DEMO.prossimaGara;
+  const coach = S.utente && S.utente.ruolo === "coach";
+  const mio = S.utente && S.utente.atletaId;
   const prog = (DEMO.gareProssime || []).map(g => `
     <div class="riga">
       <div><div style="font-weight:500">${g.luogo}</div>
         <div class="et">${g.gara} · obiettivo ${g.obiettivo}</div></div>
       <b>${g.data}</b></div>`).join("");
-  const ris = (DEMO.risultatiGara || []).slice(0, 30).map(r => `
+  const ris = (DEMO.risultatiGara || []).filter(r => coach || r.atletaId === mio).slice(0, 30).map(r => `
     <div class="card" style="padding:12px 14px">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <h3 style="font-size:16px">${nomeAtletaGara(r.atletaId)}</h3>
+        <h3 style="font-size:16px">${coach ? nomeAtletaGara(r.atletaId) : (r.gara || r.distanza)}</h3>
         <b style="font-size:17px">${r.tempo}${typeof r.tempo === "number" ? " s" : ""}</b></div>
       <p class="et" style="margin-top:4px">${r.distanza}${r.gara ? " · " + r.gara : ""} · ${typeof fmtDataAnno === "function" ? fmtDataAnno(r.data) : r.data}</p>
       <p class="et" style="margin-top:2px">${[r.posizione ? "pos. " + r.posizione : "", r.vento ? "vento " + r.vento : "", r.note].filter(Boolean).join(" · ") || ""}</p>
-      <button class="link-indietro" style="color:var(--rosso);margin-top:4px" onclick="eliminaRisultatoGara('${r.id}')">elimina</button>
+      ${coach ? `<button class="link-indietro" style="color:var(--rosso);margin-top:4px" onclick="eliminaRisultatoGara('${r.id}')">elimina</button>` : ""}
     </div>`).join("");
   return `
   <div class="card"><h3>Gare</h3>
-    <p class="et" style="margin-top:2px">Registra i risultati: aggiornano in automatico i PB in gara dell'atleta. Sotto, il calendario.</p></div>
+    <p class="et" style="margin-top:2px">${coach ? "Registra i risultati: aggiornano in automatico i PB in gara dell'atleta. Sotto, il calendario." : "I tuoi risultati aggiornano in automatico i tuoi PB in gara. Sotto, le prossime gare."}</p></div>
 
-  <button class="btn" style="margin-bottom:12px" onclick="apriRisultatoGara('')">＋ Registra risultato</button>
+  <button class="btn" style="margin-bottom:12px" onclick="apriRisultatoGara('${coach ? "" : (mio || "")}')">＋ Registra risultato</button>
 
-  <p class="sez">Risultati recenti</p>
+  <p class="sez">${coach ? "Risultati recenti" : "I tuoi risultati"}</p>
   ${ris || `<div class="card"><p class="et">Nessun risultato registrato. Tocca «Registra risultato».</p></div>`}
 
   <p class="sez">Prossima gara</p>
@@ -242,14 +245,17 @@ function apriRisultatoGara(atletaId) {
 function chiudiRisultatoGara() { S.risultatoGara = null; S.vista = "gare"; disegna(); window.scrollTo(0, 0); }
 function vistaRisultatoGaraForm() {
   const f = S.risultatoGara;
+  const coach = S.utente && S.utente.ruolo === "coach";
   return `<button class="indietro" onclick="chiudiRisultatoGara()">‹ Indietro</button>
     <div class="card"><h3>Registra risultato</h3>
-      <p class="et" style="margin-top:2px">Aggiorna il PB in gara dell'atleta (se è un nuovo migliore).</p></div>
+      <p class="et" style="margin-top:2px">${coach ? "Aggiorna il PB in gara dell'atleta (se è un nuovo migliore)." : "Aggiorna il tuo PB in gara (se è un nuovo migliore)."}</p></div>
     <div class="card">
-      <label class="lab">Atleta</label>
+      ${coach
+        ? `<label class="lab">Atleta</label>
       <select onchange="S.risultatoGara.atletaId=this.value" style="margin-top:6px">
-        <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${f.atletaId === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
-      <div class="griglia2" style="margin-top:12px">
+        <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${f.atletaId === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>`
+        : ""}
+      <div class="griglia2" style="${coach ? "margin-top:12px" : ""}">
         <div><label class="lab">Data</label>
           <input type="date" value="${f.data || ""}" oninput="S.risultatoGara.data=this.value" style="margin-top:6px"></div>
         <div><label class="lab">Distanza / prova</label>
@@ -545,6 +551,7 @@ function disegna() {
   else if (S.seduta) corpo = vistaSeduta();
   else if (coach && S.atletaSel && S.mostraScheda) corpo = vistaSchedaAtleta();
   else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
+  else if (coach && S.diarioAtleta) corpo = vistaDiarioAtleta();
   else if (coach && S.vista === "squadra") corpo = vistaSquadra();
   else if (coach && S.vista === "atleti") corpo = vistaAtleti();
   else if (coach && S.vista === "cal-squadra") corpo = vistaCalendarioSquadra();

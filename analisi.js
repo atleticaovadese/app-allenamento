@@ -10,6 +10,17 @@ const EVENTI_VT = [
   { nome: "200 m Femminile", base: "200 m", coeffs: { 20: 0.1448, 30: 0.1957, 40: 0.2402, 50: 0.2832, 60: 0.3286, 70: 0.3734, 80: 0.4188, 90: 0.4648, 100: 0.5107, 120: 0.6053, 150: 0.7471, 180: 0.8988, 200: 1.0 } },
   { nome: "400 m", base: "400 m", coeffs: { 50: 0.1403, 100: 0.2508, 150: 0.3642, 200: 0.4816, 250: 0.6021, 300: 0.7261, 350: 0.8574, 400: 1.0 } }
 ];
+// basi extra 60/80/120/150 m: ri-normalizzo la curva 100 m Maschile su quella distanza,
+// così il coach può calcolare i tempi partendo dal PB dell'atleta su 60/80/120/150 m.
+(function () {
+  const c100 = EVENTI_VT[0].coeffs;
+  [60, 80, 120, 150].forEach(base => {
+    const k = c100[base]; if (k == null) return;
+    const coeffs = {};
+    Object.keys(c100).forEach(d => { coeffs[d] = Math.round(c100[d] / k * 10000) / 10000; });
+    EVENTI_VT.push({ nome: base + " m", base: base + " m", coeffs });
+  });
+})();
 
 let velState = { evento: 0, atletaRif: "", pb: "" };
 

@@ -289,3 +289,19 @@ function _installaProgrammaDemo() {
   DEMO.seduteGen = [];
 }
 _installaProgrammaDemo();
+
+// storico diario demo (giorno per giorno) — per far vedere subito la vista coach in demo. Date relative a oggi.
+(function () {
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const giorno = n => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
+  const mk = (n, sq, st, dol, en, ore, note, fast, dove, peso) => ({
+    data: giorno(n), sonno_qualita: sq, stress: st, dolori: dol, energia: en, oreSonno: ore,
+    note: note || "", fastidi: !!fast, doveFastidi: dove || "", peso: peso || null, ciclo: false,
+    prontezza: Math.round((sq + st + dol + en) / 4 * 100) / 100
+  });
+  DEMO.diariStorico = {
+    at1: [mk(0, 4, 4, 4, 4, 7.5, "Tutto ok, gambe pronte."), mk(1, 4, 3, 4, 4, 7, ""), mk(2, 5, 4, 4, 5, 8, "Ottimo sonno, carico."), mk(3, 3, 3, 3, 4, 6.5, "Un po' stanco dopo la pista."), mk(4, 4, 4, 5, 4, 7.5, ""), mk(6, 4, 4, 4, 4, 7, "")],
+    at2: [mk(0, 3, 3, 3, 3, 6, "Gambe pesanti.", true, "polpaccio dx"), mk(2, 3, 2, 3, 3, 6, ""), mk(3, 4, 3, 3, 4, 7, ""), mk(5, 3, 3, 2, 3, 5.5, "Poco riposo, notte corta.")],
+    at3: [mk(1, 2, 2, 2, 3, 5.5, "Notti corte, un po' scarica."), mk(2, 3, 2, 3, 3, 6, ""), mk(4, 3, 3, 3, 4, 7, "Meglio oggi.")]
+  };
+})();

@@ -603,21 +603,45 @@ function vistaDiarioCoach() {
   const righe = ordinaAtleti().map(a => {
     const d = DEMO.diariCoach[a.id] || {};
     const pr = d.prontezza || DEMO.mon[a.id].prontezza;
+    const nGiorni = ((DEMO.diariStorico || {})[a.id] || []).length;
     const stato = d.compilato
       ? `compilato ${d.ultimo}`
       : `<span style="color:var(--rosso)">non compilato da ${d.ultimo}</span>`;
-    return `<div class="card">
+    return `<div class="card es" onclick="apriDiarioAtleta('${a.id}')">
       <div style="display:flex;align-items:center;gap:10px">
         <div style="flex:1;min-width:0"><h3>${a.nome}</h3>
-          <p class="et" style="margin-top:2px">${stato}</p></div>
+          <p class="et" style="margin-top:2px">${stato}${nGiorni ? ` · ${nGiorni} giorni registrati` : ""}</p></div>
         <div style="text-align:right"><div class="et">prontezza</div>
-          <b style="font-size:18px;color:${colProntezza(pr)}">${pr}</b></div></div>
+          <b style="font-size:18px;color:${colProntezza(pr)}">${pr}</b></div>
+        <span class="freccia">›</span></div>
       ${d.compilato && (d.sonno || d.nota) ? `<p class="et" style="margin-top:8px">${d.sonno ? "sonno " + d.sonno + " h" : ""}${d.sonno && d.nota ? " · " : ""}${d.nota || ""}</p>` : ""}
     </div>`;
   }).join("");
   return `<div class="card"><h3>Diario squadra</h3>
-    <p class="et" style="margin-top:2px">Prontezza e ultimo diario di ogni atleta</p></div>
+    <p class="et" style="margin-top:2px">Prontezza e ultimo diario di ogni atleta. Tocca un atleta per vederlo giorno per giorno.</p></div>
     ${righe}`;
+}
+function apriDiarioAtleta(id) { S.diarioAtleta = id; disegna(); window.scrollTo(0, 0); }
+function chiudiDiarioAtleta() { S.diarioAtleta = null; S.vista = "diario-c"; disegna(); window.scrollTo(0, 0); }
+function vistaDiarioAtleta() {
+  const a = DEMO.atleti.find(x => x.id === S.diarioAtleta);
+  if (!a) { S.diarioAtleta = null; return vistaDiarioCoach(); }
+  const storia = ((DEMO.diariStorico || {})[a.id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  const dl = v => typeof dataLunga === "function" ? dataLunga(v) : v;
+  const giorni = storia.map(v => `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3 style="font-size:16px">${dl(v.data)}</h3>
+        <div style="text-align:right"><span class="et" style="margin:0">prontezza</span>
+          <b style="font-size:17px;margin-left:6px;color:${colProntezza(v.prontezza)}">${v.prontezza != null ? v.prontezza : "—"}</b></div></div>
+      <p class="et" style="margin-top:6px">sonno ${v.oreSonno != null ? v.oreSonno + " h" : "—"} · qualità ${v.sonno_qualita ?? "—"}/5 · stress ${v.stress ?? "—"}/5 · dolori ${v.dolori ?? "—"}/5 · energia ${v.energia ?? "—"}/5</p>
+      ${v.fastidi ? `<p class="et" style="color:var(--rosso);margin-top:3px">⚠ fastidio${v.doveFastidi ? ": " + v.doveFastidi : ""}</p>` : ""}
+      ${v.peso ? `<p class="et" style="margin-top:3px">peso ${v.peso} kg</p>` : ""}
+      ${v.note ? `<p style="font-size:14px;line-height:1.5;margin-top:6px">${v.note}</p>` : ""}
+    </div>`).join("");
+  return `<button class="indietro" onclick="chiudiDiarioAtleta()">‹ Diario squadra</button>
+    <div class="card"><h3>Diario · ${a.nome}</h3>
+      <p class="et" style="margin-top:2px">Giorno per giorno${storia.length ? ` · ${storia.length} inserimenti` : ""}</p></div>
+    ${giorni || `<div class="card"><p class="et">Nessun diario registrato ancora per ${a.nome}.</p></div>`}`;
 }
 
 // ---------- monitoraggio: SCREENING (performance + carico) settimana / mesociclo ----------

@@ -92,8 +92,32 @@ function cambiaOre(x) {
   d.oreSonno = Math.min(12, Math.max(3, d.oreSonno + x));
   d.salvato = false; disegna();
 }
-function salvaDiario() {
+async function salvaDiario() {
   const d = DEMO.diarioOggi;
   if (!diarioCompleto(d)) { alert("Rispondi a tutte e quattro le domande prima di salvare."); return; }
-  d.salvato = true; disegna();
+  d.salvato = true;
+  const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  registraDiarioStorico(oggi, d);
+  if (typeof salvaDiarioDB === "function") { try { await salvaDiarioDB(oggi, d); } catch (e) { /* offline: resta in locale */ } }
+  disegna();
+}
+// aggiorna lo storico locale (che il coach vede giorno per giorno) + il riepilogo
+function registraDiarioStorico(dataISO, d) {
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const aid = a ? a.id : (S.utente && S.utente.atletaId);
+  if (!aid) return;
+  const p = prontezza(d);
+  const voce = {
+    data: dataISO, sonno_qualita: d.sonno_qualita, stress: d.stress, dolori: d.dolori, energia: d.energia,
+    oreSonno: d.oreSonno, peso: d.peso, ciclo: !!d.ciclo, fastidi: !!d.fastidi, doveFastidi: d.doveFastidi || "",
+    note: d.note || "", prontezza: p == null ? null : Math.round(p * 100) / 100
+  };
+  DEMO.diariStorico = DEMO.diariStorico || {};
+  const arr = DEMO.diariStorico[aid] || [];
+  const i = arr.findIndex(x => x.data === dataISO);
+  if (i >= 0) arr[i] = voce; else arr.push(voce);
+  arr.sort((x, y) => x.data < y.data ? 1 : -1);
+  DEMO.diariStorico[aid] = arr;
+  DEMO.diariCoach = DEMO.diariCoach || {};
+  DEMO.diariCoach[aid] = { compilato: true, ultimo: (typeof fmtDataAnno === "function" ? fmtDataAnno(dataISO) : dataISO), prontezza: voce.prontezza != null ? String(voce.prontezza) : "—", sonno: d.oreSonno, nota: d.note || "" };
 }

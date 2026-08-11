@@ -173,6 +173,29 @@ async function caricaDati() {
     DEMO.gareRaw = gare.map(g => ({ data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
   }
 
+  // diari (storico giorno per giorno): coach vede la società, atleta vede i propri (RLS). Ultimi ~60 giorni.
+  try {
+    const dd = new Date(Date.now() - 60 * 86400000);
+    const dalISO = dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0") + "-" + String(dd.getDate()).padStart(2, "0");
+    const { data: diari } = await sb.from("diario").select("atleta_id,data,ore_sonno,sonno_qualita,stress,dolori,energia,peso,ciclo,fastidi,dove_fastidi,note").gte("data", dalISO).order("data", { ascending: false });
+    DEMO.diariStorico = {};
+    (diari || []).forEach(r => {
+      const vc = { data: r.data, sonno_qualita: r.sonno_qualita, stress: r.stress, dolori: r.dolori, energia: r.energia, oreSonno: r.ore_sonno, peso: r.peso, ciclo: r.ciclo, fastidi: r.fastidi, doveFastidi: r.dove_fastidi || "", note: r.note || "" };
+      const p = (typeof prontezza === "function") ? prontezza(vc) : null;
+      vc.prontezza = p == null ? null : Math.round(p * 100) / 100;
+      (DEMO.diariStorico[r.atleta_id] = DEMO.diariStorico[r.atleta_id] || []).push(vc);
+    });
+    Object.keys(DEMO.diariStorico).forEach(aid => {
+      const ult = DEMO.diariStorico[aid][0];
+      DEMO.diariCoach[aid] = { compilato: true, ultimo: (typeof fmtDataAnno === "function" ? fmtDataAnno(ult.data) : ult.data), prontezza: ult.prontezza != null ? String(ult.prontezza) : "—", sonno: ult.oreSonno, nota: ult.note };
+    });
+    if (prof.ruolo === "atleta" && S.utente.atletaId) {
+      const oggiStr = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+      const og = (DEMO.diariStorico[S.utente.atletaId] || []).find(x => x.data === oggiStr);
+      if (og) Object.assign(DEMO.diarioOggi, { oreSonno: og.oreSonno, sonno_qualita: og.sonno_qualita, stress: og.stress, dolori: og.dolori, energia: og.energia, peso: og.peso, ciclo: og.ciclo, fastidi: og.fastidi, doveFastidi: og.doveFastidi, note: og.note, salvato: true });
+    }
+  } catch (e) { /* tabella diario assente o offline: si usa il locale */ }
+
   // login reale: parto PULITO dai dati/programmi DEMO (Leonardo & co.), poi carico solo ciò che è salvato nel DB
   DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = [];
   DEMO.pista = { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [typeof mesoVuoto === "function" ? mesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
@@ -208,6 +231,18 @@ async function caricaDatiDB() {
     const { data } = await sb.from("societa_dati").select("dati").eq("societa_id", S.utente.societaId).maybeSingle();
     if (data && data.dati) applicaBundle(data.dati);
   } catch (e) { /* nessun dato nel DB: si usa demo/locale */ }
+}
+
+// diario di oggi dell'atleta → DB (upsert per atleta+data). Solo l'atleta scrive il proprio (RLS).
+async function salvaDiarioDB(dataISO, d) {
+  if (!haDB()) return;
+  const aid = S.utente && S.utente.atletaId;
+  if (!aid) return;
+  await sb.from("diario").upsert({
+    atleta_id: aid, data: dataISO,
+    ore_sonno: d.oreSonno, sonno_qualita: d.sonno_qualita, stress: d.stress, dolori: d.dolori, energia: d.energia,
+    peso: d.peso, ciclo: !!d.ciclo, fastidi: !!d.fastidi, dove_fastidi: d.doveFastidi || null, note: d.note || null
+  }, { onConflict: "atleta_id,data" });
 }
 
 function aggiungiAtletaLocale(a) {
