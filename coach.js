@@ -248,6 +248,7 @@ function vistaAtletaDettaglio() {
       <button class="btn btn-2" onclick="apriSpostaGiorni('${a.id}')">Sposta giorni (personalizza)</button>
       <button class="btn btn-2" onclick="apriAdatta('${a.id}')">Adatta contenuto (per lui)</button>
       <button class="btn btn-2" onclick="apriSeduteSvolte('${a.id}')">Allenamenti svolti</button>
+      <button class="btn btn-2" onclick="apriReport('${a.id}')">📄 Report completo (PDF)</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
     </div>
