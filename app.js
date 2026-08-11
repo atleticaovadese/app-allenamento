@@ -102,12 +102,7 @@ function vistaLogin() {
            <button class="link-indietro" onclick="toggleRegistra()">Hai già l'accesso? Entra ›</button></p>`
       : `<button class="btn" onclick="accediUI()">Entra</button>
          <p class="et" style="text-align:center;margin-top:12px">
-           <button class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>
-         <div class="demo-nota"><b>Anteprima</b> — per provare l'interfaccia senza account:
-           <div style="display:flex;gap:8px;margin-top:10px">
-             <button class="btn btn-2" onclick="entra('atleta')">Atleta (demo)</button>
-             <button class="btn btn-2" onclick="entra('coach')">Allenatore (demo)</button>
-           </div></div>`}
+           <button class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>`}
   </div>`;
 }
 function toggleRegistra() { S.mostraRegistra = !S.mostraRegistra; disegna(); }
@@ -239,7 +234,7 @@ function vistaGare() {
 }
 
 function apriRisultatoGara(atletaId) {
-  S.risultatoGara = { atletaId: atletaId || "", data: new Date().toISOString().slice(0, 10), gara: "", distanza: "100 m", tempo: "", vento: "", posizione: "", note: "" };
+  S.risultatoGara = { atletaId: atletaId || "", data: new Date().toISOString().slice(0, 10), gara: "", distanza: "", tempo: "", vento: "", posizione: "", note: "" };
   disegna(); window.scrollTo(0, 0);
 }
 function chiudiRisultatoGara() { S.risultatoGara = null; S.vista = "gare"; disegna(); window.scrollTo(0, 0); }
@@ -252,15 +247,20 @@ function vistaRisultatoGaraForm() {
     <div class="card">
       ${coach
         ? `<label class="lab">Atleta</label>
-      <select onchange="S.risultatoGara.atletaId=this.value" style="margin-top:6px">
+      <select onchange="S.risultatoGara.atletaId=this.value;S.risultatoGara.distanza='';disegna()" style="margin-top:6px">
         <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${f.atletaId === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>`
         : ""}
-      <div class="griglia2" style="${coach ? "margin-top:12px" : ""}">
+      ${(() => {
+        const disc = ((DEMO.atleti.find(x => x.id === f.atletaId) || {}).disciplina) || "velocita";
+        const voci = typeof eventiPB === "function" ? eventiPB(disc) : DIST_GARA;
+        const opts = typeof _optsPB === "function" ? _optsPB(voci, f.distanza) : DIST_GARA.map(d => `<option ${f.distanza === d ? "selected" : ""}>${d}</option>`).join("");
+        return `<div class="griglia2" style="${coach ? "margin-top:12px" : ""}">
         <div><label class="lab">Data</label>
           <input type="date" value="${f.data || ""}" oninput="S.risultatoGara.data=this.value" style="margin-top:6px"></div>
-        <div><label class="lab">Distanza / prova</label>
-          <select onchange="S.risultatoGara.distanza=this.value" style="margin-top:6px">${DIST_GARA.map(d => `<option ${f.distanza === d ? "selected" : ""}>${d}</option>`).join("")}</select></div>
-      </div>
+        <div><label class="lab">${disc === "lanci" ? "Attrezzo" : "Distanza / prova"}</label>
+          <select onchange="S.risultatoGara.distanza=this.value" style="margin-top:6px"><option value="" ${!f.distanza ? "selected" : ""}>— scegli —</option>${opts}</select></div>
+      </div>`;
+      })()}
       <div class="griglia2" style="margin-top:12px">
         <div><label class="lab">Tempo (s)</label>
           <input inputmode="decimal" value="${f.tempo}" placeholder="es. 10.85" oninput="S.risultatoGara.tempo=this.value" style="margin-top:6px"></div>
@@ -437,7 +437,7 @@ function apriGuida(i) {
 function vistaAiuto() {
   let h = `<div class="card"><h3>Guida e glossario</h3>
     <p class="et" style="margin-top:2px">Come si usa l'app, spiegata sezione per sezione, e tutti i termini/acronimi. Tocca una voce per leggere tutto.</p></div>
-    ${S.utente && S.utente.ruolo === "atleta" ? `<button class="btn btn-2" style="margin-bottom:12px" onclick="setOnboarding('tour')">▶ Rivedi il tutorial</button>` : ""}
+    ${S.utente ? `<button class="btn btn-2" style="margin-bottom:12px" onclick="setOnboarding('tour')">▶ ${S.utente.ruolo === "coach" ? "Rivedi il tutorial allenatore" : "Rivedi il tutorial"}</button>` : ""}
     <p class="sez">Guida all'app</p>
     ${GUIDA.map(([t, breve], i) => `<div class="lib-row" onclick="apriGuida(${i})">
       <div style="flex:1;min-width:0"><div style="font-weight:600">${t}</div>
@@ -489,14 +489,31 @@ const TOUR = [
   ["◍", "Presenze e Calendario", "In <b>Presenze</b> vedi quanti allenamenti hai fatto sul totale programmato; nel <b>Calendario</b> il tuo programma della settimana, giorno per giorno."],
   ["?", "Guida e glossario", "Non sai cosa vuol dire un termine (RSI, ACWR, TUT…)? È tutto spiegato in <b>Guida e glossario</b>. Puoi rivedere questo tutorial da lì quando vuoi. Buon allenamento! 💪"]
 ];
+// Tutorial ALLENATORE (per i tecnici che aggiungi)
+const TOUR_COACH = [
+  ["", "Metis Performance", "«Chi non pianifica è destinato a fallire.»"],
+  ["◧", "Squadra — il colpo d'occhio", "La schermata <b>Squadra</b> ti mostra ogni atleta con lo stato (verde/giallo/rosso) da carico, forma, prontezza e aderenza, più gli alert (diario mancante, sedute saltate, fastidi). In un attimo capisci chi seguire."],
+  ["◉", "Atleti e schede", "In <b>Atleti</b> aggiungi gli atleti (nome + email), apri la loro scheda con PB, massimali e test, e ne modifichi i dati. Ogni atleta è raggruppato per disciplina (velocità, lanci, mezzofondo)."],
+  ["▦", "Programma madre", "In <b>Programma → Pista/Palestra</b> scrivi il programma UNA volta per tutta la società: distanze e % velocità (i tempi escono dal PB di ogni atleta), esercizi e %1RM (il peso dal massimale). Si salva da solo e gli atleti lo vedono subito sul loro calendario."],
+  ["✎", "Su misura per il singolo", "Dal dettaglio di un atleta puoi <b>spostargli i giorni</b> e <b>adattargli il contenuto</b> (meno ripetute, carico diverso) senza toccare il programma madre: vale solo per lui."],
+  ["◍", "Monitoraggio", "In <b>Monitoraggio</b> vedi lo <b>Screening</b> (tempi/VBT per periodo), il <b>Carico e forma</b> (ACWR, TSB), il <b>Diario</b> giorno per giorno e gli <b>Infortuni</b>. Sono dati veri: nascono da ciò che gli atleti svolgono e scrivono."],
+  ["◭", "Analisi e Test", "In <b>Analisi</b> trovi Velocità target, Profilo F-V, Stima 1RM, Traino, Monitoraggio VBT, Drop Jump/RSI e la batteria Test. Ogni test ha «Come si fa» con video."],
+  ["⇅", "Report ed Export", "Nel dettaglio atleta c'è il <b>Report PDF completo</b>; in <b>Import/Export</b> il backup e il <b>Report Excel con grafici</b> (per analisi e presentazioni)."],
+  ["?", "Guida e glossario", "Dubbi su un termine (ACWR, RSI, TUT…)? È tutto in <b>Guida e glossario</b>, dove puoi anche rivedere questo tutorial. Buon lavoro! 💪"]
+];
+function _tourCorrente() { return (S.utente && S.utente.ruolo === "coach") ? TOUR_COACH : TOUR; }
 function setOnboarding(fase) { S.onboarding = fase; S.tourStep = 0; if (fase !== "tour") S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
-function tourAvanti() { if (S.tourStep < TOUR.length - 1) { S.tourStep++; disegna(); window.scrollTo(0, 0); } else tourFine(); }
+function tourAvanti() { if (S.tourStep < _tourCorrente().length - 1) { S.tourStep++; disegna(); window.scrollTo(0, 0); } else tourFine(); }
 function tourIndietro() { if (S.tourStep > 0) { S.tourStep--; disegna(); window.scrollTo(0, 0); } }
-function tourFine() { S.onboarding = null; S.tourStep = 0; S.vista = "oggi"; disegna(); window.scrollTo(0, 0); }
+function tourFine() {
+  if (S.utente && S.utente.ruolo === "coach") { try { localStorage.setItem("metis_tut_coach", "1"); } catch (e) { } }
+  S.onboarding = null; S.tourStep = 0; S.vista = (S.utente && S.utente.ruolo === "coach") ? "squadra" : "oggi"; disegna(); window.scrollTo(0, 0);
+}
 function vistaTutorial() {
-  const [ic, tit, txt] = TOUR[S.tourStep] || TOUR[0];
-  const n = TOUR.length, ultimo = S.tourStep === n - 1, primo = S.tourStep === 0;
-  const punti = TOUR.map((_, i) => `<span style="width:8px;height:8px;border-radius:50%;background:${i === S.tourStep ? "var(--blu)" : "var(--line2)"}"></span>`).join("");
+  const TR = _tourCorrente();
+  const [ic, tit, txt] = TR[S.tourStep] || TR[0];
+  const n = TR.length, ultimo = S.tourStep === n - 1, primo = S.tourStep === 0;
+  const punti = TR.map((_, i) => `<span style="width:8px;height:8px;border-radius:50%;background:${i === S.tourStep ? "var(--blu)" : "var(--line2)"}"></span>`).join("");
   return `
   <div style="min-height:70vh;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:20px 8px">
     ${primo

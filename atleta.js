@@ -87,13 +87,46 @@ function schedaAtleta(a, mod) {
 
 // Voci del foglio Atleta (per i menù a tendina).
 const DIST_PB = ["30 m lanciato", "30 m blocchi", "60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "300 m", "400 m"];
+// eventi PB per disciplina
+const EV_VELOCITA = [
+  ["Velocità", ["30 m lanciato", "30 m blocchi", "60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "300 m", "400 m"]],
+  ["Ostacoli", ["60 hs", "100 hs", "110 hs", "400 hs"]],
+  ["Salti", ["Salto in lungo", "Salto triplo", "Salto in alto", "Salto con l'asta"]]
+];
+const EV_MEZZO = ["600 m", "800 m", "1000 m", "1200 m", "1500 m", "1 miglio", "2000 m", "2000 siepi", "3000 m", "3000 siepi", "5000 m", "10000 m", "10 km strada", "Mezza maratona", "Maratona", "Campestre"];
+const ATTREZZI_LANCI = [
+  ["Femminile", ["Giavellotto 400 g", "Giavellotto 500 g", "Giavellotto 600 g", "Disco 1 kg", "Peso 3 kg", "Peso 4 kg", "Martello 3 kg", "Martello 4 kg"]],
+  ["Maschile", ["Giavellotto 600 g", "Giavellotto 700 g", "Giavellotto 800 g", "Disco 1,5 kg", "Disco 1,75 kg", "Disco 2 kg", "Peso 4 kg", "Peso 5 kg", "Peso 6 kg", "Peso 7,26 kg", "Martello 4 kg", "Martello 5 kg", "Martello 6 kg", "Martello 7,26 kg"]]
+];
+function eventiPB(disc) {
+  if (disc === "lanci") return ATTREZZI_LANCI;
+  if (disc === "mezzofondo" || disc === "fondo") return EV_MEZZO;
+  return EV_VELOCITA;
+}
+// opzioni <option>/<optgroup> per un <select> normale, con selezione corrente
+function _optsPB(voci, sel) {
+  const o = x => `<option ${sel === x ? "selected" : ""}>${x}</option>`;
+  return (voci.length && Array.isArray(voci[0]))
+    ? voci.map(g => `<optgroup label="${g[0]}">${g[1].map(o).join("")}</optgroup>`).join("")
+    : voci.map(o).join("");
+}
+function labelPB(disc) {
+  if (disc === "lanci") return { ev: "Attrezzo", val: "Misura (m)", ph: "es. 45.20", mode: "decimal", val2: "Miglior misura stagione (m)", ob: "Obiettivo (m)" };
+  if (disc === "mezzofondo" || disc === "fondo") return { ev: "Distanza", val: "Tempo (min:sec o sec)", ph: "es. 4:02.5", mode: "text", val2: "Miglior tempo stagione", ob: "Obiettivo" };
+  return { ev: "Prova", val: "Tempo (s) — per i salti: misura (m)", ph: "es. 12.86", mode: "decimal", val2: "Miglior stagione", ob: "Obiettivo" };
+}
 const ESERCIZI_MASSIMALI = ["Squat", "1/2 Squat", "Panca piana", "Stacco", "Trap Bar", "Strappo (snatch)", "Girata (clean)", "Hip thrust", "Pressa"];
 const TEST_SALTI = [["CMJ", "cm"], ["SJ", "cm"], ["Drop jump", "cm"], ["RSI", "index"], ["Broad jump", "cm"], ["Sprint 30 m volante", "s"]];
 
 // Menù a tendina con le voci + "Altro…" (che apre un campo libero).
+// voci = array piatto, oppure array di gruppi [ ["Etichetta", [voci...]], ... ] per gli optgroup.
 function tendina(id, voci, extra) {
+  const opt = x => `<option value="${x.replace(/"/g, "&quot;")}">${x}</option>`;
+  const body = (voci.length && Array.isArray(voci[0]))
+    ? voci.map(g => `<optgroup label="${g[0]}">${g[1].map(opt).join("")}</optgroup>`).join("")
+    : voci.map(opt).join("");
   return `<select id="${id}" onchange="toggleAltro('${id}')${extra || ""}">
-      ${voci.map(x => `<option value="${x.replace(/"/g, "&quot;")}">${x}</option>`).join("")}
+      ${body}
       <option value="__altro__">Altro…</option>
     </select>
     <input id="${id}b" placeholder="scrivi…" style="display:none;margin-top:8px">`;
@@ -120,11 +153,14 @@ function apriAggiungi(tipo, atletaId) {
   let campi, tit;
   if (tipo === "pb") {
     tit = "Nuovo PB";
-    campi = `<label class="lab">Distanza</label>${tendina("f1", DIST_PB)}
-      <label class="lab" style="display:block;margin-top:12px">Tempo (s)</label><input id="f2" inputmode="decimal" placeholder="12.86" style="margin-top:6px">
+    const at = DEMO.atleti.find(x => x.id === atletaId);
+    const disc = at ? at.disciplina : "velocita";
+    const L = labelPB(disc);
+    campi = `<label class="lab">${L.ev}</label>${tendina("f1", eventiPB(disc))}
+      <label class="lab" style="display:block;margin-top:12px">${L.val}</label><input id="f2" inputmode="${L.mode}" placeholder="${L.ph}" style="margin-top:6px">
       <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f3" type="date" style="margin-top:6px">
-      <div class="griglia2" style="margin-top:12px"><div><label class="lab">Miglior tempo stagione (s)</label><input id="f4" inputmode="decimal" placeholder="12.90" style="margin-top:6px"></div>
-        <div><label class="lab">Obiettivo (s)</label><input id="f5" inputmode="decimal" placeholder="12.50" style="margin-top:6px"></div></div>`;
+      <div class="griglia2" style="margin-top:12px"><div><label class="lab">${L.val2}</label><input id="f4" inputmode="${L.mode}" style="margin-top:6px"></div>
+        <div><label class="lab">${L.ob}</label><input id="f5" inputmode="${L.mode}" style="margin-top:6px"></div></div>`;
   } else if (tipo === "massimale") {
     tit = "Nuovo massimale";
     campi = `<label class="lab">Esercizio</label>${tendina("f1", ESERCIZI_MASSIMALI)}
@@ -152,7 +188,12 @@ function apriAggiungi(tipo, atletaId) {
 
 async function salvaVoce(tipo, atletaId) {
   const v = id => ((document.getElementById(id) || {}).value || "").trim();
-  const num = x => x === "" ? null : Number(String(x).replace(",", "."));
+  const num = x => {
+    if (x === "" || x == null) return null;
+    x = String(x).replace(",", ".");
+    if (x.indexOf(":") >= 0) { const p = x.split(":"); return Number(p[0]) * 60 + Number(p[1]); } // min:sec → secondi
+    const n = Number(x); return isNaN(n) ? null : n;
+  };
   const n1 = valTendina("f1");
   let ok = false;
   if (tipo === "pb") {

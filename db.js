@@ -158,6 +158,9 @@ async function caricaDati() {
     // primo accesso / profilo incompleto → avvia l'onboarding: apri subito "I miei dati"
     const a = DEMO.atleti.find(x => x.id === S.utente.atletaId);
     if (a && profiloIncompleto(a) && typeof apriModificaDati === "function") { S.onboarding = "dati"; apriModificaDati(a.id); }
+  } else if (prof.ruolo === "coach") {
+    // primo accesso di un allenatore/tecnico su questo dispositivo → tutorial allenatore
+    try { if (!localStorage.getItem("metis_tut_coach")) S.onboarding = "tour"; } catch (e) { }
   }
 
   // infortuni aperti
