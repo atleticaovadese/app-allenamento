@@ -1,5 +1,12 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", mostraRegistra: false, onboarding: null, tourStep: 0, calOff: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", progGruppo: "vel", mostraRegistra: false, onboarding: null, tourStep: 0, calOff: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+function setProgGruppo(g) { S.progGruppo = g; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; disegna(); window.scrollTo(0, 0); }
+const GRUPPI_PROG = [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
+function selettoreProgGruppo() {
+  return `<div class="card" style="border-color:var(--blu)"><label class="lab">Programma madre per</label>
+    <select onchange="setProgGruppo(this.value)" style="margin-top:6px">${GRUPPI_PROG.map(([k, l]) => `<option value="${k}" ${S.progGruppo === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <p class="et" style="margin-top:8px">Stai scrivendo il programma per i <b>${(GRUPPI_PROG.find(x => x[0] === S.progGruppo) || [])[1] || ""}</b>. Va solo a loro; per gli altri gruppi scegli qui sopra.</p></div>`;
+}
 const $ = (id) => document.getElementById(id);
 
 // ---------- menù: tutti i fogli, raggruppati ----------

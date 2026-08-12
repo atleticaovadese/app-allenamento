@@ -8,10 +8,17 @@ function palSettVuota() { return { righe: [palRigaVuota()], nota: "" }; }
 function palGiornoVuoto() { return { giornoSett: "", settimane: [palSettVuota(), palSettVuota(), palSettVuota(), palSettVuota()] }; }
 function palMesoVuoto() { return { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [palGiornoVuoto(), palGiornoVuoto(), palGiornoVuoto()] }; }
 
-function palestraInit() {
-  if (!DEMO.palestra || !DEMO.palestra.mesocicli) DEMO.palestra = { atletaRif: "", mesocicli: [palMesoVuoto()] };
-  return DEMO.palestra;
+// programma palestra PER DISCIPLINA: DEMO.palestra = { vel:{...}, lanci:{...}, mezzo:{...} }
+function _emptyPal() { return { atletaRif: "", mesocicli: [palMesoVuoto()] }; }
+function palDi(g) {
+  if (!DEMO.palestra || DEMO.palestra.mesocicli) {
+    const old = (DEMO.palestra && DEMO.palestra.mesocicli) ? DEMO.palestra : null;
+    DEMO.palestra = { vel: old || _emptyPal(), lanci: _emptyPal(), mezzo: _emptyPal() };
+  }
+  if (!DEMO.palestra[g]) DEMO.palestra[g] = _emptyPal();
+  return DEMO.palestra[g];
 }
+function palestraInit() { return palDi(S.progGruppo || "vel"); }
 function savePalestra() { if (typeof salvaCustom === "function") salvaCustom(); }
 function palGiornoCorrente() { return palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno]; }
 
@@ -245,5 +252,5 @@ function vistaProgrammaPalestra() {
     </div>`;
   }).join("");
 
-  return testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
 }

@@ -35,15 +35,16 @@ function _cacheSeduta(s) {
 }
 function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
 
-function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta) {
+function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   const sett = g.settimane && g.settimane[settIdx];
   const ovR = overrideRighe(atleta, "pista", giornoNum - 1, settIdx);
   const righe = (ovR || (sett && sett.righe) || []).filter(r => r.distanza && Number(r.n) > 0);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
+  const profilo = prog && prog.profilo;   // il profilo velocità del programma del GRUPPO dell'atleta
   const elementi = righe.map((r, i) => {
     const n = Number(r.n);
-    const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, r.distanza, r.perc)
+    const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, r.distanza, r.perc, profilo)
       : (typeof pistaTempo === "function" ? pistaTempo(r.distanza, r.perc) : null);
     return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: Number(r.perc) || null, recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
   });
@@ -88,13 +89,18 @@ function overrideRighe(atleta, tipo, gi, wk) {
 }
 
 // TAPPA 4 — conta le sedute PROGRAMMATE per un atleta tra due date ISO (rispetta sposta-giorni + override contenuto)
+// programma del GRUPPO dell'atleta (per-disciplina). Se manca l'atleta → gruppo "vel".
+function _progPista(atleta) { if (typeof pistaDi !== "function") return DEMO.pista; const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel"; return pistaDi(g); }
+function _progPal(atleta) { if (typeof palDi !== "function") return DEMO.palestra; const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel"; return palDi(g); }
+
 function contaProgrammate(atleta, fromISO, toISO) {
   let n = 0, guard = 0;
   const to = new Date(toISO + "T00:00:00").getTime();
   const d = new Date(fromISO + "T00:00:00");
+  const progs = [["pista", _progPista(atleta)], ["palestra", _progPal(atleta)]];
   while (d.getTime() <= to && guard++ < 800) {
     const dataISO = isoDiData(d), wd = GG_ISO[wdIdx(dataISO)];
-    [["pista", DEMO.pista], ["palestra", DEMO.palestra]].forEach(([tipo, prog]) => {
+    progs.forEach(([tipo, prog]) => {
       const pa = mesoAttivo(prog, dataISO, false);
       if (!pa) return;
       (pa.m.giorni || []).forEach((g, gi) => {
@@ -115,9 +121,10 @@ function contaProgrammate(atleta, fromISO, toISO) {
 function seduteDelGiorno(dataISO, clamp, atleta) {
   atleta = atleta || (typeof atletaCorrente === "function" ? atletaCorrente() : null);
   const wd = GG_ISO[wdIdx(dataISO)], out = [];
-  const pa = mesoAttivo(DEMO.pista, dataISO, clamp);
-  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta); if (s) out.push(s); } });
-  const pl = mesoAttivo(DEMO.palestra, dataISO, clamp);
+  const progP = _progPista(atleta), progL = _progPal(atleta);
+  const pa = mesoAttivo(progP, dataISO, clamp);
+  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta, progP); if (s) out.push(s); } });
+  const pl = mesoAttivo(progL, dataISO, clamp);
   if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(s); } });
   return out;
 }
@@ -137,7 +144,8 @@ function settimanaProgramma(off) {
 // posizione nel programma madre oggi (per la card "Dove sei nel programma") — null se nessun mesociclo attivo
 function posizioneProgramma() {
   const oggi = oggiISO();
-  const pa = mesoAttivo(DEMO.pista, oggi, false) || mesoAttivo(DEMO.palestra, oggi, false);
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const pa = mesoAttivo(_progPista(a), oggi, false) || mesoAttivo(_progPal(a), oggi, false);
   if (!pa) return null;
   const m = pa.m, tot = nSettDi(m), sett = pa.settIdx + 1;
   const inizio = new Date(m.inizio + "T00:00:00");
@@ -158,7 +166,9 @@ function riepilogoSeduta(s) {
 // allinea un eventuale programma DEMO alla settimana reale del browser (solo per l'anteprima demo)
 function allineaDemoProgramma() {
   const lunISO = (() => { const b = new Date(); const off = (b.getDay() + 6) % 7; const l = new Date(b.getTime() - off * 86400000); return isoDiData(l); })();
-  [DEMO.pista, DEMO.palestra].forEach(prog => {
-    ((prog && prog.mesocicli) || []).forEach(m => { if (m._demo) m.inizio = lunISO; });
+  [DEMO.pista, DEMO.palestra].forEach(root => {
+    if (!root) return;
+    const progs = root.mesocicli ? [root] : Object.keys(root).map(k => root[k]);
+    progs.forEach(prog => ((prog && prog.mesocicli) || []).forEach(m => { if (m._demo) m.inizio = lunISO; }));
   });
 }

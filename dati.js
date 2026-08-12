@@ -242,21 +242,25 @@ function esportaPbCSV() {
   scaricaCSV("metis-pb-massimali.csv", righe);
 }
 function esportaProgrammaCSV() {
-  const righe = [["Tipo", "Mesociclo", "Giorno n°", "Giorno sett.", "Settimana", "Voce", "Distanza/Serie", "N/Rep", "%", "Rec", "Peso/TUT"]];
-  const dump = (prog, tipo) => {
+  const righe = [["Gruppo", "Tipo", "Mesociclo", "Giorno n°", "Giorno sett.", "Settimana", "Voce", "Distanza/Serie", "N/Rep", "%", "Rec", "Peso/TUT"]];
+  const dump = (glab, prog, tipo) => {
     ((prog && prog.mesocicli) || []).forEach((m, mi) => {
       const mLabel = ((m.ciclo ? "ciclo " + m.ciclo : "") + (m.focus ? " " + m.focus : "")).trim() || ("Mesociclo " + (mi + 1));
       (m.giorni || []).forEach((g, gi) => {
         (g.settimane || []).forEach((sett, wi) => {
           (sett.righe || []).forEach(r => {
-            if (tipo === "pista") { if (!r.distanza && !r.contenuto) return; righe.push(["Pista", mLabel, gi + 1, g.giornoSett || "", wi + 1, r.contenuto || "", r.distanza || "", r.n || "", r.perc || "", r.rec || "", ""]); }
-            else { if (!r.esercizio) return; righe.push(["Palestra", mLabel, gi + 1, g.giornoSett || "", wi + 1, r.esercizio || "", r.serie || "", r.rep || "", r.perc || "", r.rec || "", r.peso || r.tut || ""]); }
+            if (tipo === "pista") { if (!r.distanza && !r.contenuto) return; righe.push([glab, "Pista", mLabel, gi + 1, g.giornoSett || "", wi + 1, r.contenuto || "", r.distanza || "", r.n || "", r.perc || "", r.rec || "", ""]); }
+            else { if (!r.esercizio) return; righe.push([glab, "Palestra", mLabel, gi + 1, g.giornoSett || "", wi + 1, r.esercizio || "", r.serie || "", r.rep || "", r.perc || "", r.rec || "", r.peso || r.tut || ""]); }
           });
         });
       });
     });
   };
-  dump(DEMO.pista, "pista"); dump(DEMO.palestra, "palestra");
+  // per-gruppo (nuovo formato mappa) oppure singolo (vecchio)
+  const GRP = [["vel", "Velocisti/Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo/Fondo"]];
+  const progs = (root) => (!root) ? [] : (root.mesocicli ? [["", root]] : GRP.map(([k, l]) => [l, root[k]]).filter(x => x[1]));
+  progs(DEMO.pista).forEach(([glab, prog]) => dump(glab, prog, "pista"));
+  progs(DEMO.palestra).forEach(([glab, prog]) => dump(glab, prog, "palestra"));
   if (righe.length <= 1) { alert("Nessun programma da esportare."); return; }
   scaricaCSV("metis-programma.csv", righe);
 }

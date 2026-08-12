@@ -691,23 +691,29 @@ function vistaSpostaGiorni() {
   return `<button class="indietro" onclick="chiudiSpostaGiorni()">‹ Torna all'atleta</button>
     <div class="card"><h3>Sposta giorni · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Scegli in che giorno della settimana ${a.nome} fa ogni seduta. Non cambia il programma madre: vale solo per lui. "Come il madre" = giorno standard. Si salva da solo.</p></div>
-    ${bloccoSposta(a.id, "pista", DEMO.pista)}
-    ${bloccoSposta(a.id, "palestra", DEMO.palestra)}`;
+    ${bloccoSposta(a.id, "pista", typeof pistaDi === "function" ? pistaDi(gruppoDi(a)) : DEMO.pista)}
+    ${bloccoSposta(a.id, "palestra", typeof palDi === "function" ? palDi(gruppoDi(a)) : DEMO.palestra)}`;
 }
 
 // ---------- TAPPA 3c: adatta il CONTENUTO di una seduta per un atleta (override sul madre) ----------
+// programma del gruppo dell'atleta che sto adattando (S.adatta)
+function _progAdatta(tipo) {
+  const a = DEMO.atleti.find(x => x.id === (S.adatta && S.adatta.atletaId));
+  const g = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  return tipo === "pista" ? (typeof pistaDi === "function" ? pistaDi(g) : DEMO.pista) : (typeof palDi === "function" ? palDi(g) : DEMO.palestra);
+}
 function _giorniSched(tipo) {
-  const m = _mesoRif(tipo === "pista" ? DEMO.pista : DEMO.palestra);
+  const m = _mesoRif(_progAdatta(tipo));
   return (m && m.giorni || []).map((g, gi) => ({ g, gi })).filter(x => x.g.giornoSett);
 }
 function _nSettMeso(tipo) {
-  const m = _mesoRif(tipo === "pista" ? DEMO.pista : DEMO.palestra);
+  const m = _mesoRif(_progAdatta(tipo));
   if (!m) return 4;
   if (typeof nSettimaneMeso === "function") return nSettimaneMeso(m);
   return (m.giorni[0] && m.giorni[0].settimane.length) || 4;
 }
 function _righeMadre(tipo, gi, wk) {
-  const m = _mesoRif(tipo === "pista" ? DEMO.pista : DEMO.palestra);
+  const m = _mesoRif(_progAdatta(tipo));
   return (m && m.giorni[gi] && m.giorni[gi].settimane[wk] && m.giorni[gi].settimane[wk].righe) || [];
 }
 function apriAdatta(atletaId) {
@@ -760,7 +766,7 @@ function ripristinaAdatta() {
   disegna();
 }
 function _tabellaAdattaPista(a, righe) {
-  const prof = DEMO.pista && DEMO.pista.profilo;
+  const prof = (typeof pistaDi === "function" && typeof gruppoDi === "function") ? pistaDi(gruppoDi(a)).profilo : (DEMO.pista && DEMO.pista.profilo);
   const distOpt = (prof && typeof PISTA_COEFF !== "undefined" && PISTA_COEFF[prof]) ? Object.keys(PISTA_COEFF[prof]).map(Number).sort((x, y) => x - y) : [];
   const opt = (val, arr) => arr.map(x => `<option value="${x}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
   const rows = righe.map((r, i) => {

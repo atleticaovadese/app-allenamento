@@ -202,8 +202,7 @@ async function caricaDati() {
 
   // login reale: parto PULITO dai dati/programmi DEMO (Leonardo & co.), poi carico solo ciò che è salvato nel DB
   DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {};
-  DEMO.pista = { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [typeof mesoVuoto === "function" ? mesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
-  DEMO.palestra = { atletaRif: "", mesocicli: [typeof palMesoVuoto === "function" ? palMesoVuoto() : { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [] }] };
+  DEMO.pista = {}; DEMO.palestra = {};   // programmi per-gruppo: creati vuoti su richiesta da pistaDi/palDi(gruppo)
 
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
   await caricaDatiDB();

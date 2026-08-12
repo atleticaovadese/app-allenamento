@@ -174,10 +174,18 @@ function setNotaSeduta(s, v) { giornoCorrente().settimane[s].nota = v; savePista
 function chiudiNotaSeduta() { chiudiScheda(); disegna(); }
 function mesoVuoto() { return { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [giornoVuoto(), giornoVuoto(), giornoVuoto(), giornoVuoto()] }; }
 
-function pistaInit() {
-  if (!DEMO.pista || !DEMO.pista.mesocicli) DEMO.pista = { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [mesoVuoto()] };
-  return DEMO.pista;
+// TAPPA: programma madre PER DISCIPLINA. DEMO.pista è una mappa { vel:{...}, lanci:{...}, mezzo:{...} }.
+function _emptyPista() { return { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [mesoVuoto()] }; }
+function pistaDi(g) {
+  // migra il vecchio formato singolo (con .mesocicli) → { vel: <vecchio>, lanci:{}, mezzo:{} }
+  if (!DEMO.pista || DEMO.pista.mesocicli) {
+    const old = (DEMO.pista && DEMO.pista.mesocicli) ? DEMO.pista : null;
+    DEMO.pista = { vel: old || _emptyPista(), lanci: _emptyPista(), mezzo: _emptyPista() };
+  }
+  if (!DEMO.pista[g]) DEMO.pista[g] = _emptyPista();
+  return DEMO.pista[g];
 }
+function pistaInit() { return pistaDi(S.progGruppo || "vel"); }
 function savePista() { if (typeof salvaCustom === "function") salvaCustom(); }
 
 // PB di riferimento: dall'atleta scelto (in base al profilo) oppure scritto a mano.
@@ -216,13 +224,13 @@ function pbAtletaDist(atleta, distanza) {
 }
 // tempo "al 100%" dell'atleta sulla distanza D: PB esatto se c'è, altrimenti stima dalla distanza-ancora
 // (D<=60 → dai 60 m; D>60 → dai 100 m; fallback al PB di riferimento del profilo), ri-scalando con la curva.
-function baseAtletaDist(atleta, D) {
+function baseAtletaDist(atleta, D, profilo) {
   const diretto = pbAtletaDist(atleta, D);
   if (diretto != null) return diretto;                 // PB reale su quella distanza
-  const p = pistaInit();
-  const co = p.profilo ? PISTA_COEFF[p.profilo] : null;
+  if (profilo == null) profilo = pistaInit().profilo;  // fallback (editor); in generazione arriva dal programma del gruppo
+  const co = profilo ? PISTA_COEFF[profilo] : null;
   if (!co || co[D] == null) return null;
-  const refDist = p.profilo.indexOf("400") === 0 ? 400 : p.profilo.indexOf("200") === 0 ? 200 : 100;
+  const refDist = profilo.indexOf("400") === 0 ? 400 : profilo.indexOf("200") === 0 ? 200 : 100;
   const ancore = (D <= 60 ? [60, 100, refDist] : [100, refDist, 60]).filter((v, i, a) => a.indexOf(v) === i);
   for (const anc of ancore) {
     const pbAnc = pbAtletaDist(atleta, anc);
@@ -230,10 +238,10 @@ function baseAtletaDist(atleta, D) {
   }
   return null;
 }
-function pistaTempoAtleta(atleta, distanza, perc) {
+function pistaTempoAtleta(atleta, distanza, perc, profilo) {
   const D = Number(distanza);
   if (!atleta || !D || !perc) return null;
-  const base = baseAtletaDist(atleta, D);
+  const base = baseAtletaDist(atleta, D, profilo);
   if (base == null) return null;
   return base / (Number(perc) / 100);   // % di velocità: 95% → tempo = base / 0.95
 }
@@ -378,5 +386,5 @@ function vistaProgrammaPista() {
     </div>`;
   }).join("");
 
-  return testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
 }
