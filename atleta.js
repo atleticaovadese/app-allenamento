@@ -188,13 +188,29 @@ function valTendina(id) {
 }
 
 // campi tempo separati per il mezzofondo (stile "data"): ore : min : sec . cent
+// mentre scrivi, riempiti i 2 numeri passa da solo al campo successivo; l'eventuale cifra in più "trabocca"
+// nel campo dopo (regge anche l'incolla e la scrittura veloce). Backspace su campo vuoto torna indietro.
+function tempoAuto(el) {
+  const digits = el.value.replace(/[^0-9]/g, "");
+  el.value = digits.slice(0, 2);
+  const nextId = el.getAttribute("data-next");
+  if (!nextId) return;
+  const n = document.getElementById(nextId); if (!n) return;
+  const rest = digits.slice(2);
+  if (rest) { n.value = rest; n.focus(); tempoAuto(n); }        // trabocco: sposta la/e cifra/e in più
+  else if (digits.length >= 2) { n.focus(); n.select(); }       // pieno: vai al successivo
+}
+function tempoBack(ev, prevId) {
+  if (ev.key === "Backspace" && ev.target.value === "" && prevId) { const p = document.getElementById(prevId); if (p) { p.focus(); ev.preventDefault(); } }
+}
 function campiTempoMezzo(pfx, vals) {
   vals = vals || {};
-  const box = (id, lab, ph, mx) => `<div style="flex:1;min-width:0"><span class="et" style="display:block;margin-bottom:3px;text-align:center">${lab}</span>
-    <input id="${pfx}${id}" inputmode="numeric" maxlength="${mx}" placeholder="${ph}" value="${vals[id] != null ? vals[id] : ""}" style="text-align:center;padding-left:4px;padding-right:4px"></div>`;
+  const box = (id, lab, ph, next, prev) => `<div style="flex:1;min-width:0"><span class="et" style="display:block;margin-bottom:3px;text-align:center">${lab}</span>
+    <input id="${pfx}${id}" inputmode="numeric" placeholder="${ph}" value="${vals[id] != null ? vals[id] : ""}"${next ? ` data-next="${pfx + next}"` : ""}
+      oninput="tempoAuto(this)"${prev ? ` onkeydown="tempoBack(event,'${pfx + prev}')"` : ""} style="text-align:center;padding-left:4px;padding-right:4px"></div>`;
   const sep = ch => `<span style="padding-bottom:9px;font-weight:700;color:var(--txt2)">${ch}</span>`;
   return `<div style="display:flex;align-items:flex-end;gap:5px;margin-top:6px">
-    ${box("o", "ore", "0", 2)}${sep(":")}${box("m", "min", "00", 2)}${sep(":")}${box("s", "sec", "00", 2)}${sep(".")}${box("c", "cent", "00", 2)}
+    ${box("o", "ore", "0", "m", null)}${sep(":")}${box("m", "min", "00", "s", "o")}${sep(":")}${box("s", "sec", "00", "c", "m")}${sep(".")}${box("c", "cent", "00", null, "s")}
   </div>`;
 }
 
