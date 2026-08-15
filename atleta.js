@@ -187,6 +187,17 @@ function valTendina(id) {
   return s.value === "__altro__" ? ((document.getElementById(id + "b") || {}).value || "").trim() : s.value;
 }
 
+// campi tempo separati per il mezzofondo (stile "data"): ore : min : sec . cent
+function campiTempoMezzo(pfx, vals) {
+  vals = vals || {};
+  const box = (id, lab, ph, mx) => `<div style="flex:1;min-width:0"><span class="et" style="display:block;margin-bottom:3px;text-align:center">${lab}</span>
+    <input id="${pfx}${id}" inputmode="numeric" maxlength="${mx}" placeholder="${ph}" value="${vals[id] != null ? vals[id] : ""}" style="text-align:center;padding-left:4px;padding-right:4px"></div>`;
+  const sep = ch => `<span style="padding-bottom:9px;font-weight:700;color:var(--txt2)">${ch}</span>`;
+  return `<div style="display:flex;align-items:flex-end;gap:5px;margin-top:6px">
+    ${box("o", "ore", "0", 2)}${sep(":")}${box("m", "min", "00", 2)}${sep(":")}${box("s", "sec", "00", 2)}${sep(".")}${box("c", "cent", "00", 2)}
+  </div>`;
+}
+
 // Foglio per aggiungere una voce alla scheda (solo allenatore).
 function apriAggiungi(tipo, atletaId) {
   let campi, tit;
@@ -195,11 +206,13 @@ function apriAggiungi(tipo, atletaId) {
     const at = DEMO.atleti.find(x => x.id === atletaId);
     const disc = at ? at.disciplina : "velocita";
     const L = labelPB(disc);
+    const isTempo = (disc === "mezzofondo" || disc === "fondo");
+    const campoVal = isTempo ? campiTempoMezzo("f2") : `<input id="f2" inputmode="${L.mode}" placeholder="${L.ph}" style="margin-top:6px">`;
     campi = `<label class="lab">${L.ev}</label>${tendina("f1", eventiPB(disc))}
-      <label class="lab" style="display:block;margin-top:12px">${L.val}</label><input id="f2" inputmode="${L.mode}" placeholder="${L.ph}" style="margin-top:6px">
+      <label class="lab" style="display:block;margin-top:12px">${isTempo ? "Tempo (ore : min : sec . cent)" : L.val}</label>${campoVal}
       <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f3" type="date" style="margin-top:6px">
-      <div class="griglia2" style="margin-top:12px"><div><label class="lab">${L.val2}</label><input id="f4" inputmode="${L.mode}" style="margin-top:6px"></div>
-        <div><label class="lab">${L.ob}</label><input id="f5" inputmode="${L.mode}" style="margin-top:6px"></div></div>`;
+      <div class="griglia2" style="margin-top:12px"><div><label class="lab">${L.val2}</label><input id="f4" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:38" : ""}" style="margin-top:6px"></div>
+        <div><label class="lab">${L.ob}</label><input id="f5" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:35" : ""}" style="margin-top:6px"></div></div>`;
   } else if (tipo === "massimale") {
     tit = "Nuovo massimale";
     campi = `<label class="lab">Esercizio</label>${tendina("f1", ESERCIZI_MASSIMALI)}
@@ -236,10 +249,19 @@ async function salvaVoce(tipo, atletaId) {
   const n1 = valTendina("f1");
   let ok = false;
   if (tipo === "pb") {
-    if (!n1 || !v("f2")) { alert("Evento e misura sono obbligatori."); return; }
     const at = DEMO.atleti.find(x => x.id === atletaId);
-    const disc = at ? at.disciplina : "velocita";   // parsing per disciplina: tempi (min:sec) o distanze (m)
-    ok = await creaPB(atletaId, { distanza: n1, tempo: parseMisura(disc, v("f2")), data: v("f3") || null, stagione: parseMisura(disc, v("f4")), obiettivo: parseMisura(disc, v("f5")), origine: "gara" });
+    const disc = at ? at.disciplina : "velocita";   // parsing per disciplina: tempi (ore/min/sec/cent) o distanze (m)
+    let tempoNum;
+    if (disc === "mezzofondo" || disc === "fondo") {
+      const o = Number(v("f2o")) || 0, m = Number(v("f2m")) || 0, sec = Number(v("f2s")) || 0, cc = Number(v("f2c")) || 0;
+      if (!o && !m && !sec) { alert("Inserisci il tempo (almeno minuti e secondi)."); return; }
+      tempoNum = o * 3600 + m * 60 + sec + cc / 100;
+    } else {
+      if (!v("f2")) { alert("Inserisci la misura."); return; }
+      tempoNum = parseMisura(disc, v("f2"));
+    }
+    if (!n1) { alert("Scegli l'evento."); return; }
+    ok = await creaPB(atletaId, { distanza: n1, tempo: tempoNum, data: v("f3") || null, stagione: parseMisura(disc, v("f4")), obiettivo: parseMisura(disc, v("f5")), origine: "gara" });
   } else if (tipo === "massimale") {
     if (!n1 || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
     ok = await creaMassimale(atletaId, { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
