@@ -55,12 +55,15 @@ function ritmiTarget(atleta, opts) {
   const p800 = P("800 m"), p1500 = P("1500 m"), p3000 = P("3000 m"), p5000 = P("5000 m"), p10000 = P("10000 m");
   const or = (...xs) => { for (const x of xs) { if (x != null && !isNaN(x)) return x; } return null; };
   const add = (b, d) => b == null ? null : b + d;
-  const lt2 = (opts.useLT2 && opts.vLT2) ? 3600 / opts.vLT2 : null;              // vLT2 km/h → sec/km
+  // soglia REALE dal Test lattato (vLT2 OBLA, km/h → sec/km): esplicita (opts) o dal test salvato dell'atleta
+  let lt2 = (opts.useLT2 && opts.vLT2) ? 3600 / opts.vLT2 : null;
+  if (lt2 == null && opts.useLT2 !== false) { const vt = (typeof vLT2diAtleta === "function") ? vLT2diAtleta(atleta) : null; if (vt) lt2 = 3600 / vt; }
+  const rifSoglia = lt2 != null ? "Test lattato (vLT2)" : "10000 +30 / test";
   const M = [
     ["Rigenerazione", or(add(p5000, off.lungo + 20)), "5000 +120", "Z1 <1.5"],
     ["Lungo", or(add(p5000, off.lungo)), "5000 +100", "Z1-2 1-2"],
     ["Medio / maratona", or(add(p10000, off.medio), add(p5000, 55)), "10000 +48", "Z2 2-2.5"],
-    ["Soglia LT2 (tempo)", or(lt2, add(p10000, off.soglia), add(p5000, 33)), "10000 +30 / test", "Z3 2.5-4"],
+    ["Soglia LT2 (tempo)", or(lt2, add(p10000, off.soglia), add(p5000, 33)), rifSoglia, "Z3 2.5-4"],
     ["Sub-soglia", or(add(p10000, off.subsoglia), add(p5000, 43)), "10000 +40", "Z3 2-2.5"],
     ["VO2max", or(p3000, add(p5000, off.vo2)), "3000 (~vVO2max)", "Z4-5 3.5-8"],
     ["Ritmo gara 1500", or(p1500), "PB 1500", "gara"],
@@ -340,4 +343,237 @@ function vistaPistaMezzo(s) {
     <b style="font-size:17px">${volumePistaMezzo(s).toLocaleString("it-IT")} m</b>
   </div>
   ${bloccoChiusura(s)}`;
+}
+
+// ============================================================================
+// TEST DEL LATTATO — protocollo a step → LT1/LT2/OBLA + Dmax + prospetto + report.
+// Fedele al foglio Excel "Test lattato": passo (min:sec/km) → velocità km/h,
+// interpolazione lineare sulla curva, metodo Dmax; il vLT2 alimenta i Ritmi target.
+// ============================================================================
+function _mzVelKmh(min, sec) { const p = (Number(min) || 0) + (Number(sec) || 0) / 60; return p > 0 ? 60 / p : null; }
+
+// test corrente di un atleta (in DEMO.lattato); crea la struttura se manca
+function _latTest(aid) {
+  DEMO.lattato = DEMO.lattato || {};
+  if (!DEMO.lattato[aid]) DEMO.lattato[aid] = { distStep: 1200, peso: "", lt2Target: 4.0, usaLT2: true, steps: [] };
+  const t = DEMO.lattato[aid];
+  if (!t.steps) t.steps = [];
+  while (t.steps.length < 5) t.steps.push({ min: "", sec: "", fc: "", lat: "", rpe: "" });
+  if (t.lt2Target == null) t.lt2Target = 4.0;
+  if (t.usaLT2 == null) t.usaLT2 = true;
+  return t;
+}
+function _latSave() { if (typeof salvaCustom === "function") salvaCustom(); }
+// vLT2 (OBLA, km/h) dal test salvato dell'atleta, se valido e attivo — usata dai Ritmi target
+function vLT2diAtleta(atleta) {
+  if (!atleta || !atleta.id || !DEMO.lattato || !DEMO.lattato[atleta.id]) return null;
+  const t = DEMO.lattato[atleta.id];
+  if (t.usaLT2 === false) return null;
+  const R = analisiLattato(t, atleta);
+  return (R.vLT2 != null && !isNaN(R.vLT2)) ? R.vLT2 : null;
+}
+
+// motore: legge il test → baseline, LT1/LT2, Dmax, ritmi, FC, prospetto
+function analisiLattato(test, atleta) {
+  test = test || {};
+  const lt2T = Number(test.lt2Target) || 4.0;
+  const pts = [];
+  (test.steps || []).forEach(s => {
+    const v = _mzVelKmh(s.min, s.sec);
+    const lat = (s.lat === "" || s.lat == null) ? null : Number(String(s.lat).replace(",", "."));
+    if (v != null && lat != null && !isNaN(lat)) pts.push({ v, lat, fc: (s.fc === "" || s.fc == null) ? null : Number(s.fc) });
+  });
+  const n = pts.length, R = { n, pts, lt2Target: lt2T };
+  if (!n) return R;
+  const V = pts.map(p => p.v), L = pts.map(p => p.lat), H = pts.map(p => p.fc);
+  R.baseline = L[0]; R.lt1Target = R.baseline + 0.5; R.lt2Alt = R.baseline + 1.5;
+  // Dmax: punto più lontano dalla retta primo→ultimo (metodo più affidabile per LT2)
+  if (n >= 3) {
+    const V0 = V[0], L0 = L[0], Vn = V[n - 1], Ln = L[n - 1];
+    const den = Math.sqrt((Ln - L0) * (Ln - L0) + (Vn - V0) * (Vn - V0));
+    let maxD = -1, imax = 0;
+    for (let i = 0; i < n; i++) { const d = den > 0 ? Math.abs((Ln - L0) * (V[i] - V0) - (Vn - V0) * (L[i] - L0)) / den : 0; if (d > maxD) { maxD = d; imax = i; } }
+    R.vLT2dmax = V[imax]; R.latDmax = L[imax]; R.ritmoDmax = _mzMMSS(3600 / R.vLT2dmax);
+    R.retta = { x0: V0, y0: L0, x1: Vn, y1: Ln };
+  }
+  // interpolazione lineare: valore in ARR quando il lattato = tgt (curva crescente)
+  const interp = (tgt, ARR) => {
+    if (tgt < L[0]) return null;
+    let idx = -1; for (let i = 0; i < n; i++) if (L[i] <= tgt) idx = i;
+    if (idx < 0 || idx >= n - 1) return null;
+    const llo = L[idx], lhi = L[idx + 1]; if (lhi === llo) return ARR[idx];
+    const ylo = ARR[idx], yhi = ARR[idx + 1]; if (ylo == null || yhi == null) return null;
+    return ylo + (tgt - llo) / (lhi - llo) * (yhi - ylo);
+  };
+  R.vLT1 = interp(R.lt1Target, V); R.vLT2 = interp(lt2T, V);
+  R.fcLT1 = interp(R.lt1Target, H); R.fcLT2 = interp(lt2T, H);
+  R.ritmoLT1 = R.vLT1 != null ? _mzMMSS(3600 / R.vLT1) : null;
+  R.ritmoLT2 = R.vLT2 != null ? _mzMMSS(3600 / R.vLT2) : null;
+  // prospetto: confronto con la velocità di gara 5000 (dal PB, foglio Atleta)
+  const pb5 = atleta ? _mzPbSec(atleta, "5000 m") : null;
+  R.vGara5000 = pb5 ? 18000 / pb5 : null;
+  R.sogliaGara = (R.vLT2 != null && R.vGara5000) ? R.vLT2 / R.vGara5000 : null;
+  R.ampiezza = (R.vLT1 != null && R.vLT2 != null) ? R.vLT1 / R.vLT2 : null;
+  R.warn = R.baseline > 2.5 ? "veloce" : (n < 5 ? "pochi" : "ok");
+  return R;
+}
+
+// testo coaching per disciplina (porta le formule del foglio Excel)
+function _latCoach(disc, R) {
+  if (R.vLT2 == null) return "(fai il test: inserisci gli step con passo e lattato)";
+  const sg = R.sogliaGara, amp = R.ampiezza, rit = R.ritmoLT2 || "—";
+  const stretta = amp != null && amp < 0.8;
+  if (disc === "800") {
+    let t = "Il test misura la tua BASE AEROBICA (le soglie). ";
+    t += sg == null ? "(inserisci il PB 5000 per il confronto con la gara). " : (sg < 0.9 ? "Ora è un po' bassa. " : "Adeguata come supporto. ");
+    t += "COSA FARE: " + (sg == null ? "costruisci volume facile (Z1) + 1-2 soglie a settimana." : (sg < 0.9 ? "4-6 settimane a 80-90% facile (Z1) + 1-2 soglie/sett (es. 5-6×1000 o 20-30′ di medio-soglia), pochi intervalli duri, poi rifai il test." : "mantieni 1-2 soglie/sett + volume."));
+    return t + " ATTENZIONE 800/1500: il test NON misura la parte VELOCE/anaerobica (la tua arma di gara): aggiungi VELOCITÀ (allunghi 60-120 m) e LATTACIDO (200-600 m a ritmo gara, recuperi ampi), e fai la Velocità Critica per misurare il D′.";
+  }
+  if (disc === "35") {
+    let t = "La SOGLIA (LT2 = " + rit + "/km) è il tuo ritmo-chiave. ";
+    if (sg != null) t += sg < 0.86 ? "È BASSA. COSA FARE: 4-6 sett con 2 soglie/sett (5-6×1000 o 4×2000) + tanto facile + 1 lungo; taglia gli intervalli VO2max duri, poi rifai il test." : (sg > 0.93 ? "È ALTA. COSA FARE: soglia ok → aggiungi VO2max (5×1000 a ritmo 3-5k) + ritmo gara." : "NELLA NORMA. COSA FARE: 1-2 soglie/sett + 1 VO2max (5×1000) + lungo, alza gradualmente.");
+    return t + (stretta ? " In più la base è stretta: aumenta il volume lento (Z1)." : "");
+  }
+  let t = "SOGLIA + VOLUME sono tutto per te. Soglia LT2 = " + rit + "/km. ";
+  if (sg != null) t += sg < 0.86 ? "COSA FARE: soglia da alzare → 2 sedute soglia/sub-soglia/sett (6-8×1000 o 5-6×2000) + molto facile + lungo 90-120′, poco VO2max." : (sg > 0.93 ? "COSA FARE: ottima → mantienila e aggiungi VO2max + ritmo gara." : "COSA FARE: ok → mantieni le soglie e AUMENTA il volume facile e il lungo.");
+  return t + (stretta ? " Aumenta ancora il volume lento (base)." : "");
+}
+
+// grafico curva del lattato (SVG): punti + curva + retta Dmax + marker LT1/LT2
+function _latChart(R) {
+  if (!R.n) return `<p class="et">Il grafico compare appena inserisci almeno 2 step con passo e lattato.</p>`;
+  const W = 320, Hh = 210, mL = 32, mR = 12, mT = 12, mB = 28;
+  const V = R.pts.map(p => p.v), L = R.pts.map(p => p.lat);
+  let xmin = Math.min(...V), xmax = Math.max(...V);
+  let ymax = Math.max(4.5, Math.max(...L) + 0.6);
+  if (xmax - xmin < 0.5) { xmin -= 0.5; xmax += 0.5; }
+  const dx = (xmax - xmin) || 1;
+  const px = v => mL + (v - xmin) / dx * (W - mL - mR);
+  const py = l => Hh - mB - (l / ymax) * (Hh - mT - mB);
+  const gline = "stroke:var(--line);stroke-width:1";
+  let g = "";
+  // griglia + assi Y (lattato)
+  for (let y = 0; y <= ymax; y += 2) {
+    g += `<line x1="${mL}" y1="${py(y).toFixed(1)}" x2="${W - mR}" y2="${py(y).toFixed(1)}" style="${gline}" opacity="0.5"/>`;
+    g += `<text x="${mL - 5}" y="${(py(y) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--txt3)">${y}</text>`;
+  }
+  // linea soglia LT2 target (orizzontale tratteggiata)
+  g += `<line x1="${mL}" y1="${py(R.lt2Target).toFixed(1)}" x2="${W - mR}" y2="${py(R.lt2Target).toFixed(1)}" style="stroke:var(--rosso,#e0575b);stroke-width:1;stroke-dasharray:4 3"/>`;
+  // retta Dmax (primo→ultimo)
+  if (R.retta) g += `<line x1="${px(R.retta.x0).toFixed(1)}" y1="${py(R.retta.y0).toFixed(1)}" x2="${px(R.retta.x1).toFixed(1)}" y2="${py(R.retta.y1).toFixed(1)}" style="stroke:var(--txt3);stroke-width:1;stroke-dasharray:2 2" opacity="0.7"/>`;
+  // curva (polilinea sui punti)
+  const poly = R.pts.map(p => `${px(p.v).toFixed(1)},${py(p.lat).toFixed(1)}`).join(" ");
+  g += `<polyline points="${poly}" fill="none" style="stroke:var(--blu,#3b82f6);stroke-width:2"/>`;
+  // punti
+  R.pts.forEach(p => { g += `<circle cx="${px(p.v).toFixed(1)}" cy="${py(p.lat).toFixed(1)}" r="3" fill="var(--blu,#3b82f6)"/>`; });
+  // marker LT2 e LT1 (sulla curva, al lattato target)
+  if (R.vLT2 != null) { const x = px(R.vLT2), y = py(R.lt2Target); g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="none" style="stroke:var(--rosso,#e0575b);stroke-width:2"/><text x="${(x).toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--rosso,#e0575b)">LT2</text>`; }
+  if (R.vLT1 != null) { const x = px(R.vLT1), y = py(R.lt1Target); g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="none" style="stroke:var(--verde,#3fb56b);stroke-width:2"/><text x="${(x).toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--verde,#3fb56b)">LT1</text>`; }
+  // assi
+  g += `<line x1="${mL}" y1="${mT}" x2="${mL}" y2="${Hh - mB}" style="${gline}"/>`;
+  g += `<line x1="${mL}" y1="${Hh - mB}" x2="${W - mR}" y2="${Hh - mB}" style="${gline}"/>`;
+  for (let i = 0; i <= 4; i++) { const v = xmin + dx * i / 4; g += `<text x="${px(v).toFixed(1)}" y="${Hh - mB + 14}" text-anchor="middle" font-size="9" fill="var(--txt3)">${v.toFixed(1)}</text>`; }
+  g += `<text x="${(W / 2).toFixed(0)}" y="${Hh - 2}" text-anchor="middle" font-size="9" fill="var(--txt3)">velocità (km/h)</text>`;
+  return `<div class="p-scroll"><svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:420px" role="img" aria-label="Curva del lattato">${g}</svg></div>`;
+}
+
+// ---------- vista: Test lattato (Analisi) ----------
+let latState = { atletaRif: "" };
+function setLatAtleta(id) { latState.atletaRif = id; disegna(); }
+function setLatCampo(campo, v) { const t = _latTest(latState.atletaRif); t[campo] = v; _latSave(); disegna(); }
+function setLatCampoVal(campo, v) { const t = _latTest(latState.atletaRif); t[campo] = v; _latSave(); }
+function toggleLatUsa() { const t = _latTest(latState.atletaRif); t.usaLT2 = !t.usaLT2; _latSave(); disegna(); }
+function setLatStepVal(i, campo, v) { const t = _latTest(latState.atletaRif); t.steps[i][campo] = v; _latSave(); }
+function latAddStep() { const t = _latTest(latState.atletaRif); t.steps.push({ min: "", sec: "", fc: "", lat: "", rpe: "" }); _latSave(); disegna(); }
+function latDelStep(i) { const t = _latTest(latState.atletaRif); if (t.steps.length > 1) t.steps.splice(i, 1); _latSave(); disegna(); }
+
+function vistaTestLattato() {
+  const a = latState.atletaRif ? DEMO.atleti.find(x => x.id === latState.atletaRif) : null;
+  const selAtleta = `<div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setLatAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(x => `<option value="${x.id}" ${latState.atletaRif === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</select></div>`;
+  const intro = `<div class="card"><h3>Test del lattato</h3>
+    <p class="et" style="margin-top:2px">Protocollo a step: passo (min:sec /km) crescente, con FC, lattato e RPE a ogni step. <b>Parti lento</b> (1º step ~1.5 mmol). L'app trova LT1, LT2/OBLA e il ritmo di soglia; il <b>vLT2</b> può alimentare i Ritmi target.</p></div>`;
+  if (!a) return intro + selAtleta + `<div class="card"><p class="et">Scegli un atleta per inserire il suo test.</p></div>`;
+
+  const t = _latTest(a.id);
+  const R = analisiLattato(t, a);
+  const num = (v, dec) => (v == null || isNaN(v)) ? "—" : (dec != null ? v.toFixed(dec) : Math.round(v));
+
+  // setup
+  const setup = `<div class="card">
+    <div class="griglia2">
+      <div><label class="lab">Distanza step (m)</label><input inputmode="numeric" value="${t.distStep || ""}" placeholder="1200" oninput="setLatCampoVal('distStep',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      <div><label class="lab">Peso (kg)</label><input inputmode="decimal" value="${t.peso || ""}" placeholder="kg" oninput="setLatCampoVal('peso',this.value)" style="margin-top:6px"></div>
+    </div>
+    <div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Soglia LT2 (OBLA, mmol/L)</label><input inputmode="decimal" value="${t.lt2Target}" oninput="setLatCampoVal('lt2Target',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      <div><label class="lab" style="display:block">Usa vLT2 nei Ritmi</label>
+        <button class="btn ${t.usaLT2 ? "btn-1" : "btn-2"}" style="width:auto;padding:9px 14px;margin-top:6px" onclick="toggleLatUsa()">${t.usaLT2 ? "✓ Attivo" : "Disattivato"}</button></div>
+    </div>
+    <p class="et" style="margin-top:8px">Incremento consigliato ~10″/km per step. Con «Usa vLT2» attivo, la <b>Soglia</b> nei Ritmi target usa il valore reale del test invece della stima dai PB.</p>
+  </div>`;
+
+  // tabella step
+  const righeStep = t.steps.map((s, i) => {
+    const v = _mzVelKmh(s.min, s.sec);
+    return `<tr>
+      <td style="text-align:center;color:var(--txt3)">${i + 1}</td>
+      <td><input inputmode="numeric" value="${s.min || ""}" placeholder="min" oninput="setLatStepVal(${i},'min',this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input inputmode="numeric" value="${s.sec || ""}" placeholder="sec" oninput="setLatStepVal(${i},'sec',this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td class="pauto">${v != null ? v.toFixed(1) : "—"}</td>
+      <td><input inputmode="numeric" value="${s.fc || ""}" placeholder="bpm" oninput="setLatStepVal(${i},'fc',this.value)" onchange="disegna()" style="min-width:54px"></td>
+      <td><input inputmode="decimal" value="${s.lat || ""}" placeholder="mmol" oninput="setLatStepVal(${i},'lat',this.value)" onchange="disegna()" style="min-width:56px"></td>
+      <td><input inputmode="numeric" value="${s.rpe || ""}" placeholder="1-10" oninput="setLatStepVal(${i},'rpe',this.value)" style="min-width:48px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="latDelStep(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`;
+  }).join("");
+  const tabSteps = `<div class="card">
+    <p class="et" style="margin-bottom:6px">Step del test — passo /km, FC, lattato, RPE (la velocità km/h è automatica)</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>#</th><th>min</th><th>sec</th><th>km/h</th><th>FC</th><th>Lattato</th><th>RPE</th><th></th></tr></thead>
+      <tbody>${righeStep}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="latAddStep()">＋ step</button>
+  </div>`;
+
+  // risultati
+  const badge = (lbl, cls) => `<span class="pill ${cls}">${lbl}</span>`;
+  const sgPct = R.sogliaGara != null ? Math.round(R.sogliaGara * 100) + "%" : "—";
+  const sgLab = R.sogliaGara == null ? "" : (R.sogliaGara < 0.86 ? badge("bassa", "p-giallo") : (R.sogliaGara > 0.93 ? badge("alta", "p-verde") : badge("norma", "p-verde")));
+  const ampPct = R.ampiezza != null ? Math.round(R.ampiezza * 100) + "%" : "—";
+  const ampLab = R.ampiezza == null ? "" : (R.ampiezza < 0.8 ? badge("stretta", "p-giallo") : badge("buona", "p-verde"));
+  const warnTxt = R.n === 0 ? "" : (R.warn === "veloce"
+    ? `<div class="card" style="border-color:rgba(240,168,60,.5)"><p class="et" style="margin:0"><b>⚠ Partenza troppo veloce</b>: 1º step già a ${num(R.baseline, 1)} mmol (dovrebbe essere ~1.5). La soglia aerobica LT1 non è ben catturata: rifai partendo più lento. I ritmi sono stimati con cautela.</p></div>`
+    : (R.warn === "pochi"
+      ? `<div class="card" style="border-color:rgba(240,168,60,.5)"><p class="et" style="margin:0"><b>Pochi step (&lt;5)</b>: aggiungi punti per una curva più affidabile.</p></div>`
+      : `<div class="card" style="border-color:rgba(63,181,107,.4)"><p class="et" style="margin:0">✓ <b>Test ben impostato</b> (primo step basso e punti sufficienti).</p></div>`));
+
+  const rigaRis = (lbl, val, extra) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${lbl}</span><span><b>${val}</b>${extra ? ` <span class="et" style="margin:0">${extra}</span>` : ""}</span></div>`;
+  const risultati = R.n === 0 ? "" : `<div class="card">
+    <p class="et" style="margin-bottom:6px">Risultati (interpolazione sulla curva)</p>
+    ${rigaRis("Baseline (step 1)", num(R.baseline, 1) + " mmol")}
+    ${rigaRis("LT1 — ritmo /km", R.ritmoLT1 || "—", R.vLT1 != null ? num(R.vLT1, 1) + " km/h · FC " + num(R.fcLT1) : "")}
+    ${rigaRis("LT2 (OBLA " + R.lt2Target + ") — ritmo /km", R.ritmoLT2 || "—", R.vLT2 != null ? num(R.vLT2, 1) + " km/h · FC " + num(R.fcLT2) : "")}
+    ${R.vLT2dmax != null ? rigaRis("LT2 (Dmax) — ritmo /km", R.ritmoDmax, num(R.vLT2dmax, 1) + " km/h") : ""}
+    <div style="margin-top:12px">${_latChart(R)}</div>
+    <p class="et" style="margin-top:8px">OBLA 4.0 = riferimento; <b>Dmax</b> = metodo grafico più affidabile per la soglia. La riga tratteggiata rossa è la soglia LT2 scelta.</p>
+  </div>`;
+
+  // prospetto
+  const prospetto = R.n === 0 ? "" : `<div class="card">
+    <p class="et" style="margin-bottom:6px">Prospetto — lettura del test</p>
+    <p class="et" style="margin:0 0 10px">Il lattato sale quando corri forte. <b>LT1</b> = fin qui è facile (corsa lenta, si bruciano grassi). <b>LT2</b> = qui vai in debito e la fatica arriva presto: è la <b>soglia</b>, il ritmo più veloce che tieni ~1 ora. Il test misura il <b>motore aerobico</b>, non la parte veloce/anaerobica.</p>
+    ${rigaRis("Velocità gara 5000 (dal PB)", R.vGara5000 != null ? num(R.vGara5000, 1) + " km/h" : "—")}
+    ${rigaRis("Soglia LT2 / velocità gara", sgPct, sgLab)}
+    ${rigaRis("Ampiezza aerobica vLT1/vLT2", ampPct, ampLab)}
+  </div>
+  <div class="card">
+    <p class="et" style="margin-bottom:8px">Per la tua gara — cosa va e cosa lavorare</p>
+    ${[["800 / 1500", "800"], ["3000 / 5000", "35"], ["5000 / 10000", "10"]].map(([lbl, k]) =>
+      `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><p style="font-weight:600;font-size:13px;margin:0 0 3px">${lbl}</p><p class="et" style="margin:0">${_latCoach(k, R)}</p></div>`).join("")}
+    <p class="et" style="margin-top:10px"><b>Regola d'oro:</b> la leva più grande resta il VOLUME AEROBICO facile. Il test serve a MISURARE i progressi e affinare i ritmi, non a sostituire l'occhio del coach.</p>
+  </div>`;
+
+  return intro + selAtleta + setup + tabSteps + warnTxt + risultati + prospetto;
 }
