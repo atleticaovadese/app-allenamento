@@ -36,12 +36,41 @@ function _mzToSec(x) {
   const n = Number(x); return isNaN(n) ? null : n;
 }
 function _mzMMSS(sec) { if (sec == null || isNaN(sec)) return "—"; sec = Math.round(sec); const m = Math.floor(sec / 60); return m + ":" + String(sec % 60).padStart(2, "0"); }
-// PB in secondi dell'atleta per una distanza (il migliore)
+// PB in secondi dell'atleta per una distanza-ancora esatta (il migliore)
 function _mzPbSec(atleta, dist) {
   if (!atleta || !atleta.scheda) return null;
-  const vals = (atleta.scheda.pb || []).filter(r => r[0] === dist && r[1] != null && r[1] !== "")
+  const vals = (atleta.scheda.pb || []).filter(r => r && r[0] === dist && r[1] != null && r[1] !== "")
     .map(r => _mzToSec(r[1])).filter(v => v != null && v > 0);
   return vals.length ? Math.min(...vals) : null;
+}
+// km di TUTTE le distanze di mezzofondo (per convertire un PB qualsiasi in un ritmo-ancora)
+const MZ_KM_ALL = {
+  "600 m": 0.6, "800 m": 0.8, "1000 m": 1.0, "1200 m": 1.2, "1500 m": 1.5, "1 miglio": 1.609, "2000 m": 2.0,
+  "2000 siepi": 2.0, "3000 m": 3.0, "3000 siepi": 3.0, "5000 m": 5.0, "10000 m": 10.0, "10 km strada": 10.0,
+  "Mezza maratona": 21.0975, "Maratona": 42.195
+};
+// tutti i PB di mezzofondo dell'atleta (migliore per distanza) → [{dist, km, sec}]
+function _mzAllPb(atleta) {
+  if (!atleta || !atleta.scheda) return [];
+  const best = {};
+  (atleta.scheda.pb || []).forEach(r => {
+    if (!r) return; const d = r[0], km = MZ_KM_ALL[d]; if (km == null) return;
+    const sec = _mzToSec(r[1]); if (sec == null || sec <= 0) return;
+    if (best[d] == null || sec < best[d]) best[d] = sec;
+  });
+  return Object.keys(best).map(d => ({ dist: d, km: MZ_KM_ALL[d], sec: best[d] }));
+}
+// PB (sec) all'ancora: manuale → esatto → STIMA (Riegel T2=T1·(D2/D1)^1.06) dal PB più vicino. → {sec, stimato, da} o null
+function _mzAnchorSec(atleta, dist, manualPb) {
+  if (manualPb && manualPb[dist] != null && manualPb[dist] !== "") { const s = _mzToSec(manualPb[dist]); if (s != null && s > 0) return { sec: s, stimato: false }; }
+  const exact = _mzPbSec(atleta, dist);
+  if (exact != null) return { sec: exact, stimato: false };
+  const all = _mzAllPb(atleta);
+  if (!all.length) return null;
+  const tKm = MZ_KM[dist];
+  let best = null, gap = Infinity;
+  all.forEach(p => { const g = Math.abs(Math.log(p.km) - Math.log(tKm)); if (g < gap) { gap = g; best = p; } });
+  return { sec: best.sec * Math.pow(tKm / best.km, 1.06), stimato: true, da: best.dist };
 }
 
 // motore ritmi: restituisce [{mezzo, secKm, mmss, rif, zona}] per l'atleta (o coi PB manuali in opts.pb)
@@ -49,8 +78,8 @@ function ritmiTarget(atleta, opts) {
   opts = opts || {};
   const ob = Number(opts.obiettivo) || 0;
   const off = Object.assign({}, MZ_OFFSET_DEF, opts.offsets || {});
-  const pbSec = d => (opts.pb && opts.pb[d] != null && opts.pb[d] !== "") ? _mzToSec(opts.pb[d]) : _mzPbSec(atleta, d);
-  const km = d => { const s = pbSec(d); return s == null ? null : s / MZ_KM[d]; };
+  // PB all'ancora: manuale → esatto → stima Riegel da un altro PB (così basta un PB qualsiasi per avere i ritmi)
+  const km = d => { const a = _mzAnchorSec(atleta, d, opts.pb); return a == null ? null : a.sec / MZ_KM[d]; };
   const P = d => { const k = km(d); return k == null ? null : k - ob; };          // /km sec, con obiettivo
   const p800 = P("800 m"), p1500 = P("1500 m"), p3000 = P("3000 m"), p5000 = P("5000 m"), p10000 = P("10000 m");
   const or = (...xs) => { for (const x of xs) { if (x != null && !isNaN(x)) return x; } return null; };
@@ -141,6 +170,22 @@ function vistaRitmiMezzofondo() {
   const offInputs = MZ_OFFSET_LABEL.map(([k, l]) => `<div><label class="lab">${l}</label>
     <input inputmode="numeric" value="${off[k]}" oninput="setMzOffVal('${k}',this.value)" onchange="disegna()" style="margin-top:6px"></div>`).join("");
 
+  // diagnostica PB: cosa trova, cosa manca, se sta stimando (così non "non esce niente" senza spiegazione)
+  const manualiSet = Object.keys(mzState.pb).filter(k => mzState.pb[k]);
+  const allPb = a ? _mzAllPb(a) : [];
+  const anchorsEsatti = a ? MZ_DIST.filter(d => _mzPbSec(a, d) != null) : [];
+  const altri = allPb.filter(p => MZ_DIST.indexOf(p.dist) < 0);
+  let diag = "";
+  if (a) {
+    if (allPb.length === 0 && manualiSet.length === 0) {
+      diag = `<p class="et" style="margin-top:10px;padding:9px 11px;background:rgba(240,168,60,.12);border-radius:8px"><b>⚠ ${a.nome} non ha PB di mezzofondo.</b> Inseriscine almeno uno in <b>Atleti → PB</b> (800/1500/3000/5000/10000, oppure 1000/2000/5 km…): i ritmi si calcolano da lì.</p>`;
+    } else if (anchorsEsatti.length === 0 && altri.length) {
+      diag = `<p class="et" style="margin-top:10px;padding:9px 11px;background:rgba(59,130,246,.10);border-radius:8px">Ritmi <b>stimati</b> dai PB disponibili (${altri.map(p => p.dist + " " + _mzMMSS(p.sec)).join(", ")}) con la formula di Riegel. Per più precisione aggiungi un PB su <b>1500/3000/5000</b>.</p>`;
+    } else if (anchorsEsatti.length) {
+      diag = `<p class="et" style="margin-top:10px;color:var(--verde)">✓ PB usati: ${anchorsEsatti.map(d => d + " " + _mzMMSS(_mzPbSec(a, d))).join(", ")}${altri.length ? ` · altri: ${altri.map(p => p.dist).join(", ")}` : ""}.</p>`;
+    }
+  }
+
   // soglia dal Test lattato (se l'atleta ha un test valido): mostra e permette di attivarla/disattivarla
   const Rlat = a ? analisiLattato((DEMO.lattato && DEMO.lattato[a.id]) || {}, a) : null;
   const hasTest = Rlat && Rlat.vLT2 != null;
@@ -160,6 +205,7 @@ function vistaRitmiMezzofondo() {
     ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}
     <p class="et" style="margin:10px 0 4px">Scegli l'atleta: prende i suoi PB (modificabili qui sotto). Senza atleta puoi metterli a mano.</p>
     <div class="griglia2">${pbInputs}</div>
+    ${diag}
     <div style="margin-top:12px"><label class="lab">Obiettivo: ritmi più veloci di (sec/km)</label>
       <input inputmode="numeric" value="${mzState.obiettivo || 0}" oninput="setMzObiVal(this.value)" onchange="disegna()" placeholder="0" style="margin-top:6px">
       <p class="et" style="margin-top:6px">0 = ritmi sul livello attuale (PB). Es. 3 = programma 3″/km più veloce (progressione).</p></div>
