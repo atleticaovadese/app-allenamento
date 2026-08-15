@@ -71,6 +71,7 @@ function volumePista(s) { return (s.elementi || []).reduce((t, e) => t + e.ripet
 
 // ---------- PISTA ----------
 function vistaPista(s) {
+  if (s.mezzo && typeof vistaPistaMezzo === "function") return vistaPistaMezzo(s);   // seduta mezzofondo/fondo
   return `${bloccoRiscaldamento(s)}
   ${s.elementi.map(e => {
     const caselle = e.tempi.map((t, i) => {

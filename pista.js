@@ -114,7 +114,10 @@ function pistaCopiaSettimana() {
   const src = g.settimane[0];
   for (let s = 1; s < n; s++) {
     const righe = (src.righe || []).map(r => ({ ...r }));
-    if (isScaricoIdx(m, s)) righe.forEach(r => { if (r.n) r.n = Math.max(1, Math.round(Number(r.n) / 2)); });
+    if (isScaricoIdx(m, s)) righe.forEach(r => {
+      if (r.n) r.n = Math.max(1, Math.round(Number(r.n) / 2));
+      if (r.min) r.min = String(Math.max(1, Math.round(Number(r.min) / 2)));   // corsa continua (mezzofondo)
+    });
     g.settimane[s].righe = righe;
     g.settimane[s].nota = src.nota || "";
   }
@@ -144,7 +147,10 @@ function applicaProgrPista(s) {
   // il valore modificato si calcola dalla settimana precedente; l'ALTRA dimensione (e le modifiche già fatte) restano
   cur.righe = prev.righe.map((pr, i) => {
     const nr = { ...((!curVuota && base[i]) ? base[i] : pr) };
-    if (tipo === "volume") { const n = Number(pr.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f))); }
+    if (tipo === "volume") {
+      const n = Number(pr.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f)));
+      const mn = Number(pr.min); if (mn > 0) nr.min = String(Math.max(1, Math.round(mn * f)));   // corsa continua (mezzofondo)
+    }
     else { const p = Number(pr.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 85 + 2.5 = 87.5
     return nr;
   });
@@ -155,8 +161,13 @@ function applicaProgrPista(s) {
 function applicaScaricoPista(s) {
   if (s < 1) return;
   const g = giornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
-  if (!prev || !(prev.righe || []).some(r => r.n)) { alert("Compila prima la settimana precedente."); return; }
-  cur.righe = prev.righe.map(r => { const nr = { ...r }; const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n / 2))); return nr; });
+  if (!prev || !(prev.righe || []).some(r => r.n || r.min)) { alert("Compila prima la settimana precedente."); return; }
+  cur.righe = prev.righe.map(r => {
+    const nr = { ...r };
+    const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n / 2)));
+    const mn = Number(r.min); if (mn > 0) nr.min = String(Math.max(1, Math.round(mn / 2)));   // corsa continua (mezzofondo)
+    return nr;
+  });
   cur.nota = prev.nota || "";
   savePista(); disegna();
 }
@@ -270,6 +281,8 @@ function selGiorno(i) { S.pistaGiorno = i; disegna(); window.scrollTo(0, 0); }
 
 // ---------- vista ----------
 function vistaProgrammaPista() {
+  // il gruppo Mezzofondo/Fondo ha un editor dedicato (mezzi, ritmi/km, corsa continua)
+  if ((S.progGruppo || "vel") === "mezzo" && typeof vistaProgrammaPistaMezzo === "function") return vistaProgrammaPistaMezzo();
   const p = pistaInit();
   if (S.pistaMeso >= p.mesocicli.length) S.pistaMeso = 0;
   const m = p.mesocicli[S.pistaMeso];

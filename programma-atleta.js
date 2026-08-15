@@ -38,7 +38,11 @@ function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
 function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   const sett = g.settimane && g.settimane[settIdx];
   const ovR = overrideRighe(atleta, "pista", giornoNum - 1, settIdx);
-  const righe = (ovR || (sett && sett.righe) || []).filter(r => r.distanza && Number(r.n) > 0);
+  const allRighe = (ovR || (sett && sett.righe) || []);
+  // gruppo Mezzofondo/Fondo: seduta a mezzi/ritmi (ripetute o corsa continua)
+  if (atleta && typeof gruppoDi === "function" && gruppoDi(atleta) === "mezzo" && typeof _generaSedutaPistaMezzo === "function")
+    return _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe);
+  const righe = allRighe.filter(r => r.distanza && Number(r.n) > 0);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
   const profilo = prog && prog.profilo;   // il profilo velocità del programma del GRUPPO dell'atleta
@@ -107,7 +111,7 @@ function contaProgrammate(atleta, fromISO, toISO) {
         if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
         const sett = g.settimane && g.settimane[pa.settIdx];
         const righe = overrideRighe(atleta, tipo, gi, pa.settIdx) || (sett && sett.righe) || [];
-        const ok = tipo === "pista" ? righe.some(r => r.distanza && Number(r.n) > 0) : righe.some(r => r.esercizio);
+        const ok = tipo === "pista" ? righe.some(r => (r.distanza && Number(r.n) > 0) || Number(r.min) > 0) : righe.some(r => r.esercizio);
         if (ok) n++;
       });
     });
@@ -159,7 +163,8 @@ function posizioneProgramma() {
 
 // riepilogo breve di una seduta generata
 function riepilogoSeduta(s) {
-  if (s.tipo === "pista") return (s.elementi || []).map(e => `${e.ripetute}×${e.distanza} m`).join(" · ");
+  if (s.tipo === "pista") return (s.elementi || []).map(e =>
+    e.min != null ? `${e.min}′ ${e.mezzo || "continuo"}` : `${e.ripetute}×${e.distanza} m`).join(" · ");
   return (s.esercizi || []).slice(0, 3).map(e => e.nome).join(" · ") + ((s.esercizi || []).length > 3 ? "…" : "");
 }
 

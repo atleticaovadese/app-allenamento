@@ -30,7 +30,7 @@ const MENU_COACH = [
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["periodizzazione", "Periodizzazione"]] },
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
-    ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["traino", "Traino"],
+    ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
     ["screening", "Screening"], ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
@@ -609,6 +609,7 @@ function disegna() {
   else if (coach && S.vista === "pista") corpo = vistaProgrammaPista();
   else if (coach && S.vista === "palestra") corpo = vistaProgrammaPalestra();
   else if (coach && S.vista === "vel-target") corpo = vistaVelocitaTarget();
+  else if (coach && S.vista === "ritmi-mezzo") corpo = vistaRitmiMezzofondo();
   else if (coach && S.vista === "stima1rm") corpo = vistaStima1RM();
   else if (coach && S.vista === "traino") corpo = vistaTraino();
   else if (coach && S.vista === "fv") corpo = vistaProfiloFV();
