@@ -88,14 +88,14 @@ async function caricaDati() {
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
-    .select("id,nome,disciplina,specialita,email,profilo_id,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
+    .select("id,nome,disciplina,specialita,email,profilo_id,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine,vento),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
     .order("creato_il");
 
   const nuoviMon = {}, nuoviDiari = {}, nuovaDaFare = {};
   DEMO.atleti = (atl || []).map(a => {
     const pres = _PRES_DEMO[a.nome] || { mese: [0, 0], stag: [0, 0] };
     const pb = (a.pb || []).slice().sort((x, y) => rankDist(x.distanza) - rankDist(y.distanza))
-      .map(p => [p.distanza, p.tempo, fmtDataAnno(p.data), p.stagione, p.obiettivo, p.id, p.data || "", p.origine || "gara"]);
+      .map(p => [p.distanza, p.tempo, fmtDataAnno(p.data), p.stagione, p.obiettivo, p.id, p.data || "", p.origine || "gara", p.vento]);
     const massimali = (a.massimale || []).map(m => [m.esercizio, m.kg, fmtDataAnno(m.data), m.note || "", m.id, m.data || ""]);
     const salti = (a.test || []).map(t => [t.nome, t.valore, t.unita, fmtDataAnno(t.data), t.id, t.data || ""]);
     const scheda = {
@@ -415,15 +415,17 @@ function _numOrNull(x) { if (x === "" || x == null) return null; const n = Numbe
 async function creaPB(atletaId, d) {
   let id = "loc" + Date.now();
   const origine = d.origine || "gara";
-  const tempo = _numOrNull(d.tempo), stagione = _numOrNull(d.stagione), obiettivo = _numOrNull(d.obiettivo);
+  const tempo = _numOrNull(d.tempo), stagione = _numOrNull(d.stagione), obiettivo = _numOrNull(d.obiettivo), vento = _numOrNull(d.vento);
   if (haDB()) {
-    const { data, error } = await sb.from("pb").insert({ atleta_id: atletaId, distanza: d.distanza, tempo, data: d.data || null, stagione, obiettivo, origine }).select("id").single();
+    const rec = { atleta_id: atletaId, distanza: d.distanza, tempo, data: d.data || null, stagione, obiettivo, origine };
+    if (vento != null) rec.vento = vento;   // colonna opzionale: inviata solo se valorizzata
+    const { data, error } = await sb.from("pb").insert(rec).select("id").single();
     if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
     id = data.id;
   }
   const a = _atl(atletaId);
   if (a) {
-    a.scheda.pb.push([d.distanza, tempo, fmtDataAnno(d.data), stagione, obiettivo, id, d.data || "", origine]);
+    a.scheda.pb.push([d.distanza, tempo, fmtDataAnno(d.data), stagione, obiettivo, id, d.data || "", origine, vento]);
     a.scheda.pb.sort((x, y) => rankDist(x[0]) - rankDist(y[0]));
     a.pb.push([d.distanza, tempo]);
   }

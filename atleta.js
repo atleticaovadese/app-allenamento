@@ -19,11 +19,12 @@ function schedaAtleta(a, mod) {
   const disc = a.disciplina;
   const suff = pbSuff(disc);
   const pbRow = (r, i) => {
-    const [d, t, data, stag, ob, id] = r;
+    const [d, t, data, stag, ob, id, dataFull, origine, vento] = r;
+    const ventoTxt = (vento != null && vento !== "") ? " · vento " + (Number(vento) > 0 ? "+" : "") + Number(vento).toFixed(1) : "";
     return `<div class="riga">
       <div style="flex:1;min-width:0">
         <div style="font-weight:500">${d}</div>
-        <div class="et" style="margin-top:1px">${data ? "fatto il " + data : "—"}${(stag != null && stag !== "") ? " · miglior stagione " + fmtMisura(disc, stag) + suff : ""}</div>
+        <div class="et" style="margin-top:1px">${data ? "fatto il " + data : "—"}${ventoTxt}${(stag != null && stag !== "") ? " · miglior stagione " + fmtMisura(disc, stag) + suff : ""}</div>
         ${(ob != null && ob !== "") ? `<div style="font-size:12px;color:var(--blu);margin-top:2px">obiettivo ${fmtMisura(disc, ob) + suff}</div>` : ""}
       </div>
       <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${fmtMisura(disc, t)}${disc === "lanci" ? " m" : ""}</b>${del("pb", "pb", id, i)}</div></div>`;
@@ -187,31 +188,68 @@ function valTendina(id) {
   return s.value === "__altro__" ? ((document.getElementById(id + "b") || {}).value || "").trim() : s.value;
 }
 
-// campi tempo separati per il mezzofondo (stile "data"): ore : min : sec . cent
-// mentre scrivi, riempiti i 2 numeri passa da solo al campo successivo; l'eventuale cifra in più "trabocca"
-// nel campo dopo (regge anche l'incolla e la scrittura veloce). Backspace su campo vuoto torna indietro.
+// campi misura "stile data" per il PB: mentre scrivi, riempiti i 2 numeri (o digitato un separatore .,:)
+// passa da solo al campo successivo; l'eventuale cifra in più "trabocca" (regge incolla e scrittura veloce).
+// Backspace su campo vuoto torna al campo precedente.
 function tempoAuto(el) {
+  const sep = /[.,:]/.test(el.value);                    // ha digitato un separatore → vai avanti (utile per i secondi a 1 cifra, es. 9.58)
   const digits = el.value.replace(/[^0-9]/g, "");
   el.value = digits.slice(0, 2);
   const nextId = el.getAttribute("data-next");
   if (!nextId) return;
   const n = document.getElementById(nextId); if (!n) return;
   const rest = digits.slice(2);
-  if (rest) { n.value = rest; n.focus(); tempoAuto(n); }        // trabocco: sposta la/e cifra/e in più
-  else if (digits.length >= 2) { n.focus(); n.select(); }       // pieno: vai al successivo
+  if (rest) { n.value = rest; n.focus(); tempoAuto(n); }                       // trabocco
+  else if (digits.length >= 2 || (sep && digits.length >= 1)) { n.focus(); n.select(); }
 }
 function tempoBack(ev, prevId) {
   if (ev.key === "Backspace" && ev.target.value === "" && prevId) { const p = document.getElementById(prevId); if (p) { p.focus(); ev.preventDefault(); } }
 }
-function campiTempoMezzo(pfx, vals) {
-  vals = vals || {};
-  const box = (id, lab, ph, next, prev) => `<div style="flex:1;min-width:0"><span class="et" style="display:block;margin-bottom:3px;text-align:center">${lab}</span>
-    <input id="${pfx}${id}" inputmode="numeric" placeholder="${ph}" value="${vals[id] != null ? vals[id] : ""}"${next ? ` data-next="${pfx + next}"` : ""}
-      oninput="tempoAuto(this)"${prev ? ` onkeydown="tempoBack(event,'${pfx + prev}')"` : ""} style="text-align:center;padding-left:4px;padding-right:4px"></div>`;
-  const sep = ch => `<span style="padding-bottom:9px;font-weight:700;color:var(--txt2)">${ch}</span>`;
+function _campoNum(id, lab, ph, next, prev) {
+  return `<div style="flex:1;min-width:0"><span class="et" style="display:block;margin-bottom:3px;text-align:center">${lab}</span>
+    <input id="${id}" inputmode="numeric" placeholder="${ph}"${next ? ` data-next="${next}"` : ""} oninput="tempoAuto(this)"${prev ? ` onkeydown="tempoBack(event,'${prev}')"` : ""} style="text-align:center;padding-left:4px;padding-right:4px"></div>`;
+}
+const _sepPB = ch => `<span style="padding-bottom:9px;font-weight:700;color:var(--txt2)">${ch}</span>`;
+// MEZZOFONDO: ore : min : sec . cent
+function campiTempoMezzo(pfx) {
   return `<div style="display:flex;align-items:flex-end;gap:5px;margin-top:6px">
-    ${box("o", "ore", "0", "m", null)}${sep(":")}${box("m", "min", "00", "s", "o")}${sep(":")}${box("s", "sec", "00", "c", "m")}${sep(".")}${box("c", "cent", "00", null, "s")}
+    ${_campoNum(pfx + "o", "ore", "0", pfx + "m", null)}${_sepPB(":")}${_campoNum(pfx + "m", "min", "00", pfx + "s", pfx + "o")}${_sepPB(":")}${_campoNum(pfx + "s", "sec", "00", pfx + "c", pfx + "m")}${_sepPB(".")}${_campoNum(pfx + "c", "cent", "00", null, pfx + "s")}
   </div>`;
+}
+// VELOCITÀ: sec . cent
+function campiTempoVel(pfx) {
+  return `<div style="display:flex;align-items:flex-end;gap:5px;margin-top:6px;max-width:230px">
+    ${_campoNum(pfx + "s", "sec", "00", pfx + "c", null)}${_sepPB(".")}${_campoNum(pfx + "c", "cent", "00", null, pfx + "s")}
+  </div>`;
+}
+// LANCI / SALTI: metri . cm
+function campiDistanza(pfx) {
+  return `<div style="display:flex;align-items:flex-end;gap:5px;margin-top:6px;max-width:230px">
+    ${_campoNum(pfx + "me", "metri", "0", pfx + "cm", null)}${_sepPB(".")}${_campoNum(pfx + "cm", "cm", "00", null, pfx + "me")}
+  </div>`;
+}
+// piccola finestrella vento (m/s) per gli sprint e i salti in estensione
+function campoVento() {
+  return `<div style="margin-top:12px;max-width:160px"><label class="lab">Vento (m/s)</label>
+    <input id="f2v" inputmode="text" placeholder="es. +1.5" style="margin-top:6px"></div>`;
+}
+// eventi con lettura del vento (sprint ≤200 e salto in lungo/triplo)
+const EV_SALTI = ["Salto in lungo", "Salto triplo", "Salto in alto", "Salto con l'asta"];
+const EV_VENTO = ["30 m lanciato", "60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "60 hs", "100 hs", "110 hs", "Salto in lungo", "Salto triplo"];
+// campi misura giusti in base a disciplina + evento scelto (i salti sono distanze anche se l'atleta è "velocità")
+function misuraHTMLPB(disc, ev) {
+  if (disc === "mezzofondo" || disc === "fondo") return { lab: "Tempo (ore : min : sec . cent)", html: campiTempoMezzo("f2") };
+  if (disc === "lanci") return { lab: "Misura (metri . cm)", html: campiDistanza("f2") };
+  if (EV_SALTI.includes(ev)) return { lab: "Misura (metri . cm)", html: campiDistanza("f2") + (EV_VENTO.includes(ev) ? campoVento() : "") };
+  return { lab: "Tempo (sec . cent)", html: campiTempoVel("f2") + (EV_VENTO.includes(ev) ? campoVento() : "") };
+}
+function primoEvento(disc) { const v = eventiPB(disc); return (v.length && Array.isArray(v[0])) ? v[0][1][0] : v[0]; }
+// quando cambio evento nel menù, aggiorno i campi misura (tempo/distanza) e il vento
+function aggiornaMisuraPB(disc) {
+  const ev = valTendina("f1"), M = misuraHTMLPB(disc, ev);
+  const lab = document.getElementById("misuraLab"), box = document.getElementById("misuraBox");
+  if (lab) lab.textContent = M.lab;
+  if (box) box.innerHTML = M.html;
 }
 
 // Foglio per aggiungere una voce alla scheda (solo allenatore).
@@ -223,12 +261,13 @@ function apriAggiungi(tipo, atletaId) {
     const disc = at ? at.disciplina : "velocita";
     const L = labelPB(disc);
     const isTempo = (disc === "mezzofondo" || disc === "fondo");
-    const campoVal = isTempo ? campiTempoMezzo("f2") : `<input id="f2" inputmode="${L.mode}" placeholder="${L.ph}" style="margin-top:6px">`;
-    campi = `<label class="lab">${L.ev}</label>${tendina("f1", eventiPB(disc))}
-      <label class="lab" style="display:block;margin-top:12px">${isTempo ? "Tempo (ore : min : sec . cent)" : L.val}</label>${campoVal}
+    const M0 = misuraHTMLPB(disc, primoEvento(disc));   // campi iniziali (si aggiornano al cambio evento)
+    campi = `<label class="lab">${L.ev}</label>${tendina("f1", eventiPB(disc), ";aggiornaMisuraPB('" + disc + "')")}
+      <label class="lab" id="misuraLab" style="display:block;margin-top:12px">${M0.lab}</label>
+      <div id="misuraBox">${M0.html}</div>
       <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f3" type="date" style="margin-top:6px">
-      <div class="griglia2" style="margin-top:12px"><div><label class="lab">${L.val2}</label><input id="f4" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:38" : ""}" style="margin-top:6px"></div>
-        <div><label class="lab">${L.ob}</label><input id="f5" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:35" : ""}" style="margin-top:6px"></div></div>`;
+      <div class="griglia2" style="margin-top:12px"><div><label class="lab">${L.val2}</label><input id="f4" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:38" : L.ph}" style="margin-top:6px"></div>
+        <div><label class="lab">${L.ob}</label><input id="f5" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:35" : L.ph}" style="margin-top:6px"></div></div>`;
   } else if (tipo === "massimale") {
     tit = "Nuovo massimale";
     campi = `<label class="lab">Esercizio</label>${tendina("f1", ESERCIZI_MASSIMALI)}
@@ -265,19 +304,27 @@ async function salvaVoce(tipo, atletaId) {
   const n1 = valTendina("f1");
   let ok = false;
   if (tipo === "pb") {
+    if (!n1) { alert("Scegli l'evento."); return; }
     const at = DEMO.atleti.find(x => x.id === atletaId);
-    const disc = at ? at.disciplina : "velocita";   // parsing per disciplina: tempi (ore/min/sec/cent) o distanze (m)
-    let tempoNum;
-    if (disc === "mezzofondo" || disc === "fondo") {
+    const disc = at ? at.disciplina : "velocita";
+    const parseVento = () => { const w = v("f2v"); if (w === "") return null; const n = parseFloat(String(w).replace(",", ".").replace("+", "")); return isNaN(n) ? null : n; };
+    let tempoNum, vento = null;
+    if (disc === "mezzofondo" || disc === "fondo") {          // ore : min : sec . cent → secondi
       const o = Number(v("f2o")) || 0, m = Number(v("f2m")) || 0, sec = Number(v("f2s")) || 0, cc = Number(v("f2c")) || 0;
       if (!o && !m && !sec) { alert("Inserisci il tempo (almeno minuti e secondi)."); return; }
       tempoNum = o * 3600 + m * 60 + sec + cc / 100;
-    } else {
-      if (!v("f2")) { alert("Inserisci la misura."); return; }
-      tempoNum = parseMisura(disc, v("f2"));
+    } else if (disc === "lanci" || EV_SALTI.includes(n1)) {    // metri . cm → metri (salti anche se disciplina "velocità")
+      const me = Number(v("f2me")) || 0, cm = Number(v("f2cm")) || 0;
+      if (!me && !cm) { alert("Inserisci la misura (metri)."); return; }
+      tempoNum = me + cm / 100;
+      vento = parseVento();
+    } else {                                                   // velocità: sec . cent → secondi
+      const sec = Number(v("f2s")) || 0, cc = Number(v("f2c")) || 0;
+      if (!sec && !cc) { alert("Inserisci il tempo (secondi e centesimi)."); return; }
+      tempoNum = sec + cc / 100;
+      vento = parseVento();
     }
-    if (!n1) { alert("Scegli l'evento."); return; }
-    ok = await creaPB(atletaId, { distanza: n1, tempo: tempoNum, data: v("f3") || null, stagione: parseMisura(disc, v("f4")), obiettivo: parseMisura(disc, v("f5")), origine: "gara" });
+    ok = await creaPB(atletaId, { distanza: n1, tempo: tempoNum, vento, data: v("f3") || null, stagione: parseMisura(disc, v("f4")), obiettivo: parseMisura(disc, v("f5")), origine: "gara" });
   } else if (tipo === "massimale") {
     if (!n1 || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
     ok = await creaMassimale(atletaId, { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
