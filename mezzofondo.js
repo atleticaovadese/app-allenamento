@@ -82,13 +82,37 @@ function ritmoMezzo(atleta, mezzo, opts) {
   return r ? r.secKm : null;
 }
 
+// solo gli atleti del gruppo Mezzofondo/Fondo (per non cercarli in mezzo a tutti)
+function atletiMezzo() { return (DEMO.atleti || []).filter(a => (typeof gruppoDi === "function") ? gruppoDi(a) === "mezzo" : true); }
+// <option> degli atleti mezzofondo + flag se la lista è vuota
+function _optAtletiMezzo(selId, vuotoLabel) {
+  const arr = atletiMezzo();
+  const first = `<option value="">${vuotoLabel}</option>`;
+  return first + arr.map(x => `<option value="${x.id}" ${selId === x.id ? "selected" : ""}>${x.nome}</option>`).join("");
+}
+const _MZ_NO_ATLETI = `<p class="et" style="margin-top:8px">Nessun atleta <b>Mezzofondo/Fondo</b>: impostane la disciplina in <b>Atleti</b> e ricompariranno qui.</p>`;
+
 // ---------- vista: Ritmi target (Analisi) ----------
 let mzState = { atletaRif: "", pb: {}, obiettivo: 0, offsets: {}, avanzato: false };
-function setMzAtleta(id) { mzState.atletaRif = id; mzState.pb = {}; disegna(); }
+// selezione atleta: prende (e MOSTRA) i suoi PB mezzofondo, modificabili
+function setMzAtleta(id) {
+  mzState.atletaRif = id; mzState.pb = {};
+  const a = id ? DEMO.atleti.find(x => x.id === id) : null;
+  if (a) MZ_DIST.forEach(d => { const s = _mzPbSec(a, d); if (s != null) mzState.pb[d] = _mzMMSS(s); });
+  disegna();
+}
 function setMzPbVal(d, v) { mzState.pb[d] = v; }
 function setMzObiVal(v) { mzState.obiettivo = v; }
 function setMzOffVal(k, v) { mzState.offsets[k] = v === "" ? undefined : Number(v); }
 function toggleMzAvanzato() { mzState.avanzato = !mzState.avanzato; disegna(); }
+// attiva/disattiva l'uso del vLT2 (Test lattato) per la Soglia dei Ritmi
+function toggleMzUsaLT2() {
+  const aid = mzState.atletaRif;
+  if (!aid || !DEMO.lattato || !DEMO.lattato[aid]) return;
+  DEMO.lattato[aid].usaLT2 = !(DEMO.lattato[aid].usaLT2 !== false);
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
 
 function vistaRitmiMezzofondo() {
   const a = mzState.atletaRif ? DEMO.atleti.find(x => x.id === mzState.atletaRif) : null;
@@ -117,19 +141,29 @@ function vistaRitmiMezzofondo() {
   const offInputs = MZ_OFFSET_LABEL.map(([k, l]) => `<div><label class="lab">${l}</label>
     <input inputmode="numeric" value="${off[k]}" oninput="setMzOffVal('${k}',this.value)" onchange="disegna()" style="margin-top:6px"></div>`).join("");
 
+  // soglia dal Test lattato (se l'atleta ha un test valido): mostra e permette di attivarla/disattivarla
+  const Rlat = a ? analisiLattato((DEMO.lattato && DEMO.lattato[a.id]) || {}, a) : null;
+  const hasTest = Rlat && Rlat.vLT2 != null;
+  const usaTest = a && DEMO.lattato && DEMO.lattato[a.id] && DEMO.lattato[a.id].usaLT2 !== false;
+  const bloccoTest = hasTest ? `<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--line)">
+      <div><span class="lab">Soglia dal Test lattato</span><p class="et" style="margin:2px 0 0">vLT2 = <b>${_mzMMSS(3600 / Rlat.vLT2)}/km</b> · ${usaTest ? "usata per la Soglia" : "stima dai PB in uso"}</p></div>
+      <button class="btn ${usaTest ? "btn-1" : "btn-2"}" style="width:auto;padding:9px 14px" onclick="toggleMzUsaLT2()">${usaTest ? "✓ Attivo" : "Usa vLT2"}</button>
+    </div>` : "";
+
   return `
   <div class="card"><h3>Ritmi target — mezzofondo/fondo</h3>
     <p class="et" style="margin-top:2px">Dai PB (800/1500/3000/5000/10000) ai <b>ritmi di allenamento</b> per ogni mezzo. In Pista scegli il mezzo e il ritmo/km arriva da qui.</p></div>
 
   <div class="card">
-    <label class="lab">Atleta (prende i PB)</label>
-    <select onchange="setMzAtleta(this.value)" style="margin-top:6px">
-      <option value="">— a mano —</option>${DEMO.atleti.map(x => `<option value="${x.id}" ${mzState.atletaRif === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</select>
-    <p class="et" style="margin:10px 0 4px">PB per distanza (mm:ss). Vuoto = usa quello dell'atleta se c'è.</p>
+    <label class="lab">Atleta (prende i suoi PB)</label>
+    <select onchange="setMzAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(mzState.atletaRif, "— a mano —")}</select>
+    ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}
+    <p class="et" style="margin:10px 0 4px">Scegli l'atleta: prende i suoi PB (modificabili qui sotto). Senza atleta puoi metterli a mano.</p>
     <div class="griglia2">${pbInputs}</div>
     <div style="margin-top:12px"><label class="lab">Obiettivo: ritmi più veloci di (sec/km)</label>
       <input inputmode="numeric" value="${mzState.obiettivo || 0}" oninput="setMzObiVal(this.value)" onchange="disegna()" placeholder="0" style="margin-top:6px">
       <p class="et" style="margin-top:6px">0 = ritmi sul livello attuale (PB). Es. 3 = programma 3″/km più veloce (progressione).</p></div>
+    ${bloccoTest}
   </div>
 
   <div class="card">
@@ -195,8 +229,7 @@ function vistaProgrammaPistaMezzo() {
       <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo. Ogni atleta vedrà i ritmi calcolati sul <b>suo</b> PB.</p></div>
     <div class="card">
       <label class="lab">Riferimento ritmi (solo anteprima)</label>
-      <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">
-        <option value="">🎯 Programma madre (PB a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+      <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">${_optAtletiMezzo(p.atletaRif, "🎯 Programma madre (PB a mano)")}</select>
       <p class="et" style="margin:10px 0 4px">PB per distanza (mm:ss). Vuoto = usa quello dell'atleta di riferimento, se scelto.</p>
       <div class="griglia2">${pbInputs}</div>
       <div style="margin-top:12px"><label class="lab">Obiettivo: ritmi più veloci di (sec/km)</label>
@@ -490,9 +523,9 @@ function latDelStep(i) { const t = _latTest(latState.atletaRif); if (t.steps.len
 function vistaTestLattato() {
   const a = latState.atletaRif ? DEMO.atleti.find(x => x.id === latState.atletaRif) : null;
   const selAtleta = `<div class="card">
-    <label class="lab">Atleta</label>
-    <select onchange="setLatAtleta(this.value)" style="margin-top:6px">
-      <option value="">— scegli —</option>${DEMO.atleti.map(x => `<option value="${x.id}" ${latState.atletaRif === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</select></div>`;
+    <label class="lab">Atleta (mezzofondo / fondo)</label>
+    <select onchange="setLatAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(latState.atletaRif, "— scegli —")}</select>
+    ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}</div>`;
   const intro = `<div class="card"><h3>Test del lattato</h3>
     <p class="et" style="margin-top:2px">Protocollo a step: passo (min:sec /km) crescente, con FC, lattato e RPE a ogni step. <b>Parti lento</b> (1º step ~1.5 mmol). L'app trova LT1, LT2/OBLA e il ritmo di soglia; il <b>vLT2</b> può alimentare i Ritmi target.</p></div>`;
   if (!a) return intro + selAtleta + `<div class="card"><p class="et">Scegli un atleta per inserire il suo test.</p></div>`;
@@ -692,9 +725,9 @@ function vistaCriticalSpeed() {
   const a = csState.atletaRif ? DEMO.atleti.find(x => x.id === csState.atletaRif) : null;
   const intro = `<div class="card"><h3>Velocità Critica (Critical Speed)</h3>
     <p class="et" style="margin-top:2px">Dal campo: 2-4 prove <b>a tutta</b> su distanze diverse (es. 1200 m e 2400 m, o 3′ e 12′). Dalla retta distanza-tempo escono <b>CS</b> (soglia sostenibile) e <b>D′</b> (riserva anaerobica). Usa distanze ben diverse (rapporto ~2:1).</p></div>`;
-  const selAtleta = `<div class="card"><label class="lab">Atleta</label>
-    <select onchange="setCsAtleta(this.value)" style="margin-top:6px">
-      <option value="">— scegli —</option>${DEMO.atleti.map(x => `<option value="${x.id}" ${csState.atletaRif === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</select></div>`;
+  const selAtleta = `<div class="card"><label class="lab">Atleta (mezzofondo / fondo)</label>
+    <select onchange="setCsAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(csState.atletaRif, "— scegli —")}</select>
+    ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}</div>`;
   if (!a) return intro + selAtleta + `<div class="card"><p class="et">Scegli un atleta per inserire le prove.</p></div>`;
 
   const t = _csTest(a.id);
