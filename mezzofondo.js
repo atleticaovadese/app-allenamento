@@ -577,3 +577,199 @@ function vistaTestLattato() {
 
   return intro + selAtleta + setup + tabSteps + warnTxt + risultati + prospetto;
 }
+
+// ============================================================================
+// VELOCITÀ CRITICA (Critical Speed) — dal campo.
+// Fedele al foglio Excel "Critical Speed": 2-4 prove all-out su distanze diverse,
+// modello distanza = CS × tempo + D'  (CS=SLOPE, D'=INTERCEPT, R²=RSQ) + speed reserve.
+// ============================================================================
+function _csTest(aid) {
+  DEMO.critSpeed = DEMO.critSpeed || {};
+  if (!DEMO.critSpeed[aid]) DEMO.critSpeed[aid] = { prove: [], lanDist: 30, lanTempo: "" };
+  const t = DEMO.critSpeed[aid];
+  if (!t.prove) t.prove = [];
+  while (t.prove.length < 2) t.prove.push({ dist: "", min: "", sec: "" });
+  if (t.lanDist == null) t.lanDist = 30;
+  return t;
+}
+function _csSave() { if (typeof salvaCustom === "function") salvaCustom(); }
+
+// motore: regressione distanza(y) su tempo(x) → CS, D', R², tempi previsti, prospetto, speed reserve
+function analisiCriticalSpeed(cs, atleta) {
+  cs = cs || {};
+  const pts = [];
+  (cs.prove || []).forEach(p => {
+    const dist = Number(p.dist), t = (Number(p.min) || 0) * 60 + (Number(p.sec) || 0);
+    if (dist > 0 && t > 0) pts.push({ dist, t, v: dist / t });
+  });
+  const n = pts.length, R = { n, pts };
+  if (n >= 2) {
+    const X = pts.map(p => p.t), Y = pts.map(p => p.dist);   // x=tempo, y=distanza
+    const mx = X.reduce((a, b) => a + b, 0) / n, my = Y.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0, syy = 0;
+    for (let i = 0; i < n; i++) { const dx = X[i] - mx, dy = Y[i] - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
+    if (sxx > 0) {
+      R.cs = sxy / sxx;                       // m/s (pendenza)
+      R.dprime = my - R.cs * mx;              // m (intercetta)
+      R.r2 = syy > 0 ? (sxy * sxy) / (sxx * syy) : null;
+      R.vCS = R.cs * 3.6;                     // km/h
+      R.ritmoCS = _mzMMSS(1000 / R.cs);
+      R.previsti = [800, 1500, 3000, 5000, 10000].map(d => { const tp = (d - R.dprime) / R.cs; return { d, tempo: tp > 0 ? _mzMMSS(tp) : "—" }; });
+    }
+  }
+  const pb5 = atleta ? _mzPbSec(atleta, "5000 m") : null;
+  R.vGara5000 = pb5 ? 18000 / pb5 : null;
+  R.csGara = (R.vCS != null && R.vGara5000) ? R.vCS / R.vGara5000 : null;
+  // speed reserve (tipo atleta, per 800/1500)
+  const lanDist = Number(cs.lanDist) || 30, lanT = Number(cs.lanTempo);
+  R.vmax = (lanDist > 0 && lanT > 0) ? lanDist / lanT : null;
+  const pb15 = atleta ? _mzPbSec(atleta, "1500 m") : null;
+  R.rit1500ms = pb15 ? 1500 / pb15 : null;
+  R.srr = (R.vmax != null && R.rit1500ms) ? R.vmax / R.rit1500ms : null;
+  return R;
+}
+
+function _csCoach(disc, R) {
+  if (R.cs == null) return "(fai il test: 2-4 prove a tutta su distanze diverse)";
+  const g = R.csGara, dp = R.dprime;
+  if (disc === "800") {
+    let t = "Per te contano CS (base/soglia) e SOPRATTUTTO D′ (la punta anaerobica). D′ " + (dp != null ? Math.round(dp) + " m: " : "");
+    t += dp < 150 ? "BASSO → allena VELOCITÀ e LATTACIDO (la tua arma di gara), oltre alla base." : (dp > 250 ? "buono → sfruttalo nei finali veloci." : "medio → puoi alzarlo con velocità e prove lattacide.");
+    t += g != null ? " CS " + Math.round(g * 100) + "% gara: " + (g < 0.9 ? "soglia da rinforzare col volume." : "soglia ok.") : "";
+    return t;
+  }
+  if (disc === "35") {
+    let t = "Per te conta soprattutto la CS (= la soglia). ";
+    t += g == null ? "(inserisci il PB 5000)" : (g < 0.9 ? "CS un po' bassa: più SOGLIA e volume aerobico." : (g > 0.96 ? "Ottima CS: aggiungi VO2max e ritmo gara." : "CS ok: soglia + VO2max."));
+    return t;
+  }
+  let t = "CS = la tua soglia sostenibile: base e soglia sono tutto. ";
+  t += g == null ? "" : (g < 0.9 ? "CS da alzare: T/sub-soglia + tanto volume facile." : "CS ok: mantieni e aumenta il volume. Il D′ conta poco per te.");
+  return t;
+}
+function _csSpeedReserve(R) {
+  if (R.vmax == null) return "(inserisci lo sprint lanciato)";
+  if (R.rit1500ms == null) return "(inserisci il PB 1500 nel foglio Atleta)";
+  const s = R.srr;
+  const tipo = s >= 1.58 ? "tipo 400/800 (molto veloce)" : (s >= 1.47 ? "tipo 800 puro (veloce)" : (s >= 1.36 ? "tipo 800/1500 (bilanciato)" : "tipo 1500/prolungato (resistente)"));
+  const fare = s >= 1.47 ? "hai VELOCITÀ naturale, ti manca la RESISTENZA → più soglia, VO2max e volume aerobico (mantieni la velocità)."
+    : (s >= 1.36 ? "profilo bilanciato → cura sia VO2max/soglia sia velocità e potenza lattacida."
+      : "sei RESISTENTE ma poco veloce, ti manca il CAMBIO → più velocità pura (allunghi 60-120 m) e potenza lattacida.");
+  return "SRR " + s.toFixed(2) + " → " + tipo + ". COSA FARE: " + fare;
+}
+
+// grafico: distanza (y) vs tempo (x) con la retta del modello (CS·t + D')
+function _csChart(R) {
+  if (R.n < 2) return "";
+  const W = 320, Hh = 200, mL = 40, mR = 12, mT = 12, mB = 28;
+  const T = R.pts.map(p => p.t), D = R.pts.map(p => p.dist);
+  let xmin = 0, xmax = Math.max(...T) * 1.08;
+  let ymax = Math.max(...D) * 1.1;
+  const dx = xmax - xmin || 1;
+  const px = t => mL + (t - xmin) / dx * (W - mL - mR);
+  const py = d => Hh - mB - (d / ymax) * (Hh - mT - mB);
+  let g = "";
+  const gline = "stroke:var(--line);stroke-width:1";
+  for (let i = 0; i <= 4; i++) { const d = ymax * i / 4; g += `<line x1="${mL}" y1="${py(d).toFixed(1)}" x2="${W - mR}" y2="${py(d).toFixed(1)}" style="${gline}" opacity="0.5"/><text x="${mL - 5}" y="${(py(d) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--txt3)">${Math.round(d)}</text>`; }
+  // retta del modello y = CS*t + D' tra x=0 e xmax
+  if (R.cs != null) { const y0 = R.dprime, y1 = R.cs * xmax + R.dprime; g += `<line x1="${px(0).toFixed(1)}" y1="${py(y0).toFixed(1)}" x2="${px(xmax).toFixed(1)}" y2="${py(y1).toFixed(1)}" style="stroke:var(--verde,#3fb56b);stroke-width:2"/>`; }
+  R.pts.forEach(p => { g += `<circle cx="${px(p.t).toFixed(1)}" cy="${py(p.dist).toFixed(1)}" r="3.5" fill="var(--blu,#3b82f6)"/>`; });
+  g += `<line x1="${mL}" y1="${mT}" x2="${mL}" y2="${Hh - mB}" style="${gline}"/><line x1="${mL}" y1="${Hh - mB}" x2="${W - mR}" y2="${Hh - mB}" style="${gline}"/>`;
+  for (let i = 0; i <= 4; i++) { const t = xmax * i / 4; g += `<text x="${px(t).toFixed(1)}" y="${Hh - mB + 14}" text-anchor="middle" font-size="9" fill="var(--txt3)">${Math.round(t)}</text>`; }
+  g += `<text x="${(W / 2).toFixed(0)}" y="${Hh - 2}" text-anchor="middle" font-size="9" fill="var(--txt3)">tempo (s) · y = distanza (m)</text>`;
+  return `<div class="p-scroll"><svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:420px" role="img" aria-label="Modello Critical Speed">${g}</svg></div>`;
+}
+
+// ---------- vista: Critical Speed (Analisi) ----------
+let csState = { atletaRif: "" };
+function setCsAtleta(id) { csState.atletaRif = id; disegna(); }
+function setCsCampoVal(campo, v) { const t = _csTest(csState.atletaRif); t[campo] = v; _csSave(); }
+function setCsProvaVal(i, campo, v) { const t = _csTest(csState.atletaRif); t.prove[i][campo] = v; _csSave(); }
+function csAddProva() { const t = _csTest(csState.atletaRif); if (t.prove.length < 4) t.prove.push({ dist: "", min: "", sec: "" }); _csSave(); disegna(); }
+function csDelProva(i) { const t = _csTest(csState.atletaRif); if (t.prove.length > 2) t.prove.splice(i, 1); _csSave(); disegna(); }
+
+function vistaCriticalSpeed() {
+  const a = csState.atletaRif ? DEMO.atleti.find(x => x.id === csState.atletaRif) : null;
+  const intro = `<div class="card"><h3>Velocità Critica (Critical Speed)</h3>
+    <p class="et" style="margin-top:2px">Dal campo: 2-4 prove <b>a tutta</b> su distanze diverse (es. 1200 m e 2400 m, o 3′ e 12′). Dalla retta distanza-tempo escono <b>CS</b> (soglia sostenibile) e <b>D′</b> (riserva anaerobica). Usa distanze ben diverse (rapporto ~2:1).</p></div>`;
+  const selAtleta = `<div class="card"><label class="lab">Atleta</label>
+    <select onchange="setCsAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(x => `<option value="${x.id}" ${csState.atletaRif === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</select></div>`;
+  if (!a) return intro + selAtleta + `<div class="card"><p class="et">Scegli un atleta per inserire le prove.</p></div>`;
+
+  const t = _csTest(a.id);
+  const R = analisiCriticalSpeed(t, a);
+  const num = (v, d) => (v == null || isNaN(v)) ? "—" : (d != null ? v.toFixed(d) : Math.round(v));
+
+  const righeProve = t.prove.map((p, i) => {
+    const tempo = (Number(p.min) || 0) * 60 + (Number(p.sec) || 0);
+    const v = (Number(p.dist) > 0 && tempo > 0) ? Number(p.dist) / tempo : null;
+    return `<tr>
+      <td style="text-align:center;color:var(--txt3)">${i + 1}</td>
+      <td><input inputmode="numeric" value="${p.dist || ""}" placeholder="m" oninput="setCsProvaVal(${i},'dist',this.value)" onchange="disegna()" style="min-width:64px"></td>
+      <td><input inputmode="numeric" value="${p.min || ""}" placeholder="min" oninput="setCsProvaVal(${i},'min',this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input inputmode="numeric" value="${p.sec || ""}" placeholder="sec" oninput="setCsProvaVal(${i},'sec',this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td class="pauto">${tempo > 0 ? tempo : "—"}</td>
+      <td class="pauto">${v != null ? v.toFixed(2) : "—"}</td>
+      <td><button class="chiudi" style="font-size:14px" onclick="csDelProva(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`;
+  }).join("");
+  const tabProve = `<div class="card">
+    <p class="et" style="margin-bottom:6px">Prove all-out — distanza + tempo (il tempo in s e la m/s sono automatici)</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>#</th><th>Distanza (m)</th><th>min</th><th>sec</th><th>Tempo (s)</th><th>m/s</th><th></th></tr></thead>
+      <tbody>${righeProve}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="csAddProva()">＋ prova</button>
+  </div>`;
+
+  const rigaRis = (lbl, val, extra) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${lbl}</span><span><b>${val}</b>${extra ? ` <span class="et" style="margin:0">${extra}</span>` : ""}</span></div>`;
+  const risultati = R.cs == null ? "" : `<div class="card">
+    <p class="et" style="margin-bottom:6px">Risultati — modello distanza = CS × tempo + D′</p>
+    ${rigaRis("Velocità Critica CS", num(R.cs, 2) + " m/s", num(R.vCS, 1) + " km/h · " + R.ritmoCS + "/km")}
+    ${rigaRis("D′ (riserva anaerobica)", num(R.dprime) + " m")}
+    ${rigaRis("R² (qualità del fit)", R.r2 != null ? R.r2.toFixed(3) : "—", R.r2 != null && R.r2 < 0.95 ? "prove poco allineate" : "")}
+    <div style="margin-top:12px">${_csChart(R)}</div>
+    <p class="et" style="margin-top:8px">CS ≈ soglia (LT2/MLSS): il ritmo sostenibile a lungo. D′ = i metri extra sopra CS (capacità anaerobica), conta negli 800/1500.</p>
+  </div>`;
+
+  const previsti = (R.previsti && R.cs != null) ? `<div class="card">
+    <p class="et" style="margin-bottom:6px">Tempi previsti dal modello</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr>${R.previsti.map(x => `<th>${x.d} m</th>`).join("")}</tr></thead>
+      <tbody><tr>${R.previsti.map(x => `<td class="pauto"><b>${x.tempo}</b></td>`).join("")}</tr></tbody>
+    </table></div></div>` : "";
+
+  const csPct = R.csGara != null ? Math.round(R.csGara * 100) + "%" : "—";
+  const csLab = R.csGara == null ? "" : (R.csGara < 0.9 ? `<span class="pill p-giallo">CS bassa</span>` : (R.csGara > 0.96 ? `<span class="pill p-verde">CS alta</span>` : `<span class="pill p-verde">norma</span>`));
+  const dpLab = R.dprime == null ? "" : (R.dprime < 150 ? `<span class="pill p-giallo">basso</span>` : (R.dprime > 250 ? `<span class="pill p-verde">alto</span>` : `<span class="pill p-verde">medio</span>`));
+  const prospetto = R.cs == null ? "" : `<div class="card">
+    <p class="et" style="margin-bottom:6px">Prospetto — lettura del test</p>
+    <p class="et" style="margin:0 0 10px">Fai 2-4 prove a tutta su distanze diverse; la retta distanza-tempo dà due numeri. <b>CS</b> = la velocità che tieni A LUNGO (la tua soglia sul campo). <b>D′</b> = i metri EXTRA sopra CS: è la tua PUNTA, conta negli 800/1500.</p>
+    ${rigaRis("Velocità gara 5000 (dal PB)", R.vGara5000 != null ? num(R.vGara5000, 1) + " km/h" : "—")}
+    ${rigaRis("CS / velocità gara", csPct, csLab)}
+    ${rigaRis("D′ (riserva anaerobica)", R.dprime != null ? num(R.dprime) + " m" : "—", dpLab)}
+  </div>
+  <div class="card">
+    <p class="et" style="margin-bottom:8px">Per la tua gara — cosa va e cosa lavorare</p>
+    ${[["800 / 1500", "800"], ["3000 / 5000", "35"], ["5000 / 10000", "10"]].map(([lbl, k]) =>
+      `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><p style="font-weight:600;font-size:13px;margin:0 0 3px">${lbl}</p><p class="et" style="margin:0">${_csCoach(k, R)}</p></div>`).join("")}
+  </div>`;
+
+  // speed reserve (tipo atleta)
+  const speed = `<div class="card">
+    <p class="et" style="margin-bottom:6px">Tipo di atleta — speed reserve (per 800/1500)</p>
+    <p class="et" style="margin:0 0 10px">La riserva di velocità = quanto sei più veloce in sprint rispetto al ritmo gara. Dice se sei un tipo VELOCE (ti manca resistenza) o RESISTENTE (ti manca il cambio).</p>
+    <div class="griglia2">
+      <div><label class="lab">Sprint lanciato: distanza (m)</label><input inputmode="numeric" value="${t.lanDist != null ? t.lanDist : ""}" placeholder="30" oninput="setCsCampoVal('lanDist',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      <div><label class="lab">Sprint lanciato: tempo (s)</label><input inputmode="decimal" value="${t.lanTempo || ""}" placeholder="es. 3.2" oninput="setCsCampoVal('lanTempo',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+    <div style="margin-top:10px">
+      ${rigaRis("Vmax (m/s)", R.vmax != null ? num(R.vmax, 2) : "—")}
+      ${rigaRis("Ritmo 1500 (m/s) [rif dal PB]", R.rit1500ms != null ? num(R.rit1500ms, 2) : "—", "proxy vVO2max")}
+      ${rigaRis("Speed Reserve (Vmax/rif)", R.srr != null ? num(R.srr, 2) : "—", R.srr == null ? "" : (R.srr >= 1.47 ? `<span class="pill p-verde">veloce</span>` : (R.srr >= 1.36 ? `<span class="pill p-verde">bilanciato</span>` : `<span class="pill p-giallo">resistente</span>`)))}
+    </div>
+    <p class="et" style="margin-top:10px;padding:8px;background:var(--card2,rgba(120,120,140,.08));border-radius:8px">${_csSpeedReserve(R)}</p>
+  </div>`;
+
+  return intro + selAtleta + tabProve + risultati + previsti + prospetto + speed;
+}
