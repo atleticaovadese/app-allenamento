@@ -154,6 +154,32 @@ async function salvaNuovoAtleta() {
   else if (btn) { btn.textContent = "Salva atleta"; btn.disabled = false; }
 }
 
+// PB dell'atleta sulla SUA specialità (per velocità/lanci)
+function _pbSpecDisplay(a) {
+  const disc = a.disciplina, spec = (a.specialita || "").trim(), rows = (a.scheda && a.scheda.pb) || [];
+  if (!rows.length || !spec) return "";
+  const higher = (typeof pbPiuAltoMeglio === "function") ? pbPiuAltoMeglio(disc) : false;
+  let best = null;
+  rows.forEach(r => {
+    if (!r) return;
+    const ev = String(r[0] || "");
+    if (ev !== spec && ev.indexOf(spec) !== 0) return;         // stessa specialità (o attrezzo che inizia con essa)
+    const val = (typeof parseMisura === "function") ? parseMisura(disc, r[1]) : Number(r[1]);
+    if (val == null || isNaN(val)) return;
+    if (!best || (higher ? val > best.v : val < best.v)) best = { r, v: val };
+  });
+  if (!best) return "";
+  const fmt = (typeof fmtMisura === "function") ? fmtMisura(disc, best.r[1]) : best.r[1];
+  return "PB " + fmt + (disc === "lanci" ? " m" : "");
+}
+// metrica che "riguarda l'atleta" secondo la disciplina (report squadra adattivo)
+function _metricaGruppo(a) {
+  if ((typeof gruppoDi === "function" ? gruppoDi(a) : "vel") === "mezzo") {
+    const rm = (typeof ritmiHomeMezzo === "function") ? ritmiHomeMezzo(a) : {};
+    return (rm.soglia && rm.soglia !== "—") ? "soglia " + rm.soglia + "/km" : "";
+  }
+  return _pbSpecDisplay(a);
+}
 function listaAtleti(lista) {
   // ordinati per urgenza: rosso, giallo, verde
   const ord = { r: 0, w: 1, v: 2 };
@@ -162,11 +188,12 @@ function listaAtleti(lista) {
   if (!arr.length) return `<div class="card"><p class="et">Nessun atleta in questo gruppo. Aggiungilo da «Atleti» scegliendo la disciplina.</p></div>`;
   return arr.map(a => {
     const s = DEMO.mon[a.id], [, , col] = STATO[s.stato];
+    const met = (typeof _metricaGruppo === "function") ? _metricaGruppo(a) : "";
     return `<div class="card riga-a" onclick="apriAtleta('${a.id}')">
       <span class="dot" style="background:${col}"></span>
       <div style="flex:1;min-width:0">
         <h3>${a.nome}</h3>
-        <p class="et" style="margin-top:2px">${a.specialita} · ${s.ultimo} · aderenza ${s.aderenza}%</p>
+        <p class="et" style="margin-top:2px">${a.specialita}${met ? " · " + met : ""} · ${s.ultimo} · aderenza ${s.aderenza}%</p>
       </div>
       <span class="freccia">›</span>
     </div>`;
