@@ -252,6 +252,7 @@ function vistaAtletaDettaglio() {
   </div>
 
   ${(typeof gruppoDi === "function" && gruppoDi(a) === "mezzo" && typeof cardProfiloMezzo === "function") ? cardProfiloMezzo(a) : ""}
+  ${(typeof gruppoDi === "function" && gruppoDi(a) === "lanci" && typeof cardProfiloLanci === "function") ? cardProfiloLanci(a) : ""}
 
   <div class="card">
     <p class="et" style="margin-bottom:6px">Accesso atleta</p>

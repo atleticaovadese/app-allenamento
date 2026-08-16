@@ -327,6 +327,7 @@ function selGiorno(i) { S.pistaGiorno = i; disegna(); window.scrollTo(0, 0); }
 function vistaProgrammaPista() {
   // il gruppo Mezzofondo/Fondo ha un editor dedicato (mezzi, ritmi/km, corsa continua)
   if ((S.progGruppo || "vel") === "mezzo" && typeof vistaProgrammaPistaMezzo === "function") return vistaProgrammaPistaMezzo();
+  if ((S.progGruppo || "vel") === "lanci" && typeof vistaProgrammaPistaLanci === "function") return vistaProgrammaPistaLanci();
   const p = pistaInit();
   if (S.pistaMeso >= p.mesocicli.length) S.pistaMeso = 0;
   const m = p.mesocicli[S.pistaMeso];

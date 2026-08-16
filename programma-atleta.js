@@ -42,6 +42,8 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   // gruppo Mezzofondo/Fondo: seduta a mezzi/ritmi (ripetute o corsa continua)
   if (atleta && typeof gruppoDi === "function" && gruppoDi(atleta) === "mezzo" && typeof _generaSedutaPistaMezzo === "function")
     return _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe);
+  if (atleta && typeof gruppoDi === "function" && gruppoDi(atleta) === "lanci" && typeof _generaSedutaPistaLanci === "function")
+    return _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe);
   const righe = allRighe.filter(r => r.distanza && Number(r.n) > 0);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";

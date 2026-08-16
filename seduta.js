@@ -72,6 +72,7 @@ function volumePista(s) { return (s.elementi || []).reduce((t, e) => t + e.ripet
 // ---------- PISTA ----------
 function vistaPista(s) {
   if (s.mezzo && typeof vistaPistaMezzo === "function") return vistaPistaMezzo(s);   // seduta mezzofondo/fondo
+  if (s.lanci && typeof vistaPistaLanci === "function") return vistaPistaLanci(s);   // seduta lanci
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${s.elementi.map(e => {
@@ -244,6 +245,14 @@ async function chiudiSeduta(sid) {
       const vbtMedia = fatte.length ? media(x.vbt) : null;
       registraVbt(aid, x.nome, x.peso || null, vbtMedia, x.vbtTarget || null,
         { serie: x.serie != null ? x.serie : null, rep: x.rep != null ? x.rep : null, volume: volumeKg(x), rpe: s.rpe });
+    });
+  }
+  // lanci: registra mezzo / attrezzo / n. lanci / miglior misura → registro lanci
+  if (s.lanci && typeof registraLancio === "function") {
+    const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
+    (s.elementi || []).forEach(e => {
+      const fatte = (e.misure || []).filter(v => v !== null);
+      registraLancio(aid, e.mezzo, e.kg, e.tipo, e.lanci, fatte.length ? Math.max(...fatte) : null);
     });
   }
   // pista: registra Tempo (media eseguita) / Volume (m) / Vel per distanza → Andamento Pista

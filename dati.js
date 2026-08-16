@@ -23,6 +23,7 @@ function bundleCustom() {
     piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
     testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara,
     lattato: DEMO.lattato || {}, critSpeed: DEMO.critSpeed || {},
+    lanci: DEMO.lanci || {}, lanciLog: DEMO.lanciLog || [],
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {}
   };
 }
@@ -41,6 +42,8 @@ function applicaBundle(c) {
   if (c.risultatiGara) DEMO.risultatiGara = c.risultatiGara;
   if (c.lattato) DEMO.lattato = c.lattato;
   if (c.critSpeed) DEMO.critSpeed = c.critSpeed;
+  if (c.lanci) DEMO.lanci = c.lanci;
+  if (c.lanciLog) DEMO.lanciLog = c.lanciLog;
   if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
 }
