@@ -63,6 +63,49 @@ function riscRiassunto(g) {
   return att.length ? att.map(([k, label]) => `${label}${risc[k].prot ? " (" + risc[k].prot + ")" : ""}`).join(" · ") : "non impostato";
 }
 
+// ---------- pliometria / policoncorrenza (dopo il riscaldamento) — condivisa vel + mezzo ----------
+const PLIO_MODI = [["balzi", "balzi"], ["metri", "m"], ["ostacoli", "ostacoli"]];
+function _plioModoLab(m) { const x = PLIO_MODI.find(p => p[0] === m); return x ? x[1] : (m || ""); }
+function plioInit(g) { if (!g.plio) g.plio = []; return g.plio; }
+function plioRiassunto(g) { const p = (g.plio || []).filter(r => r.es); return p.length ? p.map(r => r.es).join(" · ") : "non impostata"; }
+// descrizione di una riga (per la seduta dell'atleta)
+function plioTxt(r) {
+  const q = (r.q || r.serie) ? (r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _plioModoLab(r.modo) : "";
+  return r.es + (q ? " — " + q.trim() : "") + (r.rec ? " · rec " + r.rec : "");
+}
+function apriPlio() {
+  const g = giornoCorrente(), plio = plioInit(g);
+  const optModo = sel => PLIO_MODI.map(([k]) => `<option value="${k}" ${sel === k ? "selected" : ""}>${k}</option>`).join("");
+  const rows = plio.map((r, i) => `<tr>
+      <td><input value="${(r.es || "").replace(/"/g, "&quot;")}" placeholder="es. Balzi tra ostacoli" oninput="setPlioRigaVal(${i},'es',this.value)" style="min-width:150px"></td>
+      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="n°" oninput="setPlioRigaVal(${i},'serie',this.value)" style="min-width:44px"></td>
+      <td><select onchange="setPlioRiga(${i},'modo',this.value)">${optModo(r.modo || "balzi")}</select></td>
+      <td><input inputmode="numeric" value="${r.q || ""}" placeholder="quant." oninput="setPlioRigaVal(${i},'q',this.value)" style="min-width:56px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPlioRigaVal(${i},'rec',this.value)" style="min-width:56px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="plioDelRiga(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`).join("");
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Pliometria / policoncorrenza</h3>
+      <button class="chiudi" onclick="chiudiPlio()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:8px">Esercizi da fare <b>dopo il riscaldamento</b>. Scegli l'esercizio, le serie, se contarlo in <b>balzi</b>, <b>metri</b> o <b>ostacoli</b>, e la quantità.<br>Es: <i>Balzi tra ostacoli 4 × 8 ostacoli · Salto in lungo da fermo 4 × 5 balzi · Balzi alternati 4 × 30 m · Cadute (drop) 4 × 6 balzi</i></p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Esercizio</th><th>Serie</th><th>Conta</th><th>Quantità</th><th>Rec</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="plioAddRiga()">＋ esercizio</button>`);
+}
+function plioAddRiga() { plioInit(giornoCorrente()).push({ es: "", serie: "", modo: "balzi", q: "", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
+function plioDelRiga(i) { const p = plioInit(giornoCorrente()); if (i >= 0 && i < p.length) p.splice(i, 1); if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
+function setPlioRiga(i, campo, v) { plioInit(giornoCorrente())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
+function setPlioRigaVal(i, campo, v) { plioInit(giornoCorrente())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); }
+function chiudiPlio() { chiudiScheda(); disegna(); }
+// blocco pliometria nella seduta dell'atleta (dopo il riscaldamento)
+function bloccoPliometria(s) {
+  const p = (s.plio || []).filter(r => r.es);
+  if (!p.length) return "";
+  return `<div class="card"><p class="et" style="margin-bottom:6px">Pliometria / policoncorrenza (dopo il riscaldamento)</p>
+    ${p.map(r => `<div style="padding:5px 0${r === p[p.length - 1] ? "" : ";border-bottom:1px solid var(--line)"}"><b>${r.es}</b>${(r.q || r.serie) ? ` <span class="et">${(r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _plioModoLab(r.modo)}${r.rec ? " · rec " + r.rec : ""}</span>` : ""}</div>`).join("")}</div>`;
+}
+
 // ---------- collegamento al Piano & Picco ----------
 function cicloDaLen(len) { return ({ 1: "1", 2: "1+1", 3: "2+1", 4: "3+1", 5: "4+1" })[len] || ""; }
 function isoLocale(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
@@ -352,6 +395,8 @@ function vistaProgrammaPista() {
       <select onchange="setPistaGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"], false)}</select>
       <label class="lab" style="display:block;margin-top:12px">Riscaldamento</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
     </div>`;
 
   // le settimane del giorno (numero dal ciclo del mesociclo)

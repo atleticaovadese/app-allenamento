@@ -73,6 +73,7 @@ function volumePista(s) { return (s.elementi || []).reduce((t, e) => t + e.ripet
 function vistaPista(s) {
   if (s.mezzo && typeof vistaPistaMezzo === "function") return vistaPistaMezzo(s);   // seduta mezzofondo/fondo
   return `${bloccoRiscaldamento(s)}
+  ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${s.elementi.map(e => {
     const caselle = e.tempi.map((t, i) => {
       const v = t === null ? "" : t;

@@ -337,6 +337,8 @@ function vistaProgrammaPistaMezzo() {
       <select onchange="setPistaGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"])}</select>
       <label class="lab" style="display:block;margin-top:12px">Riscaldamento</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
@@ -414,6 +416,7 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", mezzo: true, giorno: giornoNum,
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
+    plio: (g.plio || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -422,6 +425,7 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
 function volumePistaMezzo(s) { return (s.elementi || []).reduce((t, e) => t + (e.volume || 0), 0); }
 function vistaPistaMezzo(s) {
   return `${bloccoRiscaldamento(s)}
+  ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${s.elementi.map(e => {
     const cont = e.min != null;
     const prescr = cont ? `${e.min}′ in continuo` : `${e.ripetute} × ${e.distanza} m`;
