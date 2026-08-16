@@ -980,15 +980,31 @@ function _confrontoSoglia(RL, RC) {
   if (diff < 0.03) return "✓ Lattato e velocità critica danno una soglia molto simile: dato solido.";
   return "I due test differiscono un po' (" + Math.round(diff * 100) + "%): normale, dipende da come sono stati fatti. Usa il lattato come riferimento e la CS come controprova.";
 }
+// opzioni: TUTTI gli atleti raggruppati per disciplina
+function _optAtletiTutti(sel) {
+  const grp = [["Velocisti / Saltatori", "vel"], ["Lanciatori", "lanci"], ["Mezzofondo / Fondo", "mezzo"]];
+  const g = (typeof gruppoDi === "function") ? gruppoDi : () => "vel";
+  let out = `<option value="">— scegli —</option>`;
+  grp.forEach(([lab, k]) => {
+    const arr = (DEMO.atleti || []).filter(x => g(x) === k);
+    if (arr.length) out += `<optgroup label="${lab}">${arr.map(x => `<option value="${x.id}" ${sel === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</optgroup>`;
+  });
+  return out;
+}
+// dispatcher: la pagina si adatta alla disciplina dell'atleta
 function vistaRiepilogoTest() {
   const a = riepState.atletaRif ? DEMO.atleti.find(x => x.id === riepState.atletaRif) : null;
   const intro = `<div class="card"><h3>Riepilogo test — atleta</h3>
-    <p class="et" style="margin-top:2px">Tutto in una pagina: la <b>soglia</b>, le <b>zone di allenamento</b> e il <b>profilo</b> dai due test (lattato + velocità critica).</p></div>`;
-  const sel = `<div class="card"><label class="lab">Atleta (mezzofondo / fondo)</label>
-    <select onchange="setRiepAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(riepState.atletaRif, "— scegli —")}</select>
-    ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}</div>`;
+    <p class="et" style="margin-top:2px">Tutti i test dell'atleta in una pagina. Si <b>adatta alla disciplina</b>: mezzofondo → soglia, zone e ritmi; velocità/lanci → PB, forza e salti.</p></div>`;
+  const sel = `<div class="card"><label class="lab">Atleta</label>
+    <select onchange="setRiepAtleta(this.value)" style="margin-top:6px">${_optAtletiTutti(riepState.atletaRif)}</select></div>`;
   if (!a) return intro + sel + `<div class="card"><p class="et">Scegli un atleta per vedere il suo riepilogo.</p></div>`;
-
+  const isMezzo = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
+  const body = isMezzo ? _riepMezzoHTML(a) : (typeof riepiloVelHTML === "function" ? riepiloVelHTML(a) : "<div class='card'><p class='et'>Riepilogo non disponibile.</p></div>");
+  return intro + sel + body;
+}
+// corpo per il mezzofondo/fondo
+function _riepMezzoHTML(a) {
   const num = (v, d) => (v == null || isNaN(v)) ? "—" : (d != null ? v.toFixed(d) : Math.round(v));
   const RL = analisiLattato((DEMO.lattato && DEMO.lattato[a.id]) || {}, a);
   const RC = analisiCriticalSpeed((DEMO.critSpeed && DEMO.critSpeed[a.id]) || {}, a);
@@ -1033,5 +1049,5 @@ function vistaRiepilogoTest() {
     ${(!hasL && !hasC) ? `<p class="et" style="margin:0">Fai il <b>Test lattato</b> e/o la <b>Velocità critica</b> per la sintesi personalizzata. Intanto i ritmi qui sopra sono stimati dai PB.</p>` : ""}
   </div>`;
 
-  return intro + sel + header + cardSoglia + cardZone + cardProfilo + cardSintesi;
+  return header + cardSoglia + cardZone + cardProfilo + cardSintesi;
 }

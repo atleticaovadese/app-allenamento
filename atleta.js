@@ -335,6 +335,74 @@ async function salvaVoce(tipo, atletaId) {
   if (ok) { chiudiScheda(); disegna(); window.scrollTo(0, 0); }
 }
 
+// ---------- Riepilogo test per velocisti / saltatori / lanciatori (PB, forza, salti) ----------
+function _rsiLab(r) { return r == null ? "" : r < 1.5 ? "scarso" : r < 2.0 ? "medio" : r < 2.5 ? "buono" : "ottimo"; }
+function _nomeTipoTest(t) { return ({ fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "CMJ / SJ", "sprint-test": "Test sprint" })[t] || t; }
+function _riepVelSintesi(bw, mxBest, elasticPct, rsiVal) {
+  const parts = [];
+  const sq = mxBest["Squat"] || mxBest["1/2 Squat"] || mxBest["Mezzo squat"];
+  if (sq && bw) {
+    const rel = sq.v / bw;
+    parts.push(rel < 1.5 ? "Forza massima da migliorare (squat " + rel.toFixed(1) + "× peso): dai priorità alla forza in palestra." : (rel > 2 ? "Forza massima ottima (" + rel.toFixed(1) + "× peso): mantienila e convertila in potenza/velocità." : "Forza massima discreta (" + rel.toFixed(1) + "× peso)."));
+  } else if (!Object.keys(mxBest).length) parts.push("Mancano i massimali: inseriscili per il quadro forza.");
+  if (rsiVal != null) parts.push(rsiVal < 1.5 ? "Reattività bassa (RSI " + rsiVal.toFixed(2) + "): aggiungi pliometria e balzi reattivi." : (rsiVal > 2.5 ? "Reattività ottima (RSI " + rsiVal.toFixed(2) + ")." : "Reattività media (RSI " + rsiVal.toFixed(2) + ")."));
+  if (elasticPct != null) parts.push(elasticPct < 10 ? "Poco contributo elastico (CMJ≈SJ): lavora su rapidità e “molla” (balzi, depth jump)." : "Buon contributo elastico (sfrutti bene la molla).");
+  return parts.length ? parts.join(" ") : "Inserisci PB, massimali e salti per la sintesi personalizzata.";
+}
+function riepiloVelHTML(a) {
+  const s = a.scheda || {}, an = s.anagrafica || {}, disc = a.disciplina;
+  const bw = Number(an.peso) || null;
+  const num = (v, d) => (v == null || isNaN(v)) ? "—" : (d != null ? Number(v).toFixed(d) : Math.round(v));
+  const row = (l, v, extra) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><span><b>${v}</b>${extra ? ` <span class="et" style="margin:0">${extra}</span>` : ""}</span></div>`;
+  const bestMap = (rows, kIdx, vParse, higher) => {
+    const best = {};
+    (rows || []).forEach(r => { if (!r) return; const k = r[kIdx], val = vParse(r); if (val == null || isNaN(val)) return; if (!(k in best) || (higher ? val > best[k].v : val < best[k].v)) best[k] = { r, v: val }; });
+    return best;
+  };
+
+  const anagLine = [an.categoria, an.anno, bw ? bw + " kg" : ""].filter(Boolean).join(" · ");
+  const header = `<div class="card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><h3>${a.nome}</h3><span class="et" style="margin:0">${disc} · ${a.specialita || ""}</span></div>
+    ${anagLine ? `<p class="et" style="margin-top:6px">${anagLine}</p>` : ""}</div>`;
+
+  // 1) PB
+  const pbBest = bestMap(s.pb, 0, r => parseMisura(disc, r[1]), (typeof pbPiuAltoMeglio === "function") ? pbPiuAltoMeglio(disc) : false);
+  const pbKeys = Object.keys(pbBest).sort((x, y) => (typeof rankDist === "function" ? rankDist(x) - rankDist(y) : 0));
+  const cardPB = `<div class="card"><p class="et" style="margin-bottom:6px">🏆 PB di gara</p>
+    ${pbKeys.length ? pbKeys.map(k => { const b = pbBest[k], vento = b.r[8]; return row(k, fmtMisura(disc, b.r[1]) + (disc === "lanci" ? " m" : ""), (vento != null && vento !== "") ? "vento " + (Number(vento) > 0 ? "+" : "") + Number(vento).toFixed(1) : ""); }).join("") : `<p class="et">Nessun PB inserito.</p>`}</div>`;
+
+  // 2) Forza
+  const mxBest = bestMap(s.massimali, 0, r => Number(r[1]), true);
+  const mxKeys = Object.keys(mxBest);
+  const cardForza = `<div class="card"><p class="et" style="margin-bottom:6px">🏋 Forza — massimali (1RM)</p>
+    ${mxKeys.length ? mxKeys.map(k => row(k, mxBest[k].v + " kg", bw ? (mxBest[k].v / bw).toFixed(2) + "× peso" : "")).join("") : `<p class="et">Nessun massimale inserito.</p>`}
+    ${!bw && mxKeys.length ? `<p class="et" style="margin-top:6px">Aggiungi il peso corporeo (in Atleti) per vedere la forza relativa.</p>` : ""}</div>`;
+
+  // 3) Salti / reattività
+  const saltiBest = {};
+  (s.salti || []).forEach(r => { if (!r) return; const nome = r[0], val = Number(r[1]); if (isNaN(val)) return; const lower = /sprint|volante/i.test(nome) || r[2] === "s"; if (!(nome in saltiBest) || (lower ? val < saltiBest[nome].v : val > saltiBest[nome].v)) saltiBest[nome] = { v: val, u: r[2] || "" }; });
+  const cmj = saltiBest["CMJ"], sj = saltiBest["SJ"];
+  const elastic = (cmj && sj) ? (cmj.v - sj.v) : null;
+  const elasticPct = (elastic != null && sj.v > 0) ? Math.round(elastic / sj.v * 100) : null;
+  const rsiVal = saltiBest["RSI"] ? saltiBest["RSI"].v : null;
+  const saltiRows = Object.keys(saltiBest).map(n => row(n, num(saltiBest[n].v, saltiBest[n].u === "s" ? 2 : 0) + " " + saltiBest[n].u)).join("");
+  const cardSalti = (Object.keys(saltiBest).length) ? `<div class="card"><p class="et" style="margin-bottom:6px">⚡ Salti e reattività</p>
+    ${saltiRows}
+    ${elastic != null ? row("Contributo elastico (CMJ−SJ)", elastic.toFixed(1) + " cm", elasticPct != null ? "+" + elasticPct + "%" : "") : ""}
+    ${rsiVal != null && typeof colRSI === "function" ? `<div style="display:flex;justify-content:space-between;padding:7px 0"><span class="et" style="margin:0">RSI (reattività)</span><span><b style="color:${colRSI(rsiVal)}">${rsiVal.toFixed(2)}</b> <span class="et">${_rsiLab(rsiVal)}</span></span></div>` : ""}
+  </div>` : `<div class="card"><p class="et">Nessun test di salto inserito (CMJ, SJ, Drop Jump, RSI…). Aggiungili dalla scheda atleta o dai test di Analisi.</p></div>`;
+
+  // 4) test salvati
+  const sess = (DEMO.testSessioni || []).filter(x => x.atletaId === a.id);
+  const cardSess = sess.length ? `<div class="card"><p class="et" style="margin-bottom:6px">Test salvati (schede complete in Analisi)</p>
+    ${sess.slice(-6).reverse().map(x => row(_nomeTipoTest(x.tipo), x.data || "")).join("")}</div>` : "";
+
+  const cardSintesi = `<div class="card"><p class="et" style="margin-bottom:6px">In sintesi — cosa lavorare</p>
+    <p class="et" style="margin:0">${_riepVelSintesi(bw, mxBest, elasticPct, rsiVal)}</p></div>`;
+
+  return header + cardPB + cardForza + cardSalti + cardSess + cardSintesi;
+}
+
 // ---------- I miei dati (atleta) ----------
 function vistaIo() {
   const a = DEMO.atleti.find(x => x.id === S.utente.atletaId) || DEMO.atleti[0];
