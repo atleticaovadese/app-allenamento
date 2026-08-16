@@ -1161,3 +1161,76 @@ function vistaPerDistanza() {
 
   return intro + tabs + info + matr + periodi + micro;
 }
+
+// ============================================================================
+// TEMPLATE MICROCICLI mezzofondo — 5 blocchi (stessa struttura dei template velocità).
+// giorni = [giorno, corsa, distanze/ritmo, palestra, %1RM·s×r, note, kind ("r"=riposo,"g"=gara)]
+// ============================================================================
+const MZ_TEMPLATE = [
+  {
+    titolo: "Blocco 1 · Prep. GENERALE (base aerobica, ~6-10 sett.)",
+    parametri: "Tanta Z1 (≥80%) + 1-2 soglie + allunghi · Forza generale (AA) 2× · volume in crescita · distribuzione piramidale.",
+    giorni: [
+      ["Lun", "Facile + allunghi", "45-70' E + 6×100m", "Circuito forza generale full-body", "40-60% · 8-12 ×2-3", "RPE 6-7; costruzione", ""],
+      ["Mar", "Soglia (T)", "20-30' continuo o 5-6×1000 T", "-", "-", "rec 60-90″; ~2.5-4 mmol", ""],
+      ["Mer", "Facile / rigenerante", "40-60' E", "-", "-", "conversazione", ""],
+      ["Gio", "Medio o collinari + forza", "8-12 km M oppure colli", "Forza generale 2 (squat/stacco/spinte)", "40-60% · 8-12 ×3", "", ""],
+      ["Ven", "Facile + allunghi", "40' E + allunghi", "Core / prehab", "-", "recupero attivo", ""],
+      ["Sab", "Lungo", "70-110' E", "-", "-", "fondo lento, aerobico", ""],
+      ["Dom", "Riposo", "-", "-", "-", "-", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 2 · Prep. SPECIALE (soglia + VO2max, ~4-8 sett.)",
+    parametri: "Più soglia + intervalli VO2max + collinari · Forza MAX 1-2× · volume alto · piramidale/polarizzato.",
+    giorni: [
+      ["Lun", "Soglia + allunghi", "6×1000-2000 T", "Forza MAX (squat/stacco)", "85-95% · 2-4 ×3-5", "rec 60-90″", ""],
+      ["Mar", "Facile", "45-60' E", "-", "-", "", ""],
+      ["Mer", "VO2max (I)", "5-6×1000 o 5-8×800 I", "-", "-", "rec 2-3'; ~ritmo 3-5k", ""],
+      ["Gio", "Medio + forza", "10-14 km M", "Forza MAX 2 + oly leggeri", "85-100% · 1-3", "", ""],
+      ["Ven", "Facile + allunghi", "40' + allunghi", "Core / prehab", "-", "recupero attivo", ""],
+      ["Sab", "Lungo (finale più veloce)", "80-110'", "-", "-", "progressivo", ""],
+      ["Dom", "Riposo", "-", "-", "-", "-", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 3 · PRE-COMPETITIVA (ritmo gara, ~3-5 sett.)",
+    parametri: "Ritmo gara specifico + VO2max + (lattacido per 800/1500) · Conversione a potenza · volume medio, più polarizzato.",
+    giorni: [
+      ["Lun", "Ritmo gara", "5-6×1000 a ritmo gara", "Conversione potenza (balistico/oly)", "30-50% balistico / 70-85%", "rec pieni", ""],
+      ["Mar", "Facile", "45' E", "-", "-", "", ""],
+      ["Mer", "VO2max o lattacido", "5×1000 I  oppure  6×400 lattacido", "-", "-", "800/1500: lattacido; 5-10k: VO2max", ""],
+      ["Gio", "Soglia breve + colli", "4×1500 T", "Potenza 2 (contrasto)", "70-85% + balistico", "", ""],
+      ["Ven", "Facile + allunghi", "35' + allunghi", "-", "-", "recupero", ""],
+      ["Sab", "Ritmo gara o gara C", "3-4×1000 a ritmo gara / gara", "-", "-", "specificità gara", ""],
+      ["Dom", "Riposo", "-", "-", "-", "-", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 4 · COMPETITIVA (in-season)",
+    parametri: "Ritmo gara di QUALITÀ + rifinitura, VOLUMI BASSI · Forza di mantenimento 1× · molto recupero · gara nel weekend.",
+    giorni: [
+      ["Lun", "Ritmo gara (qualità, vol. basso)", "4-5×1000 a ritmo gara", "Mantenimento forza/potenza", "80-90% · 1-3", "poche serie, alta qualità", ""],
+      ["Mar", "Facile", "40' E", "-", "-", "", ""],
+      ["Mer", "VO2max breve", "5×800 I", "-", "-", "freschezza", ""],
+      ["Gio", "Rifinitura + allunghi", "20' + 4-6 allunghi", "-", "-", "", ""],
+      ["Ven", "Attivazione pre-gara", "25' E + 3-4 allunghi", "-", "-", "pre-gara", ""],
+      ["Sab", "GARA", "gara", "-", "-", "gara", "g"],
+      ["Dom", "Riposo / rigenerante", "30' E (facolt.)", "-", "-", "-", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 5 · TAPER — settimana di gara (peaking)",
+    parametri: "TAPER: volume −40/60%, intensità e frequenza INVARIATE · 2-3 stimoli brevi di qualità · obiettivo FRESCHEZZA/PICCO.",
+    giorni: [
+      ["Lun", "Qualità breve", "3-4×1000 a ritmo gara", "Richiamo forza breve", "85-90% · 1-2 serie", "taglia il volume, tieni l'intensità", ""],
+      ["Mar", "Facile", "35' E", "-", "-", "freschezza", ""],
+      ["Mer", "VO2max breve", "3-4×600 I", "-", "-", "stimolo breve", ""],
+      ["Gio", "Facile + allunghi", "25' + 4 allunghi", "-", "-", "", ""],
+      ["Ven", "Riposo / scarico", "20' E (facolt.)", "-", "-", "scarico", "r"],
+      ["Sab", "GARA", "gara", "-", "-", "PICCO", "g"],
+      ["Dom", "Riposo / recupero", "-", "-", "-", "-", "r"]
+    ]
+  }
+];
+

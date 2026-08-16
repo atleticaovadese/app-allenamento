@@ -225,22 +225,33 @@ const TEMPLATE_BLOCCHI = [
   }
 ];
 
-function vistaTemplate() {
-  const blocchi = TEMPLATE_BLOCCHI.map(b => `
+function setTmplSet(v) { S.tmplSet = v; disegna(); window.scrollTo(0, 0); }
+function _renderTemplateBlocchi(blocchi, colPista) {
+  return blocchi.map(b => `
     <div class="card">
       <p style="font-weight:600;font-size:13px">${b.titolo}</p>
       <p class="et" style="margin:6px 0 10px;line-height:1.5">${b.parametri}</p>
       <div class="p-scroll"><table class="ptab pista-w">
-        <thead><tr><th>Giorno</th><th>Pista</th><th>Distanze/%</th><th>Palestra</th><th>%1RM·s×r</th><th>Note</th></tr></thead>
+        <thead><tr><th>Giorno</th><th>${colPista}</th><th>Distanze/${colPista === "Corsa" ? "ritmo" : "%"}</th><th>Palestra</th><th>%1RM·s×r</th><th>Note</th></tr></thead>
         <tbody>${b.giorni.map(([g, pista, dist, pal, perc, note, kind]) => {
           const st = kind === "g" ? ' style="background:rgba(240,168,60,.13)"' : kind === "r" ? ' style="color:var(--txt3)"' : "";
           return `<tr${st}><td>${g}</td><td style="white-space:normal;min-width:150px">${pista}</td><td style="white-space:normal">${dist}</td><td style="white-space:normal;min-width:130px">${pal}</td><td style="white-space:normal">${perc}</td><td class="et" style="white-space:normal">${note}</td></tr>`;
         }).join("")}</tbody>
       </table></div>
     </div>`).join("");
+}
+function vistaTemplate() {
+  // set di template disponibili (menù a tendina)
+  const sets = { vel: { lab: "Velocità / Salti", col: "Pista", blocchi: TEMPLATE_BLOCCHI, nota: "Valori indicativi (Bompa/Buzzichelli, NSCA, Francis/Altis)." } };
+  if (typeof MZ_TEMPLATE !== "undefined") sets.mezzo = { lab: "Mezzofondo / Fondo", col: "Corsa", blocchi: MZ_TEMPLATE, nota: "Ritmi dai Ritmi target (E/M/T/I/R). Carico 3:1 (3 sett. in crescita + 1 scarico)." };
+  const set = sets[S.tmplSet] ? S.tmplSet : "vel";
+  const cur = sets[set];
+  const dropdown = `<div class="card"><label class="lab">Template per disciplina</label>
+    <select onchange="setTmplSet(this.value)" style="margin-top:6px">${Object.keys(sets).map(k => `<option value="${k}" ${k === set ? "selected" : ""}>${sets[k].lab}</option>`).join("")}</select></div>`;
 
   return `
   <div class="card"><h3>Template microcicli</h3>
-    <p class="et" style="margin-top:2px">Settimana-tipo per ogni blocco: uno scheletro da copiare e adattare quando scrivi un mesociclo. Valori indicativi (Bompa/Buzzichelli, NSCA, Francis/Altis). Grigio = riposo, arancione = gara.</p></div>
-  ${blocchi}`;
+    <p class="et" style="margin-top:2px">Settimana-tipo per ogni blocco: uno scheletro da copiare e adattare quando scrivi un mesociclo in Pista. Grigio = riposo, arancione = gara. ${cur.nota}</p></div>
+  ${dropdown}
+  ${_renderTemplateBlocchi(cur.blocchi, cur.col)}`;
 }
