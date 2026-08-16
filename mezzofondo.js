@@ -274,6 +274,20 @@ function vistaProgrammaPistaMezzo() {
   const offInputs = MZ_OFFSET_LABEL.map(([k, l]) => `<div><label class="lab">${l}</label>
     <input inputmode="numeric" value="${off[k]}" oninput="setMzPistaOffVal('${k}',this.value)" onchange="disegna()" style="margin-top:6px"></div>`).join("");
 
+  // se l'atleta di riferimento ha un Test lattato attivo: scelta Dmax/OBLA proprio qui (vale per i SUOI allenamenti)
+  const RlatP = refA ? analisiLattato((DEMO.lattato && DEMO.lattato[refA.id]) || {}, refA) : null;
+  const testAttivo = refA && DEMO.lattato && DEMO.lattato[refA.id] && DEMO.lattato[refA.id].usaLT2 !== false && RlatP && RlatP.vLT2 != null;
+  const metP = (refA && DEMO.lattato && DEMO.lattato[refA.id]) ? (DEMO.lattato[refA.id].metodo || "dmax") : "dmax";
+  const bloccoMetP = testAttivo ? `
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        <span class="lab">Soglia di ${refA.nome} (dal Test lattato)</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <button class="btn ${metP === "dmax" ? "btn-1" : "btn-2"}" style="width:auto;padding:7px 12px" onclick="setLatMetodoFor('${refA.id}','dmax')">Dmax${RlatP.ritmoDmax ? " · " + RlatP.ritmoDmax : ""}</button>
+          <button class="btn ${metP === "obla" ? "btn-1" : "btn-2"}" style="width:auto;padding:7px 12px" onclick="setLatMetodoFor('${refA.id}','obla')">OBLA 4${RlatP.ritmoLT2 ? " · " + RlatP.ritmoLT2 : ""}</button>
+        </div>
+        <p class="et" style="margin-top:6px">Cambia la soglia negli allenamenti di <b>${refA.nome}</b>. Ogni atleta ha la sua (anche dal Test lattato).</p>
+      </div>` : "";
+
   const testa = `
     <div class="card"><h3>Programma Pista — mezzofondo / fondo</h3>
       <p class="et" style="margin-top:2px">Scegli il <b>mezzo</b> e metti <b>distanza + n°</b> (ripetute) <b>oppure i minuti</b> (corsa continua). Ritmo/km, tempo per ripetuta e volume escono da soli dal PB (motore <b>Ritmi target</b>).</p>
@@ -285,6 +299,7 @@ function vistaProgrammaPistaMezzo() {
       <div class="griglia2">${pbInputs}</div>
       <div style="margin-top:12px"><label class="lab">Obiettivo: ritmi più veloci di (sec/km)</label>
         <input inputmode="numeric" value="${p.mzObiettivo || 0}" oninput="setMzPistaObiVal(this.value)" onchange="disegna()" placeholder="0" style="margin-top:6px"></div>
+      ${bloccoMetP}
       <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:12px" onclick="toggleMzPistaAvanzato()">${S.mzPistaAvanzato ? "Nascondi offset" : "⚙ Offset avanzati"}</button>
       ${S.mzPistaAvanzato ? `<p class="et" style="margin:10px 0 4px">Offset (sec/km) — tara i ritmi.</p><div class="griglia2">${offInputs}</div>` : ""}
     </div>`;
@@ -581,7 +596,8 @@ function setLatAtleta(id) { latState.atletaRif = id; disegna(); }
 function setLatCampo(campo, v) { const t = _latTest(latState.atletaRif); t[campo] = v; _latSave(); disegna(); }
 function setLatCampoVal(campo, v) { const t = _latTest(latState.atletaRif); t[campo] = v; _latSave(); }
 function toggleLatUsa() { const t = _latTest(latState.atletaRif); t.usaLT2 = !t.usaLT2; _latSave(); disegna(); }
-function setLatMetodo(m) { const t = _latTest(latState.atletaRif); t.metodo = m; _latSave(); disegna(); }
+function setLatMetodoFor(aid, m) { if (!aid) return; const t = _latTest(aid); t.metodo = m; _latSave(); disegna(); }
+function setLatMetodo(m) { setLatMetodoFor(latState.atletaRif, m); }
 function setLatStepVal(i, campo, v) { const t = _latTest(latState.atletaRif); t.steps[i][campo] = v; _latSave(); }
 function latAddStep() { const t = _latTest(latState.atletaRif); t.steps.push({ min: "", sec: "", fc: "", lat: "", rpe: "" }); _latSave(); disegna(); }
 function latDelStep(i) { const t = _latTest(latState.atletaRif); if (t.steps.length > 1) t.steps.splice(i, 1); _latSave(); disegna(); }
