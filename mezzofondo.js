@@ -1234,3 +1234,97 @@ const MZ_TEMPLATE = [
   }
 ];
 
+// ============================================================================
+// GUIDA MEZZI — i 13 mezzi spiegati (fedele all'Excel "Guida mezzi").
+// [mezzo, scopo, intensità, struttura, recupero, volume/seduta, quando·chi, attenzione]
+// ============================================================================
+const MZ_GUIDA = [
+  ["Rigenerazione", "Recupero attivo: flusso sanguigno, tecnica rilassata. NON è allenante, aiuta a recuperare.", "molto lento · <1.5 mmol · <70% FCmax · RPE 2-3 · rit.5000 +90-120″/km", "continuo 20-45'", "-", "-", "tutto l'anno, dopo sedute dure/gare · tutti", "Deve essere DAVVERO lento: l'errore più comune è correrlo troppo forte."],
+  ["Lungo", "Base aerobica: capillari, mitocondri, economia, resistenza. È il fondamento di tutto.", "lento · 1-2 mmol · 70-82% FCmax · RPE 3-4 · rit.5000 +75-105″/km", "continuo 60-120' (pista 45-100')", "-", "12-28 km", "tutto l'anno (max prep gen.) · ++ 5-10k", "Durata progressiva nel tempo; non trasformarlo in medio."],
+  ["Medio / maratona", "Resistenza aerobica «forte», supporto alla soglia, correre svelto a lungo.", "2-2.5 mmol · 83-88% FCmax · RPE 5-6 · rit.10k +25-40″/km", "continuo 8-18 km o 2-3×4-6 km", "90-120″", "8-18 km", "prep gen/spec · 3-10k", "Non superare la soglia: deve restare «controllato-duro»."],
+  ["Soglia LT2 (T)", "Alza la velocità ALLA SOGLIA: il fattore più allenabile nel fondo; migliora lo smaltimento del lattato.", "ritmo ~1h gara · 2.5-4 mmol · 84-88% FCmax · RPE 6-7 · dal Test vLT2", "cont. 20-40' oppure 5-6×1miglio / 4-6×2000 / 6-8×1000", "60-90″", "5-10 km", "tutto l'anno, picco prep spec. · cardine 3-10k", "Il ritmo deve stare IN soglia (né 10k né maratona). Tara col Test lattato."],
+  ["Sub-soglia (norvegese)", "Accumula TANTO volume di qualità appena sotto LT2 senza troppa fatica: grande stimolo aerobico.", "2.0-2.5 mmol (sotto LT2) · RPE 5-6 · ritmo soglia −5/10″/km", "5-6×2000 / 10-15×1000 / 20-25×400 (anche 2 doppie/gg)", "breve 30-60″", "8-14 km", "spec/pre-comp · 1500-10k evoluti", "Controlla il lattato (2-2.5): se sale troppo, stai correndo forte."],
+  ["VO2max (I)", "Alza VO2max e vVO2max: potenza aerobica massima ed economia ad alta velocità.", "~ritmo 3000-5000 · 95-100% vVO2max · 3.5-8 mmol · RPE 8-9", "4-6×1000-1200 / 5-8×800 / 6-8×600 / 25-30×30″", "2-3' o = alla rip.", "4-8 km (15-25' al ritmo)", "spec + pre-comp · cardine 1500-5000", "Ritmo COSTANTE fino all'ultima; se crolli hai esagerato intensità/volume."],
+  ["Ritmo gara 1500", "Specificità: meccanica, respiro e testa al ritmo esatto di gara.", "pari al ritmo obiettivo 1500 · RPE 8-9", "4-6×400-600 a ritmo gara", "1:1 → 1:0.5", "3-5 km", "pre-comp/comp · 1500 (e 800)", "Ritmo giusto e tenuta: è il test della forma specifica."],
+  ["Ritmo gara 5000", "Specificità 5000: abituarsi al ritmo e alla sua durata.", "pari al ritmo obiettivo 5000 · RPE 7-8", "5-6×1000 a ritmo gara", "1:1 → 1:0.5", "4-6 km", "pre-comp/comp · 3000-5000", "Deve «girare» al ritmo con margine; occhio a non partire troppo forte."],
+  ["Ritmo gara 10000", "Specificità 10000: resistenza al ritmo gara.", "pari al ritmo obiettivo 10000 · RPE 7-8", "6-8×1000-1600 a ritmo gara", "1:0.5", "5-8 km", "pre-comp/comp · 5000-10000", "Tenuta e ritmo costante su volume alto."],
+  ["Capacità lattacida", "Tollerare/tamponare alto lattato: resistere all'acidosi. Chiave per 800/1500.", "ritmo 800-1500 · 8-12 mmol · RPE 9-10", "200-600 m a ritmo gara", "lungo 2-4' (1:2-1:3)", "1.2-3 km", "pre-comp/comp · 800-1500", "Tenere il ritmo nonostante l'acido; recuperi ampi, poco volume."],
+  ["Potenza lattacida", "Massimizzare l'energia anaerobica lattacida: velocità di gara degli 800.", "quasi-massimale · >12 mmol · RPE 10", "150-400 m forte", "completo 4-8'", "0.6-1.5 km", "comp · 800 (soprattutto)", "Qualità altissima, recuperi pieni; volume molto basso."],
+  ["Velocità / alattacido", "Velocità pura, reclutamento, economia neuromuscolare: il «cambio di marcia».", "massimale breve · RPE alto ma SENZA acido", "30-80 m sprint / allunghi 80-120 m", "completo", "0.3-0.8 km", "tutto l'anno (allunghi) · ++ 800", "Rilassatezza e tecnica; non è un lavoro lattacido."],
+  ["Forza-economia", "Migliora l'economia di corsa (forza pesante + pliometria), struttura, prevenzione.", "palestra 80-100% 1RM poche rip + pliometria; colli 8-12×60-200 m", "vedi Palestra / Pliometria", "completo / jog", "2×/sett prep, 1× comp", "gen → mantenuto · tutti", "Non cercare ipertrofia: qualità e freschezza. Evidenza: +economia alle alte velocità."]
+];
+const MZ_GUIDA_COMBINA = [
+  "Regola 80/20 (Seiler): ≥80% del volume facile (Rigenerazione/Lungo/base); i lavori DURI (Soglia, VO2max, lattacido, ritmo gara) sono 2-3 a settimana, con 48h tra loro.",
+  "800: cardine Capacità/Potenza lattacida + Velocità + VO2max; base aerobica come supporto. Distribuzione più polarizzata, volume più basso.",
+  "1500: VO2max + Soglia + Velocità specifica + un po' di lattacido nel pre-comp. È l'incrocio tra veloce e prolungato.",
+  "3000-5000: Soglia (cardine) + VO2max + Lungo + Ritmo gara; distribuzione piramidale, volume medio-alto.",
+  "5000-10000: Soglia/Sub-soglia (cardine) + VO2max + tanto Lungo/base + Ritmo gara; volume alto, piramidale.",
+  "Per periodo: Prep. generale = Base + Soglia + Forza generale; Prep. speciale = + VO2max e più Soglia, Forza max; Pre-comp = Ritmo gara + (lattacido per 800/1500); Competitiva = qualità gara + rifinitura, TAPER prima delle gare A.",
+  "Vedi anche «Per distanza» (matrice periodo × mezzo) e «Template microcicli» (settimane-tipo pronte)."
+];
+function vistaGuidaMezzi() {
+  const lbl = (l, v) => `<div style="padding:3px 0"><b>${l}:</b> ${v}</div>`;
+  const cards = MZ_GUIDA.map(m => `<div class="card">
+    <h3>${m[0]}</h3>
+    <p class="et" style="margin:4px 0 8px">${m[1]}</p>
+    <div style="font-size:13px">
+      ${lbl("Intensità", m[2])}
+      ${lbl("Struttura", m[3])}
+      ${m[4] !== "-" ? lbl("Recupero", m[4]) : ""}
+      ${m[5] !== "-" ? lbl("Volume/seduta", m[5]) : ""}
+      ${lbl("Quando · per chi", m[6])}
+    </div>
+    <p class="et" style="margin:8px 0 0;padding:7px 9px;background:rgba(240,168,60,.12);border-radius:8px">⚠ ${m[7]}</p>
+  </div>`).join("");
+  const combina = `<div class="card"><p class="et" style="margin-bottom:6px">Come combinarli — settimana e periodo</p>
+    ${MZ_GUIDA_COMBINA.map(t => `<p class="et" style="margin:0 0 7px">• ${t}</p>`).join("")}</div>`;
+  return `<div class="card"><h3>Guida ai mezzi (mezzofondo/fondo)</h3>
+    <p class="et" style="margin-top:2px">I 13 mezzi spiegati: a cosa servono, come strutturarli (distanze/recuperi/volume), quando usarli e gli errori da evitare. I ritmi arrivano dai <b>Ritmi target</b>.</p></div>
+    ${cards}${combina}`;
+}
+
+// ============================================================================
+// GUIDA TEST MEZZOFONDO — a cosa servono i test, come si leggono, cosa allenare.
+// [test, a cosa serve, come si fa, come si legge, "se esce → allena", fonte]
+// ============================================================================
+const MZ_GUIDA_TEST = [
+  ["Test lattato — curva & soglie", "Trova le due soglie (LT1, LT2) e i ritmi/zone REALI dell'atleta. È il test più importante per il fondo.", "Step di 3-4', +1 km/h a step, prelievo di lattato a fine step, velocità crescenti (5-8 step).", "La curva sale piano poi IMPENNA. LT1 = primo rialzo (baseline+0.5, ~2 mmol) = tetto della corsa lenta. LT2 = impennata (OBLA 4.0 / baseline+1.5 / Dmax) = ritmo di SOGLIA. Dmax (più affidabile) = punto della curva a max distanza dalla retta che ne unisce gli estremi. Guarda anche la FC alle soglie.", "Curva che impenna PRESTO (LT2 a bassa velocità) → manca soglia/base: più T + Sub-soglia + volume facile (Z1). Curva «piatta e spostata a destra» → ottima resistenza: spingi VO2max e ritmo gara. Divario LT1-LT2 ampio → margine: alza la soglia con lavoro a T.", "Goodwin & Gladden; Mader (OBLA); Dmax"],
+  ["Velocità critica (CS / D')", "Stima la soglia dal CAMPO (senza lattametro) + la capacità anaerobica.", "2-4 prove a tutta su distanze diverse (es. 1200 e 2400 m, o 3' e 12'), ben recuperate.", "Retta distanza-tempo: la PENDENZA = CS (m/s, ~soglia sostenibile), l'INTERCETTA = D' (m, riserva anaerobica). R² vicino a 1 = affidabile. Dà anche il ritmo/km a CS.", "CS alta ma D' basso = «diesel» (fondo forte, poca punta) → se fai 800/1500 allena Velocità/lattacido. D' alto ma CS bassa = tanta punta poca soglia → allena T/Sub-soglia + volume. 5-10k: conta CS. 800-1500: conta anche D'.", "Monod-Scherrer; Jones (Critical Power)"],
+  ["VO2max (stima o laboratorio)", "Capacità aerobica massima: il «tetto» della potenza aerobica. Con la vVO2max fissi il ritmo degli intervalli.", "Campo: Cooper 12' o test progressivo / da prova 1500-3000 (stima). Oppure laboratorio.", "ml/kg/min (amatore evoluto ~55-65, elite ~70-85). vVO2max = velocità a VO2max (~ritmo 3000 m): è il ritmo degli intervalli «I».", "VO2max alto ma prestazione scarsa → problema di ECONOMIA o soglia: Forza-economia + Soglia. VO2max basso ma % di soglia alta → margine: inserisci intervalli I (5-6×1000). vVO2max bassa → intervalli al ritmo 3000 + economia (allunghi, pliometria).", "Billat (vVO2max); Daniels"],
+  ["Prove cronometrate (600-10000)", "Verifica diretta della forma per distanza e taratura dei ritmi.", "Prove a tutta o submax controllate, sempre nella stessa condizione.", "Delta tra sessioni + confronto col PB (semaforo nel foglio Test).", "Migliori sulle brevi ma non sulle lunghe → manca resistenza/soglia (più Lungo, T, volume). Migliori sulle lunghe ma non sulle brevi → manca velocità/VO2max (più I, Ritmo gara, Velocità).", "-"],
+  ["Salti CMJ / SJ (uso elastico)", "Forza esplosiva degli arti inferiori e uso ELASTICO (lega all'economia/rigidità).", "CMJ (con contromovimento) e SJ (da fermo, senza rimbalzo). Best di 2-3 prove.", "CMJ − SJ = quota «elastica». CMJ-SJ basso (<2-3 cm) = poco uso elastico. SJ basso = poca forza esplosiva.", "CMJ-SJ basso → PLIOMETRIA reattiva (rimbalzi, drop/depth jump). SJ basso → forza esplosiva (squat/jump squat). Serve al fondista per l'economia, non per saltare più in alto.", "Bosco"],
+  ["RSI — drop jump (reattività)", "Forza REATTIVA e stiffness della caviglia/tendine: chiave dell'economia di corsa.", "Drop jump da varie altezze; RSI = altezza salto (m) / tempo di contatto (s).", "<1.5 scarso · 1.5-2.0 medio · 2.0-2.5 buono · >2.5 ottimo. L'altezza di caduta col RSI più alto è la tua ottimale per i drop jump.", "RSI basso → pliometria REATTIVA (contatti brevi) + forza: migliora la stiffness → corri più «economico» a parità di VO2max.", "Flanagan"],
+  ["Forza 1RM / VBT", "Forza massima RELATIVA (economia, prevenzione, finale di gara).", "1RM diretto o stima dalla retta carico-velocità (foglio Stima 1RM).", "Squat / peso corporeo: <1.5× debole · 1.5-2× discreto · >2× buono per un fondista.", "Squat/peso basso → Forza max (85-100%, poche rip). Se già ok → mantenimento + potenza/pliometria (non aggiungere massa).", "NSCA; Blagrove"],
+  ["Asimmetrie DX/SX", "Prevenzione infortuni: squilibri tra lato destro e sinistro.", "Caviglia knee-to-wall, hamstring SLR, salto monopodalico: misura dx e sx.", "Differenza %: >15% bandiera ROSSA, 10-15% attenzione (Limb Symmetry Index). Nel foglio Infortuni il semaforo lo calcola da solo.", "Asimmetria >15% → lavoro UNILATERALE sul lato debole + mobilità; riduci il carico finché non rientra.", "Limb Symmetry Index"]
+];
+const MZ_TEST_PER_DISC = [
+  ["800 / 1500", "Critical Speed (CS + D'); Speed reserve (lanciato 30-40 m vs ritmo 1500); prove 600 e 1000 m a tutta; lattato dopo un all-out (picco); lattato a step per la base.", "D' (riserva anaerobica) = la marcia in più; il TIPO (veloce/resistente); picco di lattato (potenza lattacida); CS come base aerobica."],
+  ["3000 / 5000", "Lattato a step (centrale, parti lento); VO2max/vVO2max (da 3000 o Cooper); prove 2000/3000 m; salti (CMJ/RSI).", "Soglia LT2 = il ritmo-chiave; vVO2max (ritmo intervalli); economia (salti/forza)."],
+  ["10000", "Lattato a step (LT2); prove 5000/10000; lunghi a ritmo; Critical Speed (opz.).", "Soglia LT2; tenuta sul volume; ritmo gara sostenibile."],
+  ["Mezza maratona", "Lattato (LT2 ~ ritmo mezza); lunghi con tratti a ritmo mezza/maratona; prove 5-10 km.", "Soglia LT2 e ritmo mezza; resistenza alla soglia; economia."],
+  ["Maratona", "Lattato (LT1 e LT2); lunghi 30-35 km con ritmo maratona; prova rifornimento/idratazione.", "LT1 (il ritmo maratona sta vicino/sotto LT1?); uso dei grassi; economia; tenuta finale."]
+];
+function vistaGuidaTest() {
+  const lbl = (l, v) => `<div style="padding:3px 0"><b>${l}:</b> ${v}</div>`;
+  const cards = MZ_GUIDA_TEST.map(t => `<div class="card">
+    <h3>${t[0]}</h3>
+    <p class="et" style="margin:4px 0 8px">${t[1]}</p>
+    <div style="font-size:13px">
+      ${lbl("Come si fa", t[2])}
+      ${lbl("Come si legge", t[3])}
+      ${t[5] !== "-" ? lbl("Fonte", t[5]) : ""}
+    </div>
+    <p style="margin:8px 0 0;padding:8px 10px;background:rgba(63,181,107,.12);border-radius:8px;font-size:13px"><b>Se esce… → allena:</b> ${t[4]}</p>
+  </div>`).join("");
+  const perDisc = `<div class="card"><p class="et" style="margin-bottom:6px">Test per disciplina — quali fare e cosa guardare</p>
+    ${MZ_TEST_PER_DISC.map(([d, test, guarda]) => `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+      <p style="font-weight:600;font-size:13px;margin:0 0 3px">${d}</p>
+      <p class="et" style="margin:0 0 4px"><b>Test prioritari:</b> ${test}</p>
+      <p class="et" style="margin:0"><b>Cosa guardare:</b> ${guarda}</p></div>`).join("")}</div>`;
+  return `<div class="card"><h3>Guida ai test (mezzofondo/fondo)</h3>
+    <p class="et" style="margin-top:2px">Ogni test dice qualcosa di preciso e indica <b>cosa allenare</b> in risposta. Rifai i test ogni ~8 settimane e confronta. I valori li trovi in Test lattato, Velocità critica e Test.</p></div>
+    ${cards}${perDisc}
+    <div class="card"><p class="et" style="margin:0">I test dicono <b>dove</b> sei debole; il riquadro verde «Se esce → allena» dice cosa mettere di più nel programma. Ripeti ogni ~8 settimane per vedere se la soluzione ha funzionato.</p></div>`;
+}
+
+
