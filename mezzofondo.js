@@ -87,7 +87,8 @@ function ritmiTarget(atleta, opts) {
   // soglia REALE dal Test lattato (vLT2 OBLA, km/h → sec/km): esplicita (opts) o dal test salvato dell'atleta
   let lt2 = (opts.useLT2 && opts.vLT2) ? 3600 / opts.vLT2 : null;
   if (lt2 == null && opts.useLT2 !== false) { const vt = (typeof vLT2diAtleta === "function") ? vLT2diAtleta(atleta) : null; if (vt) lt2 = 3600 / vt; }
-  const rifSoglia = lt2 != null ? "Test lattato (vLT2)" : "10000 +30 / test";
+  const _mtLT2 = (typeof metodoLT2diAtleta === "function") ? metodoLT2diAtleta(atleta) : null;
+  const rifSoglia = lt2 == null ? "10000 +30 / test" : (_mtLT2 ? "Test · " + (_mtLT2 === "obla" ? "OBLA 4" : "Dmax") : "Test lattato (vLT2)");
   const M = [
     ["Rigenerazione", or(add(p5000, off.lungo + 20)), "5000 +120", "Z1 <1.5"],
     ["Lungo", or(add(p5000, off.lungo)), "5000 +100", "Z1-2 1-2"],
@@ -190,8 +191,12 @@ function vistaRitmiMezzofondo() {
   const Rlat = a ? analisiLattato((DEMO.lattato && DEMO.lattato[a.id]) || {}, a) : null;
   const hasTest = Rlat && Rlat.vLT2 != null;
   const usaTest = a && DEMO.lattato && DEMO.lattato[a.id] && DEMO.lattato[a.id].usaLT2 !== false;
+  const metodoT = (a && DEMO.lattato && DEMO.lattato[a.id]) ? (DEMO.lattato[a.id].metodo || "dmax") : "dmax";
+  const effObla = (metodoT === "obla") || (Rlat && Rlat.vLT2dmax == null);   // Dmax se disponibile e scelto, altrimenti OBLA
+  const vUsata = Rlat ? (effObla ? Rlat.vLT2 : Rlat.vLT2dmax) : null;
+  const metodoNome = effObla ? "OBLA 4" : "Dmax";
   const bloccoTest = hasTest ? `<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--line)">
-      <div><span class="lab">Soglia dal Test lattato</span><p class="et" style="margin:2px 0 0">vLT2 = <b>${_mzMMSS(3600 / Rlat.vLT2)}/km</b> · ${usaTest ? "usata per la Soglia" : "stima dai PB in uso"}</p></div>
+      <div><span class="lab">Soglia dal Test lattato · <b>${metodoNome}</b></span><p class="et" style="margin:2px 0 0">soglia = <b>${_mzMMSS(3600 / vUsata)}/km</b> · ${usaTest ? "usata per la Soglia" : "stima dai PB in uso"}<br><span style="color:var(--txt3)">cambi metodo nel Test lattato</span></p></div>
       <button class="btn ${usaTest ? "btn-1" : "btn-2"}" style="width:auto;padding:9px 14px" onclick="toggleMzUsaLT2()">${usaTest ? "✓ Attivo" : "Usa vLT2"}</button>
     </div>` : "";
 
@@ -434,22 +439,36 @@ function _mzVelKmh(min, sec) { const p = (Number(min) || 0) + (Number(sec) || 0)
 // test corrente di un atleta (in DEMO.lattato); crea la struttura se manca
 function _latTest(aid) {
   DEMO.lattato = DEMO.lattato || {};
-  if (!DEMO.lattato[aid]) DEMO.lattato[aid] = { distStep: 1200, peso: "", lt2Target: 4.0, usaLT2: true, steps: [] };
+  if (!DEMO.lattato[aid]) DEMO.lattato[aid] = { distStep: 1200, peso: "", lt2Target: 4.0, usaLT2: true, metodo: "dmax", steps: [] };
   const t = DEMO.lattato[aid];
   if (!t.steps) t.steps = [];
   while (t.steps.length < 5) t.steps.push({ min: "", sec: "", fc: "", lat: "", rpe: "" });
   if (t.lt2Target == null) t.lt2Target = 4.0;
   if (t.usaLT2 == null) t.usaLT2 = true;
+  if (t.metodo == null) t.metodo = "dmax";   // soglia per i ritmi: Dmax (predefinito, più su misura) o OBLA 4
   return t;
 }
 function _latSave() { if (typeof salvaCustom === "function") salvaCustom(); }
-// vLT2 (OBLA, km/h) dal test salvato dell'atleta, se valido e attivo — usata dai Ritmi target
+// metodo soglia scelto per l'atleta ("dmax"/"obla") se il test è valido e attivo, altrimenti null
+function metodoLT2diAtleta(atleta) {
+  if (!atleta || !atleta.id || !DEMO.lattato || !DEMO.lattato[atleta.id]) return null;
+  const t = DEMO.lattato[atleta.id];
+  if (t.usaLT2 === false) return null;
+  const R = analisiLattato(t, atleta);
+  const m = t.metodo || "dmax";
+  if (m === "dmax" && R.vLT2dmax == null) return (R.vLT2 != null ? "obla" : null);   // Dmax non disponibile (pochi punti) → ripiega su OBLA
+  if (R.vLT2 == null && R.vLT2dmax == null) return null;
+  return m;
+}
+// vLT2 (km/h) dal test dell'atleta col metodo scelto (Dmax predefinito) — usata dai Ritmi target
 function vLT2diAtleta(atleta) {
   if (!atleta || !atleta.id || !DEMO.lattato || !DEMO.lattato[atleta.id]) return null;
   const t = DEMO.lattato[atleta.id];
   if (t.usaLT2 === false) return null;
   const R = analisiLattato(t, atleta);
-  return (R.vLT2 != null && !isNaN(R.vLT2)) ? R.vLT2 : null;
+  const m = t.metodo || "dmax";
+  const v = (m === "obla") ? R.vLT2 : (R.vLT2dmax != null ? R.vLT2dmax : R.vLT2);   // Dmax, con ripiego su OBLA se manca
+  return (v != null && !isNaN(v)) ? v : null;
 }
 
 // motore: legge il test → baseline, LT1/LT2, Dmax, ritmi, FC, prospetto
@@ -562,6 +581,7 @@ function setLatAtleta(id) { latState.atletaRif = id; disegna(); }
 function setLatCampo(campo, v) { const t = _latTest(latState.atletaRif); t[campo] = v; _latSave(); disegna(); }
 function setLatCampoVal(campo, v) { const t = _latTest(latState.atletaRif); t[campo] = v; _latSave(); }
 function toggleLatUsa() { const t = _latTest(latState.atletaRif); t.usaLT2 = !t.usaLT2; _latSave(); disegna(); }
+function setLatMetodo(m) { const t = _latTest(latState.atletaRif); t.metodo = m; _latSave(); disegna(); }
 function setLatStepVal(i, campo, v) { const t = _latTest(latState.atletaRif); t.steps[i][campo] = v; _latSave(); }
 function latAddStep() { const t = _latTest(latState.atletaRif); t.steps.push({ min: "", sec: "", fc: "", lat: "", rpe: "" }); _latSave(); disegna(); }
 function latDelStep(i) { const t = _latTest(latState.atletaRif); if (t.steps.length > 1) t.steps.splice(i, 1); _latSave(); disegna(); }
@@ -635,8 +655,15 @@ function vistaTestLattato() {
     ${rigaRis("LT1 — ritmo /km", R.ritmoLT1 || "—", R.vLT1 != null ? num(R.vLT1, 1) + " km/h · FC " + num(R.fcLT1) : "")}
     ${rigaRis("LT2 (OBLA " + R.lt2Target + ") — ritmo /km", R.ritmoLT2 || "—", R.vLT2 != null ? num(R.vLT2, 1) + " km/h · FC " + num(R.fcLT2) : "")}
     ${R.vLT2dmax != null ? rigaRis("LT2 (Dmax) — ritmo /km", R.ritmoDmax, num(R.vLT2dmax, 1) + " km/h") : ""}
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <p class="et" style="margin:0 0 6px">Quale soglia usano i <b>Ritmi</b>${t.usaLT2 ? "" : " <span style='color:var(--txt3)'>(accendi «Usa vLT2» qui sopra)</span>"}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn ${(t.metodo || "dmax") === "dmax" ? "btn-1" : "btn-2"}" style="width:auto;padding:8px 13px" onclick="setLatMetodo('dmax')">Dmax${R.ritmoDmax ? " · " + R.ritmoDmax : ""}</button>
+        <button class="btn ${(t.metodo || "dmax") === "obla" ? "btn-1" : "btn-2"}" style="width:auto;padding:8px 13px" onclick="setLatMetodo('obla')">OBLA 4${R.ritmoLT2 ? " · " + R.ritmoLT2 : ""}</button>
+      </div>
+    </div>
     <div style="margin-top:12px">${_latChart(R)}</div>
-    <p class="et" style="margin-top:8px">OBLA 4.0 = riferimento; <b>Dmax</b> = metodo grafico più affidabile per la soglia. La riga tratteggiata rossa è la soglia LT2 scelta.</p>
+    <p class="et" style="margin-top:8px">OBLA 4.0 = riferimento fisso; <b>Dmax</b> = il punto dove la <i>tua</i> curva si piega davvero (più su misura). La riga tratteggiata rossa è la soglia OBLA scelta.</p>
   </div>`;
 
   // prospetto
