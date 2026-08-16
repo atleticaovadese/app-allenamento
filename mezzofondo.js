@@ -531,25 +531,40 @@ function analisiLattato(test, atleta) {
   return R;
 }
 
-// testo coaching per disciplina (porta le formule del foglio Excel)
+// spiegazione in parole semplici dell'indicatore "soglia vs ritmo gara"
+function _spiegSogliaGara(sg) {
+  if (sg == null) return "Dice quanto vai forte alla soglia rispetto al tuo ritmo dei 5000 in gara (di solito 88–92%). Per calcolarlo serve il PB 5000.";
+  const p = Math.round(sg * 100);
+  if (sg > 0.93) return "ALTA (" + p + "%): in gara corri quasi al ritmo di soglia → il tuo motore aerobico è già forte e ben sfruttato. Per migliorare i tempi lavora SOPRA la soglia (VO2max, tratti a ritmo gara) e sulla velocità.";
+  if (sg < 0.86) return "BASSA (" + p + "%): alla soglia vai molto più piano che in gara → hai margine da recuperare. Più sedute di soglia + tanta corsa facile la alzano, e i tempi scendono.";
+  return "NELLA NORMA (" + p + "%): buon equilibrio tra soglia e ritmo gara. Mantieni le soglie e aumenta piano il resto.";
+}
+// spiegazione in parole semplici dell'"ampiezza aerobica"
+function _spiegAmpiezza(amp) {
+  if (amp == null) return "Dice quanto la tua andatura facile (LT1) è già vicina alla soglia (LT2).";
+  const p = Math.round(amp * 100);
+  if (amp < 0.8) return "STRETTA (" + p + "%): c'è un bel salto tra il passo facile e la soglia → la base aerobica è ancora povera. Aumenta la corsa LENTA e comoda per allargarla.";
+  return "BUONA (" + p + "%): corri comodo già vicino alla soglia → base aerobica sviluppata. Continua con volume facile + soglia.";
+}
+// testo coaching per disciplina, in parole semplici (spiega anche i termini)
 function _latCoach(disc, R) {
   if (R.vLT2 == null) return "(fai il test: inserisci gli step con passo e lattato)";
-  const sg = R.sogliaGara, amp = R.ampiezza, rit = R.ritmoLT2 || "—";
-  const stretta = amp != null && amp < 0.8;
+  const sg = R.sogliaGara, rit = R.ritmoLT2 || "—";
+  const baseStretta = (R.ampiezza != null && R.ampiezza < 0.8) ? " In più la tua base è “stretta” (il passo facile è lontano dalla soglia): aggiungi corsa LENTA e comoda per allargarla." : "";
   if (disc === "800") {
-    let t = "Il test misura la tua BASE AEROBICA (le soglie). ";
-    t += sg == null ? "(inserisci il PB 5000 per il confronto con la gara). " : (sg < 0.9 ? "Ora è un po' bassa. " : "Adeguata come supporto. ");
-    t += "COSA FARE: " + (sg == null ? "costruisci volume facile (Z1) + 1-2 soglie a settimana." : (sg < 0.9 ? "4-6 settimane a 80-90% facile (Z1) + 1-2 soglie/sett (es. 5-6×1000 o 20-30′ di medio-soglia), pochi intervalli duri, poi rifai il test." : "mantieni 1-2 soglie/sett + volume."));
-    return t + " ATTENZIONE 800/1500: il test NON misura la parte VELOCE/anaerobica (la tua arma di gara): aggiungi VELOCITÀ (allunghi 60-120 m) e LATTACIDO (200-600 m a ritmo gara, recuperi ampi), e fai la Velocità Critica per misurare il D′.";
+    let t = "Per l'800/1500 conta metà il motore aerobico (la soglia) e metà la VELOCITÀ/scatto, che questo test NON misura. ";
+    t += sg == null ? "Inserisci il PB 5000 per capire quanto è forte la tua base aerobica. " : (sg < 0.9 ? "La tua base aerobica è un po' indietro. " : "La tua base aerobica regge bene come supporto. ");
+    t += "COSA FARE: " + (sg == null ? "tanta corsa facile + 1-2 sedute di soglia a settimana (es. 5×1000 al ritmo di soglia)." : (sg < 0.9 ? "4-6 settimane con tanta corsa facile + 1-2 sedute di soglia (5-6×1000 al ritmo soglia, oppure 20-30′ di medio); pochi lavori durissimi. Poi rifai il test." : "mantieni 1-2 soglie a settimana + corsa facile."));
+    return t + " FONDAMENTALE per te: allena anche la VELOCITÀ pura (allunghi di 60-120 m veloci ma sciolti) e le ripetute LATTACIDE (200-600 m a ritmo gara con recuperi lunghi). Fai la Velocità Critica per misurare il tuo “serbatoio” di scatto (D′).";
   }
   if (disc === "35") {
-    let t = "La SOGLIA (LT2 = " + rit + "/km) è il tuo ritmo-chiave. ";
-    if (sg != null) t += sg < 0.86 ? "È BASSA. COSA FARE: 4-6 sett con 2 soglie/sett (5-6×1000 o 4×2000) + tanto facile + 1 lungo; taglia gli intervalli VO2max duri, poi rifai il test." : (sg > 0.93 ? "È ALTA. COSA FARE: soglia ok → aggiungi VO2max (5×1000 a ritmo 3-5k) + ritmo gara." : "NELLA NORMA. COSA FARE: 1-2 soglie/sett + 1 VO2max (5×1000) + lungo, alza gradualmente.");
-    return t + (stretta ? " In più la base è stretta: aumenta il volume lento (Z1)." : "");
+    let t = "Per il 3000/5000 il ritmo-chiave è la SOGLIA (il passo più veloce che tieni a lungo, qui " + rit + "/km). ";
+    if (sg != null) t += sg < 0.86 ? "Da te è BASSA rispetto alla gara → tanto margine. COSA FARE: 4-6 settimane con 2 sedute di soglia (5-6×1000 o 4×2000 al ritmo soglia) + molta corsa facile + 1 lungo; per ora pochi lavori durissimi. Poi rifai il test." : (sg > 0.93 ? "Da te è ALTA (quasi ritmo gara) → soglia già forte. COSA FARE: mantienila e aggiungi qualcosa SOPRA: VO2max (5×1000 molto duri, a ritmo 3-5 km) + tratti a ritmo gara." : "Da te è NELLA NORMA. COSA FARE: 1-2 soglie a settimana + 1 seduta VO2max (5×1000 duri) + 1 lungo, salendo piano.");
+    return t + baseStretta;
   }
-  let t = "SOGLIA + VOLUME sono tutto per te. Soglia LT2 = " + rit + "/km. ";
-  if (sg != null) t += sg < 0.86 ? "COSA FARE: soglia da alzare → 2 sedute soglia/sub-soglia/sett (6-8×1000 o 5-6×2000) + molto facile + lungo 90-120′, poco VO2max." : (sg > 0.93 ? "COSA FARE: ottima → mantienila e aggiungi VO2max + ritmo gara." : "COSA FARE: ok → mantieni le soglie e AUMENTA il volume facile e il lungo.");
-  return t + (stretta ? " Aumenta ancora il volume lento (base)." : "");
+  let t = "Per il 5000/10000 la SOGLIA e il VOLUME sono tutto (soglia qui " + rit + "/km). ";
+  if (sg != null) t += sg < 0.86 ? "La soglia è BASSA rispetto alla gara → da alzare. COSA FARE: 2 sedute di soglia/sub-soglia a settimana (6-8×1000 o 5-6×2000) + molta corsa facile + 1 lungo di 90-120′; poco VO2max." : (sg > 0.93 ? "La soglia è ALTA (già ottima). COSA FARE: mantienila e aggiungi VO2max + tratti a ritmo gara." : "La soglia è NELLA NORMA. COSA FARE: mantieni le soglie e soprattutto AUMENTA la corsa facile e il lungo.");
+  return t + baseStretta;
 }
 
 // grafico curva del lattato (SVG): punti + curva + retta Dmax + marker LT1/LT2
@@ -601,6 +616,7 @@ function setLatMetodo(m) { setLatMetodoFor(latState.atletaRif, m); }
 function setLatStepVal(i, campo, v) { const t = _latTest(latState.atletaRif); t.steps[i][campo] = v; _latSave(); }
 function latAddStep() { const t = _latTest(latState.atletaRif); t.steps.push({ min: "", sec: "", fc: "", lat: "", rpe: "" }); _latSave(); disegna(); }
 function latDelStep(i) { const t = _latTest(latState.atletaRif); if (t.steps.length > 1) t.steps.splice(i, 1); _latSave(); disegna(); }
+function toggleLatGuida() { S.latGuida = !S.latGuida; disegna(); }
 
 function vistaTestLattato() {
   const a = latState.atletaRif ? DEMO.atleti.find(x => x.id === latState.atletaRif) : null;
@@ -609,7 +625,17 @@ function vistaTestLattato() {
     <select onchange="setLatAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(latState.atletaRif, "— scegli —")}</select>
     ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}</div>`;
   const intro = `<div class="card"><h3>Test del lattato</h3>
-    <p class="et" style="margin-top:2px">Protocollo a step: passo (min:sec /km) crescente, con FC, lattato e RPE a ogni step. <b>Parti lento</b> (1º step ~1.5 mmol). L'app trova LT1, LT2/OBLA e il ritmo di soglia; il <b>vLT2</b> può alimentare i Ritmi target.</p></div>`;
+    <p class="et" style="margin-top:2px">Serve a trovare la <b>soglia</b> (il ritmo più veloce che tieni ~1 ora) e le zone di allenamento, misurando il lattato nel sangue mentre corri sempre più forte.</p>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="toggleLatGuida()">${S.latGuida ? "Nascondi come si fa" : "📋 Come si fa il test"}</button>
+    ${S.latGuida ? `<div style="margin-top:10px;padding:11px 13px;background:var(--card2,rgba(120,120,140,.08));border-radius:10px">
+      <p class="et" style="margin:0 0 6px"><b>Protocollo a step</b> (semplice, sul campo)</p>
+      <p class="et" style="margin:0 0 6px"><b>1.</b> <b>Distanza per step:</b> 1200 m (oppure 3-4 minuti a ritmo costante) — la imposti qui sotto.</p>
+      <p class="et" style="margin:0 0 6px"><b>2.</b> <b>Parti LENTO:</b> il 1º step dev'essere facile (~1,5 mmol). Se parti forte, la soglia bassa non si vede.</p>
+      <p class="et" style="margin:0 0 6px"><b>3.</b> <b>Ogni step ~10″/km più veloce</b> del precedente (es. 4:30 → 4:20 → 4:10 → 4:00 …/km).</p>
+      <p class="et" style="margin:0 0 6px"><b>4.</b> <b>Alla fine di ogni step</b> misura il <b>lattato</b> (goccia dal dito), la <b>frequenza cardiaca</b> e segna quanto è stato duro (<b>RPE</b> 1-10). ~1 minuto di pausa per il prelievo, poi riparti.</p>
+      <p class="et" style="margin:0 0 6px"><b>5.</b> <b>Continua per 5-8 step</b>, finché il lattato è chiaramente alto (6-8+) e fatichi a tenere il ritmo.</p>
+      <p class="et" style="margin:0"><b>6.</b> <b>Inserisci qui sotto</b>, per ogni step: passo (min e sec /km), FC, lattato, RPE. Il resto lo calcola l'app.</p>
+    </div>` : ""}</div>`;
   if (!a) return intro + selAtleta + `<div class="card"><p class="et">Scegli un atleta per inserire il suo test.</p></div>`;
 
   const t = _latTest(a.id);
@@ -670,7 +696,7 @@ function vistaTestLattato() {
     ${rigaRis("Baseline (step 1)", num(R.baseline, 1) + " mmol")}
     ${rigaRis("LT1 — ritmo /km", R.ritmoLT1 || "—", R.vLT1 != null ? num(R.vLT1, 1) + " km/h · FC " + num(R.fcLT1) : "")}
     ${rigaRis("LT2 (OBLA " + R.lt2Target + ") — ritmo /km", R.ritmoLT2 || "—", R.vLT2 != null ? num(R.vLT2, 1) + " km/h · FC " + num(R.fcLT2) : "")}
-    ${R.vLT2dmax != null ? rigaRis("LT2 (Dmax) — ritmo /km", R.ritmoDmax, num(R.vLT2dmax, 1) + " km/h") : ""}
+    ${R.vLT2dmax != null ? rigaRis("LT2 (Dmax) — ritmo /km", R.ritmoDmax, num(R.vLT2dmax, 1) + " km/h · a " + num(R.latDmax, 1) + " mmol") : ""}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
       <p class="et" style="margin:0 0 6px">Quale soglia usano i <b>Ritmi</b>${t.usaLT2 ? "" : " <span style='color:var(--txt3)'>(accendi «Usa vLT2» qui sopra)</span>"}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -687,8 +713,14 @@ function vistaTestLattato() {
     <p class="et" style="margin-bottom:6px">Prospetto — lettura del test</p>
     <p class="et" style="margin:0 0 10px">Il lattato sale quando corri forte. <b>LT1</b> = fin qui è facile (corsa lenta, si bruciano grassi). <b>LT2</b> = qui vai in debito e la fatica arriva presto: è la <b>soglia</b>, il ritmo più veloce che tieni ~1 ora. Il test misura il <b>motore aerobico</b>, non la parte veloce/anaerobica.</p>
     ${rigaRis("Velocità gara 5000 (dal PB)", R.vGara5000 != null ? num(R.vGara5000, 1) + " km/h" : "—")}
-    ${rigaRis("Soglia LT2 / velocità gara", sgPct, sgLab)}
-    ${rigaRis("Ampiezza aerobica vLT1/vLT2", ampPct, ampLab)}
+    <div style="padding:9px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="et" style="margin:0">Soglia rispetto al ritmo gara 5000</span><span style="white-space:nowrap"><b>${sgPct}</b> ${sgLab}</span></div>
+      <p class="et" style="margin:5px 0 0">${_spiegSogliaGara(R.sogliaGara)}</p>
+    </div>
+    <div style="padding:9px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="et" style="margin:0">Ampiezza aerobica (facile → soglia)</span><span style="white-space:nowrap"><b>${ampPct}</b> ${ampLab}</span></div>
+      <p class="et" style="margin:5px 0 0">${_spiegAmpiezza(R.ampiezza)}</p>
+    </div>
   </div>
   <div class="card">
     <p class="et" style="margin-bottom:8px">Per la tua gara — cosa va e cosa lavorare</p>
