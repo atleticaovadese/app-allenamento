@@ -1051,3 +1051,113 @@ function _riepMezzoHTML(a) {
 
   return header + cardSoglia + cardZone + cardProfilo + cardSintesi;
 }
+
+// ============================================================================
+// PER DISTANZA — programmazione distanza per distanza (800→10000), fedele all'Excel.
+// ============================================================================
+const MZ_PD_MEZZI = ["Base / Lungo", "Medio / maratona", "Soglia LT2 (T)", "Sub-soglia", "VO2max (I)", "Ritmo gara", "Cap. lattacida", "Pot. lattacida", "Velocità", "Forza-economia"];
+const MZ_FORZA = { gen: "Forza generale (AA)", spec: "Forza max", pre: "Potenza / conversione", comp: "Mantenimento forza" };
+const MZ_PD_FASI = [["gen", "Prep. generale"], ["spec", "Prep. speciale"], ["pre", "Pre-competitiva"], ["comp", "Competitiva"]];
+const MZ_PERDIST = [
+  {
+    nome: "800 m", prof: "~60-75% aerobico / 25-40% anaerobico",
+    qual: "1) Cap./Pot. lattacida  2) Velocità  3) VO2max  4) Soglia/Base (supporto)",
+    vol: "giovani 25-45 · senior 45-80 · elite 50-120 km/sett (4-12 sedute)",
+    dis: "Più POLARIZZATA: base ampia ma volume totale contenuto; molta qualità veloce/lattacida.",
+    mx: ["***|**|*|*", "**|**|*|-", "**|**|*|*", "*|*|-|-", "-|**|**|**", "-|*|***|***", "-|*|***|***", "-|-|**|***", "***|***|***|***", "***|***|**|*"],
+    per: [["Prep. generale", "6-8 sett", "base aerobica + soglia + forza generale + velocità"], ["Prep. speciale", "5-6 sett", "VO2max + soglia + forza max + collinari + avvio lattacido"], ["Pre-competitiva", "3-4 sett", "ritmo gara 800 + capacità lattacida + velocità"], ["Competitiva", "8-12 sett", "potenza lattacida + ritmo gara + rifinitura"]],
+    cs: "Onda 3:1 (2:1 se giovane/periodo duro). Scarico = volume −40/50%, intensità invariata. Taper pre-gara A ~7-10 giorni, tenendo stimoli veloci/lattacidi brevi.",
+    fac: "35-45'", lung: "60-70'",
+    Q: { gen: ["Soglia 5-6×1000 (rec 60-90″)", "Collinari 8-10×150 in salita + allunghi", "Ripetute 6-8×400 controllate + velocità"], spec: ["VO2max 5-6×800 a ritmo 3-5k", "Soglia 4×1500 o 20' T", "Avvio lattacido 6×300 a ritmo gara + velocità"], pre: ["Ritmo gara: 5-6×300-500 a ritmo 800", "VO2max breve 5×600", "Cap. lattacida 4-5×300-400, rec lunghi"], comp: ["Ritmo gara: 4×200-300 a ritmo/più veloce", "Pot. lattacida 3-4×150-250 forte", "Rifinitura: allunghi veloci / pre-gara"] }
+  },
+  {
+    nome: "1500 m", prof: "~75-85% aerobico / 15-25% anaerobico",
+    qual: "1) VO2max + Soglia  2) Velocità specifica  3) Base aerobica  4) Lattacido (pre-comp)",
+    vol: "giovani 30-55 · senior 55-95 · elite 120-170 km/sett (6-14 sedute)",
+    dis: "Incrocio veloce/prolungato: piramidale in prep, più polarizzata verso la gara.",
+    mx: ["***|**|**|*", "**|**|*|-", "**|***|**|*", "*|**|*|-", "*|***|***|***", "-|*|***|***", "-|*|**|***", "-|-|*|**", "**|**|**|***", "***|**|*|*"],
+    per: [["Prep. generale", "6-8 sett", "base + soglia + forza generale + allunghi"], ["Prep. speciale", "5-7 sett", "VO2max (cardine) + soglia + forza max + collinari"], ["Pre-competitiva", "3-4 sett", "ritmo gara 1500 + VO2max + avvio lattacido"], ["Competitiva", "8-10 sett", "ritmo gara + lattacido + rifinitura"]],
+    cs: "Onda 3:1. Scarico −40/50% volume, intensità invariata. Taper pre-gara A ~7-10 giorni.",
+    fac: "40-50'", lung: "75-90'",
+    Q: { gen: ["Soglia 6×1000 T", "Fartlek o 8×400 controllati + allunghi", "Collinari + velocità"], spec: ["VO2max 5-6×1000 a ritmo 3-5k", "Soglia 5×1500 / 25' T", "Ritmo gara 5-6×500-600"], pre: ["Ritmo gara 1500: 4-6×400-600 a ritmo", "VO2max 5×800", "Lattacido 4-5×300 a ritmo gara"], comp: ["Ritmo gara: 4-5×300-500 a ritmo", "VO2max breve 4×600", "Rifinitura + allunghi"] }
+  },
+  {
+    nome: "3000 m", prof: "~86-94% aerobico",
+    qual: "1) VO2max  2) Soglia LT2  3) Economia  4) Base + velocità",
+    vol: "giovani 35-65 · senior 65-110 · elite 130-180 km/sett (6-14 sedute)",
+    dis: "Piramidale con forte componente VO2max/soglia; polarizza in pre-comp.",
+    mx: ["***|***|**|**", "**|***|**|*", "***|***|***|**", "**|**|**|*", "*|**|***|***", "-|*|***|***", "-|-|*|*", "-|-|-|-", "**|**|**|**", "***|**|*|*"],
+    per: [["Prep. generale", "8-10 sett", "base + soglia + forza generale"], ["Prep. speciale", "5-7 sett", "soglia + VO2max + medio + forza max"], ["Pre-competitiva", "3-5 sett", "VO2max + ritmo gara 3000"], ["Competitiva", "in-season", "ritmo gara + soglia di richiamo + rifinitura"]],
+    cs: "Onda 3:1. Scarico −40/50% volume. Taper pre-gara A ~10-12 giorni.",
+    fac: "45-55'", lung: "80-100'",
+    Q: { gen: ["Soglia 6-8×1000 T", "Fartlek / 8×400 + allunghi", "Progressivo o collinari"], spec: ["Soglia 5×1 miglio", "VO2max 5-6×1000 a ritmo 5k", "Medio-progr. o 2000+1000 ritmo gara"], pre: ["Ritmo gara 3000: 4-5×1000 a ritmo", "VO2max 5×1000", "Soglia breve 20'"], comp: ["Ritmo gara: 3-4×1000 a ritmo", "VO2max breve 5×800", "Rifinitura + allunghi"] }
+  },
+  {
+    nome: "5000 m", prof: "~90-95% aerobico",
+    qual: "1) Soglia LT2  2) VO2max  3) Economia  4) Volume/base",
+    vol: "giovani 35-70 · senior 65-115 · elite 130-180 km/sett (6-14 sedute)",
+    dis: "Piramidale: tanta Z1 + soglia; VO2max e ritmo gara nella fase specifica.",
+    mx: ["***|***|**|**", "**|***|**|*", "***|***|***|**", "**|**|**|*", "*|**|***|**", "-|*|***|***", "-|-|*|*", "-|-|-|-", "**|**|*|*", "***|**|*|*"],
+    per: [["Prep. generale", "8-10 sett", "base + soglia + forza generale"], ["Prep. speciale", "6-8 sett", "soglia/sub-soglia + VO2max + medio"], ["Pre-competitiva", "3-5 sett", "VO2max + ritmo gara 5000"], ["Competitiva", "in-season", "ritmo gara + soglia + rifinitura"]],
+    cs: "Onda 3:1. Scarico −40/50% volume. Taper pre-gara A ~10-14 giorni.",
+    fac: "50-60'", lung: "85-105'",
+    Q: { gen: ["Soglia 6-8×1000 T", "Medio 12-14 km", "Progressivo / fartlek + allunghi"], spec: ["Soglia/sub-soglia 5-6×2000", "VO2max 5-6×1000 a ritmo 5k", "Medio-progressivo 12-14 km"], pre: ["Ritmo gara 5000: 4-5×1000-1600 a ritmo", "VO2max 5×1000", "Soglia 20-30'"], comp: ["Ritmo gara: 5×1000 a ritmo", "VO2max breve 5×800", "Rifinitura + allunghi"] }
+  },
+  {
+    nome: "10000 m", prof: "~95-97% aerobico",
+    qual: "1) Soglia (LT1/LT2)  2) VO2max  3) Economia  4) Volume alto",
+    vol: "giovani 40-70 · senior 70-120 · elite 130-190 km/sett (6-14 sedute)",
+    dis: "Piramidale con volume alto: massima Z1 + tanta soglia/sub-soglia.",
+    mx: ["***|***|***|**", "**|***|**|**", "***|***|***|***", "**|***|**|*", "*|**|**|**", "-|*|***|***", "-|-|-|-", "-|-|-|-", "**|*|*|*", "***|**|*|*"],
+    per: [["Prep. generale", "8-12 sett", "base (volume max) + soglia + forza generale"], ["Prep. speciale", "6-8 sett", "soglia/sub-soglia (cardine) + VO2max + medio-progr."], ["Pre-competitiva", "3-5 sett", "ritmo gara 10000 + VO2max"], ["Competitiva", "in-season", "ritmo gara + soglia + lunghi con finale"]],
+    cs: "Onda 3:1. Scarico −40/50% volume. Taper pre-gara A ~10-14 giorni.",
+    fac: "50-60'", lung: "90-120'",
+    Q: { gen: ["Soglia 6-8×1000 T", "Medio-lungo 14-16 km", "Progressivo / fartlek"], spec: ["Sub-soglia 6×2000 (o doppia soglia)", "VO2max 5×1000", "Medio-progressivo 12-16 km"], pre: ["Ritmo gara 10000: 5-6×1600-2000 a ritmo", "Soglia 30-40'", "VO2max 5×1000"], comp: ["Ritmo gara: 6×1000 a ritmo", "Soglia di richiamo 20-30'", "Rifinitura + allunghi"] }
+  }
+];
+let pdState = { dist: "800 m", fase: "gen" };
+function setPdDist(n) { pdState.dist = n; disegna(); window.scrollTo(0, 0); }
+function setPdFase(f) { pdState.fase = f; disegna(); }
+const _pdInt = v => v === "***" ? "●●●" : v === "**" ? "●●" : v === "*" ? "●" : "–";
+
+function vistaPerDistanza() {
+  const d = MZ_PERDIST.find(x => x.nome === pdState.dist) || MZ_PERDIST[0];
+  const fase = pdState.fase || "gen";
+  const faseLab = (MZ_PD_FASI.find(f => f[0] === fase) || [])[1] || "";
+
+  const intro = `<div class="card"><h3>Per distanza — programmazione essenziale</h3>
+    <p class="et" style="margin-top:2px">Per ogni gara: profilo, qualità da allenare, volumi, i <b>mezzi per periodo</b>, i periodi dell'anno e il <b>microciclo</b> per fase. I ritmi arrivano dai <b>Ritmi target</b>.</p>
+    <p class="et" style="margin-top:8px;padding:8px 10px;background:var(--card2,rgba(120,120,140,.08));border-radius:8px"><b>Settimana fissa:</b> Lun/Mer/Ven = lavori <b>cronometrati</b> (col coach). Mar/Gio/Sab = aerobico + <b>forza/tecnica</b> (coi tecnici). Dom = <b>lungo</b> (o gara).</p></div>`;
+
+  const tabs = `<div class="tabbar">${MZ_PERDIST.map(x => `<button class="${x.nome === d.nome ? "on" : ""}" onclick="setPdDist('${x.nome}')">${x.nome.replace(" m", "")}</button>`).join("")}</div>`;
+
+  const info = `<div class="card"><h3 style="margin-bottom:6px">${d.nome}</h3>
+    ${[["Profilo di gara", d.prof], ["Qualità da allenare (priorità)", d.qual], ["Volumi (km/sett)", d.vol], ["Distribuzione intensità", d.dis]].map(([l, v]) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><p style="margin:2px 0 0;font-size:13px">${v}</p></div>`).join("")}</div>`;
+
+  const matr = `<div class="card"><p class="et" style="margin-bottom:6px">Mezzi × periodo <span style="color:var(--txt3)">(●●● alto · ●● medio · ● basso · – assente)</span></p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Mezzo</th><th>Prep.gen</th><th>Prep.spec</th><th>Pre-comp</th><th>Comp</th></tr></thead>
+      <tbody>${MZ_PD_MEZZI.map((m, i) => { const c = d.mx[i].split("|"); return `<tr><td><b>${m}</b></td>${c.map(v => `<td class="pauto" style="letter-spacing:1px">${_pdInt(v)}</td>`).join("")}</tr>`; }).join("")}</tbody>
+    </table></div></div>`;
+
+  const periodi = `<div class="card"><p class="et" style="margin-bottom:6px">Periodi dell'anno</p>
+    ${d.per.map(([f, dur, foc]) => `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">${f}</b><span class="et" style="margin:0">${dur}</span></div><p class="et" style="margin:3px 0 0">${foc}</p></div>`).join("")}
+    <p class="et" style="margin-top:8px"><b>Carico/scarico/taper:</b> ${d.cs}</p>
+    <p class="et" style="margin-top:6px">Facile: <b>${d.fac}</b> · Lungo: <b>${d.lung}</b></p></div>`;
+
+  // microciclo per fase (settimana)
+  const week = [
+    ["Lun", d.Q[fase][0], true], ["Mar", "Facile " + d.fac + " + " + MZ_FORZA[fase] + " (tecnici)", false],
+    ["Mer", d.Q[fase][1], true], ["Gio", "Facile " + d.fac + " + core/prehab (tecnici)", false],
+    ["Ven", d.Q[fase][2], true], ["Sab", "Facile/Medio + tecnica/andature/allunghi (tecnici)", false],
+    ["Dom", (fase !== "comp" ? "Lungo " + d.lung : "Lungo " + d.lung + " o GARA"), false]
+  ];
+  const micro = `<div class="card"><p class="et" style="margin-bottom:6px">Microciclo per fase</p>
+    <div class="tabbar" style="margin-bottom:10px">${MZ_PD_FASI.map(([k, l]) => `<button class="${k === fase ? "on" : ""}" onclick="setPdFase('${k}')">${l}</button>`).join("")}</div>
+    ${week.map(([g, txt, crono]) => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)">
+      <div style="flex:none;width:38px"><b style="font-size:13px">${g}</b>${crono ? `<div style="font-size:9px;color:var(--verde)">crono</div>` : ""}</div>
+      <p style="margin:0;font-size:13px;flex:1${crono ? ";font-weight:500" : ";color:var(--txt2)"}">${txt}</p></div>`).join("")}
+    <p class="et" style="margin-top:8px">I giorni <b style="color:var(--verde)">crono</b> (Lun/Mer/Ven) sono i lavori cronometrati: copiali in <b>Pista</b> e i ritmi arrivano dai Ritmi target. Onda 3:1 e taper come sopra.</p></div>`;
+
+  return intro + tabs + info + matr + periodi + micro;
+}
