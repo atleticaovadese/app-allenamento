@@ -157,6 +157,24 @@ function vistaOggi() {
   const ad = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
   const d = DEMO.diarioOggi, fatto = d.salvato && diarioCompleto(d);
 
+  // il cruscotto si adatta: per il mezzofondo mostra ritmi/zone e km invece di sprint/salti
+  const isMezzo = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
+  const rm = isMezzo && typeof ritmiHomeMezzo === "function" ? ritmiHomeMezzo(a) : null;
+  const kmS = isMezzo && typeof kmSettAtleta === "function" ? kmSettAtleta(a) : null;
+  const cardVolume = isMezzo ? `<div class="q" onclick="vai('calendario')">
+      <div class="k">Volume settimana</div>
+      <div><div class="v">${kmS != null ? kmS + " km" : "—"}</div><div class="d">${kmS != null ? "programmati" : "nessun lavoro"}</div></div>
+    </div>` : "";
+  const cardTestZone = isMezzo
+    ? `<div class="q wide" onclick="vai('calendario')">
+        <div class="k">Le mie zone di ritmo (/km)</div>
+        <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">Facile <b>${rm.facile}</b> &nbsp;·&nbsp; Soglia <b>${rm.soglia}</b> &nbsp;·&nbsp; VO2max <b>${rm.vo2}</b> &nbsp;·&nbsp; Gara 5k <b>${rm.gara5}</b></div>
+      </div>`
+    : `<div class="q wide" onclick="vai('io')">
+        <div class="k">Ultimi test</div>
+        <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">${a.test.map(([n, v, dd]) => `${n} <b>${v}</b> <span style="color:var(--verde)">${dd}</span>`).join(" &nbsp;·&nbsp; ")}</div>
+      </div>`;
+
   return `
   ${cardOggi}
 
@@ -167,6 +185,7 @@ function vistaOggi() {
         <div class="d">settimana ${pos.sett} di ${pos.tot} · ${pos.dal} – ${pos.al}</div></div>
       <div class="tacche">${tacche}</div>
     </div>` : ""}
+    ${cardVolume}
 
     <div class="q" onclick="vai('diario')">
       <div class="k">Diario di oggi</div>
@@ -190,12 +209,7 @@ function vistaOggi() {
       <div><div class="v">${ad}%</div><div class="d">${a.presenzeStagione[0]} su ${a.presenzeStagione[1]}</div></div>
     </div>
 
-    <div class="q wide" onclick="vai('io')">
-      <div class="k">Ultimi test</div>
-      <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">
-        ${a.test.map(([n, v, dd]) => `${n} <b>${v}</b> <span style="color:var(--verde)">${dd}</span>`).join(" &nbsp;·&nbsp; ")}
-      </div>
-    </div>
+    ${cardTestZone}
   </div>`;
 }
 

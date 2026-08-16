@@ -1327,4 +1327,43 @@ function vistaGuidaTest() {
     <div class="card"><p class="et" style="margin:0">I test dicono <b>dove</b> sei debole; il riquadro verde «Se esce → allena» dice cosa mettere di più nel programma. Ripeti ogni ~8 settimane per vedere se la soluzione ha funzionato.</p></div>`;
 }
 
+// ============================================================================
+// CRUSCOTTO ATLETA mezzofondo — helper per la home dell'atleta e il dettaglio coach.
+// ============================================================================
+// i ritmi-chiave dell'atleta (per i quadranti "le mie zone")
+function ritmiHomeMezzo(a) {
+  if (typeof ritmiTarget !== "function") return {};
+  const R = ritmiTarget(a, {});
+  const g = m => { const r = R.find(x => x.mezzo === m); return r ? r.mmss : "—"; };
+  return { facile: g("Lungo"), soglia: g("Soglia LT2 (tempo)"), vo2: g("VO2max"), gara5: g("Ritmo gara 5000"), gara10: g("Ritmo gara 10000") };
+}
+// km PROGRAMMATI nella settimana corrente (Lun-Dom) per l'atleta, dalle sedute pista mezzo
+function kmSettAtleta(a) {
+  if (typeof seduteDelGiorno !== "function" || typeof isoDiData !== "function") return null;
+  const oggi = new Date((typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  const dow = (oggi.getDay() + 6) % 7;                    // 0 = lunedì
+  const lun = new Date(oggi); lun.setDate(oggi.getDate() - dow);
+  let m = 0, trovato = false;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(lun); d.setDate(lun.getDate() + i);
+    const sed = seduteDelGiorno(isoDiData(d), false, a) || [];
+    sed.forEach(s => { if (s.mezzo) { trovato = true; m += (typeof volumePistaMezzo === "function" ? volumePistaMezzo(s) : 0); } });
+  }
+  return trovato ? Math.round(m / 100) / 10 : null;        // km
+}
+// card "Profilo mezzofondo" (per il dettaglio-atleta del coach): soglia · CS · D' · tipo
+function cardProfiloMezzo(a) {
+  const R = ritmiHomeMezzo(a);
+  const RL = (typeof analisiLattato === "function") ? analisiLattato((DEMO.lattato && DEMO.lattato[a.id]) || {}, a) : {};
+  const RC = (typeof analisiCriticalSpeed === "function") ? analisiCriticalSpeed((DEMO.critSpeed && DEMO.critSpeed[a.id]) || {}, a) : {};
+  const tipo = (RC && RC.srr != null) ? (RC.srr >= 1.47 ? "veloce" : RC.srr >= 1.36 ? "bilanciato" : "resistente") : "—";
+  const riga = (l, v) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><b>${v}</b></div>`;
+  return `<div class="card"><p class="et" style="margin-bottom:6px">🏃 Profilo mezzofondo</p>
+    ${riga("Soglia (ritmi)", R.soglia + "/km")}
+    ${riga("VO2max · Ritmo gara 5k", R.vo2 + " · " + R.gara5 + "/km")}
+    ${(RC && RC.ritmoCS) ? riga("Velocità critica (campo)", RC.ritmoCS + "/km · D′ " + Math.round(RC.dprime) + " m") : ""}
+    ${(RC && RC.srr != null) ? riga("Tipo di atleta", tipo + " (SRR " + RC.srr.toFixed(2) + ")") : ""}
+  </div>`;
+}
+
 

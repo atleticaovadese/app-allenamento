@@ -224,6 +224,8 @@ function vistaAtletaDettaglio() {
     <div class="num"><div class="k">Profilo F-V</div><div class="v" style="font-size:15px">${s.fv}</div></div>
   </div>
 
+  ${(typeof gruppoDi === "function" && gruppoDi(a) === "mezzo" && typeof cardProfiloMezzo === "function") ? cardProfiloMezzo(a) : ""}
+
   <div class="card">
     <p class="et" style="margin-bottom:6px">Accesso atleta</p>
     ${a.email
