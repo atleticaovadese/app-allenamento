@@ -751,9 +751,10 @@ function _csSave() { if (typeof salvaCustom === "function") salvaCustom(); }
 // motore: regressione distanza(y) su tempo(x) → CS, D', R², tempi previsti, prospetto, speed reserve
 function analisiCriticalSpeed(cs, atleta) {
   cs = cs || {};
+  const _n = x => { const v = Number(String(x == null ? "" : x).replace(",", ".")); return isNaN(v) ? 0 : v; };  // tollerante alla virgola
   const pts = [];
   (cs.prove || []).forEach(p => {
-    const dist = Number(p.dist), t = (Number(p.min) || 0) * 60 + (Number(p.sec) || 0);
+    const dist = _n(p.dist), t = _n(p.min) * 60 + _n(p.sec);
     if (dist > 0 && t > 0) pts.push({ dist, t, v: dist / t });
   });
   const n = pts.length, R = { n, pts };
@@ -775,7 +776,7 @@ function analisiCriticalSpeed(cs, atleta) {
   R.vGara5000 = pb5 ? 18000 / pb5 : null;
   R.csGara = (R.vCS != null && R.vGara5000) ? R.vCS / R.vGara5000 : null;
   // speed reserve (tipo atleta, per 800/1500)
-  const lanDist = Number(cs.lanDist) || 30, lanT = Number(cs.lanTempo);
+  const lanDist = _n(cs.lanDist) || 30, lanT = _n(cs.lanTempo);
   R.vmax = (lanDist > 0 && lanT > 0) ? lanDist / lanT : null;
   const pb15 = atleta ? _mzPbSec(atleta, "1500 m") : null;
   R.rit1500ms = pb15 ? 1500 / pb15 : null;
@@ -783,22 +784,38 @@ function analisiCriticalSpeed(cs, atleta) {
   return R;
 }
 
+// spiegazioni in parole semplici
+function _spiegCsGara(g) {
+  if (g == null) return "Dice quanto la tua velocità sostenibile (CS) è vicina al ritmo dei 5000 in gara (di solito ~90-95%). Serve il PB 5000.";
+  const p = Math.round(g * 100);
+  if (g > 0.96) return "CS ALTA (" + p + "%): la tua soglia sul campo è quasi al ritmo gara → motore aerobico forte. Per migliorare lavora SOPRA (VO2max, tratti a ritmo gara).";
+  if (g < 0.9) return "CS BASSA (" + p + "%): la soglia è lontana dal ritmo gara → da rinforzare con sedute di soglia e tanta corsa facile.";
+  return "CS NELLA NORMA (" + p + "%): buon equilibrio. Mantieni la soglia e aggiungi un po' di VO2max.";
+}
+function _spiegDprime(dp) {
+  if (dp == null) return "";
+  const d = Math.round(dp);
+  if (dp < 150) return "D′ BASSO (" + d + " m): poco “serbatoio” di scatto sopra la soglia. Per l'800/1500 allena VELOCITÀ e prove lattacide.";
+  if (dp > 250) return "D′ ALTO (" + d + " m): buon serbatoio di scatto → sfruttalo nei finali veloci.";
+  return "D′ MEDIO (" + d + " m): serbatoio di scatto discreto, migliorabile con velocità e prove lattacide.";
+}
+// testo coaching per disciplina, in parole semplici
 function _csCoach(disc, R) {
   if (R.cs == null) return "(fai il test: 2-4 prove a tutta su distanze diverse)";
   const g = R.csGara, dp = R.dprime;
   if (disc === "800") {
-    let t = "Per te contano CS (base/soglia) e SOPRATTUTTO D′ (la punta anaerobica). D′ " + (dp != null ? Math.round(dp) + " m: " : "");
-    t += dp < 150 ? "BASSO → allena VELOCITÀ e LATTACIDO (la tua arma di gara), oltre alla base." : (dp > 250 ? "buono → sfruttalo nei finali veloci." : "medio → puoi alzarlo con velocità e prove lattacide.");
-    t += g != null ? " CS " + Math.round(g * 100) + "% gara: " + (g < 0.9 ? "soglia da rinforzare col volume." : "soglia ok.") : "";
+    let t = "Per l'800/1500 contano la CS (la tua soglia sul campo) e SOPRATTUTTO il D′ (il “serbatoio” di scatto sopra la soglia). ";
+    if (dp != null) t += "Il tuo D′ è " + Math.round(dp) + " m: " + (dp < 150 ? "BASSO → allena VELOCITÀ (allunghi 60-120 m veloci) e ripetute LATTACIDE (200-600 m a ritmo gara): è la tua arma. " : (dp > 250 ? "buono → sfruttalo nei finali veloci; mantieni la base. " : "medio → puoi alzarlo con velocità e prove lattacide. "));
+    if (g != null) t += "La CS vale il " + Math.round(g * 100) + "% del ritmo gara: " + (g < 0.9 ? "soglia da rinforzare con volume facile." : "soglia a posto.");
     return t;
   }
   if (disc === "35") {
-    let t = "Per te conta soprattutto la CS (= la soglia). ";
-    t += g == null ? "(inserisci il PB 5000)" : (g < 0.9 ? "CS un po' bassa: più SOGLIA e volume aerobico." : (g > 0.96 ? "Ottima CS: aggiungi VO2max e ritmo gara." : "CS ok: soglia + VO2max."));
+    let t = "Per il 3000/5000 conta soprattutto la CS (= la tua soglia sul campo). ";
+    t += g == null ? "Inserisci il PB 5000 per il confronto con la gara." : (g < 0.9 ? "Da te è un po' bassa: più sedute di SOGLIA e tanta corsa facile per alzarla." : (g > 0.96 ? "Da te è ottima: mantienila e aggiungi VO2max e tratti a ritmo gara." : "Da te è a posto: soglia + un po' di VO2max."));
     return t;
   }
-  let t = "CS = la tua soglia sostenibile: base e soglia sono tutto. ";
-  t += g == null ? "" : (g < 0.9 ? "CS da alzare: T/sub-soglia + tanto volume facile." : "CS ok: mantieni e aumenta il volume. Il D′ conta poco per te.");
+  let t = "Per il 5000/10000 la CS (soglia) e il VOLUME sono tutto. ";
+  t += g == null ? "" : (g < 0.9 ? "La CS è da alzare: sedute di soglia/sub-soglia + tanta corsa facile." : "La CS è a posto: mantienila e aumenta la corsa facile e il lungo. Il D′ (scatto) conta poco per te.");
   return t;
 }
 function _csSpeedReserve(R) {
@@ -841,11 +858,20 @@ function setCsCampoVal(campo, v) { const t = _csTest(csState.atletaRif); t[campo
 function setCsProvaVal(i, campo, v) { const t = _csTest(csState.atletaRif); t.prove[i][campo] = v; _csSave(); }
 function csAddProva() { const t = _csTest(csState.atletaRif); if (t.prove.length < 4) t.prove.push({ dist: "", min: "", sec: "" }); _csSave(); disegna(); }
 function csDelProva(i) { const t = _csTest(csState.atletaRif); if (t.prove.length > 2) t.prove.splice(i, 1); _csSave(); disegna(); }
+function toggleCsGuida() { S.csGuida = !S.csGuida; disegna(); }
 
 function vistaCriticalSpeed() {
   const a = csState.atletaRif ? DEMO.atleti.find(x => x.id === csState.atletaRif) : null;
   const intro = `<div class="card"><h3>Velocità Critica (Critical Speed)</h3>
-    <p class="et" style="margin-top:2px">Dal campo: 2-4 prove <b>a tutta</b> su distanze diverse (es. 1200 m e 2400 m, o 3′ e 12′). Dalla retta distanza-tempo escono <b>CS</b> (soglia sostenibile) e <b>D′</b> (riserva anaerobica). Usa distanze ben diverse (rapporto ~2:1).</p></div>`;
+    <p class="et" style="margin-top:2px">La versione "sul campo" della soglia: da 2-4 prove <b>a tutta</b> su distanze diverse trova la <b>CS</b> (la velocità che tieni a lungo = la tua soglia) e il <b>D′</b> (il “serbatoio” di scatto sopra la soglia).</p>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="toggleCsGuida()">${S.csGuida ? "Nascondi come si fa" : "📋 Come si fa il test"}</button>
+    ${S.csGuida ? `<div style="margin-top:10px;padding:11px 13px;background:var(--card2,rgba(120,120,140,.08));border-radius:10px">
+      <p class="et" style="margin:0 0 6px"><b>Come si fa</b> (sul campo)</p>
+      <p class="et" style="margin:0 0 6px"><b>1.</b> Scegli <b>2 distanze ben diverse</b> (meglio 3-4), con rapporto ~2:1: es. <b>1200 m e 2400 m</b>, oppure una prova di <b>3′</b> e una di <b>12′</b>.</p>
+      <p class="et" style="margin:0 0 6px"><b>2.</b> Corri ogni prova <b>a tutta</b> (il massimo che reggi per quella distanza), <b>ben riposato</b> tra una e l'altra — anche in <b>giorni diversi</b>.</p>
+      <p class="et" style="margin:0 0 6px"><b>3.</b> Segna <b>distanza e tempo</b> di ogni prova qui sotto. L'app traccia la retta e trova CS e D′.</p>
+      <p class="et" style="margin:0"><b>Facoltativo (tipo di atleta):</b> fai uno <b>sprint lanciato di 30 m</b> (parti già lanciato, cronometra solo i 30 m di punta) e mettilo nella sezione in fondo.</p>
+    </div>` : ""}</div>`;
   const selAtleta = `<div class="card"><label class="lab">Atleta (mezzofondo / fondo)</label>
     <select onchange="setCsAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(csState.atletaRif, "— scegli —")}</select>
     ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}</div>`;
@@ -900,8 +926,14 @@ function vistaCriticalSpeed() {
     <p class="et" style="margin-bottom:6px">Prospetto — lettura del test</p>
     <p class="et" style="margin:0 0 10px">Fai 2-4 prove a tutta su distanze diverse; la retta distanza-tempo dà due numeri. <b>CS</b> = la velocità che tieni A LUNGO (la tua soglia sul campo). <b>D′</b> = i metri EXTRA sopra CS: è la tua PUNTA, conta negli 800/1500.</p>
     ${rigaRis("Velocità gara 5000 (dal PB)", R.vGara5000 != null ? num(R.vGara5000, 1) + " km/h" : "—")}
-    ${rigaRis("CS / velocità gara", csPct, csLab)}
-    ${rigaRis("D′ (riserva anaerobica)", R.dprime != null ? num(R.dprime) + " m" : "—", dpLab)}
+    <div style="padding:9px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="et" style="margin:0">CS rispetto al ritmo gara 5000</span><span style="white-space:nowrap"><b>${csPct}</b> ${csLab}</span></div>
+      <p class="et" style="margin:5px 0 0">${_spiegCsGara(R.csGara)}</p>
+    </div>
+    <div style="padding:9px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="et" style="margin:0">D′ — serbatoio di scatto</span><span style="white-space:nowrap"><b>${R.dprime != null ? num(R.dprime) + " m" : "—"}</b> ${dpLab}</span></div>
+      <p class="et" style="margin:5px 0 0">${_spiegDprime(R.dprime)}</p>
+    </div>
   </div>
   <div class="card">
     <p class="et" style="margin-bottom:8px">Per la tua gara — cosa va e cosa lavorare</p>
@@ -926,4 +958,80 @@ function vistaCriticalSpeed() {
   </div>`;
 
   return intro + selAtleta + tabProve + risultati + previsti + prospetto + speed;
+}
+
+// ============================================================================
+// RIEPILOGO TEST — una pagina per atleta con tutto (lattato + velocità critica + ritmi).
+// ============================================================================
+let riepState = { atletaRif: "" };
+function setRiepAtleta(id) { riepState.atletaRif = id; disegna(); }
+// bucket-gara dalla specialità dell'atleta
+function _buckDist(spec) {
+  const s = (spec || "").toLowerCase();
+  if (/10000|10\s?km|mezza|marat|campestre/.test(s)) return "10";
+  if (/5000|3000|2000/.test(s)) return "35";
+  return "800";
+}
+// confronto soglia lattato vs velocità critica (km/h)
+function _confrontoSoglia(RL, RC) {
+  const vLat = RL.vLT2, vCS = (RC.cs != null) ? RC.cs * 3.6 : null;
+  if (vLat == null || vCS == null) return "";
+  const diff = Math.abs(vLat - vCS) / vLat;
+  if (diff < 0.03) return "✓ Lattato e velocità critica danno una soglia molto simile: dato solido.";
+  return "I due test differiscono un po' (" + Math.round(diff * 100) + "%): normale, dipende da come sono stati fatti. Usa il lattato come riferimento e la CS come controprova.";
+}
+function vistaRiepilogoTest() {
+  const a = riepState.atletaRif ? DEMO.atleti.find(x => x.id === riepState.atletaRif) : null;
+  const intro = `<div class="card"><h3>Riepilogo test — atleta</h3>
+    <p class="et" style="margin-top:2px">Tutto in una pagina: la <b>soglia</b>, le <b>zone di allenamento</b> e il <b>profilo</b> dai due test (lattato + velocità critica).</p></div>`;
+  const sel = `<div class="card"><label class="lab">Atleta (mezzofondo / fondo)</label>
+    <select onchange="setRiepAtleta(this.value)" style="margin-top:6px">${_optAtletiMezzo(riepState.atletaRif, "— scegli —")}</select>
+    ${atletiMezzo().length === 0 ? _MZ_NO_ATLETI : ""}</div>`;
+  if (!a) return intro + sel + `<div class="card"><p class="et">Scegli un atleta per vedere il suo riepilogo.</p></div>`;
+
+  const num = (v, d) => (v == null || isNaN(v)) ? "—" : (d != null ? v.toFixed(d) : Math.round(v));
+  const RL = analisiLattato((DEMO.lattato && DEMO.lattato[a.id]) || {}, a);
+  const RC = analisiCriticalSpeed((DEMO.critSpeed && DEMO.critSpeed[a.id]) || {}, a);
+  const hasL = RL.n > 0, hasC = RC.cs != null;
+  const bucket = _buckDist(a.specialita);
+  const ritmi = ritmiTarget(a, {});
+  const rit = m => { const r = ritmi.find(x => x.mezzo === m); return r ? r.mmss : "—"; };
+  const metodo = (typeof metodoLT2diAtleta === "function") ? metodoLT2diAtleta(a) : null;
+  const pbTxt = MZ_DIST.map(d => { const s = _mzPbSec(a, d); return s != null ? d + " " + _mzMMSS(s) : null; }).filter(Boolean).join(" · ") || "nessun PB di mezzofondo";
+  const R2 = (l, v) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><span>${v}</span></div>`;
+
+  const header = `<div class="card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><h3>${a.nome}</h3><span class="et" style="margin:0">${a.disciplina} · ${a.specialita || ""}</span></div>
+    <p class="et" style="margin-top:6px">PB: ${pbTxt}</p>
+    <p class="et" style="margin-top:4px">Test: ${hasL ? "✓ lattato" : "— lattato"} · ${hasC ? "✓ velocità critica" : "— velocità critica"}</p></div>`;
+
+  const cardSoglia = `<div class="card">
+    <p class="et" style="margin-bottom:6px">La tua soglia (il ritmo-chiave)</p>
+    ${R2("Usata negli allenamenti", `<b style="font-size:16px">${rit("Soglia LT2 (tempo)")}/km</b>${metodo ? ` <span class="et">(${metodo === "obla" ? "Test · OBLA 4" : "Test · Dmax"})</span>` : ` <span class="et">(stima dai PB)</span>`}`)}
+    ${hasL ? R2("Test lattato · Dmax / OBLA", `<b>${RL.ritmoDmax || "—"} / ${RL.ritmoLT2 || "—"}</b>/km`) + R2("Andatura facile (LT1)", `<b>${RL.ritmoLT1 || "—"}</b>/km`) : ""}
+    ${hasC ? R2("Velocità critica (dal campo)", `<b>${RC.ritmoCS}</b>/km · CS ${num(RC.cs, 2)} m/s`) : ""}
+    ${hasL && hasC ? `<p class="et" style="margin:8px 0 0">${_confrontoSoglia(RL, RC)}</p>` : ""}
+  </div>`;
+
+  const zone = [["Rigenerazione", "molto facile"], ["Lungo", "facile, conversabile"], ["Medio / maratona", "controllato"], ["Soglia LT2 (tempo)", "comodo-duro (~1h)"], ["Sub-soglia", "un filo sotto soglia"], ["VO2max", "molto duro"], ["Ritmo gara 5000", "ritmo gara"], ["Velocità", "veloce, sciolto"]];
+  const cardZone = `<div class="card">
+    <p class="et" style="margin-bottom:6px">Zone di allenamento — ritmi /km</p>
+    <div class="p-scroll"><table class="ptab pista-w"><tbody>
+    ${zone.map(([m, s]) => `<tr><td><b>${m}</b></td><td class="pauto">${rit(m)}</td><td class="et">${s}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+
+  const cardProfilo = (hasL || hasC) ? `<div class="card">
+    <p class="et" style="margin-bottom:8px">Profilo dell'atleta</p>
+    ${hasL ? `<p class="et" style="margin:0 0 8px"><b>Soglia vs gara:</b> ${_spiegSogliaGara(RL.sogliaGara)}</p><p class="et" style="margin:0 0 8px"><b>Base aerobica:</b> ${_spiegAmpiezza(RL.ampiezza)}</p>` : ""}
+    ${hasC ? `<p class="et" style="margin:0 0 8px"><b>Serbatoio di scatto (D′):</b> ${_spiegDprime(RC.dprime)}</p><p class="et" style="margin:0"><b>Tipo di atleta:</b> ${_csSpeedReserve(RC)}</p>` : ""}
+  </div>` : "";
+
+  const cardSintesi = `<div class="card">
+    <p class="et" style="margin-bottom:6px">In sintesi — cosa lavorare (per ${a.specialita || "la tua gara"})</p>
+    ${hasL ? `<p class="et" style="margin:0 0 8px"><b>Dal lattato:</b> ${_latCoach(bucket, RL)}</p>` : ""}
+    ${hasC ? `<p class="et" style="margin:0"><b>Dalla velocità critica:</b> ${_csCoach(bucket, RC)}</p>` : ""}
+    ${(!hasL && !hasC) ? `<p class="et" style="margin:0">Fai il <b>Test lattato</b> e/o la <b>Velocità critica</b> per la sintesi personalizzata. Intanto i ritmi qui sopra sono stimati dai PB.</p>` : ""}
+  </div>`;
+
+  return intro + sel + header + cardSoglia + cardZone + cardProfilo + cardSintesi;
 }
