@@ -8,7 +8,7 @@ const BLOCCHI = ["AA (Adatt. Anatomico)", "Mx-S (Forza Max)", "Conv. a Potenza",
 const SIST_EN_BY = {
   vel: ["O2 power (aerob.)", "Capacità lattacida", "Potenza alattacida", "Potenza lattacida"],
   lanci: ["Potenza alattacida", "Forza max / esplosiva", "Tecnica specifica", "Aerobico rigenerante"],
-  mezzo: ["Aerobico / base", "Soglia (LT2)", "VO2max", "Capacità lattacida", "Potenza lattacida", "Forza-economia"]
+  mezzo: ["Aerobico base (Z1-2)", "Aerobico medio / Fondo", "Soglia LT2", "VO2max", "Capacità lattacida", "Potenza lattacida", "Velocità / neuromuscolare"]
 };
 function sistEnDi(g) { return SIST_EN_BY[g] || SIST_EN_BY.vel; }
 const SIST_EN = SIST_EN_BY.vel;   // retrocompatibilità
