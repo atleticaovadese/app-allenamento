@@ -4,7 +4,14 @@
 
 const FASI = ["Prep. generale", "Prep. speciale", "Pre-competitiva", "Competitiva", "Transizione"];
 const BLOCCHI = ["AA (Adatt. Anatomico)", "Mx-S (Forza Max)", "Conv. a Potenza", "Mant. P+MxS", "Competitivo"];
-const SIST_EN = ["O2 power (aerob.)", "Capacita lattacida", "Potenza alattacida", "Potenza lattacida"];
+// sistemi energetici DIVERSI per disciplina (il dropdown cambia in base al gruppo scelto)
+const SIST_EN_BY = {
+  vel: ["O2 power (aerob.)", "Capacità lattacida", "Potenza alattacida", "Potenza lattacida"],
+  lanci: ["Potenza alattacida", "Forza max / esplosiva", "Tecnica specifica", "Aerobico rigenerante"],
+  mezzo: ["Aerobico / base", "Soglia (LT2)", "VO2max", "Capacità lattacida", "Potenza lattacida", "Forza-economia"]
+};
+function sistEnDi(g) { return SIST_EN_BY[g] || SIST_EN_BY.vel; }
+const SIST_EN = SIST_EN_BY.vel;   // retrocompatibilità
 const CICLI = ["4+1", "3+1", "2+1", "1+1", "1"];
 const INT_BLOCCO = { "AA (Adatt. Anatomico)": 2, "Mx-S (Forza Max)": 4, "Conv. a Potenza": 4, "Mant. P+MxS": 5, "Competitivo": 5 };
 const AD_CICLO = { "1": 1, "1+1": 2, "2+1": 3, "3+1": 4, "4+1": 5 };
@@ -13,12 +20,23 @@ const WEEK_MS = 7 * 86400000;
 
 function dnum(iso) { if (!iso) return null; const d = new Date(iso + "T00:00:00"); return isNaN(d) ? null : d.getTime(); }
 
-function pianoDati() {
-  if (!DEMO.piano || !DEMO.piano.righe) DEMO.piano = { inizio: "", nSettimane: 24, righe: [] };
-  const p = DEMO.piano;
+// PER DISCIPLINA: DEMO.piano è una mappa { vel:{...}, lanci:{...}, mezzo:{...} } (come pista/palestra)
+function _emptyPiano() { return { inizio: "", nSettimane: 24, righe: [] }; }
+function pianoDi(g) {
+  // migra il vecchio formato singolo (con .righe) → { vel: <vecchio>, lanci:{}, mezzo:{} }
+  if (!DEMO.piano || DEMO.piano.righe) {
+    const old = (DEMO.piano && DEMO.piano.righe) ? DEMO.piano : null;
+    DEMO.piano = { vel: old || _emptyPiano(), lanci: _emptyPiano(), mezzo: _emptyPiano() };
+  }
+  if (!DEMO.piano[g]) DEMO.piano[g] = _emptyPiano();
+  const p = DEMO.piano[g];
+  if (!p.righe) p.righe = [];
+  if (!p.nSettimane) p.nSettimane = 24;
   while (p.righe.length < p.nSettimane) p.righe.push({ fase: "", blocco: "", sist: "", ciclo: "" });
   return p;
 }
+function pianoDati() { return pianoDi(S.pianoDisc || "vel"); }
+function setPianoDisc(g) { S.pianoDisc = g; disegna(); window.scrollTo(0, 0); }
 
 // Calcola le colonne automatiche per ogni settimana (formule del foglio Excel).
 function calcolaPiano() {
@@ -72,6 +90,7 @@ function prossimaGaraA() {
 // ---------- vista ----------
 function vistaPiano() {
   if (S.pianoGrafici) return vistaPianoGrafici();
+  const disc = S.pianoDisc || "vel";
   const p = pianoDati();
   const rows = calcolaPiano();
   const gaA = prossimaGaraA();
@@ -85,7 +104,7 @@ function vistaPiano() {
       <td class="pdata">${r.inizio || "—"}</td>
       <td><select onchange="setPianoCella(${i},'fase',this.value)">${opt(FASI, inp.fase)}</select></td>
       <td><select onchange="setPianoCella(${i},'blocco',this.value)">${opt(BLOCCHI, inp.blocco)}</select></td>
-      <td><select onchange="setPianoCella(${i},'sist',this.value)">${opt(SIST_EN, inp.sist)}</select></td>
+      <td><select onchange="setPianoCella(${i},'sist',this.value)">${opt(sistEnDi(disc), inp.sist)}</select></td>
       <td class="pauto">${r.intensita === "" ? "—" : r.intensita}</td>
       <td class="pauto">${r.volume === "" ? "—" : r.volume}</td>
       <td class="pgara">${r.gara || ""}</td>
@@ -96,9 +115,15 @@ function vistaPiano() {
     </tr>`;
   }).join("");
 
+  const grp = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
   return `
   <div class="card"><h3>Piano & Picco</h3>
     <p class="et" style="margin-top:2px">Piano annuale della stagione (Bompa). Tu compili <b>Fase</b>, <b>Blocco forza</b>, <b>Sist. energetico</b> e il <b>Ciclo</b>; Intensità, Volume, Gara, Scarico e Peaking escono da soli.</p></div>
+  <div class="card">
+    <label class="lab">Piano per disciplina</label>
+    <select onchange="setPianoDisc(this.value)" style="margin-top:6px">${grp.map(([k, l]) => `<option value="${k}" ${k === disc ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <p class="et" style="margin-top:8px">Ogni disciplina ha il <b>suo</b> piano e i suoi sistemi energetici. Per i <b>${(grp.find(x => x[0] === disc) || [])[1] || ""}</b>: <span style="color:var(--txt)">${sistEnDi(disc).join(" · ")}</span>.</p>
+  </div>
   <div class="card">
     <div class="griglia2">
       <div><label class="lab">Inizio settimana 1</label>
@@ -140,7 +165,7 @@ function chiudiPianoGrafici() { S.pianoGrafici = false; disegna(); window.scroll
 // grafico a linee (scala 1-5) di Intensità / Volume / Picco
 function chartPianoSVG(calc) {
   const n = calc.length;
-  if (!n || !DEMO.piano.inizio) return `<p class="et">Imposta l'inizio della stagione (nel piano) per vedere il grafico.</p>`;
+  if (!n || !pianoDati().inizio) return `<p class="et">Imposta l'inizio della stagione (nel piano) per vedere il grafico.</p>`;
   const W = 340, H = 190, padL = 20, padR = 8, padT = 10, padB = 22;
   const x = i => padL + (W - padL - padR) * (n <= 1 ? 0 : i / (n - 1));
   const y = v => (H - padB) - (H - padT - padB) * ((v - 1) / 4);

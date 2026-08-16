@@ -81,7 +81,8 @@ function settimaneDelGiorno(m, g) {
 
 // cicli (mesocicli) ricavati dal foglio Piano & Picco
 function pistaCicliPiano() {
-  const p = DEMO.piano;
+  // il Piano è per-disciplina: prendi quello del gruppo che si sta programmando
+  const p = (typeof pianoDi === "function") ? pianoDi(S.progGruppo || "vel") : DEMO.piano;
   if (!p || !p.inizio || !p.righe || typeof AD_CICLO === "undefined") return [];
   const inizio = new Date(p.inizio + "T00:00:00");
   const res = [];
