@@ -858,3 +858,216 @@ function vistaProfiloAttrezzo() {
 
   return selAtleta + intro + testa + tabella + risultati + note;
 }
+
+// ============================================================================
+// TEMPLATE MICROCICLI (lanci) — settimana-tipo per blocco (fedele al foglio "Template microcicli").
+// giorni = [giorno, campo/lanci, attrezzo·n°lanci, palestra, %1RM·s×r, note, kind ("r"=riposo,"g"=gara)]
+// Nei lanciatori lanci e palestra stanno spesso nello STESSO giorno: prima i lanci (da fresco), poi la forza.
+// ============================================================================
+const LANCI_TEMPLATE = [
+  {
+    titolo: "Blocco 1 · Prep. GENERALE — AA (Adattamento Anatomico, ~3-4 sett.)",
+    parametri: "Lanci 10-20/seduta, 2×/sett, attrezzo di GARA · intensità tecnica 70-80% | Palestra 30-60%, circuiti full-body | Pliometria ESTENSIVA ~60 contatti | Multilanci 2×/sett.",
+    giorni: [
+      ["Lun", "Tecnica/drills + lanci standard (medio volume)", "gara · 15-20 lanci", "Circuito forza generale full-body", "30-50% max · 10 es. 30″/15″", "cura la tecnica; RPE 6-7", ""],
+      ["Mar", "Velocità/accelerazione + pliometria base + core", "sprint 6-8×30-60 m", "—", "—", "pliometria estensiva ~60 contatti", ""],
+      ["Mer", "Lanci pesanti (posizioni) + drills", "pesante +10% · 10-15 lanci", "Olympic lifts (tecnica) + forza generale 2", "oly 60-70% · pulls 3-4×5-6", "tecnica dei sollevamenti", ""],
+      ["Gio", "Mobilità/prevenzione + tecnica a secco", "drills senza attrezzo", "Prehab spalla/anca + core", "elastici 3×15", "recupero attivo", ""],
+      ["Ven", "Lanci standard + multilanci palla medica", "gara · 15-20 lanci · med ball 3-6 kg 4-8×3-6", "Forza generale 3", "30-50% · 8-12 ×2-3", "presses 3-4×8-10", ""],
+      ["Sab", "Velocità + balzi (facolt.)", "—", "Circuito o off", "—", "oppure recupero", ""],
+      ["Dom", "Riposo", "—", "—", "—", "—", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 2 · Prep. SPECIALE — Forza MAX + potenza (~6-10 sett.)",
+    parametri: "Lanci 20-30/seduta, 2-3 gg/sett, GARA + PESANTI (+5/10%) · intensità 70-90% | Palestra 85-100% 1RM + oly 70-90% | Pliometria intensiva | è la fase più carica dell'anno.",
+    giorni: [
+      ["Lun", "Lanci standard (qualità tecnica)", "gara · 20-30 lanci", "Forza MAX (squat/stacco)", "85-95% · 2-4 ×3-5", "rec pieni 3-5'; pulls 3-4×3-4", ""],
+      ["Mar", "Velocità + pliometria + core", "sprint 6-8×20-40 m", "—", "—", "~80 contatti; 48-72 h tra sedute intense", ""],
+      ["Mer", "Lanci PESANTI (forza specifica, posizioni)", "pesante +10% · 15-25 lanci", "Olympic lifts + balistico", "oly 70-90% · 3-6×1-3", "mai a cedimento; qualità del gesto", ""],
+      ["Gio", "Mobilità/prevenzione + tecnica a secco", "drills", "Prehab cuffia rotatori (elastici)", "3×15-20", "obbligatorio per il giavellotto", ""],
+      ["Ven", "Lanci speciali/parziali + multilanci", "power position e mezzi giri · 20-30 lanci", "Forza MAX 2 + oly", "85-100% · 1-3 + oly", "presses 3-4×5", ""],
+      ["Sab", "Multilanci / velocità / balzi", "med ball 4-8×3-6", "Forza MAX 3 (richiamo) o off", "85-90% · 2-3", "facoltativo", ""],
+      ["Dom", "Riposo", "—", "—", "—", "—", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 3 · PRE-COMPETITIVA — Conversione a potenza (~4-8 sett.)",
+    parametri: "Lanci 20-30/seduta, 2-3 gg/sett, GARA (ritmo) + primi LEGGERI · intensità 80-100% | Palestra balistico 30-60% + oly 70-85% | Pliometria SHOCK, poco volume | la forza max si mantiene.",
+    giorni: [
+      ["Lun", "Lanci gara-simile (qualità, ritmo completo)", "gara · 20-25 lanci", "Forza balistica + oly + contrasto", "30-60% balistico / 70-85% veloce", "contrast training; rec pieni", ""],
+      ["Mar", "Velocità + pliometria reattiva", "sprint 4-6×20-40 m", "—", "—", "depth jump: pochi contatti, rec pieno", ""],
+      ["Mer", "Lanci LEGGERI (velocità di rilascio)", "leggero -10% · 15-25 lanci", "Potenza (jump squat, push press)", "30-60% · 3-6×3-5", "massima velocità, poche rip", ""],
+      ["Gio", "Mobilità + tecnica leggera", "drills", "Prehab / core", "—", "recupero attivo", ""],
+      ["Ven", "Lanci gara-simile + prove di rifinitura", "gara · 15-20 lanci", "Mantenimento forza (poche serie)", "80-90% · 1-3", "oly 3-4×2-3", ""],
+      ["Sab", "Prova/gara C o multilanci veloci", "gara o med ball", "leggera o off", "—", "simula la routine di gara", ""],
+      ["Dom", "Riposo", "—", "—", "—", "—", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 4 · COMPETITIVA (in-season, ~6-8 sett.)",
+    parametri: "Lanci 15-25/seduta, 2-3 gg/sett, GARA + LEGGERI · intensità 80-100%, alta QUALITÀ | Palestra 1-2 sedute di mantenimento | Pliometria ~50 contatti | gara nel weekend.",
+    giorni: [
+      ["Lun", "Lanci di qualità (poche prove, alta qualità)", "gara · 15-20 lanci", "Mantenimento forza/potenza", "80-90% · 1-3 + potenza", "se la tecnica cala, fermati", ""],
+      ["Mar", "Velocità breve + mobilità", "sprint 4×20-30 m", "—", "—", "freschezza", ""],
+      ["Mer", "Lanci leggeri/veloci (brevi) o tecnica", "leggero -10% · 12-18 lanci", "Potenza breve o off", "poche serie esplosive", "—", ""],
+      ["Gio", "Rifinitura tecnica + allunghi", "gara · 8-12 lanci", "—", "—", "qualità > quantità", ""],
+      ["Ven", "Attivazione pre-gara (poche prove veloci)", "gara · 5-8 lanci", "—", "—", "routine di gara", ""],
+      ["Sab", "GARA", "gara", "—", "—", "🏁 gara", "g"],
+      ["Dom", "Riposo / rigenerante", "—", "—", "—", "—", "r"]
+    ]
+  },
+  {
+    titolo: "Blocco 5 · TAPER — settimana di gara (PICCO)",
+    parametri: "Volume −40/−60%, INTENSITÀ e VELOCITÀ INVARIATE (Bosquet 2007) · 10-20 lanci totali, soprattutto LEGGERI | Palestra: richiamo corto 3×3 al 70-75% veloce | ZERO pliometria | obiettivo: FRESCHEZZA.",
+    giorni: [
+      ["Lun", "Poche prove di qualità", "gara + leggero · 10-15 lanci", "Richiamo forza breve", "85-90% · 1-2 serie", "tagli il volume, tieni l'intensità", ""],
+      ["Mar", "Velocità breve + mobilità", "sprint 3-4×20-30 m", "—", "—", "niente fatica", ""],
+      ["Mer", "Stimolo breve (lanci leggeri veloci)", "leggero · 8-12 lanci", "Pull/press leggeri e veloci", "70-75% · 3×3", "stimolo neurale", ""],
+      ["Gio", "Tecnica leggera + allunghi", "gara · 5-8 lanci", "—", "—", "routine e rituali di gara", ""],
+      ["Ven", "Riposo / scarico (o viaggio)", "—", "—", "—", "scarico totale", "r"],
+      ["Sab", "GARA", "gara", "—", "—", "🏁 PICCO", "g"],
+      ["Dom", "Riposo", "—", "—", "—", "—", "r"]
+    ]
+  }
+];
+
+// ============================================================================
+// PERIODIZZAZIONE & VOLUMI (lanci) — pagina di riferimento (fedele al foglio "Periodizzazione").
+// Stile "Per distanza (mezzo)": tabs per attrezzo + sezioni condivise (fasi, forza, taper, evidenze).
+// ============================================================================
+const LANCI_PERIOD_ATTR = [
+  {
+    nome: "Peso", prof: "Gesto brevissimo: FORZA e POTENZA dominanti. Due tecniche (O'Brien lineare / rotazionale).",
+    qual: "1) Forza max  2) Potenza (oly/balistico)  3) Velocità di traslazione/rotazione  4) Tecnica del finale",
+    vol: { seduta: "20-30 (15-25 in gara)", sett: "2-4", prep: "gara + pesanti (+0.45-0.9 kg)", gara: "gara + leggeri", ou: "±10% (regola USATF)" },
+    prio: "forza max ●●● · oly ●●● · multilanci ●●● · lanci pesanti ●●●",
+    err: "troppa palestra e pochi lanci di qualità; forzare il braccio prima delle gambe",
+    att: "equilibrio in tutto il gesto (USATF)", rif: "Terzis/Kyriazis; USATF cap.14"
+  },
+  {
+    nome: "Disco", prof: "Rotazionale: POTENZA ROTAZIONALE + ritmo + tecnica fine. Meno forza bruta, più coordinazione.",
+    qual: "1) Potenza rotazionale/velocità  2) Forza max (base)  3) Ritmo/tecnica della rotazione  4) Elasticità",
+    vol: { seduta: "20-30", sett: "3-4", prep: "stand throw + pesanti, drills", gara: "gara + leggeri, gare simulate", ou: "±10% (1.7 vs 2.0 kg studiato)" },
+    prio: "potenza rotazionale ●●● · balistico ●●● · tecnica ●●●",
+    err: "partire troppo veloci (si perde il ritmo); «tirare» con le braccia",
+    att: "meno variabilità del movimento = più distanza (uomini, r=−0.57/−0.63)", rif: "Hay & Yu 1995; Dai 2013"
+  },
+  {
+    nome: "Martello", prof: "Il più TECNICO: 3-4 giri con velocità angolare crescente e forza centrifuga da gestire.",
+    qual: "1) Velocità di rotazione/potenza  2) Forza max (contrastare la trazione)  3) Tecnica dei giri  4) Forza specifica",
+    vol: { seduta: "~30 (meno se pesante)", sett: "3-5", prep: "pesanti presto in stagione", gara: "leggeri vicino ai campionati", ou: "±10%" },
+    prio: "forza max ●●● · oly ●●● · tecnica dei giri ●●●",
+    err: "andare «a braccia» perdendo equilibrio; giri veloci senza controllo",
+    att: "doppio appoggio lungo; al rilascio pensa «Turn!» non «Explode!»", rif: "Dapena; Bondarchuk; USATF cap.17"
+  },
+  {
+    nome: "Giavellotto", prof: "Rincorsa + blocco + frustata: VELOCITÀ (rincorsa e arto) + ELASTICITÀ + salute spalla/gomito.",
+    qual: "1) Velocità (rincorsa, arti)  2) Elasticità/pliometria  3) Forza esplosiva  4) Mobilità/salute spalla  5) Tecnica",
+    vol: { seduta: "MODERATI e progressivi", sett: "2-3 pieni", prep: "palle pesanti, medicinali, stubbies", gara: "gara + leggeri", ou: "±10%, con prudenza" },
+    prio: "velocità ●●● · pliometria ●●● · balistico ●●● · mobilità spalla ●●●",
+    err: "sovraccaricare spalla e gomito con troppi lanci pieni",
+    att: "il 70% della velocità si genera negli ultimi 0.1 s: è RFD pura. CONTA i lanci pieni!", rif: "Morriss & Bartlett 1996; Beitzel 2016"
+  }
+];
+// 1) struttura annuale — [sotto-fase, blocco forza, qualità dominante, durata, lanci, note]
+const LANCI_FASI = [
+  ["Prep. generale", "AA — Adatt. Anatomico", "Forza generale + tecnica", "~3-4 sett", "10-20 lanci, 2×/sett", "circuito 30-50% max; molti multilanci; pliometria estensiva"],
+  ["Prep. speciale", "Mx-S — Forza Massima", "Forza massimale", "~6-10 sett", "20-30 lanci, 2-3 gg/sett", "85-100% 1RM; oly lift; è la fase più lunga e carica"],
+  ["Pre-competitiva", "Conversione a Potenza", "Forza esplosiva / RFD", "~4-8 sett", "20-30 lanci, 2-3 gg/sett", "balistico 30-60% + oly; intensità lanci 70-90%"],
+  ["Competitiva", "Mantenimento P + MxS", "Velocità / tecnica", "~6-8 sett", "15-25 lanci, 2-3 gg/sett", "intensità lanci 80-100%; forza 1-2×/sett, poche serie"],
+  ["Taper / picco", "Richiamo", "Freschezza", "7-10 gg", "10-20 lanci di qualità", "volume −40/−60%, intensità INVARIATA; pull/press 3×3 al 70-75%; zero plio"],
+  ["Transizione", "Compensazione", "Rigenerante", "1-2 sett", "tecnica leggera / nulla", "recupero attivo, mobilità, altre attività"]
+];
+// 2) parametri forza per blocco — [blocco, %1RM, VBT m/s, rip, serie, rec, RIR, note]
+const LANCI_FORZA_BLOCCO = [
+  ["AA (Adatt. Anatom.)", "40-60%", "0.80-1.05", "8-12 (15)", "2-4", "60-90 s", "alto (4-6)", "circuito total-body; struttura, tendini, tecnica"],
+  ["Ipertrofia (opz.)", "67-80%", "0.55-0.72", "6-12", "3-6", "1-2 min", "0-2", "solo se serve massa magra (giovani/meno esperti)"],
+  ["Forza Massima", "85-100%", "0.30-0.50", "1-5", "2-5", "3-5 min", "0-2", "squat/stacco/panca; concentrica esplosiva, mai a cedimento"],
+  ["Forza-potenza (oly)", "70-90%", "0.75-1.00", "1-3", "3-6", "2-3 min", "2-3", "girata/strappo/slancio: il lift più correlato (r=0.868)"],
+  ["Derivati di tirata", "90-140%", "—", "2-5", "3-5", "2-4 min", "—", "clean pull ~102%, mid-thigh ~135%: sovraccarico senza ricezione"],
+  ["Velocità-forza (balistico)", "30-60%", "0.90-1.20", "3-5", "3-6", "2-3 min", "—", "jump squat, push press, lanci col bilanciere; max velocità"],
+  ["Pliometria / reattivo", "corpo libero", "max", "3-6 contatti", "3-6", "completo", "—", "contatti brevi; volume alto in prep, basso in gara, ZERO nel taper"],
+  ["Mantenimento", "80-90% + pot.", "0.42-0.55", "1-4", "2-3", "3 min", "2-3", "1-2 sedute/sett; regge ~4 sett. detraining (Terzis 2008)"]
+];
+// 5) onda / scarico / taper — bullets
+const LANCI_TAPER = [
+  "Onda 3:1 (3 sett. in crescita + 1 di scarico). Giovani o periodi duri: 2:1. Nel martello USATF: cicli di 4 sett. con +2-5% carico/sett e test dei massimali prima di ogni ciclo.",
+  "Settimana di scarico: volume −40/−50%, INTENSITÀ mantenuta (cali la fatica ma tieni la condizione).",
+  "TAPER pre-gara A (Bosquet 2007, 8-14 giorni): volume −41/−60%, intensità e frequenza invariate, guadagno medio ~2%. Bazyler 2017 (1 sett. overreach + 3 taper) ha migliorato 5 lanciatori su 6.",
+  "Nel taper: pochi lanci di altissima qualità, soprattutto LEGGERI; richiamo di forza corto (3×3 al 70-75%, veloce); niente pliometria; multilanci a 1 serie.",
+  "Verifica in Carico & Forma: ACWR 0.8-1.3; Forma (TSB) positiva prima delle gare."
+];
+// 6) miglioramenti attesi (studi) — [studio, durata, cosa, Δlancio, Δforza, Δaltro]
+const LANCI_STUDI = [
+  ["Anousaki 2021 (JSCR)", "25 sett", "macrociclo ipertrofia→forza→potenza", "+10.9 ± 3.2%", "snatch +9.7% · squat +9.9%", "CMJ +10.9%"],
+  ["Zaras 2016 (JSCR)", "10 sett", "periodizzato, giovani lanciatori", "+6.8 ± 4.3%", "RFD e 1RM ↑", "fascicoli +13.4%"],
+  ["Zaras 2013 (JSSM)", "6 sett", "forza max VS balistico-potenza", "+7.0/13.5% vs +6.0/11.5%", "leg press +43% vs +21%", "CMJ +8.5% (solo pot.)"],
+  ["Terzis 2008 (JSCR)", "14 sett +4 detr.", "forza", "+6-12% (mantenuto)", "1RM +22-34%", "CSA fibre +12-18%"],
+  ["Kyriazis 2009/10", "preseason→gara", "preparazione completa", "+4.7% · rotaz. +6.5%", "squat +6.5%", "EMG ↑"]
+];
+// 7) attivazione PAP/PAPE — [protocollo, effetto, fonte, come]
+const LANCI_PAP = [
+  ["Riscaldamento con attrezzo PESANTE", "14.39 vs 14.18 (leggero)/14.15 (controllo), p=0.003", "Judge 2016", "alcune prove pesanti, poi gara"],
+  ["Sprint di attivazione", "peso +3.74 ± 1.88%", "Terzis 2012", "2-3 sprint brevi massimali"],
+  ["CMJ di attivazione", "peso +2.64 ± 1.59%", "Terzis 2012", "3-5 salti massimali"],
+  ["Hang clean & jerk 80% + 8'", "10.93 vs 10.57 m, p=0.007", "PAP shot put 2017", "3 rip a 80%, poi 7-10' recupero"],
+  ["Pliometria/isometria breve", "+2.30% ÷ +5.72%", "Kontou 2018", "serie brevi prima delle prove"]
+];
+// 8) cosa conta per livello — [livello, determinante, priorità]
+const LANCI_LIVELLO = [
+  ["Poco esperto / giovane", "massa magra (LBM)", "forza generale, tecnica, massa magra, multilanci"],
+  ["Intermedio", "LBM + proprietà architetturali", "forza max + conversione a potenza"],
+  ["Esperto", "lunghezza fascicoli + composizione fibre", "RFD, balistico, velocità di rilascio, tecnica fine"]
+];
+
+let lanciPerState = { attr: "Peso" };
+function setLanciPerAttr(n) { lanciPerState.attr = n; disegna(); window.scrollTo(0, 0); }
+function _lanciTblHTML(headers, rows) {
+  return `<div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${r.map((c, i) => i === 0 ? `<td style="white-space:normal"><b>${c}</b></td>` : `<td class="et" style="white-space:normal;text-align:left">${c}</td>`).join("")}</tr>`).join("")}</tbody>
+  </table></div>`;
+}
+
+function vistaPeriodizzazioneLanci() {
+  const d = LANCI_PERIOD_ATTR.find(x => x.nome === lanciPerState.attr) || LANCI_PERIOD_ATTR[0];
+
+  const intro = `<div class="card"><h3>Periodizzazione & volumi (lanci)</h3>
+    <p class="et" style="margin-top:2px">Per ogni attrezzo: profilo, volumi e adattamenti. Sotto: <b>struttura annuale</b>, <b>parametri di forza per blocco</b>, onda/taper, evidenze e cosa conta per livello. I microcicli pronti sono nel <b>Template</b>; i mezzi nella <b>Guida mezzi</b>.</p>
+    <p class="et" style="margin-top:8px;padding:8px 10px;background:var(--card2,rgba(120,120,140,.08));border-radius:8px"><b>Modello italiano a DOPPIO PICCO:</b> picco 1 sui campionati invernali di lanci (feb-mar), transizione breve, picco 2 (più alto) in estate (giu-lug). L'USATF per il martello lo dice esplicito: «peak in March and June».</p>
+    <p class="et" style="margin-top:6px;color:var(--txt3)">Fonti: Bompa/Buzzichelli, Bondarchuk, USATF Coaching Manual, Bosquet 2007 (taper), Zaras/Terzis/Anousaki/Kyriazis, NSCA.</p></div>`;
+
+  const tabs = `<div class="tabbar">${LANCI_PERIOD_ATTR.map(x => `<button class="${x.nome === d.nome ? "on" : ""}" onclick="setLanciPerAttr('${x.nome}')">${x.nome}</button>`).join("")}</div>`;
+
+  const info = `<div class="card"><h3 style="margin-bottom:6px">${d.nome}</h3>
+    ${[["Profilo di gara", d.prof], ["Qualità da allenare (priorità)", d.qual], ["Priorità dei mezzi", d.prio], ["Errore tipico", d.err], ["Attenzione", d.att]].map(([l, v]) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)${l === "Attenzione" ? ";background:rgba(240,168,60,.10);border-radius:8px;padding:8px 9px" : ""}"><span class="et" style="margin:0;font-weight:600;color:${l === "Attenzione" ? "var(--giallo,#d99000)" : "var(--txt2)"}">${l}</span><p style="margin:2px 0 0;font-size:13px">${v}</p></div>`).join("")}
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Rif.: ${d.rif}</p></div>`;
+
+  const vol = `<div class="card"><p class="et" style="margin-bottom:6px">Volumi dei lanci — ${d.nome}</p>
+    ${_lanciTblHTML(["", "Lanci/seduta", "Sedute/sett", "In preparazione", "In gara", "Over/under"], [["Volume", d.vol.seduta, d.vol.sett, d.vol.prep, d.vol.gara, d.vol.ou]])}
+    <p class="et" style="margin-top:8px">Intensità tecnica dei lanci per fase (guida USATF): <b>prep 70-80%</b> · <b>pre-comp 70-90%</b> · <b>comp 80-100%</b>. Contatti pliometrici/seduta: <b>60</b> (prep) → <b>80</b> (pre) → <b>50</b> (comp) → <b>0</b> nel taper.</p></div>`;
+
+  const fasi = `<div class="card"><p class="et" style="margin-bottom:6px">Struttura annuale (fasi e blocchi di forza)</p>
+    ${_lanciTblHTML(["Sotto-fase", "Blocco forza", "Qualità dominante", "Durata", "Lanci", "Note"], LANCI_FASI)}</div>`;
+
+  const forza = `<div class="card"><p class="et" style="margin-bottom:6px">Parametri di forza per blocco <span style="color:var(--txt3)">(Bompa/Buzzichelli/NSCA + VBT)</span></p>
+    ${_lanciTblHTML(["Blocco", "%1RM", "VBT m/s", "Rip", "Serie", "Rec", "RIR", "Note lanci"], LANCI_FORZA_BLOCCO)}
+    <p class="et" style="margin-top:8px">VBT come zona-bersaglio e per autoregolare: perdita di velocità del 10-20% dentro la serie = stop. <b>Transfer (Bondarchuk):</b> avvicinandoti alla gara sposta il volume da GPE/SPE verso SDE/CE.</p></div>`;
+
+  const taper = `<div class="card"><p class="et" style="margin-bottom:6px">Onda del carico, scarico e taper</p>
+    <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--txt2);line-height:1.55">${LANCI_TAPER.map(t => `<li>${t}</li>`).join("")}</ul></div>`;
+
+  const studi = `<div class="card"><p class="et" style="margin-bottom:6px">Quanto ci si aspetta di migliorare <span style="color:var(--txt3)">(studi sui lanciatori)</span></p>
+    ${_lanciTblHTML(["Studio", "Durata", "Cosa", "Δ lancio", "Δ forza", "Δ altro"], LANCI_STUDI)}
+    <p class="et" style="margin-top:8px">Un macrociclo ben periodizzato vale circa <b>+7/11%</b> sulla misura. Forza massimale e balistico funzionano ENTRAMBI ma con adattamenti diversi (ipertrofia/CSA vs velocità/CMJ): vanno in sequenza, non in alternativa.</p></div>`;
+
+  const pap = `<div class="card"><p class="et" style="margin-bottom:6px">Attivazione PAP/PAPE — un guadagno «gratuito»</p>
+    ${_lanciTblHTML(["Protocollo", "Effetto", "Fonte", "Come si applica"], LANCI_PAP)}
+    <p class="et" style="margin-top:8px">L'effetto è <b>individuale</b> e la finestra utile è <b>7-10 min</b> dopo lo stimolo. Attrezzi troppo pesanti possono PEGGIORARE: testa 2-3 protocolli e segna quale funziona in Riscaldamento.</p></div>`;
+
+  const livello = `<div class="card"><p class="et" style="margin-bottom:6px">Cosa conta davvero, per livello <span style="color:var(--txt3)">(Methenitis 2016)</span></p>
+    ${_lanciTblHTML(["Livello", "Determinante principale", "Priorità di allenamento"], LANCI_LIVELLO)}</div>`;
+
+  return intro + tabs + info + vol + fasi + forza + taper + studi + pap + livello;
+}
