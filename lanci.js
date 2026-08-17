@@ -550,6 +550,28 @@ function pbLanciInfo(a) {
 }
 // miglior PB (m) di un atleta sulla sua specialità
 function pbLanciMigliore(a) { return pbLanciInfo(a).pb; }
+// TUTTI gli attrezzi su cui l'atleta ha un PB: [{evento, kg, pb, dt}] — per scegliere quale profilare
+// (un lanciatore può allenare più attrezzi/pesi). Ordina: specialità prima, poi più recenti.
+function pbLanciAttrezzi(a) {
+  if (!a || !a.scheda) return [];
+  const spec = (a.specialita || "").trim().toLowerCase();
+  const byLabel = {};
+  (a.scheda.pb || []).forEach(r => {
+    if (r[0] == null || r[1] == null || r[1] === "") return;
+    const v = parseMisura("lanci", r[1]); if (v == null || isNaN(v)) return;
+    const label = String(r[0]).trim(), dt = String(r[6] || r[2] || "");
+    if (!byLabel[label]) byLabel[label] = { evento: label, kg: _parseKgAttrezzo(label), pb: v, dt };
+    else { if (v > byLabel[label].pb) byLabel[label].pb = v; if (dt > byLabel[label].dt) byLabel[label].dt = dt; }
+  });
+  return Object.values(byLabel).sort((x, y) => {
+    const sx = spec && x.evento.toLowerCase().startsWith(spec) ? 0 : 1;
+    const sy = spec && y.evento.toLowerCase().startsWith(spec) ? 0 : 1;
+    if (sx !== sy) return sx - sy;
+    return String(y.dt).localeCompare(String(x.dt));
+  });
+}
+// scelta dell'attrezzo da profilare → resetta il peso di gara così si ri-deduce dal nuovo attrezzo
+function setPaAttrezzo(v) { const a = _lanciAtletaRif(); if (!a) return; const t = _profAttrTest(a.id); t.attrezzoSel = v; t.pesoGara = ""; _paSave(); disegna(); }
 // obiettivo (m) dalla riga PB migliore (campo obiettivo), se presente
 function obiettivoLanciScheda(a) {
   if (!a || !a.scheda) return null;
@@ -745,25 +767,29 @@ function vistaProfiloAttrezzo() {
   if (!a) return selAtleta + intro + `<div class="card"><p class="et" style="margin:0">Scegli un lanciatore per profilare l'attrezzo.</p></div>`;
 
   const t = _profAttrTest(a.id);
-  const spec = a.specialita || "";
-  const info = pbLanciInfo(a);          // pesca PB + peso attrezzo dal profilo
-  const pb = info.pb;
-  const wgAuto = info.kg;               // peso attrezzo dedotto dall'etichetta del PB ("Martello 4 kg")
+  const attrezzi = pbLanciAttrezzi(a);                       // tutti gli attrezzi su cui ha un PB
+  // attrezzo selezionato: quello scelto (se ancora presente) altrimenti il primo (specialità / più recente)
+  const sel = attrezzi.find(x => x.evento === t.attrezzoSel) || attrezzi[0] || null;
+  const pb = sel ? sel.pb : null;
+  const wgAuto = sel ? sel.kg : null;                        // peso dedotto dall'etichetta ("Martello 4 kg"→4)
   const pesoGaraEff = (t.pesoGara !== "" && t.pesoGara != null) ? t.pesoGara : (wgAuto != null ? String(wgAuto) : "");
   const autoNota = (t.pesoGara === "" || t.pesoGara == null) && wgAuto != null;
   const wg = pesoGaraEff !== "" ? Number(String(pesoGaraEff).replace(",", ".")) : null;
+  const attrOpts = attrezzi.length
+    ? attrezzi.map(x => `<option value="${String(x.evento).replace(/"/g, "&quot;")}" ${sel && sel.evento === x.evento ? "selected" : ""}>${x.evento} — ${x.pb.toFixed(2)} m</option>`).join("")
+    : `<option value="">— nessun PB nel profilo —</option>`;
   const testa = `<div class="card">
       <div class="griglia2">
-        <div><label class="lab">Attrezzo</label><input value="${spec}" disabled style="margin-top:6px"></div>
-        <div><label class="lab">Personale (PB) <span style="color:var(--txt3)">(dal profilo)</span></label><input value="${pb != null ? pb.toFixed(2) + " m" : ""}" disabled placeholder="— nessun PB nel profilo —" style="margin-top:6px"></div>
-      </div>
-      <div class="griglia2" style="margin-top:12px">
-        <div><label class="lab">Peso di gara (kg)${autoNota ? " <span style='color:var(--txt3)'>(auto dal PB)</span>" : ""}</label>
+        <div><label class="lab">Attrezzo / personale ${attrezzi.length > 1 ? "<span style='color:var(--txt3)'>(scegli)</span>" : ""}</label>
+          <select ${attrezzi.length ? "" : "disabled"} onchange="setPaAttrezzo(this.value)" style="margin-top:6px">${attrOpts}</select></div>
+        <div><label class="lab">Peso di gara (kg)${autoNota ? " <span style='color:var(--txt3)'>(auto)</span>" : ""}</label>
           <input inputmode="decimal" value="${pesoGaraEff}" placeholder="es. 7.26" oninput="setPaCampoVal('pesoGara',this.value)" onchange="disegna()" style="margin-top:6px"></div>
-        <div><label class="lab">Data test</label>
-          <input type="date" value="${t.data || ""}" onchange="setPaCampo('data',this.value)" style="margin-top:6px"></div>
       </div>
-      <p class="et" style="margin-top:8px">${pb != null ? `Personale <b>${pb.toFixed(2)} m</b>${info.evento ? " (" + info.evento + ")" : ""}${wg > 0 ? " · confrontalo con la stima a peso gara qui sotto" : ""}.` : "Nessun PB nel profilo: aggiungilo nella scheda dell'atleta (es. «Martello 4 kg») per il confronto."} ${autoNota ? "Peso attrezzo preso dal PB — modificabile." : "Metti il peso di gara per lo scostamento %."}</p>
+      <div style="margin-top:12px"><label class="lab">Data test</label>
+        <input type="date" value="${t.data || ""}" onchange="setPaCampo('data',this.value)" style="margin-top:6px"></div>
+      <p class="et" style="margin-top:8px">${pb != null
+        ? `Personale <b>${pb.toFixed(2)} m</b>${sel && sel.evento ? " (" + sel.evento + ")" : ""}.${attrezzi.length > 1 ? " L'atleta allena più attrezzi: scegli quello da profilare." : ""}${autoNota ? " Peso preso dall'attrezzo — modificabile." : ""}`
+        : "Nessun PB nel profilo: aggiungilo nella scheda dell'atleta (es. «Martello 4 kg») per il confronto."}</p>
     </div>`;
 
   const righe = t.prove.map((r, i) => {
