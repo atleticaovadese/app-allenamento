@@ -159,16 +159,29 @@ function vistaOggi() {
 
   // il cruscotto si adatta: per il mezzofondo mostra ritmi/zone e km invece di sprint/salti
   const isMezzo = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
+  const isLanci = (typeof gruppoDi === "function") && gruppoDi(a) === "lanci";
   const rm = isMezzo && typeof ritmiHomeMezzo === "function" ? ritmiHomeMezzo(a) : null;
   const kmS = isMezzo && typeof kmSettAtleta === "function" ? kmSettAtleta(a) : null;
+  const lanciN = isLanci && typeof lanciSettAtleta === "function" ? lanciSettAtleta(a) : null;
+  const li = isLanci && typeof pbLanciInfo === "function" ? pbLanciInfo(a) : null;
+  const obiL = isLanci && typeof obiettivoLanciScheda === "function" ? obiettivoLanciScheda(a) : null;
   const cardVolume = isMezzo ? `<div class="q" onclick="vai('calendario')">
       <div class="k">Volume settimana</div>
       <div><div class="v">${kmS != null ? kmS + " km" : "—"}</div><div class="d">${kmS != null ? "programmati" : "nessun lavoro"}</div></div>
+    </div>`
+    : isLanci ? `<div class="q" onclick="vai('calendario')">
+      <div class="k">Lanci settimana</div>
+      <div><div class="v">${lanciN != null ? lanciN : "—"}</div><div class="d">${lanciN != null ? "programmati" : "nessun lancio"}</div></div>
     </div>` : "";
   const cardTestZone = isMezzo
     ? `<div class="q wide" onclick="vai('calendario')">
         <div class="k">Le mie zone di ritmo (/km)</div>
         <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">Facile <b>${rm.facile}</b> &nbsp;·&nbsp; Soglia <b>${rm.soglia}</b> &nbsp;·&nbsp; VO2max <b>${rm.vo2}</b> &nbsp;·&nbsp; Gara 5k <b>${rm.gara5}</b></div>
+      </div>`
+    : isLanci
+    ? `<div class="q wide" onclick="vai('io')">
+        <div class="k">Le mie misure</div>
+        <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">${li && li.pb != null ? `PB <b>${li.pb.toFixed(2)} m</b>${li.evento ? " (" + li.evento + ")" : ""}` : "PB —"}${obiL != null ? ` &nbsp;·&nbsp; Obiettivo <b>${obiL.toFixed(2)} m</b>` : ""}</div>
       </div>`
     : `<div class="q wide" onclick="vai('io')">
         <div class="k">Ultimi test</div>

@@ -572,13 +572,19 @@ function pbLanciAttrezzi(a) {
 }
 // scelta dell'attrezzo da profilare → resetta il peso di gara così si ri-deduce dal nuovo attrezzo
 function setPaAttrezzo(v) { const a = _lanciAtletaRif(); if (!a) return; const t = _profAttrTest(a.id); t.attrezzoSel = v; t.pesoGara = ""; _paSave(); disegna(); }
-// obiettivo (m) dalla riga PB migliore (campo obiettivo), se presente
+// obiettivo (m) dall'attrezzo di gara (stessa selezione di pbLanciInfo: match per prefisso specialità + PB più recente)
 function obiettivoLanciScheda(a) {
   if (!a || !a.scheda) return null;
+  const spec = (a.specialita || "").trim().toLowerCase();
+  const rows = (a.scheda.pb || []).filter(r => r[0] != null && r[1] != null && r[1] !== "" &&
+    (spec ? String(r[0]).trim().toLowerCase().startsWith(spec) : true));
+  if (!rows.length) return null;
+  const dt = r => String(r[6] || r[2] || "");
+  const recent = rows.slice().sort((x, y) => dt(y).localeCompare(dt(x)))[0];
+  const kg = _parseKgAttrezzo(recent[0]);
+  const same = kg != null ? rows.filter(r => _parseKgAttrezzo(r[0]) === kg) : rows;
   let best = null, obj = null;
-  (a.scheda.pb || []).filter(r => r[0] === a.specialita && r[1] != null && r[1] !== "").forEach(r => {
-    const v = parseMisura("lanci", r[1]); if (v != null && (best == null || v > best)) { best = v; obj = r[4]; }
-  });
+  same.forEach(r => { const v = parseMisura("lanci", r[1]); if (v != null && (best == null || v > best)) { best = v; obj = r[4]; } });
   const o = (obj != null && obj !== "") ? parseMisura("lanci", obj) : null;
   return (o != null && !isNaN(o)) ? o : null;
 }
@@ -1070,4 +1076,67 @@ function vistaPeriodizzazioneLanci() {
     ${_lanciTblHTML(["Livello", "Determinante principale", "Priorità di allenamento"], LANCI_LIVELLO)}</div>`;
 
   return intro + tabs + info + vol + fasi + forza + taper + studi + pap + livello;
+}
+
+// ============================================================================
+// CRUSCOTTO ATLETA (lanci) — sintesi del lanciatore (fedele al foglio "Cruscotto").
+// Card profilo per il dettaglio-atleta del coach + adattamento della home atleta.
+// ============================================================================
+// miglior massimale (kg) che contiene una parola (es. "girata", "squat")
+function _lanciMaxKg(a, needle) {
+  const rows = ((a.scheda && a.scheda.massimali) || []).filter(x => String(x[0]).toLowerCase().includes(needle));
+  const vals = rows.map(x => Number(x[1])).filter(v => !isNaN(v));
+  return vals.length ? Math.max(...vals) : null;
+}
+// test/salto per nome esatto (es. "CMJ") → {v, u}
+function _lanciSalto(a, nome) {
+  const s = ((a.scheda && a.scheda.salti) || []).find(x => String(x[0]).toLowerCase() === nome.toLowerCase());
+  return s ? { v: s[1], u: s[2] || "" } : null;
+}
+// diagnosi del Profilo attrezzo (over/under) se il test è stato fatto → {diag, stima} altrimenti null
+function _profiloAttrDiag(a) {
+  const t = DEMO.profiloAttrezzo && DEMO.profiloAttrezzo[a.id];
+  if (!t) return null;
+  const info = pbLanciInfo(a);
+  const wg = (t.pesoGara !== "" && t.pesoGara != null) ? Number(String(t.pesoGara).replace(",", ".")) : info.kg;
+  const pts = (t.prove || []).map(r => ({ x: Number(String(r.peso).replace(",", ".")), y: Number(String(r.misura).replace(",", ".")) }))
+    .filter(p => !isNaN(p.x) && !isNaN(p.y) && p.x > 0 && p.y > 0);
+  const reg = _linRegLanci(pts);
+  if (!reg || !(wg > 0) || pts.length < 2) return null;
+  const stima = reg.pred(wg), loss = (reg.pred(wg * 1.1) - stima) / stima, gain = (reg.pred(wg * 0.9) - stima) / stima;
+  const diag = Math.abs(loss) > 0.09 ? "Carenza di forza" : (gain < 0.04 ? "Carenza di velocità" : "Profilo equilibrato");
+  return { diag, stima };
+}
+// n° lanci PROGRAMMATI nella settimana corrente (Lun-Dom) per l'atleta, dalle sedute Campo
+function lanciSettAtleta(a) {
+  if (typeof seduteDelGiorno !== "function" || typeof isoDiData !== "function") return null;
+  const oggi = new Date((typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  const dow = (oggi.getDay() + 6) % 7;
+  const lun = new Date(oggi); lun.setDate(oggi.getDate() - dow);
+  let n = 0, trovato = false;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(lun); d.setDate(lun.getDate() + i);
+    const sed = seduteDelGiorno(isoDiData(d), false, a) || [];
+    sed.forEach(s => { if (s.lanci) { trovato = true; n += (typeof volumeLanciSeduta === "function" ? volumeLanciSeduta(s) : 0); } });
+  }
+  return trovato ? n : null;
+}
+// card "Profilo lanci" (per il dettaglio-atleta del coach): PB, obiettivo, profilo attrezzo, forza, salti
+function cardProfiloLanci(a) {
+  const info = pbLanciInfo(a);
+  const obi = obiettivoLanciScheda(a);
+  const girata = _lanciMaxKg(a, "girata"), squat = _lanciMaxKg(a, "squat");
+  const cmj = _lanciSalto(a, "CMJ");
+  const diag = _profiloAttrDiag(a);
+  const riga = (l, v) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><b>${v}</b></div>`;
+  const righe = [
+    info.pb != null ? riga("Personale" + (info.evento ? " · " + info.evento : ""), info.pb.toFixed(2) + " m") : "",
+    obi != null ? riga("Obiettivo", obi.toFixed(2) + " m") : "",
+    diag ? riga("Profilo attrezzo", diag.diag) : "",
+    girata != null ? riga("Girata (clean)", girata + " kg") : "",
+    squat != null ? riga("Squat", squat + " kg") : "",
+    cmj ? riga("CMJ", cmj.v + " " + (cmj.u || "cm")) : ""
+  ].join("");
+  return `<div class="card"><p class="et" style="margin-bottom:6px">🥏 Profilo lanci</p>
+    ${righe || `<p class="et" style="margin:0">Aggiungi PB e massimali nella scheda per vedere il profilo.</p>`}</div>`;
 }
