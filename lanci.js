@@ -520,13 +520,36 @@ function setLanciTestAtleta(id) { lanciTestState.atletaRif = id; disegna(); }
 function _lanciAtletaRif() { return lanciTestState.atletaRif ? (DEMO.atleti || []).find(x => x.id === lanciTestState.atletaRif) : null; }
 const _LANCI_NO_ATLETI = `<p class="et" style="margin-top:8px">Nessun lanciatore in squadra: aggiungi un atleta con disciplina «lanci».</p>`;
 
-// miglior PB (m) di un atleta sulla sua specialità
-function pbLanciMigliore(a) {
-  if (!a || !a.scheda) return null;
-  const vals = (a.scheda.pb || []).filter(r => r[0] === a.specialita && r[1] != null && r[1] !== "")
-    .map(r => parseMisura("lanci", r[1])).filter(v => v != null && !isNaN(v));
-  return vals.length ? Math.max(...vals) : null;
+// peso (kg) dell'attrezzo dall'etichetta PB: "Martello 4 kg"→4 · "Peso 7,26 kg"→7.26 · "Giavellotto 600 g"→0.6
+function _parseKgAttrezzo(evento) {
+  if (!evento) return null;
+  const s = String(evento);
+  let m = s.match(/([\d.,]+)\s*kg/i);
+  if (m) { const v = Number(m[1].replace(",", ".")); return isNaN(v) ? null : v; }
+  m = s.match(/([\d.,]+)\s*g\b/i);
+  if (m) { const v = Number(m[1].replace(",", ".")); return isNaN(v) ? null : v / 1000; }
+  return null;
 }
+// info PB dell'atleta sulla specialità: { pb (m, sull'attrezzo di gara), kg (peso attrezzo), evento }
+// gli eventi PB dei lanci sono tipo "Martello 4 kg": il match è per PREFISSO (specialità) e il peso si legge dall'etichetta.
+function pbLanciInfo(a) {
+  const none = { pb: null, kg: null, evento: null };
+  if (!a || !a.scheda) return none;
+  const spec = (a.specialita || "").trim().toLowerCase();
+  const rows = (a.scheda.pb || []).filter(r => r[0] != null && r[1] != null && r[1] !== "" &&
+    (spec ? String(r[0]).trim().toLowerCase().startsWith(spec) : true));
+  if (!rows.length) return none;
+  // attrezzo di gara = quello del PB più recente (data ISO r[6], altrimenti anno r[2])
+  const dt = r => String(r[6] || r[2] || "");
+  const recent = rows.slice().sort((x, y) => dt(y).localeCompare(dt(x)))[0];
+  const kgGara = _parseKgAttrezzo(recent[0]);
+  // PB = miglior misura su quell'attrezzo (se identificato), altrimenti su tutte le prove della specialità
+  const same = kgGara != null ? rows.filter(r => _parseKgAttrezzo(r[0]) === kgGara) : rows;
+  const vals = same.map(r => parseMisura("lanci", r[1])).filter(v => v != null && !isNaN(v));
+  return { pb: vals.length ? Math.max(...vals) : null, kg: kgGara, evento: recent[0] };
+}
+// miglior PB (m) di un atleta sulla sua specialità
+function pbLanciMigliore(a) { return pbLanciInfo(a).pb; }
 // obiettivo (m) dalla riga PB migliore (campo obiettivo), se presente
 function obiettivoLanciScheda(a) {
   if (!a || !a.scheda) return null;
@@ -723,20 +746,24 @@ function vistaProfiloAttrezzo() {
 
   const t = _profAttrTest(a.id);
   const spec = a.specialita || "";
-  const pb = pbLanciMigliore(a);   // personale (PB) pescato dal profilo
-  const wg = (t.pesoGara !== "" && t.pesoGara != null) ? Number(String(t.pesoGara).replace(",", ".")) : null;
+  const info = pbLanciInfo(a);          // pesca PB + peso attrezzo dal profilo
+  const pb = info.pb;
+  const wgAuto = info.kg;               // peso attrezzo dedotto dall'etichetta del PB ("Martello 4 kg")
+  const pesoGaraEff = (t.pesoGara !== "" && t.pesoGara != null) ? t.pesoGara : (wgAuto != null ? String(wgAuto) : "");
+  const autoNota = (t.pesoGara === "" || t.pesoGara == null) && wgAuto != null;
+  const wg = pesoGaraEff !== "" ? Number(String(pesoGaraEff).replace(",", ".")) : null;
   const testa = `<div class="card">
       <div class="griglia2">
         <div><label class="lab">Attrezzo</label><input value="${spec}" disabled style="margin-top:6px"></div>
         <div><label class="lab">Personale (PB) <span style="color:var(--txt3)">(dal profilo)</span></label><input value="${pb != null ? pb.toFixed(2) + " m" : ""}" disabled placeholder="— nessun PB nel profilo —" style="margin-top:6px"></div>
       </div>
       <div class="griglia2" style="margin-top:12px">
-        <div><label class="lab">Peso di gara (kg)</label>
-          <input inputmode="decimal" value="${t.pesoGara || ""}" placeholder="es. 7.26" oninput="setPaCampoVal('pesoGara',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+        <div><label class="lab">Peso di gara (kg)${autoNota ? " <span style='color:var(--txt3)'>(auto dal PB)</span>" : ""}</label>
+          <input inputmode="decimal" value="${pesoGaraEff}" placeholder="es. 7.26" oninput="setPaCampoVal('pesoGara',this.value)" onchange="disegna()" style="margin-top:6px"></div>
         <div><label class="lab">Data test</label>
           <input type="date" value="${t.data || ""}" onchange="setPaCampo('data',this.value)" style="margin-top:6px"></div>
       </div>
-      <p class="et" style="margin-top:8px">${pb != null ? `Personale <b>${pb.toFixed(2)} m</b> sul ${spec}${wg > 0 ? " · confrontalo con la stima a peso gara qui sotto" : ""}.` : "Nessun PB nel profilo: aggiungilo nella scheda dell'atleta per il confronto."} Metti il peso di gara per calcolare lo scostamento %.</p>
+      <p class="et" style="margin-top:8px">${pb != null ? `Personale <b>${pb.toFixed(2)} m</b>${info.evento ? " (" + info.evento + ")" : ""}${wg > 0 ? " · confrontalo con la stima a peso gara qui sotto" : ""}.` : "Nessun PB nel profilo: aggiungilo nella scheda dell'atleta (es. «Martello 4 kg») per il confronto."} ${autoNota ? "Peso attrezzo preso dal PB — modificabile." : "Metti il peso di gara per lo scostamento %."}</p>
     </div>`;
 
   const righe = t.prove.map((r, i) => {
