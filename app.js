@@ -30,7 +30,7 @@ const MENU_COACH = [
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["periodizzazione", "Periodizzazione"], ["per-distanza", "Per distanza (mezzo)"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
-    ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["test-lattato", "Test lattato"], ["critical-speed", "Velocità critica"], ["riepilogo-test", "Riepilogo test"], ["traino", "Traino"],
+    ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["test-lattato", "Test lattato"], ["critical-speed", "Velocità critica"], ["riepilogo-test", "Riepilogo test"], ["vel-rilascio", "Velocità rilascio (lanci)"], ["profilo-attrezzo", "Profilo attrezzo (lanci)"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"], ["guida-test", "Guida test mezzofondo"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
     ["screening", "Screening"], ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
@@ -47,7 +47,7 @@ const DA_EXCEL = {
   pista: "Pista", palestra: "Palestra", riscaldamento: "Riscaldamento",
   template: "Template microcicli", piano: "Piano & Picco", periodizzazione: "Periodizzazione", "per-distanza": "Per distanza", "guida-mezzi": "Guida mezzi", "guida-test": "Guida test", "guida-mezzi-lanci": "Guida mezzi (lanci)", "esercizi-speciali": "Esercizi speciali",
   test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "Test (CMJ/SJ)", "sprint-test": "Test (sprint)", stima1rm: "Stima 1RM",
-  "vel-target": "Velocita target", "ritmi-mezzo": "Ritmi target (mezzofondo)", "test-lattato": "Test lattato", "critical-speed": "Critical Speed", "riepilogo-test": "Riepilogo test (mezzofondo)", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
+  "vel-target": "Velocita target", "ritmi-mezzo": "Ritmi target (mezzofondo)", "test-lattato": "Test lattato", "critical-speed": "Critical Speed", "riepilogo-test": "Riepilogo test (mezzofondo)", "vel-rilascio": "Velocita rilascio", "profilo-attrezzo": "Profilo attrezzo", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
   "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", screening: "(nuovo: settimana/mesociclo)", carico: "Carico & Forma",
   infortuni: "Infortuni & Prevenzione", prevenzione: "Infortuni & Prevenzione (asimmetrie)", presenze: "Presenze", "diario-c": "Diario",
   "lib-sala": "Libreria Sala", "lib-mobilita": "Libreria Mobilita", "lib-video": "Libreria Video",
@@ -632,6 +632,8 @@ function disegna() {
   else if (coach && S.vista === "guida-test") corpo = vistaGuidaTest();
   else if (coach && S.vista === "guida-mezzi-lanci") corpo = guidaMezziLanciHTML();
   else if (coach && S.vista === "esercizi-speciali") corpo = vistaEserciziSpeciali();
+  else if (coach && S.vista === "vel-rilascio") corpo = vistaVelocitaRilascio();
+  else if (coach && S.vista === "profilo-attrezzo") corpo = vistaProfiloAttrezzo();
   else if (coach && S.vista === "stima1rm") corpo = vistaStima1RM();
   else if (coach && S.vista === "traino") corpo = vistaTraino();
   else if (coach && S.vista === "fv") corpo = vistaProfiloFV();

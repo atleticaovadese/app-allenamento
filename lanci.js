@@ -486,3 +486,306 @@ function vistaEserciziSpeciali() {
     <div class="card"><p class="et" style="margin:0"><b>Come si usa:</b> non passare al gesto completo finché i drill che lo compongono non sono puliti (regola esplicita del manuale USATF). Quando un lancio completo non funziona, torna al drill che isola la fase che non va. Per il <b>giavellotto</b>, palla medica/zavorrate/stubbies fanno volume senza caricare spalla e gomito.</p></div>
     <div class="card"><p class="et" style="margin:0;color:var(--txt3)">${LANCI_ESERCIZI.length} esercizi speciali. Fonti: USA Track & Field Coaching Manual capp. 14-17; Bondarchuk; biomeccanica in RICERCA_Lanci_Evidenze.md.</p></div>`;
 }
+
+// ============================================================================
+// TEST LANCI — Velocità di rilascio + Profilo carico-velocità (over/under).
+// Fedeli ai fogli Excel "Velocita rilascio" e "Profilo attrezzo" (modello balistico g=9.81).
+// ============================================================================
+const _G_LANCI = 9.81;
+// velocità (m/s) richiesta per lanciare a distanza R (m), angolo ang (°), altezza rilascio h (m)
+function _vReqLanci(R, ang, h) {
+  if (!(R > 0) || h == null || isNaN(h)) return null;
+  const a = ang * Math.PI / 180, c = Math.cos(a);
+  const den = 2 * c * c * (h + R * Math.tan(a));
+  if (den <= 0) return null;
+  const v = R * Math.sqrt(_G_LANCI / den);
+  return isNaN(v) ? null : v;
+}
+// distanza (m) da velocità v (m/s), angolo ang (°), altezza h (m)
+function _rDistLanci(v, ang, h) {
+  if (!(v > 0) || h == null || isNaN(h)) return null;
+  const a = ang * Math.PI / 180, c = Math.cos(a), t = Math.tan(a);
+  const A = v * v * c * c;
+  const disc = A * A * t * t + 2 * _G_LANCI * A * h;
+  if (disc < 0) return null;
+  const R = (A * t + Math.sqrt(disc)) / _G_LANCI;
+  return isNaN(R) ? null : R;
+}
+// angolo tipico misurato per attrezzo (default suggerito)
+const LANCI_ANG_TIPICO = { "Peso": 37, "Disco": 37, "Martello": 43, "Giavellotto": 34 };
+const LANCI_HREL_TIPICA = { "Peso": "≈2.0-2.2", "Disco": "≈1.6-1.8", "Martello": "≈1.5-1.7", "Giavellotto": "≈1.8-2.0" };
+
+let lanciTestState = { atletaRif: "" };
+function setLanciTestAtleta(id) { lanciTestState.atletaRif = id; disegna(); }
+function _lanciAtletaRif() { return lanciTestState.atletaRif ? (DEMO.atleti || []).find(x => x.id === lanciTestState.atletaRif) : null; }
+const _LANCI_NO_ATLETI = `<p class="et" style="margin-top:8px">Nessun lanciatore in squadra: aggiungi un atleta con disciplina «lanci».</p>`;
+
+// miglior PB (m) di un atleta sulla sua specialità
+function pbLanciMigliore(a) {
+  if (!a || !a.scheda) return null;
+  const vals = (a.scheda.pb || []).filter(r => r[0] === a.specialita && r[1] != null && r[1] !== "")
+    .map(r => parseMisura("lanci", r[1])).filter(v => v != null && !isNaN(v));
+  return vals.length ? Math.max(...vals) : null;
+}
+// obiettivo (m) dalla riga PB migliore (campo obiettivo), se presente
+function obiettivoLanciScheda(a) {
+  if (!a || !a.scheda) return null;
+  let best = null, obj = null;
+  (a.scheda.pb || []).filter(r => r[0] === a.specialita && r[1] != null && r[1] !== "").forEach(r => {
+    const v = parseMisura("lanci", r[1]); if (v != null && (best == null || v > best)) { best = v; obj = r[4]; }
+  });
+  const o = (obj != null && obj !== "") ? parseMisura("lanci", obj) : null;
+  return (o != null && !isNaN(o)) ? o : null;
+}
+
+// ---------- TEST 1: Velocità di rilascio ----------
+function _velRilTest(aid) {
+  DEMO.velRilascio = DEMO.velRilascio || {};
+  if (!DEMO.velRilascio[aid]) DEMO.velRilascio[aid] = { angolo: "", hRel: "", obiettivo: "", vMis: "", vProva: "" };
+  return DEMO.velRilascio[aid];
+}
+function _vrSave() { if (typeof salvaCustom === "function") salvaCustom(); }
+function setVrCampo(campo, v) { const a = _lanciAtletaRif(); if (!a) return; _velRilTest(a.id)[campo] = v; _vrSave(); disegna(); }
+function setVrCampoVal(campo, v) { const a = _lanciAtletaRif(); if (!a) return; _velRilTest(a.id)[campo] = v; _vrSave(); }
+
+function vistaVelocitaRilascio() {
+  const a = _lanciAtletaRif();
+  const selAtleta = `<div class="card">
+    <label class="lab">Atleta (lanci)</label>
+    <select onchange="setLanciTestAtleta(this.value)" style="margin-top:6px">${_optAtletiLanci(lanciTestState.atletaRif, "— scegli —")}</select>
+    ${atletiLanci().length === 0 ? _LANCI_NO_ATLETI : ""}</div>`;
+  const intro = `<div class="card"><h3>Velocità di rilascio</h3>
+    <p class="et" style="margin-top:2px">È il <b>predittore n.1</b> della distanza (martello r=0.86 · disco r=0.87). La misura cresce circa col <b>quadrato</b> della velocità: <b>+2% di velocità ≈ +4% di misura</b>. Da misura, angolo e altezza di rilascio esce la velocità richiesta (modello balistico, g=9.81).</p></div>`;
+  if (!a) return selAtleta + intro + `<div class="card"><p class="et" style="margin:0">Scegli un lanciatore per calcolare la velocità di rilascio che gli serve.</p></div>`;
+
+  const t = _velRilTest(a.id);
+  const spec = a.specialita || "";
+  const angTip = LANCI_ANG_TIPICO[spec];
+  const ang = (t.angolo !== "" && t.angolo != null) ? Number(String(t.angolo).replace(",", ".")) : null;
+  const h = (t.hRel !== "" && t.hRel != null) ? Number(String(t.hRel).replace(",", ".")) : null;
+  const pb = pbLanciMigliore(a);
+  const obiUser = (t.obiettivo !== "" && t.obiettivo != null) ? Number(String(t.obiettivo).replace(",", ".")) : null;
+  const obi = obiUser != null ? obiUser : obiettivoLanciScheda(a);
+  const vMis = (t.vMis !== "" && t.vMis != null) ? Number(String(t.vMis).replace(",", ".")) : null;
+  const an = (a.scheda && a.scheda.anagrafica) || {};
+
+  const testa = `<div class="card">
+      <div class="griglia2">
+        <div><label class="lab">Attrezzo</label><input value="${spec}" disabled style="margin-top:6px"></div>
+        <div><label class="lab">PB (m) <span style="color:var(--txt3)">(dal profilo)</span></label><input value="${pb != null ? pb.toFixed(2) : ""}" disabled placeholder="—" style="margin-top:6px"></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Angolo di rilascio (°)</label>
+          <input inputmode="decimal" value="${t.angolo || ""}" placeholder="${angTip ? "tipico " + angTip + "°" : "es. 37"}" oninput="setVrCampoVal('angolo',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+        <div><label class="lab">Altezza di rilascio (m)</label>
+          <input inputmode="decimal" value="${t.hRel || ""}" placeholder="${LANCI_HREL_TIPICA[spec] || "es. 2.0"}${an.altezza ? " · h corpo " + an.altezza + "cm" : ""}" oninput="setVrCampoVal('hRel',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
+        <div><label class="lab">Obiettivo (m)</label>
+          <input inputmode="decimal" value="${t.obiettivo || ""}" placeholder="${obiettivoLanciScheda(a) != null ? obiettivoLanciScheda(a).toFixed(2) + " (dal profilo)" : "es. 19.00"}" oninput="setVrCampoVal('obiettivo',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+        <div><label class="lab">v misurata (m/s) <span style="color:var(--txt3)">(radar/video)</span></label>
+          <input inputmode="decimal" value="${t.vMis || ""}" placeholder="opzionale" oninput="setVrCampoVal('vMis',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      </div>
+      <p class="et" style="margin-top:10px">Angoli tipici misurati: PESO ~37° · DISCO 35-40° · MARTELLO 42-45° · GIAVELLOTTO 31-36°. L'angolo ottimale <b>non è 45°</b> (si rilascia da sopra il suolo e la velocità cala se l'angolo sale).</p>
+    </div>`;
+
+  // 1) velocità richiesta per PB e obiettivo
+  const rigaReq = (lbl, R) => {
+    const vr = (R != null && ang != null && h != null) ? _vReqLanci(R, ang, h) : null;
+    let lettura;
+    if (vr == null) lettura = "(inserisci angolo e altezza di rilascio)";
+    else if (vMis == null) lettura = `Servono <b>${vr.toFixed(2)} m/s</b> al rilascio per ${R.toFixed(2)} m (misura la v con radar/video per il confronto)`;
+    else { const d = vr - vMis; lettura = d <= 0 ? "✔ la velocità misurata basta: il resto è angolo/tecnica" : `<b>${d.toFixed(2)} m/s</b> da guadagnare ≈ <b>${(d / vMis * 100).toFixed(1)}%</b> di velocità`; }
+    return `<tr><td><b>${lbl}</b></td><td class="pauto">${R != null ? R.toFixed(2) : "—"}</td><td class="pauto"><b>${vr != null ? vr.toFixed(2) : "—"}</b></td><td class="pauto">${vMis != null ? vMis.toFixed(2) : "—"}</td><td class="et" style="text-align:left">${lettura}</td></tr>`;
+  };
+  const sez1 = `<div class="card"><p class="et" style="margin-bottom:6px"><b>1) Velocità richiesta</b> per il tuo PB e per l'obiettivo</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>&nbsp;</th><th>Misura (m)</th><th>v richiesta</th><th>v misurata</th><th>Lettura</th></tr></thead>
+      <tbody>${rigaReq("PB attuale", pb)}${rigaReq("Obiettivo", obi)}</tbody>
+    </table></div></div>`;
+
+  // 2) tabella % PB × angoli
+  const ANG = [30, 33, 35, 37, 40, 42, 45];
+  const PCT = [0.90, 0.95, 1.00, 1.02, 1.05, 1.08, 1.10, 1.15];
+  const rows2 = PCT.map(pct => {
+    const R = pb != null ? pb * pct : null;
+    const cells = ANG.map(agv => { const vr = (R != null && h != null) ? _vReqLanci(R, agv, h) : null; const hit = ang != null && agv === Math.round(ang); return `<td class="pauto${hit ? " bene" : ""}">${vr != null ? vr.toFixed(2) : "—"}</td>`; }).join("");
+    const vTuo = (R != null && ang != null && h != null) ? _vReqLanci(R, ang, h) : null;
+    return `<tr><td><b>${Math.round(pct * 100)}%</b></td><td class="pauto">${R != null ? R.toFixed(2) : "—"}</td>${cells}<td class="pauto"><b>${vTuo != null ? vTuo.toFixed(2) : "—"}</b></td></tr>`;
+  }).join("");
+  const sez2 = `<div class="card"><p class="et" style="margin-bottom:6px"><b>2) Velocità richiesta</b> per misura e angolo</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>% PB</th><th>Misura</th>${ANG.map(agv => `<th>${agv}°</th>`).join("")}<th>tuo ang.</th></tr></thead>
+      <tbody>${rows2}</tbody>
+    </table></div>
+    <p class="et" style="margin-top:8px">${pb == null ? "Manca il PB nel profilo dell'atleta." : (h == null ? "Inserisci l'altezza di rilascio per calcolare." : "Ultima colonna = velocità al TUO angolo. Spesso conviene aggiustare l'angolo più che spingere di più.")}</p></div>`;
+
+  // 3) da velocità a misura
+  const vProva = (t.vProva !== "" && t.vProva != null) ? Number(String(t.vProva).replace(",", ".")) : null;
+  const cells3 = ANG.map(agv => { const R = (vProva != null && h != null) ? _rDistLanci(vProva, agv, h) : null; return `<td class="pauto">${R != null ? R.toFixed(2) : "—"}</td>`; }).join("");
+  const sez3 = `<div class="card"><p class="et" style="margin-bottom:6px"><b>3) Da velocità a misura</b> — quanto lanceresti con una certa velocità</p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <label class="lab" style="margin:0">v rilascio (m/s)</label>
+      <input inputmode="decimal" value="${t.vProva || ""}" placeholder="es. 13.5" oninput="setVrCampoVal('vProva',this.value)" onchange="disegna()" style="width:auto;flex:none;padding:7px 10px">
+    </div>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr>${ANG.map(agv => `<th>${agv}°</th>`).join("")}</tr></thead>
+      <tbody><tr>${cells3}</tr></tbody>
+    </table></div>
+    <p class="et" style="margin-top:8px">${h == null ? "Serve l'altezza di rilascio." : "Misura teorica a ogni angolo: utile per capire quanto vale un guadagno di velocità."}</p></div>`;
+
+  const note = `<div class="card"><p class="et" style="margin-bottom:6px"><b>Attenzione — validità del modello</b></p>
+    <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--txt2);line-height:1.5">
+      <li>PESO e MARTELLO: modello molto accurato (poco sensibili all'aria).</li>
+      <li>DISCO e GIAVELLOTTO: sono <b>aerodinamici</b>, il modello è solo indicativo (sottostima). Sul disco l'inclinazione ottimale è 5-10° meno dell'angolo di rilascio e — controintuitivo — il disco vola <b>più lontano contro vento</b> (fino a +8 m con 10 m/s contro: Frohlich 1981, Hubbard & Cheng 2007).</li>
+      <li>Angolo ottimale <b>individuale</b>: nel peso spesso 30-37°, nel disco 35-44° (Leigh 2010). Trovalo per prove, non per teoria.</li>
+      <li>Come si misura: radar in linea col volo, oppure video 120-240 fps (2 fotogrammi dopo il rilascio).</li>
+      <li>Riferimento: Tom Walsh, Mondiali 2018 — 14.12 m/s a 37.3° da 2.11 m (22.31 m). Elite giavellotto: 24-30 m/s.</li>
+    </ul></div>`;
+
+  return selAtleta + intro + testa + sez1 + sez2 + sez3 + note;
+}
+
+// ---------- TEST 2: Profilo attrezzo (over / under) ----------
+function _profAttrTest(aid) {
+  DEMO.profiloAttrezzo = DEMO.profiloAttrezzo || {};
+  if (!DEMO.profiloAttrezzo[aid]) DEMO.profiloAttrezzo[aid] = { pesoGara: "", data: "", prove: [] };
+  const t = DEMO.profiloAttrezzo[aid];
+  if (!t.prove) t.prove = [];
+  while (t.prove.length < 3) t.prove.push({ peso: "", misura: "", n: "", note: "" });
+  return t;
+}
+function _paSave() { if (typeof salvaCustom === "function") salvaCustom(); }
+function setPaCampo(campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id)[campo] = v; _paSave(); disegna(); }
+function setPaCampoVal(campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id)[campo] = v; _paSave(); }
+function setPaRiga(i, campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id).prove[i][campo] = v; _paSave(); disegna(); }
+function setPaRigaVal(i, campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id).prove[i][campo] = v; _paSave(); }
+function paAddRiga() { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id).prove.push({ peso: "", misura: "", n: "", note: "" }); _paSave(); disegna(); }
+function paDelRiga(i) { const a = _lanciAtletaRif(); if (!a) return; const p = _profAttrTest(a.id).prove; if (p.length > 1) p.splice(i, 1); _paSave(); disegna(); }
+
+// regressione lineare misura~peso
+function _linRegLanci(pts) {
+  const n = pts.length; if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+  pts.forEach(p => { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; syy += p.y * p.y; });
+  const d = n * sxx - sx * sx; if (d === 0) return null;
+  const slope = (n * sxy - sx * sy) / d, intercept = (sy - slope * sx) / n;
+  const denR = Math.sqrt((n * sxx - sx * sx) * (n * syy - sy * sy));
+  const r = denR ? (n * sxy - sx * sy) / denR : 0;
+  return { slope, intercept, r2: r * r, pred: w => intercept + slope * w };
+}
+// scatter SVG misura vs peso con retta
+function _scatterProfilo(pts, reg, wg) {
+  if (!pts.length) return "";
+  const W = 300, H = 170, mL = 34, mR = 8, mT = 10, mB = 24;
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (wg && wg > 0) { x0 = Math.min(x0, wg); x1 = Math.max(x1, wg); }
+  const padX = (x1 - x0) * 0.12 || 0.5, padY = (y1 - y0) * 0.15 || 0.5;
+  x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
+  const SX = v => mL + (v - x0) / (x1 - x0) * (W - mL - mR);
+  const SY = v => H - mB - (v - y0) / (y1 - y0) * (H - mT - mB);
+  const dots = pts.map(p => `<circle cx="${SX(p.x).toFixed(1)}" cy="${SY(p.y).toFixed(1)}" r="3.5" fill="var(--blu,#1f3864)"/>`).join("");
+  let line = "";
+  if (reg) { const yA = reg.pred(x0), yB = reg.pred(x1); line = `<line x1="${SX(x0).toFixed(1)}" y1="${SY(yA).toFixed(1)}" x2="${SX(x1).toFixed(1)}" y2="${SY(yB).toFixed(1)}" stroke="var(--verde,#3a9)" stroke-width="1.5" stroke-dasharray="4 3"/>`; }
+  const wgLine = (wg && wg > 0) ? `<line x1="${SX(wg).toFixed(1)}" y1="${mT}" x2="${SX(wg).toFixed(1)}" y2="${H - mB}" stroke="var(--txt3,#999)" stroke-width="1" stroke-dasharray="2 2"/><text x="${SX(wg).toFixed(1)}" y="${mT + 8}" font-size="9" fill="var(--txt3,#999)" text-anchor="middle">gara</text>` : "";
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:340px;height:auto;display:block">
+    <line x1="${mL}" y1="${mT}" x2="${mL}" y2="${H - mB}" stroke="var(--line,#ddd)"/>
+    <line x1="${mL}" y1="${H - mB}" x2="${W - mR}" y2="${H - mB}" stroke="var(--line,#ddd)"/>
+    ${wgLine}${line}${dots}
+    <text x="${mL}" y="${H - 6}" font-size="9" fill="var(--txt3,#999)">${x0.toFixed(1)}</text>
+    <text x="${W - mR}" y="${H - 6}" font-size="9" fill="var(--txt3,#999)" text-anchor="end">${x1.toFixed(1)} kg</text>
+    <text x="4" y="${mT + 8}" font-size="9" fill="var(--txt3,#999)">${y1.toFixed(1)}</text>
+    <text x="4" y="${H - mB}" font-size="9" fill="var(--txt3,#999)">${y0.toFixed(1)}m</text>
+  </svg>`;
+}
+
+function vistaProfiloAttrezzo() {
+  const a = _lanciAtletaRif();
+  const selAtleta = `<div class="card">
+    <label class="lab">Atleta (lanci)</label>
+    <select onchange="setLanciTestAtleta(this.value)" style="margin-top:6px">${_optAtletiLanci(lanciTestState.atletaRif, "— scegli —")}</select>
+    ${atletiLanci().length === 0 ? _LANCI_NO_ATLETI : ""}</div>`;
+  const intro = `<div class="card"><h3>Profilo attrezzo (over / under)</h3>
+    <p class="et" style="margin-top:2px">Ti manca <b>forza</b> o <b>velocità</b>? Nella stessa seduta, da fresco, lancia con attrezzi di peso diverso (es. −10%, gara, +10%, +20%) e segna la <b>migliore misura</b> per ciascuno. Se crolli col <b>pesante</b> ti manca forza; se col <b>leggero</b> non guadagni ti manca velocità.</p></div>`;
+  if (!a) return selAtleta + intro + `<div class="card"><p class="et" style="margin:0">Scegli un lanciatore per profilare l'attrezzo.</p></div>`;
+
+  const t = _profAttrTest(a.id);
+  const spec = a.specialita || "";
+  const wg = (t.pesoGara !== "" && t.pesoGara != null) ? Number(String(t.pesoGara).replace(",", ".")) : null;
+  const testa = `<div class="card">
+      <div class="griglia2">
+        <div><label class="lab">Attrezzo</label><input value="${spec}" disabled style="margin-top:6px"></div>
+        <div><label class="lab">Peso di gara (kg)</label>
+          <input inputmode="decimal" value="${t.pesoGara || ""}" placeholder="es. 7.26" oninput="setPaCampoVal('pesoGara',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+      </div>
+      <div style="margin-top:12px"><label class="lab">Data test</label>
+        <input type="date" value="${t.data || ""}" onchange="setPaCampo('data',this.value)" style="margin-top:6px"></div>
+      <p class="et" style="margin-top:8px">Ripeti ogni 6-8 settimane, stesse condizioni. Almeno 3 pesi, includi sempre quello di gara.</p>
+    </div>`;
+
+  const righe = t.prove.map((r, i) => {
+    const peso = (r.peso !== "" && r.peso != null) ? Number(String(r.peso).replace(",", ".")) : null;
+    const delta = (peso != null && wg > 0) ? (peso / wg - 1) : null;
+    const dTxt = delta == null ? "—" : (Math.abs(delta) < 0.005 ? "gara" : (delta > 0 ? "+" : "") + Math.round(delta * 100) + "%");
+    let sug = "";
+    if (delta != null) sug = Math.abs(delta) > 0.20 ? "⚠ oltre ±20%: tecnica troppo diversa" : (Math.abs(delta) > 0.10 ? "oltre ±10%: solo a blocchi, lontano gara" : "dentro ±10% (USATF)");
+    const dCls = delta != null && Math.abs(delta) > 0.10 ? "male" : "";
+    return `<tr>
+      <td><input inputmode="decimal" value="${r.peso || ""}" placeholder="kg" oninput="setPaRigaVal(${i},'peso',this.value)" onchange="disegna()" style="min-width:56px"></td>
+      <td class="pauto ${dCls}">${dTxt}</td>
+      <td><input inputmode="decimal" value="${r.misura || ""}" placeholder="m" oninput="setPaRigaVal(${i},'misura',this.value)" onchange="disegna()" style="min-width:60px"></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPaRigaVal(${i},'n',this.value)" style="min-width:44px"></td>
+      <td class="et" style="text-align:left;min-width:120px">${sug}</td>
+      <td><button class="chiudi" style="font-size:14px" onclick="paDelRiga(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`;
+  }).join("");
+  const tabella = `<div class="card"><p class="et" style="margin-bottom:6px"><b>Prove</b> — un peso per riga (includi il peso di gara)</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Peso kg</th><th>Δ% gara</th><th>Migliore (m)</th><th>n°</th><th>Suggerimento</th><th></th></tr></thead>
+      <tbody>${righe}</tbody>
+    </table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="paAddRiga()">＋ peso</button></div>`;
+
+  // regressione sui punti validi
+  const pts = t.prove.map(r => ({ x: Number(String(r.peso).replace(",", ".")), y: Number(String(r.misura).replace(",", ".")) }))
+    .filter(p => !isNaN(p.x) && !isNaN(p.y) && p.x > 0 && p.y > 0);
+  const reg = _linRegLanci(pts);
+  let risultati = `<div class="card"><p class="et" style="margin:0">Inserisci almeno <b>3 pesi</b> con la relativa misura migliore (e il peso di gara) per il calcolo.</p></div>`;
+  if (reg && wg > 0 && pts.length >= 2) {
+    const stimaGara = reg.pred(wg);
+    const loss = (reg.pred(wg * 1.1) - stimaGara) / stimaGara;   // di solito negativo
+    const gain = (reg.pred(wg * 0.9) - stimaGara) / stimaGara;   // di solito positivo
+    let diag, dcol;
+    if (Math.abs(loss) > 0.09) { diag = "CARENZA DI FORZA → crolli troppo con l'attrezzo pesante. Priorità: forza massimale (squat/stacco 85-100%), olympic lifts e derivati di tirata, lanci PESANTI lontano dalla gara."; dcol = "var(--rosso,#c00000)"; }
+    else if (gain < 0.04) { diag = "CARENZA DI VELOCITÀ → col leggero non guadagni. Priorità: balistico 30-60%, pliometria reattiva, multilanci veloci, lanci LEGGERI e sprint."; dcol = "var(--rosso,#c00000)"; }
+    else { diag = "PROFILO EQUILIBRATO → lavora su tecnica e velocità di rilascio: alza il Pmax mantenendo l'equilibrio forza/velocità."; dcol = "var(--verde,#3a9)"; }
+    const cellR = (l, v) => `<div style="flex:1;min-width:120px;padding:8px;background:var(--sfondo2,rgba(0,0,0,.03));border-radius:10px"><p class="et" style="margin:0">${l}</p><p style="margin:2px 0 0;font-size:16px;font-weight:700">${v}</p></div>`;
+    risultati = `<div class="card">
+      <p class="et" style="margin-bottom:8px"><b>Risultati</b> (${pts.length} punti · retta misura↔peso)</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${cellR("Pendenza", reg.slope.toFixed(2) + " m/kg")}
+        ${cellR("R²", reg.r2.toFixed(2))}
+        ${cellR("Stima a peso gara", stimaGara.toFixed(2) + " m")}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        ${cellR("Perdita con +10% peso", (loss * 100).toFixed(1) + "%")}
+        ${cellR("Guadagno con −10%", (gain * 100).toFixed(1) + "%")}
+      </div>
+      <div style="margin-top:12px">${_scatterProfilo(pts, reg, wg)}</div>
+      <div style="margin-top:10px;padding:10px;border-radius:10px;background:rgba(120,120,120,.08);border-left:3px solid ${dcol}">
+        <p style="margin:0;font-weight:700;font-size:13px">${diag}</p></div>
+      <p class="et" style="margin-top:8px">Soglie (9% perdita, 4% guadagno) <b>indicative</b>: in letteratura non esistono cut-off validati per i lanci. Conta il confronto con te stesso nel tempo. Valori tipici: 6-9% ogni ±10% di peso.</p>
+    </div>`;
+  }
+
+  const note = `<div class="card"><p class="et" style="margin-bottom:6px"><b>Come leggerlo</b></p>
+    <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--txt2);line-height:1.5">
+      <li>Test da fresco, dopo riscaldamento completo, 3-5 prove per peso e recuperi pieni.</li>
+      <li>Regola USATF: attrezzi entro ±10% del peso di gara; oltre, la cinematica cambia troppo.</li>
+      <li>Le palle LEGGERE hanno effetto positivo consistente sulla velocità; le PESANTI vanno scelte con cura (rev. Sports Med Open 2024). Blocchi di ≥6 settimane.</li>
+      <li>Sul disco l'attrezzo più leggero (1.7 vs 2.0 kg) aumenta la distanza e modifica l'attivazione della spalla (Dinu 2019): usalo come variabilità, non come sostituto.</li>
+    </ul></div>`;
+
+  return selAtleta + intro + testa + tabella + risultati + note;
+}
