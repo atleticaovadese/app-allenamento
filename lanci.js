@@ -656,6 +656,7 @@ function _profAttrTest(aid) {
   return t;
 }
 function _paSave() { if (typeof salvaCustom === "function") salvaCustom(); }
+function togglePaGuida() { S.paGuida = !S.paGuida; disegna(); }
 function setPaCampo(campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id)[campo] = v; _paSave(); disegna(); }
 function setPaCampoVal(campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id)[campo] = v; _paSave(); }
 function setPaRiga(i, campo, v) { const a = _lanciAtletaRif(); if (!a) return; _profAttrTest(a.id).prove[i][campo] = v; _paSave(); disegna(); }
@@ -707,21 +708,35 @@ function vistaProfiloAttrezzo() {
     <select onchange="setLanciTestAtleta(this.value)" style="margin-top:6px">${_optAtletiLanci(lanciTestState.atletaRif, "— scegli —")}</select>
     ${atletiLanci().length === 0 ? _LANCI_NO_ATLETI : ""}</div>`;
   const intro = `<div class="card"><h3>Profilo attrezzo (over / under)</h3>
-    <p class="et" style="margin-top:2px">Ti manca <b>forza</b> o <b>velocità</b>? Nella stessa seduta, da fresco, lancia con attrezzi di peso diverso (es. −10%, gara, +10%, +20%) e segna la <b>migliore misura</b> per ciascuno. Se crolli col <b>pesante</b> ti manca forza; se col <b>leggero</b> non guadagni ti manca velocità.</p></div>`;
+    <p class="et" style="margin-top:2px">Ti manca <b>forza</b> o <b>velocità</b>? Lanciando con attrezzi di peso diverso si vede dove sei carente: se crolli col <b>pesante</b> ti manca forza; se col <b>leggero</b> non guadagni ti manca velocità.</p>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="togglePaGuida()">${S.paGuida ? "Nascondi come si fa" : "📋 Come si fa il test"}</button>
+    ${S.paGuida ? `<div style="margin-top:10px;padding:11px 13px;background:var(--card2,rgba(120,120,140,.08));border-radius:10px">
+      <p class="et" style="margin:0 0 6px"><b>Il test (una seduta sola)</b></p>
+      <p class="et" style="margin:0 0 6px"><b>1.</b> <b>Da fresco</b>, dopo un riscaldamento completo (è un test di massima, non allenamento).</p>
+      <p class="et" style="margin:0 0 6px"><b>2.</b> <b>Almeno 3 pesi diversi</b> e includi <b>sempre</b> il peso di gara. Es: −10%, gara, +10% (e volendo +20%).</p>
+      <p class="et" style="margin:0 0 6px"><b>3.</b> Regola <b>±10% (USATF)</b>: dentro il ±10% i dati sono confrontabili; oltre, la tecnica cambia troppo (usali solo a blocchi).</p>
+      <p class="et" style="margin:0 0 6px"><b>4.</b> <b>3-5 prove per peso</b>, recuperi pieni, e segna la <b>migliore misura</b> di ciascun peso.</p>
+      <p class="et" style="margin:0 0 6px"><b>5.</b> <b>Inserisci qui sotto</b> peso e migliore misura: l'app traccia la retta misura↔peso e ti dice se ti manca forza o velocità.</p>
+      <p class="et" style="margin:0"><b>6.</b> <b>Ripeti ogni 6-8 settimane</b>, stesse condizioni, per vedere come cambia il profilo.</p>
+    </div>` : ""}</div>`;
   if (!a) return selAtleta + intro + `<div class="card"><p class="et" style="margin:0">Scegli un lanciatore per profilare l'attrezzo.</p></div>`;
 
   const t = _profAttrTest(a.id);
   const spec = a.specialita || "";
+  const pb = pbLanciMigliore(a);   // personale (PB) pescato dal profilo
   const wg = (t.pesoGara !== "" && t.pesoGara != null) ? Number(String(t.pesoGara).replace(",", ".")) : null;
   const testa = `<div class="card">
       <div class="griglia2">
         <div><label class="lab">Attrezzo</label><input value="${spec}" disabled style="margin-top:6px"></div>
+        <div><label class="lab">Personale (PB) <span style="color:var(--txt3)">(dal profilo)</span></label><input value="${pb != null ? pb.toFixed(2) + " m" : ""}" disabled placeholder="— nessun PB nel profilo —" style="margin-top:6px"></div>
+      </div>
+      <div class="griglia2" style="margin-top:12px">
         <div><label class="lab">Peso di gara (kg)</label>
           <input inputmode="decimal" value="${t.pesoGara || ""}" placeholder="es. 7.26" oninput="setPaCampoVal('pesoGara',this.value)" onchange="disegna()" style="margin-top:6px"></div>
+        <div><label class="lab">Data test</label>
+          <input type="date" value="${t.data || ""}" onchange="setPaCampo('data',this.value)" style="margin-top:6px"></div>
       </div>
-      <div style="margin-top:12px"><label class="lab">Data test</label>
-        <input type="date" value="${t.data || ""}" onchange="setPaCampo('data',this.value)" style="margin-top:6px"></div>
-      <p class="et" style="margin-top:8px">Ripeti ogni 6-8 settimane, stesse condizioni. Almeno 3 pesi, includi sempre quello di gara.</p>
+      <p class="et" style="margin-top:8px">${pb != null ? `Personale <b>${pb.toFixed(2)} m</b> sul ${spec}${wg > 0 ? " · confrontalo con la stima a peso gara qui sotto" : ""}.` : "Nessun PB nel profilo: aggiungilo nella scheda dell'atleta per il confronto."} Metti il peso di gara per calcolare lo scostamento %.</p>
     </div>`;
 
   const righe = t.prove.map((r, i) => {
@@ -775,6 +790,7 @@ function vistaProfiloAttrezzo() {
       <div style="margin-top:12px">${_scatterProfilo(pts, reg, wg)}</div>
       <div style="margin-top:10px;padding:10px;border-radius:10px;background:rgba(120,120,120,.08);border-left:3px solid ${dcol}">
         <p style="margin:0;font-weight:700;font-size:13px">${diag}</p></div>
+      ${pb != null ? `<p class="et" style="margin-top:8px">Personale <b>${pb.toFixed(2)} m</b> vs stima del test a peso gara <b>${stimaGara.toFixed(2)} m</b>: ${Math.abs(pb - stimaGara) < 0.3 ? "in linea (test attendibile)" : (stimaGara < pb ? "test sotto il PB → eri poco fresco o poche prove" : "test sopra il PB → giornata buona, cerca di trasferirlo in gara")}.</p>` : ""}
       <p class="et" style="margin-top:8px">Soglie (9% perdita, 4% guadagno) <b>indicative</b>: in letteratura non esistono cut-off validati per i lanci. Conta il confronto con te stesso nel tempo. Valori tipici: 6-9% ogni ±10% di peso.</p>
     </div>`;
   }
