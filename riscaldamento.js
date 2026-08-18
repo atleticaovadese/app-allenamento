@@ -69,19 +69,29 @@ function salvaEsercizio() {
 
 const RISC_TIPI = ["Attivazione", "Mobilità", "Andature", "Ostacoli"];
 
-// Esercizi disponibili per tipo, presi dalle librerie (come i menù a tendina dell'Excel).
+// Esercizi disponibili per tipo, RAGGRUPPATI: [{cat, items:[{n,v}]}] → la tendina usa gli <optgroup>.
 function eserciziTipo(tipo) {
   const V = LIBRERIE.video || [];
   const cat = n => (V.find(c => c.cat === n) || { items: [] }).items;
   if (tipo === "Attivazione")
-    return [...cat("Basic taps (piedi e caviglia)"), ...cat("Glutei e femorali")];
-  if (tipo === "Mobilità")
-    return [...(LIBRERIE.mobilita || []).map(x => ({ n: x.n, v: x.v })),
-            ...cat("Mobility drills")];   // gli esercizi TAM ora sono dentro LIBRERIE.mobilita (zone TRONCO)
-  if (tipo === "Andature")
-    return [...cat("Running drills (andature)"), ...cat("Tecnica di partenza")];
+    return [{ cat: "Glutei e femorali", items: cat("Glutei e femorali") }];   // solo glutei e femorali
+  if (tipo === "Mobilità") {
+    const zone = [];   // mobilità divisa per zona del corpo (compresi i TAM)
+    (LIBRERIE.mobilita || []).forEach(x => {
+      let z = zone.find(g => g.cat === (x.g || "Mobilità"));
+      if (!z) { z = { cat: x.g || "Mobilità", items: [] }; zone.push(z); }
+      z.items.push({ n: x.n, v: x.v });
+    });
+    zone.push({ cat: "Mobility drills", items: cat("Mobility drills") });
+    return zone.filter(g => g.items.length);
+  }
+  if (tipo === "Andature") {   // tutti i video della Libreria Video, divisi per categoria (named first)
+    const ordine = ["Running drills (andature)", "Basic taps (piedi e caviglia)", "Mobility drills", "Starting point"];
+    const nomi = ordine.concat(V.map(c => c.cat).filter(n => ordine.indexOf(n) < 0));
+    return nomi.map(n => ({ cat: n, items: cat(n) })).filter(g => g.items.length);
+  }
   if (tipo === "Ostacoli")
-    return cat("Ostacoli");
+    return [{ cat: "Ostacoli", items: cat("Ostacoli") }];
   return [];
 }
 
@@ -94,7 +104,8 @@ function modificaRoutine(i) {
 
 function editorRoutine() {
   const r = S.routineEdit;
-  const lista = eserciziTipo(r.tipo);
+  const gruppi = eserciziTipo(r.tipo);
+  const nTot = gruppi.reduce((s, g) => s + g.items.length, 0);
   return `<button class="indietro" onclick="annullaRoutine()">‹ Indietro</button>
     <div class="card">
       <label class="lab">Nome della routine</label>
@@ -113,9 +124,9 @@ function editorRoutine() {
       <div class="segm" style="margin:6px 0 10px">
         ${RISC_TIPI.map(t => `<button class="${r.tipo === t ? "on" : ""}" onclick="setTipoRisc('${t}')">${t}</button>`).join("")}
       </div>
-      <label class="lab">Esercizio (${lista.length} in «${r.tipo}»)</label>
+      <label class="lab">Esercizio (${nTot} in «${r.tipo}»)</label>
       <select id="esSel" style="margin-top:6px">
-        ${lista.map((x, i) => `<option value="${x.n.replace(/"/g, "&quot;")}">${x.n}</option>`).join("")}
+        ${gruppi.map(g => g.items.length ? `<optgroup label="${g.cat}">${g.items.map(x => `<option value="${x.n.replace(/"/g, "&quot;")}">${x.n}</option>`).join("")}</optgroup>` : "").join("")}
       </select>
       <div style="display:flex;gap:8px;margin-top:8px">
         <input id="doseEs" placeholder="dose (opz.) es. 2×20 m" style="flex:1">
