@@ -180,7 +180,7 @@ function _reportBodyHTML(id) {
     <p class="sub muted">Report generato il ${oggi} · Metis Performance</p>`;
 
   // --- anagrafica ---
-  const anag = [an.nascita ? "Nascita " + an.nascita : "", an.altezza ? "Altezza " + an.altezza + " cm" : "", an.peso ? "Peso " + an.peso + " kg" : "", an.gambaStacco ? "Gamba di stacco " + an.gambaStacco : ""].filter(Boolean).join(" · ");
+  const anag = [an.nascita ? "Nascita " + an.nascita : "", an.altezza ? "Altezza " + an.altezza + " cm" : "", an.peso ? "Peso " + an.peso + " kg" : "", an.gambaStacco ? "Lead Leg " + an.gambaStacco : ""].filter(Boolean).join(" · ");
   if (anag) h += `<p class="sub" style="margin-top:8px">${anag}</p>`;
 
   // --- stato attuale ---

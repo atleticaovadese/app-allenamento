@@ -116,7 +116,7 @@ function vistaNuovoAtleta() {
         <div><label class="lab">Data di nascita</label>
           <input type="date" value="${a.data_nascita || ""}"
             oninput="S.nuovoAtleta.data_nascita=this.value" style="margin-top:6px"></div>
-        <div><label class="lab">Gamba di stacco</label>
+        <div><label class="lab">Lead Leg</label>
           <select onchange="S.nuovoAtleta.gamba_stacco=this.value" style="margin-top:6px">
             <option value="">—</option>
             <option value="Destra" ${a.gamba_stacco === "Destra" ? "selected" : ""}>Destra</option>
@@ -212,6 +212,28 @@ function _notifPront(v) {
   const p = [v.sonno_qualita, v.stress, v.dolori, v.energia].map(Number).filter(x => !isNaN(x));
   return p.length ? p.reduce((s, x) => s + x, 0) / p.length : null;
 }
+// fastidio ATTIVO di un atleta (dal diario): il più recente con fastidi=true, entro 45 gg,
+// non ancora "spento" (data > fastidiRisolti[atletaId]). Ritorna {data, dove} o null.
+function fastidioAttivoAtleta(a) {
+  if (!a) return null;
+  const cutoff = (DEMO.fastidiRisolti || {})[a.id] || "";
+  const oggiN = new Date();
+  let best = null;
+  ((DEMO.diariStorico || {})[a.id] || []).forEach(v => {
+    if (!v.fastidi || !v.data) return;
+    if (Math.round((oggiN - new Date(v.data + "T00:00:00")) / 86400000) > 45) return;
+    if (cutoff && v.data <= cutoff) return;           // già segnato come passato
+    if (!best || v.data > best.data) best = { data: v.data, dove: v.doveFastidi || "" };
+  });
+  return best;
+}
+// "✓ Passato": segna risolti tutti i fastidi dell'atleta fino a oggi (ricompare solo se ne arriva uno nuovo)
+function spegniFastidio(atletaId) {
+  DEMO.fastidiRisolti = DEMO.fastidiRisolti || {};
+  DEMO.fastidiRisolti[atletaId] = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
 // chiave stabile di una notifica: cambia se la situazione cambia (→ ricompare)
 function _notifKey(atletaId, tipo, sig) { return atletaId + "|" + tipo + "|" + sig; }
 function notificheCoach(includiVisti) {
@@ -224,10 +246,10 @@ function notificheCoach(includiVisti) {
     (DEMO.infortuni || []).filter(i => i.atleta === a.id && (i.stato || "") !== "Risolto").forEach(i => {
       add(a, "infortunio", "r", i.dataInizio || i.dal || "", `Infortunio/fastidio: ${i.zona || "?"}${i.lato ? " " + i.lato : ""}${i.tipo ? " · " + i.tipo : ""} — stato ${i.stato || "attivo"}`, i.id + "|" + (i.stato || ""));
     });
-    // fastidio recente nel diario (sig = data → un nuovo fastidio ricompare)
+    // fastidio ATTIVO dal diario (rispetta il "✓ Passato" degli Infortuni)
     const storia = ((DEMO.diariStorico || {})[a.id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
-    const fx = storia.find(v => v.fastidi && gg(v.data) <= 14);
-    if (fx) add(a, "fastidio", "y", fx.data, `Fastidio segnalato nel diario${fx.doveFastidi ? ": " + fx.doveFastidi : ""}`, fx.data);
+    const fa = fastidioAttivoAtleta(a);
+    if (fa) add(a, "fastidio", "y", fa.data, `Fastidio segnalato nel diario${fa.dove ? ": " + fa.dove : ""}`, fa.data);
     // warning già calcolati (sig = testo → cambia se il warning cambia)
     const m = (DEMO.mon || {})[a.id] || {};
     const haAlert = m.alert && m.alert.length;
@@ -504,8 +526,19 @@ function vistaInfortuni() {
         <button class="btn-2" style="flex:1;padding:9px;color:var(--rosso)" onclick="eliminaInfortunioUI('${inf.id}')">Elimina</button>
       </div></div>`;
   }).join("");
+  const fastidiAttivi = (DEMO.atleti || []).map(a => { const f = (typeof fastidioAttivoAtleta === "function") ? fastidioAttivoAtleta(a) : null; return f ? { a, f } : null; }).filter(Boolean);
+  const sezFastidi = fastidiAttivi.length ? `<div class="card" style="border-color:rgba(240,168,60,.45)">
+    <p class="et" style="margin-bottom:6px">🩹 Fastidi segnalati dagli atleti (dal diario)</p>
+    ${fastidiAttivi.map(({ a, f }) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">
+      <div style="flex:1;min-width:0"><b style="font-size:14px">${a.nome}</b>
+        <div class="et" style="margin-top:1px">${f.dove ? f.dove + " · " : ""}${typeof fmtData === "function" ? fmtData(f.data) : f.data}</div></div>
+      <button class="btn-2" style="width:auto;padding:7px 11px;font-size:13px" onclick="apriInfortunio('${a.id}','infortuni')">registra</button>
+      <button class="btn-2" style="width:auto;padding:7px 11px;font-size:13px;color:var(--verde)" onclick="spegniFastidio('${a.id}')">✓ Passato</button>
+    </div>`).join("")}
+    <p class="et" style="margin-top:8px;color:var(--txt3)">«✓ Passato» toglie il fastidio da qui e dalle notifiche (torna solo se ne segnala uno nuovo). «Registra» lo trasforma in infortunio col dettaglio.</p></div>` : "";
   return `<div class="card"><h3>Infortuni e prevenzione</h3>
     <p class="et" style="margin-top:2px">Registro infortuni e fastidi: segnala, aggiorna lo stato, tieni la durata.</p></div>
+    ${sezFastidi}
     <button class="btn" style="margin-bottom:12px" onclick="apriInfortunio('','infortuni')">＋ Segnala infortunio</button>
     ${righe || `<div class="card"><p class="et">Nessun infortunio segnalato. 💪</p></div>`}`;
 }
@@ -581,8 +614,16 @@ const PREV_TESTS = [
   { k: "ktw", nome: "Caviglia KTW (dorsiflessione)", unita: "cm" },
   { k: "ake", nome: "Hamstring AKE", unita: "°" },
   { k: "hip", nome: "Rotazione interna anca", unita: "°" },
+  { k: "hipext", nome: "Rotazione esterna anca", unita: "°", video: "https://www.youtube.com/results?search_query=hip+external+rotation+range+of+motion+test" },
+  { k: "pistol", nome: "Pistol squat (controllo, 0-3)", unita: "0-3", video: "https://www.youtube.com/results?search_query=pistol+squat+screen+assessment" },
+  { k: "trot", nome: "T-rotation (mobilità toracica)", unita: "°", video: "https://youtu.be/sfwFqp_pLEE" },
   { k: "hop", nome: "Salto monopodalico", unita: "cm" }
 ];
+// tutti i test (fissi + custom del coach) e i correttivi
+function prevTestsAll() { return PREV_TESTS.concat(DEMO.prevTestCustom || []); }
+function prevEserciziAll() { return PREV_ESERCIZI.concat(DEMO.prevEserciziCustom || []); }
+function prevEnsure() { prevTestsAll().forEach(t => { if (!prevState.val[t.k]) prevState.val[t.k] = { dx: "", sx: "" }; }); }
+function _prevNota(k) { return PREV_NOTE[k] || "Lavora sul lato debole con mobilità/forza specifica finché la simmetria torna sotto il 10%; ricontrolla a 4-6 settimane."; }
 const PREV_ESERCIZI = [
   ["Nordic hamstring", "ischiocrurali · −~50% infortuni", "nordic+hamstring+curl"],
   ["Copenhagen adduction", "adduttori / inguine", "copenhagen+adduction+exercise"],
@@ -594,6 +635,9 @@ const PREV_NOTE = {
   ktw: "Mobilità caviglia (knee-to-wall, sblocco tibio-tarsica) e soft tissue polpaccio/soleo sul lato rigido, poi rinforzo caviglia. Ricontrolla.",
   ake: "Estensibilità + forza eccentrica ischiocrurali sul lato corto (Nordic mirato, hip hinge) e attivazione prima di correre.",
   hip: "Mobilità anca sul lato limitato (rotazioni interne, 90/90, stretch glutei/piriforme) e controllo del bacino; rivaluta a 4-6 settimane.",
+  hipext: "Mobilità in rotazione esterna dell'anca (90/90, stretch adduttori/piriforme) e controllo del bacino sul lato limitato.",
+  pistol: "Forza e controllo monopodalico sul lato peggiore (split squat, step-down, mobilità caviglia/anca); cura la dorsiflessione.",
+  trot: "Mobilità toracica in rotazione (open book, thread the needle, T-rotation) sul lato rigido; libera la gabbia toracica.",
   hop: "Forza e potenza monopodalica sul lato debole (split squat, step-up, progressione di balzi) finché la simmetria torna sotto il 10%."
 };
 // esempio pre-compilato su Leonardo (at1): 2 ok, 1 attenzione, 1 bandiera
@@ -614,17 +658,22 @@ function prevFlag(a) { return a == null ? "—" : a > 15 ? "🔴 asimmetria" : a
 
 function vistaPrevenzione() {
   const atl = DEMO.atleti.find(x => x.id === prevState.atletaRif);
-  const righe = PREV_TESTS.map(t => {
+  prevEnsure();
+  const righe = prevTestsAll().map(t => {
     const a = atl ? prevAsym(t.k) : null;
+    const vid = t.video ? (/youtu\.be|watch\?v=|\/shorts\//.test(t.video)
+      ? ` <button class="vid-ic" style="border:0;background:none;cursor:pointer;padding:0" onclick="apriVideo('${String(t.nome).replace(/'/g, "\\'")}','${t.video}')">▶</button>`
+      : ` <a class="vid-ic" href="${t.video}" target="_blank" rel="noopener">🔎</a>`) : "";
+    const del = String(t.k).indexOf("pc") === 0 ? ` <button class="chiudi" style="font-size:12px" onclick="delPrevTest('${t.k}')" aria-label="Rimuovi">✕</button>` : "";
     return `<tr>
-      <td style="text-align:left">${t.nome}<br><span class="et">${t.unita}</span></td>
+      <td style="text-align:left">${t.nome}${vid}${del}<br><span class="et">${t.unita}</span></td>
       <td><input inputmode="decimal" value="${prevState.val[t.k].dx}" placeholder="dx" oninput="setPrevVal('${t.k}','dx',this.value)" onchange="disegna()" style="min-width:50px"></td>
       <td><input inputmode="decimal" value="${prevState.val[t.k].sx}" placeholder="sx" oninput="setPrevVal('${t.k}','sx',this.value)" onchange="disegna()" style="min-width:50px"></td>
       <td class="pauto" style="color:${prevColor(a)};font-weight:600">${a != null ? a.toFixed(1) + "%" : "—"}</td>
       <td style="color:${prevColor(a)};white-space:nowrap">${prevFlag(a)}</td>
     </tr>`;
   }).join("");
-  const flags = atl ? PREV_TESTS.map(t => prevAsym(t.k)).filter(a => a != null) : [];
+  const flags = atl ? prevTestsAll().map(t => prevAsym(t.k)).filter(a => a != null) : [];
   const nRosse = flags.filter(a => a > 15).length, nGialle = flags.filter(a => a >= 10 && a <= 15).length;
   const stato = !flags.length ? "" : nRosse ? `🔴 ${nRosse} asimmetria da correggere` : nGialle ? `🟡 ${nGialle} da tenere d'occhio` : "🟢 simmetria nella norma";
 
@@ -646,6 +695,7 @@ function vistaPrevenzione() {
     ${stato ? `<p style="margin-top:12px;font-weight:600">${stato}</p>` : ""}
     <p class="et" style="margin-top:6px">Misura KTW e salto in cm, AKE e rotazione anca in gradi. Ricontrolla ogni ~8 settimane e confronta.</p>
     ${atl && flags.length ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaPrevenzione()">💾 Salva il test</button>` : (atl ? `<p class="et" style="margin-top:8px">Inserisci i test (dx e sx) per salvarli.</p>` : "")}
+    <button class="btn btn-2" style="margin-top:8px;width:auto;padding:8px 14px" onclick="apriAddPrevTest()">＋ Aggiungi test</button>
   </div>
 
   <div class="card">
@@ -656,11 +706,11 @@ function vistaPrevenzione() {
   <div class="card">
     <p class="et" style="margin-bottom:8px">Cosa fare</p>
     ${(() => {
-      const daFare = atl ? PREV_TESTS.filter(t => { const a = prevAsym(t.k); return a != null && a >= 10; }) : [];
+      const daFare = atl ? prevTestsAll().filter(t => { const a = prevAsym(t.k); return a != null && a >= 10; }) : [];
       return daFare.length
         ? daFare.map(t => { const a = prevAsym(t.k); return `<div style="margin-bottom:10px">
             <b style="font-size:14px;color:${prevColor(a)}">${t.nome} · ${a.toFixed(1)}%</b>
-            <p style="font-size:14px;line-height:1.6;color:var(--txt2);margin-top:2px">${PREV_NOTE[t.k]}</p></div>`; }).join("")
+            <p style="font-size:14px;line-height:1.6;color:var(--txt2);margin-top:2px">${_prevNota(t.k)}</p></div>`; }).join("")
         : `<p class="et">Nessuna asimmetria oltre il 10%: mantieni la prevenzione di base (Nordic, Copenhagen, calf, core 2×/sett).</p>`;
     })()}
   </div>
@@ -676,10 +726,12 @@ function vistaPrevenzione() {
 
   <div class="card">
     <p class="et" style="margin-bottom:10px">Esercizi di prevenzione</p>
-    ${PREV_ESERCIZI.map(([n, d, q]) => `<div class="lib-row">
-      <div style="flex:1"><b style="font-size:14px">${n}</b><div class="et" style="margin:2px 0 0">${d}</div></div>
-      <a class="vid-ic" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">cerca ▶</a>
-    </div>`).join("")}
+    ${prevEserciziAll().map((e, i) => { const n = e[0], d = e[1], q = e[2] || ""; const custom = i >= PREV_ESERCIZI.length; const link = /^https?:/.test(q) ? q : ("https://www.youtube.com/results?search_query=" + encodeURIComponent(q || n)); return `<div class="lib-row">
+      <div style="flex:1"><b style="font-size:14px">${n}</b><div class="et" style="margin:2px 0 0">${d || ""}</div></div>
+      <a class="vid-ic" href="${link}" target="_blank" rel="noopener">${/^https?:/.test(q) ? "▶" : "cerca ▶"}</a>
+      ${custom ? `<button class="chiudi" style="font-size:12px;margin-left:6px" onclick="delPrevEs(${i - PREV_ESERCIZI.length})" aria-label="Rimuovi">✕</button>` : ""}
+    </div>`; }).join("")}
+    <button class="btn btn-2" style="margin-top:10px;width:auto;padding:8px 14px" onclick="apriAddPrevEs()">＋ Aggiungi esercizio di prevenzione</button>
     <p class="et" style="margin-top:10px">Rif.: ACWR (Gabbett) 0.8–1.3 · asimmetria &gt;10–15% = bandiera (Limb Symmetry Index) · Nordic hamstring (meta-analisi van Dyk / Al Attar).</p>
   </div>
   ${atl && typeof bloccoSessioni === "function" ? bloccoSessioni(atl.id, "prevenzione", "Test di prevenzione salvati") : ""}`;
@@ -688,10 +740,66 @@ function salvaPrevenzione() {
   const a = DEMO.atleti.find(x => x.id === prevState.atletaRif);
   if (!a) { alert("Scegli un atleta."); return; }
   const dati = {}; let n = 0;
-  PREV_TESTS.forEach(t => { const asym = prevAsym(t.k); if (asym != null) { dati[t.k] = { dx: prevState.val[t.k].dx, sx: prevState.val[t.k].sx, asym }; n++; } });
+  prevTestsAll().forEach(t => { const asym = prevAsym(t.k); if (asym != null) { dati[t.k] = { dx: prevState.val[t.k].dx, sx: prevState.val[t.k].sx, asym }; n++; } });
   if (!n) { alert("Inserisci almeno un test (dx e sx)."); return; }
   if (typeof salvaSessione === "function") salvaSessione(a.id, "prevenzione", dati);
   alert(`Test di prevenzione salvato per ${a.nome}.`); disegna();
+}
+// ---------- prevenzione: aggiungi/elimina test e esercizi personalizzati ----------
+function apriAddPrevTest() {
+  mostraFoglio(`<div class="foglio-top"><h3>Nuovo test di prevenzione</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:8px">Un test destra/sinistra: l'app calcola da sola l'asimmetria (%). Il video è facoltativo.</p>
+    <label class="lab">Nome del test</label>
+    <input id="pt-nome" placeholder="es. Y-Balance anteriore" style="margin:6px 0 10px">
+    <label class="lab">Unità di misura</label>
+    <input id="pt-unita" placeholder="cm · ° · 0-3 …" style="margin:6px 0 10px">
+    <label class="lab">Video YouTube (facoltativo)</label>
+    <input id="pt-video" placeholder="https://youtu.be/... (o vuoto)" style="margin:6px 0 12px">
+    <button class="btn btn-1" onclick="salvaPrevTest()">Salva test</button>`);
+}
+function salvaPrevTest() {
+  const nome = ((document.getElementById("pt-nome") || {}).value || "").trim();
+  if (!nome) { alert("Metti il nome del test."); return; }
+  const unita = ((document.getElementById("pt-unita") || {}).value || "").trim() || "—";
+  const video = ((document.getElementById("pt-video") || {}).value || "").trim();
+  DEMO.prevTestCustom = DEMO.prevTestCustom || [];
+  const k = "pc" + Date.now();
+  DEMO.prevTestCustom.push({ k, nome, unita, video });
+  prevState.val[k] = { dx: "", sx: "" };
+  if (typeof salvaCustom === "function") salvaCustom();
+  chiudiScheda(); disegna();
+}
+function delPrevTest(k) {
+  DEMO.prevTestCustom = (DEMO.prevTestCustom || []).filter(t => t.k !== k);
+  if (prevState.val) delete prevState.val[k];
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
+function apriAddPrevEs() {
+  mostraFoglio(`<div class="foglio-top"><h3>Nuovo esercizio di prevenzione</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <label class="lab">Nome esercizio</label>
+    <input id="pe-nome" placeholder="es. Hip airplane" style="margin:6px 0 10px">
+    <label class="lab">A cosa serve / zona</label>
+    <input id="pe-target" placeholder="es. controllo anca / glutei" style="margin:6px 0 10px">
+    <label class="lab">Video YouTube (facoltativo)</label>
+    <input id="pe-video" placeholder="https://youtu.be/... (o vuoto)" style="margin:6px 0 12px">
+    <button class="btn btn-1" onclick="salvaPrevEs()">Salva esercizio</button>`);
+}
+function salvaPrevEs() {
+  const nome = ((document.getElementById("pe-nome") || {}).value || "").trim();
+  if (!nome) { alert("Metti il nome dell'esercizio."); return; }
+  const target = ((document.getElementById("pe-target") || {}).value || "").trim();
+  const video = ((document.getElementById("pe-video") || {}).value || "").trim();
+  DEMO.prevEserciziCustom = DEMO.prevEserciziCustom || [];
+  DEMO.prevEserciziCustom.push([nome, target, video]);
+  if (typeof salvaCustom === "function") salvaCustom();
+  chiudiScheda(); disegna();
+}
+function delPrevEs(i) {
+  DEMO.prevEserciziCustom = DEMO.prevEserciziCustom || [];
+  if (i >= 0 && i < DEMO.prevEserciziCustom.length) DEMO.prevEserciziCustom.splice(i, 1);
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
 }
 
 // ---------- monitoraggio: presenze squadra ----------

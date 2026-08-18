@@ -5,7 +5,7 @@ function schedaAtleta(a, mod) {
   const s = a.scheda || {}, an = s.anagrafica || {};
   const anag = [
     ["Categoria", an.categoria], ["Anno", an.anno],
-    ["Data di nascita", an.nascita], ["Gamba di stacco", an.gambaStacco],
+    ["Data di nascita", an.nascita], ["Lead Leg", an.gambaStacco],
     ["Altezza", an.altezza ? an.altezza + " cm" : ""], ["Peso rif.", an.peso ? an.peso + " kg" : ""],
     ["Disciplina", a.disciplina], ["Specialità", a.specialita]
   ];
@@ -459,7 +459,7 @@ function vistaModificaDati() {
       <div class="griglia2" style="margin-top:12px">
         <div><label class="lab">Data di nascita</label>
           <input type="date" value="${m.data_nascita || ""}" oninput="S.modificaDati.data_nascita=this.value" style="margin-top:6px"></div>
-        <div><label class="lab">Gamba di stacco</label>
+        <div><label class="lab">Lead Leg</label>
           <select onchange="S.modificaDati.gamba_stacco=this.value" style="margin-top:6px">
             <option value="">—</option><option ${m.gamba_stacco === "Destra" ? "selected" : ""}>Destra</option><option ${m.gamba_stacco === "Sinistra" ? "selected" : ""}>Sinistra</option></select></div>
       </div>
