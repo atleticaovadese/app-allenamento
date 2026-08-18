@@ -25,6 +25,7 @@ const MENU_COACH = [
   { k: "squadra", ic: "◧", l: "Squadra" },
   { k: "atleti", ic: "◉", l: "Atleti" },
   { k: "cal-squadra", ic: "▦", l: "Calendario squadra" },
+  { k: "notifiche", ic: "🔔", l: "Notifiche" },
   { g: "Programma", ic: "▦", subs: [
     ["pista", "Pista"], ["palestra", "Palestra"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["per-disciplina", "Per disciplina"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
@@ -596,8 +597,15 @@ function vistaInArrivo(titolo, foglio) {
 // ---------- disegno ----------
 function disegnaMenu(menu) {
   return menu.map(m => {
-    if (m.k) return `<a class="${S.vista === m.k ? "on" : ""}" onclick="vai('${m.k}')">
-        <span class="ic">${m.ic}</span>${m.l}</a>`;
+    if (m.k) {
+      let badge = "";
+      if (m.k === "notifiche" && typeof notificheCoach === "function") {
+        const n = notificheCoach().filter(x => x.lv === "r" || x.lv === "y").length;
+        if (n) badge = ` <span style="background:#c0392b;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">${n}</span>`;
+      }
+      return `<a class="${S.vista === m.k ? "on" : ""}" onclick="vai('${m.k}')">
+        <span class="ic">${m.ic}</span>${m.l}${badge}</a>`;
+    }
     const aperto = !!S.gruppi[m.g] || m.subs.some(s => s[0] === S.vista);
     return `<a class="gr" onclick="apriGruppo('${m.g}')">
         <span class="ic">${m.ic}</span><span style="flex:1">${m.g}</span>
@@ -641,6 +649,7 @@ function disegna() {
   else if (coach && S.vista === "critical-speed") corpo = vistaCriticalSpeed();
   else if (coach && S.vista === "riepilogo-test") corpo = vistaRiepilogoTest();
   else if (coach && (S.vista === "per-disciplina" || S.vista === "per-distanza")) corpo = vistaPerDistanza();
+  else if (coach && S.vista === "notifiche") corpo = vistaNotifiche();
   else if (coach && S.vista === "guida-mezzi") corpo = vistaGuidaMezzi();
   else if (coach && S.vista === "guida-test") corpo = vistaGuidaTest();
   else if (coach && S.vista === "guida-mezzi-lanci") corpo = guidaMezziLanciHTML();
