@@ -77,7 +77,7 @@ function eserciziTipo(tipo) {
     return [...cat("Basic taps (piedi e caviglia)"), ...cat("Glutei e femorali")];
   if (tipo === "Mobilità")
     return [...(LIBRERIE.mobilita || []).map(x => ({ n: x.n, v: x.v })),
-            ...cat("Mobility drills"), ...cat("Attivazione e mobilità tronco (TAM)")];
+            ...cat("Mobility drills")];   // gli esercizi TAM ora sono dentro LIBRERIE.mobilita (zone TRONCO)
   if (tipo === "Andature")
     return [...cat("Running drills (andature)"), ...cat("Tecnica di partenza")];
   if (tipo === "Ostacoli")
