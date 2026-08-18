@@ -27,7 +27,7 @@ const MENU_COACH = [
   { k: "cal-squadra", ic: "▦", l: "Calendario squadra" },
   { g: "Programma", ic: "▦", subs: [
     ["pista", "Pista"], ["palestra", "Palestra"], ["riscaldamento", "Riscaldamento"],
-    ["template", "Template microcicli"], ["piano", "Piano e picco"], ["periodizzazione", "Periodizzazione"], ["per-distanza", "Per distanza (mezzo)"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"], ["periodizzazione-lanci", "Periodizzazione Lanci"]] },
+    ["template", "Template microcicli"], ["piano", "Piano e picco"], ["per-disciplina", "Per disciplina"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["test-lattato", "Test lattato"], ["critical-speed", "Velocità critica"], ["riepilogo-test", "Riepilogo test"], ["profilo-attrezzo", "Profilo attrezzo (lanci)"], ["traino", "Traino"],
@@ -45,7 +45,7 @@ const MENU_COACH = [
 const DA_EXCEL = {
   squadra: "Cruscotto", atleti: "Atleta", io: "Atleta",
   pista: "Pista", palestra: "Palestra", riscaldamento: "Riscaldamento",
-  template: "Template microcicli", piano: "Piano & Picco", periodizzazione: "Periodizzazione", "per-distanza": "Per distanza", "guida-mezzi": "Guida mezzi", "guida-test": "Guida test", "guida-mezzi-lanci": "Guida mezzi (lanci)", "periodizzazione-lanci": "Periodizzazione (lanci)", "esercizi-speciali": "Esercizi speciali",
+  template: "Template microcicli", piano: "Piano & Picco", "per-disciplina": "Per distanza + Periodizzazione & Volumi", "guida-mezzi": "Guida mezzi", "guida-test": "Guida test", "guida-mezzi-lanci": "Guida mezzi (lanci)", "esercizi-speciali": "Esercizi speciali",
   test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "Test (CMJ/SJ)", "sprint-test": "Test (sprint)", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", "ritmi-mezzo": "Ritmi target (mezzofondo)", "test-lattato": "Test lattato", "critical-speed": "Critical Speed", "riepilogo-test": "Riepilogo test (mezzofondo)", "profilo-attrezzo": "Profilo attrezzo", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
   "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", screening: "(nuovo: settimana/mesociclo)", carico: "Carico & Forma",
@@ -640,7 +640,7 @@ function disegna() {
   else if (coach && S.vista === "test-lattato") corpo = vistaTestLattato();
   else if (coach && S.vista === "critical-speed") corpo = vistaCriticalSpeed();
   else if (coach && S.vista === "riepilogo-test") corpo = vistaRiepilogoTest();
-  else if (coach && S.vista === "per-distanza") corpo = vistaPerDistanza();
+  else if (coach && (S.vista === "per-disciplina" || S.vista === "per-distanza")) corpo = vistaPerDistanza();
   else if (coach && S.vista === "guida-mezzi") corpo = vistaGuidaMezzi();
   else if (coach && S.vista === "guida-test") corpo = vistaGuidaTest();
   else if (coach && S.vista === "guida-mezzi-lanci") corpo = guidaMezziLanciHTML();

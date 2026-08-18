@@ -1228,21 +1228,24 @@ function vistaPerDistanzaVel() {
       <div style="flex:none;width:38px"><b style="font-size:13px">${g}</b>${veloce ? `<div style="font-size:9px;color:var(--verde)">veloce</div>` : ""}</div>
       <p style="margin:0;font-size:13px;flex:1${veloce ? ";font-weight:500" : ";color:var(--txt2)"}">${txt}</p></div>`).join("")}
     <p class="et" style="margin-top:8px">I giorni <b style="color:var(--verde)">veloci</b> sono i lavori di qualità: copiali in <b>Pista</b> e i tempi arrivano da Velocità target. Onda 3:1 e taper come sopra.</p></div>`;
-  return intro + tabs + info + matr + periodi + micro;
+  const fonti = `<div class="card"><p class="et" style="margin:0;color:var(--txt3)">Fonti sprint: Spencer & Gastin 2001 (energia) · de Villarreal 2012 (pliometria→sprint) · Francis/ALTIS · NSCA. <b>Periodizzazione, forza e zone VBT</b> (Bompa & Buzzichelli, Mann/González-Badillo/<b>Squillante</b>) nelle tabelle «Periodizzazione &amp; Volumi» qui sotto.</p></div>`;
+  return intro + tabs + info + matr + periodi + micro + fonti;
 }
 
-// selettore disciplina (avvio unificazione "Per disciplina")
-function setPdDisc(x) { S.pdDisc = x; disegna(); window.scrollTo(0, 0); }
+// selettore disciplina — "Per disciplina": tutto in un posto (velocità · mezzofondo · lanci)
+function setPdDisc(x) { S.pdDisc = x; if (x === "vel") pdState.dist = "100 m"; else if (x === "mezzo") pdState.dist = "800 m"; disegna(); window.scrollTo(0, 0); }
 function _pdSelettore(disc) {
-  const opt = [["vel", "Velocità (60-400)"], ["mezzo", "Mezzofondo / Fondo"]];
+  const opt = [["vel", "Velocità"], ["mezzo", "Mezzofondo / Fondo"], ["lanci", "Lanci"]];
   return `<div class="card" style="border-color:var(--blu)"><label class="lab">Disciplina</label>
     <div class="tabbar" style="margin-top:6px">${opt.map(([k, l]) => `<button class="${disc === k ? "on" : ""}" onclick="setPdDisc('${k}')">${l}</button>`).join("")}</div></div>`;
 }
 function vistaPerDistanza() {
-  const disc = S.pdDisc || "mezzo";
+  const disc = S.pdDisc || "vel";
   const sel = _pdSelettore(disc);
-  if (disc === "vel") return sel + vistaPerDistanzaVel();
-  return sel + _vistaPerDistanzaMezzo();
+  if (disc === "lanci" && typeof vistaPeriodizzazioneLanci === "function") return sel + vistaPeriodizzazioneLanci();
+  if (disc === "mezzo") return sel + _vistaPerDistanzaMezzo();
+  // velocità: per-distanza + Periodizzazione & Volumi (velocità) unite
+  return sel + vistaPerDistanzaVel() + (typeof vistaPeriodizzazione === "function" ? vistaPeriodizzazione() : "");
 }
 
 function _vistaPerDistanzaMezzo() {
