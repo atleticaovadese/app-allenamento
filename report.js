@@ -72,7 +72,7 @@ function _rProgrammaMesocicli(a) {
     return `${r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
   };
   const rigaPal = r => `${r.esercizio || ""}${(r.serie && r.rep) ? " " + r.serie + "×" + r.rep : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
-  const sezione = (titolo, prog, rigaFn, colLavoro) => {
+  const sezione = (titolo, prog, rigaFn, colLavoro, atletaIdGraf) => {
     if (!prog || !prog.mesocicli || !prog.mesocicli.length) return "";
     let s = "";
     prog.mesocicli.forEach((m, mi) => {
@@ -82,13 +82,71 @@ function _rProgrammaMesocicli(a) {
         const righe = (sett.righe || []).map(rigaFn).filter(t => t);
         return righe.length ? `<tr><td>Giorno ${idx + 1}${gi.giornoSett ? " (" + gi.giornoSett + ")" : ""}</td><td>${righe.join(" · ")}</td></tr>` : "";
       }).filter(Boolean).join("");
-      if (giorni) s += `<p class="sub" style="margin-top:10px"><b>${testa}</b></p><table><tr><th>Giorno</th><th>${colLavoro} (settimana tipo)</th></tr>${giorni}</table>`;
+      if (!giorni) return;
+      s += `<div style="page-break-inside:avoid"><p class="sub" style="margin-top:10px"><b>${testa}</b></p><table><tr><th>Giorno</th><th>${colLavoro} (settimana tipo)</th></tr>${giorni}</table>`;
+      s += (atletaIdGraf ? _rGraficoMeso(atletaIdGraf, _rMesoWin(prog.mesocicli, mi)) : "") + `</div>`;
     });
     return s ? `<h2>${titolo}</h2>${s}` : "";
   };
-  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto" : "Lavoro")
-    + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi");
+  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto" : "Lavoro", a.id)
+    + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi", null);
   return html || `<h2>Programma</h2><p class="muted">Nessun programma impostato per questo gruppo.</p>`;
+}
+
+// finestra temporale (start/end) del mesociclo i
+function _rMesoWin(mesocicli, i) {
+  const m = mesocicli[i];
+  if (!m || !m.inizio) return null;
+  const start = new Date(m.inizio + "T00:00:00");
+  const next = mesocicli[i + 1];
+  let end;
+  if (next && next.inizio) end = new Date(next.inizio + "T00:00:00");
+  else { const n = (typeof nSettimaneMeso === "function") ? nSettimaneMeso(m) : 4; end = new Date(start.getTime() + n * 7 * 86400000); }
+  return { start, end };
+}
+// grafico salute (prontezza) + n° allenamenti nel periodo di un mesociclo
+function _rGraficoMeso(atletaId, win) {
+  if (!win) return "";
+  const dd = ((DEMO.diariStorico || {})[atletaId] || []).filter(x => { const t = new Date((x.data || "") + "T00:00:00"); return t >= win.start && t < win.end; }).sort((x, y) => x.data < y.data ? -1 : 1);
+  const nSed = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(s => { const t = new Date((s.data || "") + "T00:00:00"); return t >= win.start && t < win.end; }).length;
+  if (!dd.length) return `<p class="sub muted" style="margin-top:4px">${nSed} allenamenti svolti · nessun diario in questo periodo</p>`;
+  const media = (dd.reduce((s, v) => s + (v.prontezza || 0), 0) / dd.length).toFixed(1);
+  const bars = dd.slice(-14).map(v => ({ v: v.prontezza != null ? Math.round(v.prontezza * 10) / 10 : 0, lab: (v.data || "").slice(8, 10) + "/" + (v.data || "").slice(5, 7) }));
+  return `<p class="sub" style="margin-top:4px">Salute nel mesociclo: prontezza media <b class="${_rClsPront(media)}">${media}/5</b> · <b>${nSed}</b> allenamenti svolti</p>${_svgBars(bars)}`;
+}
+
+// sparkline (andamento) di una serie di valori
+function _rSpark(vals) {
+  if (!vals.length) return "";
+  const W = 92, H = 26, min = Math.min(...vals), max = Math.max(...vals), rng = (max - min) || 1;
+  const pts = vals.map((v, i) => { const x = vals.length > 1 ? (i / (vals.length - 1)) * (W - 6) + 3 : W / 2; const y = H - 3 - ((v - min) / rng) * (H - 8); return `${x.toFixed(1)},${y.toFixed(1)}`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="flex:none;vertical-align:middle"><polyline points="${pts.join(" ")}" fill="none" stroke="#2B4C7E" stroke-width="1.5"/>${pts.map(p => { const c = p.split(","); return `<circle cx="${c[0]}" cy="${c[1]}" r="1.7" fill="#2B4C7E"/>`; }).join("")}</svg>`;
+}
+// storico di tutti i test/salti e massimali (progressione nel tempo)
+function _rStoricoTestForza(a) {
+  const salti = (a.scheda && a.scheda.salti) || [];
+  const mx = (a.scheda && a.scheda.massimali) || [];
+  const grp = (items, ni, vi, ui, di) => {
+    const by = {};
+    items.forEach(x => { const n = x[ni], v = parseFloat(String(x[vi]).replace(",", ".")); if (isNaN(v)) return; (by[n] = by[n] || []).push({ v, u: ui != null ? (x[ui] || "") : "kg", d: x[di] || "" }); });
+    return by;
+  };
+  const render = by => Object.keys(by).map(n => {
+    const serie = by[n].slice().sort((x, y) => x.d < y.d ? -1 : 1);
+    if (!serie.length) return "";
+    const first = serie[0], last = serie[serie.length - 1];
+    const delta = serie.length > 1 ? Math.round((last.v - first.v) * 100) / 100 : null;
+    const higher = last.u !== "s";   // secondi: più basso è meglio; cm/kg/index: più alto è meglio
+    const cls = delta == null || delta === 0 ? "" : ((delta > 0) === higher ? "g" : "r");
+    return `<tr><td>${n}</td><td>${_rSpark(serie.map(p => p.v))}</td><td>${serie.map(p => `${_rDataL(p.d) || "—"}: <b>${p.v}${last.u ? " " + last.u : ""}</b>`).join(" · ")}</td><td>${delta != null ? `<b class="${cls}">${delta > 0 ? "+" : ""}${delta}${last.u ? " " + last.u : ""}</b>` : "—"}</td></tr>`;
+  }).join("");
+  const rowsTest = render(grp(salti, 0, 1, 2, 5));
+  const rowsForza = render(grp(mx, 0, 1, null, 5));
+  if (!rowsTest && !rowsForza) return "";
+  let s = `<h2>Storico test e forza</h2>`;
+  if (rowsTest) s += `<p class="sub"><b>Test / salti</b></p><table><tr><th>Test</th><th>Andamento</th><th>Valori</th><th>Δ</th></tr>${rowsTest}</table>`;
+  if (rowsForza) s += `<p class="sub" style="margin-top:10px"><b>Massimali di forza</b></p><table><tr><th>Esercizio</th><th>Andamento</th><th>Valori</th><th>Δ</th></tr>${rowsForza}</table>`;
+  return s;
 }
 
 // mini grafico a barre SVG (prontezza ultimi giorni)
@@ -153,6 +211,9 @@ function _reportBodyHTML(id) {
     <div><h2>Massimali di forza</h2>${mx.length ? `<table><tr><th>Esercizio</th><th>Kg</th><th>Data</th></tr>${mx.map(x => `<tr><td>${x[0]}</td><td><b>${x[1]}</b></td><td>${x[2] || ""}</td></tr>`).join("")}</table>` : `<p class="muted">Nessun massimale.</p>`}</div>
     <div><h2>Test e salti</h2>${salti.length ? `<table><tr><th>Test</th><th>Valore</th><th>Data</th></tr>${salti.map(x => `<tr><td>${x[0]}</td><td><b>${x[1]}${x[2] ? " " + x[2] : ""}</b></td><td>${x[3] || ""}</td></tr>`).join("")}</table>` : `<p class="muted">Nessun test registrato.</p>`}</div>
   </div>`;
+
+  // --- storico test e forza (progressione nel tempo) ---
+  h += _rStoricoTestForza(a);
 
   // --- presenze ---
   h += `<h2>Presenze</h2><div class="kpi">
