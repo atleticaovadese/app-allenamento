@@ -1124,7 +1124,128 @@ function setPdDist(n) { pdState.dist = n; disegna(); window.scrollTo(0, 0); }
 function setPdFase(f) { pdState.fase = f; disegna(); }
 const _pdInt = v => v === "***" ? "●●●" : v === "**" ? "●●" : v === "*" ? "●" : "–";
 
+// ============================================================================
+// PER DISTANZA — VELOCITÀ (60/100/200/400). Stessa struttura del mezzofondo.
+// Fonti: Spencer & Gastin 2001 (contributo energetico), de Villarreal 2012 (meta-analisi
+// pliometria→sprint), rev. sist. sprint resistito 2024, Francis/ALTIS, NSCA, Bompa/Buzzichelli.
+// ============================================================================
+const VEL_PD_MEZZI = ["Accelerazione (0-30 m)", "Velocità max (lanciati)", "Speed endurance (60-150 m)", "Special endurance (150-300+)", "Tempo estensivo (recupero)", "Forza massimale", "Forza esplosiva / balistico", "Olympic lifts / potenza", "Pliometria", "Tecnica / andature", "Partenze dai blocchi"];
+const VEL_FORZA = { gen: "Forza generale (AA)", spec: "Forza max", pre: "Potenza / conversione", comp: "Mantenimento forza" };
+const VEL_PERDIST = [
+  {
+    nome: "60 m", prof: "~100% ALATTACIDO (ATP-PC). Gara 6.5-7.5 s: partenza + accelerazione + primi metri di velocità massima.",
+    qual: "1) Accelerazione / forza esplosiva  2) Velocità max  3) Reattività (RFD, plio)  4) Tecnica di partenza",
+    vol: "Sprint di qualità 300-600 m/seduta (0-60 m), recuperi COMPLETI · 2-3 sedute veloci/sett",
+    dis: "Corto→lungo: dominano blocchi, accelerazione e velocità max; volumi bassissimi, massima freschezza nervosa.",
+    mx: ["***|***|***|***", "**|***|***|***", "*|**|**|*", "-|-|-|-", "***|**|*|*", "***|***|**|*", "**|***|***|**", "**|***|**|*", "**|***|**|**", "***|***|**|**", "**|***|***|***"],
+    per: [["Prep. generale", "6-10 sett", "forza generale (AA) + tecnica + tempo + accelerazioni submax + plio estensiva"], ["Prep. speciale", "6-8 sett", "forza max + accelerazioni max + velocità max + blocchi + plio intensiva"], ["Pre-competitiva", "3-5 sett", "conversione a potenza + velocità max + blocchi (reattività), volumi giù"], ["Competitiva", "in-season", "velocità max di qualità + blocchi + taper; volumi bassi, alta freschezza"]],
+    cs: "Onda 3:1 (2:1 nei periodi nervosi intensi). Scarico −40/50% volume, intensità invariata. Taper pre-gara ~7-10 gg con stimoli brevi e veloci. Recuperi COMPLETI sui lavori di velocità.",
+    tempo: "6-10×100-150 m", rec: "completo 3-6' tra le prove veloci",
+    Q: {
+      gen: ["Accelerazioni 6-8×20-30 m (submax→max) + tecnica", "Velocità/tempo 8-10×60 m ~85% + andature", "Multibalzi + accel 4-6×30 m + forza"],
+      spec: ["Accelerazioni max 5-6×30-40 m dai blocchi", "Velocità max 4-6×(20-30 m lanciati)", "Blocchi + accel 20-40 m + potenza"],
+      pre: ["Velocità max 4-5×30 m lanciati (qualità)", "Blocchi 6-8×30 m (reazione + accel)", "Accel / velocità max 20-40 m + rifinitura"],
+      comp: ["Blocchi 20-40 m di qualità (poche prove)", "Velocità max 3-4×20-30 m lanciati", "Attivazione pre-gara / allunghi veloci"]
+    }
+  },
+  {
+    nome: "100 m", prof: "Prevalentemente ALATTACIDO + anaerobico glicolitico (~10-15% aerobico). Accelerazione, velocità max e mantenimento.",
+    qual: "1) Accelerazione + velocità max  2) Forza esplosiva / RFD  3) Speed endurance breve  4) Tecnica",
+    vol: "Sprint di qualità 400-800 m/seduta (0-100 m), recuperi completi · 2-3 sedute veloci/sett",
+    dis: "Corto→lungo: accelerazione e velocità max dominanti; speed endurance breve verso la gara. Freschezza nervosa.",
+    mx: ["***|***|***|***", "**|***|***|***", "*|**|***|**", "-|*|*|-", "***|**|*|*", "***|***|**|*", "**|***|***|**", "**|***|**|*", "**|***|**|**", "***|***|**|**", "**|***|***|***"],
+    per: [["Prep. generale", "6-10 sett", "forza generale + tecnica + tempo + accelerazioni + plio estensiva"], ["Prep. speciale", "6-8 sett", "forza max + accel/velocità max + avvio speed endurance + plio intensiva"], ["Pre-competitiva", "3-5 sett", "velocità max + speed endurance + conversione a potenza"], ["Competitiva", "in-season", "velocità max di qualità + blocchi + rifinitura; volumi bassi"]],
+    cs: "Onda 3:1 (2:1 nei periodi intensi). Scarico −40/50% volume, intensità invariata. Taper pre-gara ~7-10 gg. Recuperi COMPLETI sulla velocità.",
+    tempo: "8-12×100-150 m", rec: "completo 4-8' sui lavori veloci",
+    Q: {
+      gen: ["Accelerazioni 6-8×30 m + tecnica", "Tempo intensivo 8-10×80-100 m ~85%", "Accel 30-40 m + multibalzi + forza"],
+      spec: ["Accelerazioni max 5-6×40-60 m", "Velocità max 4-6×(30 m lanciati)", "Speed endurance 4-5×80-120 m ~95%"],
+      pre: ["Velocità max 4-5×(30-40 m lanciati)", "Speed endurance 3-4×120-150 m ~95%", "Blocchi 30-60 m + potenza"],
+      comp: ["Blocchi / accel 30-60 m di qualità", "Velocità max 3-4×30 m lanciati", "Rifinitura + allunghi / gara"]
+    }
+  },
+  {
+    nome: "200 m", prof: "~71% anaerobico / 29% aerobico (Spencer & Gastin 2001). Velocità max + speed endurance, con curva.",
+    qual: "1) Velocità max  2) Speed endurance  3) Accelerazione (in curva)  4) Forza / potenza",
+    vol: "Qualità 600-1200 m/seduta (30-150 m); + tempo estensivo per la base · 3-4 sedute chiave/sett",
+    dis: "Corto→lungo che si estende: velocità max e speed endurance dominanti; special endurance verso la gara.",
+    mx: ["**|***|**|**", "**|***|***|***", "**|***|***|**", "*|**|***|**", "***|**|**|*", "***|***|**|*", "**|***|**|**", "**|**|**|*", "**|***|**|*", "***|**|**|**", "*|**|**|**"],
+    per: [["Prep. generale", "6-10 sett", "base (tempo) + forza generale + tecnica + accelerazioni"], ["Prep. speciale", "6-8 sett", "velocità max + speed endurance + forza max + curva"], ["Pre-competitiva", "3-5 sett", "special endurance + ritmo gara 200 + velocità max"], ["Competitiva", "in-season", "speed endurance di qualità + rifinitura + gara"]],
+    cs: "Onda 3:1. Scarico −40/50% volume, intensità invariata. Taper ~7-10 gg. Recuperi pieni sulla qualità; tempo per la capacità di lavoro.",
+    tempo: "10-14×100-200 m", rec: "3-8' sui veloci, più corto sul tempo",
+    Q: {
+      gen: ["Accelerazioni 6×30-40 m + tecnica", "Tempo intensivo 10-12×100-150 m ~80-85%", "Curve / accel + multibalzi + forza"],
+      spec: ["Velocità max 4-6×(30-40 m lanciati)", "Speed endurance 4-5×120-150 m ~95%", "Accel in curva 40-60 m + potenza"],
+      pre: ["Special endurance 3-4×150-200 m 90-95%", "Velocità max 4×40 m lanciati", "Ritmo gara: 2-3×(150+150) rec breve"],
+      comp: ["Speed endurance 3×150 m di qualità", "Velocità max 3×30-40 m", "Rifinitura + gara"]
+    }
+  },
+  {
+    nome: "400 m", prof: "~57% anaerobico / 43% aerobico (Spencer & Gastin 2001). Special endurance + tolleranza al lattato.",
+    qual: "1) Special endurance  2) Speed endurance  3) Velocità di base  4) Forza-resistenza / tolleranza lattato",
+    vol: "Qualità 1000-2000 m/seduta (150-300+ m, frazionati); tempo esteso per la base aerobica · 3-5 sedute/sett",
+    dis: "Base ampia (tempo) + speed endurance; special endurance e ritmo gara verso la competizione. La più aerobica degli sprint.",
+    mx: ["*|**|**|*", "*|**|**|**", "**|***|***|**", "**|***|***|***", "***|***|**|*", "**|***|**|*", "*|**|**|*", "*|**|*|*", "*|**|*|*", "**|**|**|*", "*|**|**|**"],
+    per: [["Prep. generale", "8-12 sett", "tempo (volume alto) + forza-resistenza + tecnica + accelerazioni"], ["Prep. speciale", "6-8 sett", "speed endurance + special endurance + forza max"], ["Pre-competitiva", "3-5 sett", "special endurance + ritmo gara 400 (split) + velocità"], ["Competitiva", "in-season", "special endurance di qualità + rifinitura + gara"]],
+    cs: "Onda 3:1. Scarico −40/50% volume, intensità invariata. Taper ~10-12 gg. Recuperi lunghi sui special endurance (fino a 8-15').",
+    tempo: "12-16×100-200 m (rec brevi)", rec: "lunghi sui special (8-15')",
+    Q: {
+      gen: ["Tempo intensivo 12-16×100-200 m 75-85% (rec brevi)", "Accelerazioni 6×40-60 m + tecnica", "Forza-resistenza + collinari / circuiti"],
+      spec: ["Speed endurance 5-6×150-200 m 90-95%", "Special endurance 3-4×250-300 m ~90%", "Velocità max 4×40 m lanciati + potenza"],
+      pre: ["Special endurance 2-3×300 m 90-95% (rec lunghi)", "Ritmo gara: split 200+200 / 300+100", "Speed endurance 4×150 m + rifinitura"],
+      comp: ["Special endurance 2×300 m di qualità (rec pieni)", "Speed endurance 4×150 m", "Rifinitura + gara"]
+    }
+  }
+];
+
+function vistaPerDistanzaVel() {
+  const d = VEL_PERDIST.find(x => x.nome === pdState.dist) || VEL_PERDIST[0];
+  const fase = pdState.fase || "gen";
+  const intro = `<div class="card"><h3>Per distanza — velocità</h3>
+    <p class="et" style="margin-top:2px">Per ogni gara: profilo energetico, qualità, volumi, i <b>mezzi per periodo</b>, i periodi dell'anno e il <b>microciclo</b> per fase. I tempi target arrivano da <b>Velocità target</b>.</p>
+    <p class="et" style="margin-top:8px;padding:8px 10px;background:var(--card2,rgba(120,120,140,.08));border-radius:8px"><b>Alto/basso (CNS):</b> alterna giorni VELOCI (blocchi, velocità max, speed endurance) a giorni di <b>tempo</b>/tecnica/recupero. Sui lavori veloci recuperi COMPLETI: la qualità viene prima della quantità.</p></div>`;
+  const tabs = `<div class="tabbar">${VEL_PERDIST.map(x => `<button class="${x.nome === d.nome ? "on" : ""}" onclick="setPdDist('${x.nome}')">${x.nome.replace(" m", "")}</button>`).join("")}</div>`;
+  const info = `<div class="card"><h3 style="margin-bottom:6px">${d.nome}</h3>
+    ${[["Profilo di gara (energia)", d.prof], ["Qualità da allenare (priorità)", d.qual], ["Volumi di qualità", d.vol], ["Approccio / distribuzione", d.dis]].map(([l, v]) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><p style="margin:2px 0 0;font-size:13px">${v}</p></div>`).join("")}</div>`;
+  const matr = `<div class="card"><p class="et" style="margin-bottom:6px">Mezzi × periodo <span style="color:var(--txt3)">(●●● alto · ●● medio · ● basso · – assente)</span></p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Mezzo</th><th>Prep.gen</th><th>Prep.spec</th><th>Pre-comp</th><th>Comp</th></tr></thead>
+      <tbody>${VEL_PD_MEZZI.map((m, i) => { const c = d.mx[i].split("|"); return `<tr><td><b>${m}</b></td>${c.map(v => `<td class="pauto" style="letter-spacing:1px">${_pdInt(v)}</td>`).join("")}</tr>`; }).join("")}</tbody>
+    </table></div></div>`;
+  const periodi = `<div class="card"><p class="et" style="margin-bottom:6px">Periodi dell'anno</p>
+    ${d.per.map(([f, dur, foc]) => `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">${f}</b><span class="et" style="margin:0">${dur}</span></div><p class="et" style="margin:3px 0 0">${foc}</p></div>`).join("")}
+    <p class="et" style="margin-top:8px"><b>Carico/scarico/taper:</b> ${d.cs}</p>
+    <p class="et" style="margin-top:6px">Tempo (recupero): <b>${d.tempo}</b> · Rec tra prove: <b>${d.rec}</b></p></div>`;
+  const week = [
+    ["Lun", d.Q[fase][0], true], ["Mar", "Tempo estensivo " + d.tempo + " + " + VEL_FORZA[fase] + " (forza)", false],
+    ["Mer", d.Q[fase][1], true], ["Gio", "Tecnica/andature + core/prehab", false],
+    ["Ven", (fase !== "comp" ? d.Q[fase][2] : d.Q[fase][2] + " o GARA"), true],
+    ["Sab", "Tempo/recupero o gara C", false], ["Dom", "Riposo", false]
+  ];
+  const micro = `<div class="card"><p class="et" style="margin-bottom:6px">Microciclo per fase</p>
+    <div class="tabbar" style="margin-bottom:10px">${MZ_PD_FASI.map(([k, l]) => `<button class="${k === fase ? "on" : ""}" onclick="setPdFase('${k}')">${l}</button>`).join("")}</div>
+    ${week.map(([g, txt, veloce]) => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)">
+      <div style="flex:none;width:38px"><b style="font-size:13px">${g}</b>${veloce ? `<div style="font-size:9px;color:var(--verde)">veloce</div>` : ""}</div>
+      <p style="margin:0;font-size:13px;flex:1${veloce ? ";font-weight:500" : ";color:var(--txt2)"}">${txt}</p></div>`).join("")}
+    <p class="et" style="margin-top:8px">I giorni <b style="color:var(--verde)">veloci</b> sono i lavori di qualità: copiali in <b>Pista</b> e i tempi arrivano da Velocità target. Onda 3:1 e taper come sopra.</p></div>`;
+  return intro + tabs + info + matr + periodi + micro;
+}
+
+// selettore disciplina (avvio unificazione "Per disciplina")
+function setPdDisc(x) { S.pdDisc = x; disegna(); window.scrollTo(0, 0); }
+function _pdSelettore(disc) {
+  const opt = [["vel", "Velocità (60-400)"], ["mezzo", "Mezzofondo / Fondo"]];
+  return `<div class="card" style="border-color:var(--blu)"><label class="lab">Disciplina</label>
+    <div class="tabbar" style="margin-top:6px">${opt.map(([k, l]) => `<button class="${disc === k ? "on" : ""}" onclick="setPdDisc('${k}')">${l}</button>`).join("")}</div></div>`;
+}
 function vistaPerDistanza() {
+  const disc = S.pdDisc || "mezzo";
+  const sel = _pdSelettore(disc);
+  if (disc === "vel") return sel + vistaPerDistanzaVel();
+  return sel + _vistaPerDistanzaMezzo();
+}
+
+function _vistaPerDistanzaMezzo() {
   const d = MZ_PERDIST.find(x => x.nome === pdState.dist) || MZ_PERDIST[0];
   const fase = pdState.fase || "gen";
   const faseLab = (MZ_PD_FASI.find(f => f[0] === fase) || [])[1] || "";
