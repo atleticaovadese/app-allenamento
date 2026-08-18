@@ -532,27 +532,29 @@ const METIS_INTRO = `<b style="font-size:18px">«Chi non pianifica è destinato 
 Nella cultura greca, <i>Mētis</i> rappresenta l'intelligenza strategica, la saggezza pratica e la capacità di prevedere e scegliere la strada migliore.<br><br>
 Da questa filosofia nasce <b>Metis Performance</b>: non per sostituire l'allenatore, non per dirti come allenare, ma per essere il tuo alleato nella <b>pianificazione</b>, nella <b>programmazione</b> e nel <b>monitoraggio</b> dell'allenamento.<br><br>
 Le decisioni restano tue. <b>Metis ti aiuta a renderle migliori.</b>`;
+// ogni passo: [icona, titolo, testo, come(array how-to), demo(chiave mockup)]
 const TOUR = [
-  ["", "Metis Performance", METIS_INTRO],
-  ["◧", "Oggi — le tue sedute", "Nella pagina <b>Oggi</b> trovi l'allenamento del giorno preparato dall'allenatore (pista o palestra): aprilo, segna i tempi o le serie mentre ti alleni e <b>chiudi la seduta</b> con durata e RPE. Così i tuoi dati tornano all'allenatore."],
-  ["✎", "Diario — ogni giorno", "Ogni mattina compila il <b>Diario</b> (sonno, stress, dolori, energia): bastano 30 secondi e aiuta l'allenatore a dosare il carico. Sii onesto, non lo vedi tu il punteggio."],
-  ["◉", "I miei dati e i personali", "In <b>I miei dati</b> ci sono la tua anagrafica e i tuoi <b>PB (personali)</b>. Tienili aggiornati: dai tuoi PB l'app calcola i <b>tempi da fare</b> in allenamento, su misura per te."],
-  ["★", "Gare — i tuoi risultati", "In <b>Gare</b> vedi le prossime gare e registri i tuoi risultati con «＋ Registra risultato»: il tempo aggiorna in automatico il tuo <b>PB in gara</b>."],
-  ["▤", "Librerie con i video", "In <b>Librerie</b> (Sala, Mobilità, Pliometria, Video) trovi gli esercizi spiegati, con i video che si aprono dentro l'app: usale quando non ricordi un esercizio."],
-  ["◍", "Presenze e Calendario", "In <b>Presenze</b> vedi quanti allenamenti hai fatto sul totale programmato; nel <b>Calendario</b> il tuo programma della settimana, giorno per giorno."],
-  ["?", "Guida e glossario", "Non sai cosa vuol dire un termine (RSI, ACWR, TUT…)? È tutto spiegato in <b>Guida e glossario</b>. Puoi rivedere questo tutorial da lì quando vuoi. Buon allenamento! 💪"]
+  ["", "Metis Performance", METIS_INTRO, [], ""],
+  ["◧", "Oggi — le tue sedute", "Nella pagina <b>Oggi</b> trovi l'allenamento del giorno preparato dall'allenatore (pista o palestra): aprilo, segna i tempi o le serie mentre ti alleni e <b>chiudi la seduta</b> con durata e RPE. Così i tuoi dati tornano all'allenatore.", ["Tocca la card dell'allenamento di oggi", "Segna i tempi/serie mentre ti alleni", "Chiudi la seduta con durata e RPE"], "oggi"],
+  ["✎", "Diario — ogni giorno", "Ogni mattina compila il <b>Diario</b> (sonno, stress, dolori, energia): bastano 30 secondi e aiuta l'allenatore a dosare il carico. Sii onesto, non lo vedi tu il punteggio.", ["Dai un voto 1-5 a ogni voce", "Sonno, stress, dolori, energia", "30 secondi ogni mattina"], "diario"],
+  ["◉", "I miei dati e i personali", "In <b>I miei dati</b> ci sono la tua anagrafica e i tuoi <b>PB (personali)</b>. Tienili aggiornati: dai tuoi PB l'app calcola i <b>tempi da fare</b> in allenamento, su misura per te.", ["Controlla anagrafica e PB", "Aggiungi i tuoi personali", "Dai PB escono i tempi da fare"], "profilo"],
+  ["★", "Gare — i tuoi risultati", "In <b>Gare</b> vedi le prossime gare e registri i tuoi risultati con «＋ Registra risultato»: il tempo aggiorna in automatico il tuo <b>PB in gara</b>.", ["Guarda le prossime gare", "«＋ Registra risultato» dopo la gara", "Il tempo aggiorna il PB in gara"], "gare"],
+  ["▤", "Librerie con i video", "In <b>Librerie</b> (Sala, Mobilità, Pliometria, Video) trovi gli esercizi spiegati, con i video che si aprono dentro l'app: usale quando non ricordi un esercizio.", ["Scegli la libreria giusta", "Tocca un esercizio", "Il video si apre nell'app"], "video"],
+  ["◍", "Presenze e Calendario", "In <b>Presenze</b> vedi quanti allenamenti hai fatto sul totale programmato; nel <b>Calendario</b> il tuo programma della settimana, giorno per giorno.", ["Vedi il programma della settimana", "Controlla le presenze del mese"], "calendario"],
+  ["?", "Guida e glossario", "Non sai cosa vuol dire un termine (RSI, ACWR, TUT…)? È tutto spiegato in <b>Guida e glossario</b>. Puoi rivedere questo tutorial da lì quando vuoi. Buon allenamento! 💪", ["Cerca un termine che non conosci", "Rivedi questo tutorial quando vuoi"], "guida"]
 ];
 // Tutorial ALLENATORE (per i tecnici che aggiungi)
 const TOUR_COACH = [
-  ["", "Metis Performance", METIS_INTRO],
-  ["◧", "Squadra — il colpo d'occhio", "La schermata <b>Squadra</b> ti mostra ogni atleta con lo stato (verde/giallo/rosso) da carico, forma, prontezza e aderenza, più gli alert (diario mancante, sedute saltate, fastidi). In un attimo capisci chi seguire."],
-  ["◉", "Atleti e schede", "In <b>Atleti</b> aggiungi gli atleti (nome + email), apri la loro scheda con PB, massimali e test, e ne modifichi i dati. Ogni atleta è raggruppato per disciplina (velocità, lanci, mezzofondo)."],
-  ["▦", "Programma madre", "In <b>Programma → Pista/Palestra</b> scrivi il programma UNA volta per tutta la società: distanze e % velocità (i tempi escono dal PB di ogni atleta), esercizi e %1RM (il peso dal massimale). Si salva da solo e gli atleti lo vedono subito sul loro calendario."],
-  ["✎", "Su misura per il singolo", "Dal dettaglio di un atleta puoi <b>spostargli i giorni</b> e <b>adattargli il contenuto</b> (meno ripetute, carico diverso) senza toccare il programma madre: vale solo per lui."],
-  ["◍", "Monitoraggio", "In <b>Monitoraggio</b> vedi lo <b>Screening</b> (tempi/VBT per periodo), il <b>Carico e forma</b> (ACWR, TSB), il <b>Diario</b> giorno per giorno e gli <b>Infortuni</b>. Sono dati veri: nascono da ciò che gli atleti svolgono e scrivono."],
-  ["◭", "Analisi e Test", "In <b>Analisi</b> trovi Velocità target, Profilo F-V, Stima 1RM, Traino, Monitoraggio VBT, Drop Jump/RSI e la batteria Test. Ogni test ha «Come si fa» con video."],
-  ["⇅", "Report ed Export", "Nel dettaglio atleta c'è il <b>Report PDF completo</b>; in <b>Import/Export</b> il backup e il <b>Report Excel con grafici</b> (per analisi e presentazioni)."],
-  ["?", "Guida e glossario", "Dubbi su un termine (ACWR, RSI, TUT…)? È tutto in <b>Guida e glossario</b>, dove puoi anche rivedere questo tutorial. Buon lavoro! 💪"]
+  ["", "Metis Performance", METIS_INTRO, [], ""],
+  ["◧", "Squadra — il colpo d'occhio", "La schermata <b>Squadra</b> ti mostra ogni atleta con lo stato (verde/giallo/rosso) da carico, forma, prontezza e aderenza, più gli alert (diario mancante, sedute saltate, fastidi). In un attimo capisci chi seguire.", ["Colori: verde/giallo/rosso = stato", "Tocca un atleta per il dettaglio"], "squadra"],
+  ["◉", "Atleti e schede", "In <b>Atleti</b> aggiungi gli atleti (nome + email), apri la loro scheda con PB, massimali e test, e ne modifichi i dati. Ogni atleta è raggruppato per disciplina (velocità, lanci, mezzofondo).", ["«＋ Nuovo atleta»: nome + email", "Apri la scheda: PB, massimali, test"], "atleti"],
+  ["▦", "Programma madre", "In <b>Programma → Pista/Palestra</b> scrivi il programma UNA volta per tutta la società: distanze e % velocità (i tempi escono dal PB di ogni atleta), esercizi e %1RM (il peso dal massimale). Si salva da solo e gli atleti lo vedono subito.", ["Scrivi distanze e % (o esercizi e %1RM)", "Il tempo/peso esce dai dati dell'atleta", "Si salva da solo, lo vedono tutti"], "programma"],
+  ["✎", "Su misura per il singolo", "Dal dettaglio di un atleta puoi <b>spostargli i giorni</b> e <b>adattargli il contenuto</b> (meno ripetute, carico diverso) senza toccare il programma madre: vale solo per lui.", ["Dal dettaglio atleta: sposta i giorni", "Adatta il contenuto solo per lui"], "adatta"],
+  ["◍", "Monitoraggio", "In <b>Monitoraggio</b> vedi lo <b>Screening</b> (tempi/VBT per periodo), il <b>Carico e forma</b> (ACWR, TSB), il <b>Diario</b> giorno per giorno e gli <b>Infortuni</b>. Sono dati veri: nascono da ciò che gli atleti svolgono e scrivono.", ["Screening, Carico e forma (ACWR/TSB)", "Diario e Infortuni giorno per giorno"], "monitoraggio"],
+  ["◭", "Analisi e Test", "In <b>Analisi</b> trovi Velocità target, Profilo F-V, Stima 1RM, Traino, Monitoraggio VBT, Drop Jump/RSI e la batteria Test. Ogni test ha «Come si fa» con video.", ["Profilo F-V, Velocità target, VBT…", "Ogni test ha «come si fa» col video"], "analisi"],
+  ["🔔", "Notifiche — non ti sfugge nulla", "La <b>campanella</b> ti avvisa quando un atleta segnala un <b>fastidio</b>, o ha un <b>calo di condizione</b> o l'<b>ACWR</b> fuori range. Un doppio controllo oltre ai cruscotti.", ["Avviso se un atleta ha un fastidio", "O un calo di condizione / ACWR alto", "«✓ Visto» per gestirli"], "notifiche"],
+  ["⇅", "Report ed Export", "Nel dettaglio atleta c'è il <b>Report PDF completo</b> (con storico test, grafici e programma per mesociclo); in <b>Import/Export</b> il backup e il Report Excel con grafici.", ["Report PDF completo dell'atleta", "Storico test, grafici, mesocicli", "Export Excel per analisi"], "report"],
+  ["?", "Guida e glossario", "Dubbi su un termine (ACWR, RSI, TUT…)? È tutto in <b>Guida e glossario</b>, dove puoi anche rivedere questo tutorial. Buon lavoro! 💪", ["Tutti i termini spiegati semplici", "Rivedi il tutorial da qui"], "guida"]
 ];
 function _tourCorrente() { return (S.utente && S.utente.ruolo === "coach") ? TOUR_COACH : TOUR; }
 function setOnboarding(fase) { S.onboarding = fase; S.tourStep = 0; if (fase !== "tour") S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
@@ -564,18 +566,29 @@ function tourFine() {
 }
 function vistaTutorial() {
   const TR = _tourCorrente();
-  const [ic, tit, txt] = TR[S.tourStep] || TR[0];
+  const step = TR[S.tourStep] || TR[0];
+  const ic = step[0], tit = step[1], txt = step[2], come = step[3] || [], demo = step[4] || "";
   const n = TR.length, ultimo = S.tourStep === n - 1, primo = S.tourStep === 0;
-  const punti = TR.map((_, i) => `<span style="width:8px;height:8px;border-radius:50%;background:${i === S.tourStep ? "var(--blu)" : "var(--line2)"}"></span>`).join("");
-  return `
-  <div style="min-height:70vh;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:20px 8px">
-    ${primo
-      ? `<img src="icon-192.png" alt="logo" style="width:104px;height:104px;border-radius:24px;margin:0 auto 18px;display:block;box-shadow:0 8px 30px rgba(0,0,0,.35)">`
-      : `<div style="font-size:54px;margin-bottom:14px">${ic}</div>`}
-    <h2 style="font-size:${primo ? "28" : "24"}px;margin-bottom:12px">${tit}</h2>
-    <p style="font-size:${primo ? "15" : "16"}px;line-height:1.7;color:var(--txt2);max-width:540px;margin:0 auto;${primo ? "text-align:left" : ""}">${txt}</p>
-    <div style="display:flex;gap:8px;justify-content:center;margin:22px 0">${punti}</div>
-    <div style="display:flex;gap:10px;max-width:420px;margin:0 auto;width:100%">
+  const coach = S.utente && S.utente.ruolo === "coach";
+  const prog = Math.round(((S.tourStep + 1) / n) * 100);
+  const visual = primo
+    ? `<img src="icon-192.png" alt="logo" style="width:92px;height:92px;border-radius:22px;margin:2px auto 0;display:block;box-shadow:0 12px 32px rgba(0,0,0,.38)">`
+    : (typeof _tutMock === "function" && demo ? `<div class="tut-anim" style="margin-top:6px">${_tutMock(demo)}</div>` : `<div style="font-size:56px;margin-top:6px">${ic}</div>`);
+  const comeHTML = (come && come.length)
+    ? `<div class="tut-come tut-anim"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--txt3);margin-bottom:6px">▶ COME SI FA</div><ol style="margin:0;padding-left:18px">${come.map(c => `<li>${c}</li>`).join("")}</ol></div>`
+    : "";
+  const punti = TR.map((_, i) => `<span style="width:7px;height:7px;border-radius:50%;background:${i === S.tourStep ? "var(--blu)" : "var(--line2,#e2e8f2)"}"></span>`).join("");
+  return `${typeof _tutCSS === "function" ? _tutCSS() : ""}
+  <div class="tut-wrap">
+    <span class="tut-badge">${coach ? "Guida allenatore" : "Guida atleta"}</span>
+    <div class="tut-prog" style="margin-top:12px"><i style="width:${prog}%"></i></div>
+    <p style="font-size:11px;color:var(--txt3);margin:0 0 12px">Passo ${S.tourStep + 1} di ${n}</p>
+    <h2 style="font-size:${primo ? "26" : "22"}px;margin:0 0 ${primo ? "12" : "10"}px">${primo ? "" : ic + " "}${tit}</h2>
+    ${visual}
+    <p style="font-size:${primo ? "14.5" : "15"}px;line-height:1.65;color:var(--txt2);max-width:460px;margin:16px auto 0;text-align:${primo ? "left" : "center"}">${txt}</p>
+    ${comeHTML}
+    <div style="display:flex;gap:8px;justify-content:center;margin:20px 0 0">${punti}</div>
+    <div style="display:flex;gap:10px;max-width:420px;margin:16px auto 0;width:100%">
       ${S.tourStep > 0 ? `<button class="btn btn-2" onclick="tourIndietro()">‹ Indietro</button>` : ""}
       <button class="btn" onclick="tourAvanti()">${ultimo ? "Inizia! 🚀" : "Avanti ›"}</button>
     </div>
