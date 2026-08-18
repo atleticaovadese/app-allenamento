@@ -423,11 +423,13 @@ function vistaPistaLanci(s) {
       `<input class="tempo${best != null && v === best ? " bene" : ""}" inputmode="decimal" value="${v === null ? "" : v}" placeholder="m"
         onchange="segnaMisura('${s.id}','${e.id}',${i},this.value)">`).join("");
     const meta = [e.kg != null ? e.kg + " kg" : "", _lanciDeltaTxt(e), e.perc != null ? e.perc + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
+    const vid = (typeof esVideoDi === "function") ? esVideoDi(e.mezzo) : "";
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
         <h3 style="margin:0">${e.mezzo || "Lanci"}</h3>
         <span class="et" style="margin:0">${e.lanci ? e.lanci + " lanci" : ""}</span>
       </div>
+      ${vid ? `<button class="btn btn-2" style="width:auto;padding:6px 12px;margin:6px 0 2px" onclick="vediVideoMezzo('${String(e.mezzo).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">▶ Vedi il video</button>` : ""}
       ${meta ? `<p class="et" style="margin:4px 0 8px">${meta}</p>` : ""}
       ${e.contenuto ? `<p class="et" style="margin:0 0 8px">${e.contenuto}</p>` : ""}
       <p class="et" style="margin:0 0 6px">Segna le misure (m) che hai preso${best != null ? ` · <b style="color:var(--verde)">meglio ${best.toFixed(2)} m</b>` : ""}</p>
@@ -460,31 +462,131 @@ function registraLancio(atletaId, mezzo, kg, tipo, lanci, migliore) {
   if (typeof salvaCustom === "function") salvaCustom();
 }
 
-// ---------- pagina di riferimento: Esercizi speciali in pedana ----------
+// ---------- LIBRERIA Esercizi speciali (per disciplina, con video, espandibile) ----------
+// Categorie: lanci (seed USATF) + sprint/salti (vuote, da riempire nel tempo).
+const ES_SPEC_CAT = ["Peso", "Giavellotto", "Disco", "Martello", "Velocità", "Lungo", "Triplo", "Alto", "Asta", "Multilanci comuni"];
+const ES_SPEC_SEED = ["Peso", "Giavellotto", "Disco", "Martello", "Multilanci comuni"]; // categorie con contenuti di serie
+// mappa l'attrezzo di un esercizio built-in → categoria della libreria
+function _esCatDi(att) { const t = _lanciTag(att); return t === "COMUNI" ? "Multilanci comuni" : t.charAt(0) + t.slice(1).toLowerCase(); }
+function esBuiltinCat(cat) { return LANCI_ESERCIZI.filter(e => _esCatDi(e[0]) === cat); }
+function esCustomCat(cat) { return (DEMO.eserciziSpec || []).filter(x => x.cat === cat); }
+function _esKeyBuiltin(e) { return _lanciTag(e[0]) + " · " + e[1]; }   // = valore tendina Campo (i video si riflettono nella seduta)
+function esVideoDi(key) { return (DEMO.eserciziVideo || {})[key] || ""; }
+function setEsSpecCat(c) { S.esSpecCat = c; disegna(); window.scrollTo(0, 0); }
+// apre il video di un mezzo/esercizio (usato nella seduta dell'atleta)
+function vediVideoMezzo(mezzo) { const url = esVideoDi(mezzo); if (url && typeof apriVideo === "function") apriVideo(mezzo, url); }
+
+// scheda esercizio: dettagli + video embed + azioni (aggiungi/cambia video, elimina se è tuo)
+function apriEsScheda(kind, idx) {
+  const cat = S.esSpecCat || "Peso";
+  let nome, corpo, key, cid = null;
+  if (kind === "b") {
+    const e = esBuiltinCat(cat)[idx]; if (!e) return;
+    nome = e[1]; key = _esKeyBuiltin(e);
+    corpo = `<p class="et" style="margin:0"><b>Categoria:</b> ${e[2]}</p>
+      <p style="font-size:14px;margin:6px 0 0"><b>Scopo:</b> ${e[3]}</p>
+      <p style="font-size:13px;margin:6px 0 0;color:var(--txt2)">${e[4]}</p>
+      <p class="et" style="margin:6px 0 0">${e[5]} · <b>${e[6]}</b></p>`;
+  } else {
+    const x = esCustomCat(cat)[idx]; if (!x) return;
+    nome = x.nome; key = "custom:" + x.id; cid = x.id;
+    corpo = `<p style="font-size:14px;margin:0;white-space:pre-wrap">${(x.spiegazione || "").replace(/</g, "&lt;") || "<span class='et'>(nessuna spiegazione)</span>"}</p>`;
+  }
+  const url = esVideoDi(key), emb = (typeof ytEmbed === "function") ? ytEmbed(url) : "";
+  mostraFoglio(`
+    <div class="foglio-top"><h3>${nome}</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    ${corpo}
+    ${emb
+      ? `<div class="yt-wrap" style="margin-top:10px"><iframe src="${emb}" title="${nome}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>
+         <a class="et" style="display:block;text-align:center;margin-top:8px;color:var(--blu)" href="${url}" target="_blank" rel="noopener">apri su YouTube ↗</a>`
+      : `<p class="et" style="margin-top:10px">Nessun video ancora per questo esercizio.</p>`}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="apriVideoEs('${kind}',${idx})">${url ? "✏ Cambia video" : "＋ Aggiungi video"}</button>
+      ${cid ? `<button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="delEsercizioSpec('${cid}')">🗑 Elimina</button>` : ""}
+    </div>`);
+}
+// form: imposta/cambia l'URL del video di un esercizio
+function apriVideoEs(kind, idx) {
+  const cat = S.esSpecCat || "Peso";
+  let nome, key;
+  if (kind === "b") { const e = esBuiltinCat(cat)[idx]; if (!e) return; nome = e[1]; key = _esKeyBuiltin(e); }
+  else { const x = esCustomCat(cat)[idx]; if (!x) return; nome = x.nome; key = "custom:" + x.id; }
+  const url = esVideoDi(key);
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Video · ${nome}</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:8px">Incolla il link YouTube (video, youtu.be o shorts). Si vedrà qui e anche in allenamento quando l'esercizio è nel programma.</p>
+    <input id="es-vid-url" value="${(url || "").replace(/"/g, "&quot;")}" placeholder="https://youtu.be/..." style="margin-bottom:10px">
+    <button class="btn btn-1" onclick="salvaVideoEs('${key.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">Salva video</button>
+    ${url ? `<button class="btn btn-2" style="margin-top:8px" onclick="salvaVideoEs('${key.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}',true)">Rimuovi video</button>` : ""}`);
+}
+function salvaVideoEs(key, rimuovi) {
+  DEMO.eserciziVideo = DEMO.eserciziVideo || {};
+  const v = rimuovi ? "" : ((document.getElementById("es-vid-url") || {}).value || "").trim();
+  if (v) DEMO.eserciziVideo[key] = v; else delete DEMO.eserciziVideo[key];
+  // se è un esercizio tuo, tieni allineato anche il campo video del record
+  if (key.indexOf("custom:") === 0) { const id = key.slice(7); const x = (DEMO.eserciziSpec || []).find(e => e.id === id); if (x) x.video = v; }
+  if (typeof salvaCustom === "function") salvaCustom();
+  chiudiScheda(); disegna();
+}
+// aggiungi un esercizio alla categoria corrente
+function apriAggiungiEsercizio() {
+  const cat = S.esSpecCat || "Peso";
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Aggiungi esercizio · ${cat}</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <label class="lab">Nome esercizio</label>
+    <input id="es-new-nome" placeholder="es. Balzi tra ostacoli" style="margin:6px 0 10px">
+    <label class="lab">Spiegazione (come si esegue, scopo, quando)</label>
+    <textarea id="es-new-spieg" rows="4" placeholder="descrivi l'esercizio..." style="margin:6px 0 10px"></textarea>
+    <label class="lab">Video YouTube (facoltativo)</label>
+    <input id="es-new-video" placeholder="https://youtu.be/..." style="margin:6px 0 12px">
+    <button class="btn btn-1" onclick="salvaEsercizioSpec()">Salva esercizio</button>`);
+}
+function salvaEsercizioSpec() {
+  const nome = ((document.getElementById("es-new-nome") || {}).value || "").trim();
+  if (!nome) { alert("Metti il nome dell'esercizio."); return; }
+  const spieg = ((document.getElementById("es-new-spieg") || {}).value || "").trim();
+  const video = ((document.getElementById("es-new-video") || {}).value || "").trim();
+  DEMO.eserciziSpec = DEMO.eserciziSpec || [];
+  const id = "es" + Date.now();
+  DEMO.eserciziSpec.push({ id, cat: S.esSpecCat || "Peso", nome, spiegazione: spieg, video });
+  if (video) { DEMO.eserciziVideo = DEMO.eserciziVideo || {}; DEMO.eserciziVideo["custom:" + id] = video; }
+  if (typeof salvaCustom === "function") salvaCustom();
+  chiudiScheda(); disegna();
+}
+function delEsercizioSpec(id) {
+  DEMO.eserciziSpec = (DEMO.eserciziSpec || []).filter(x => x.id !== id);
+  if (DEMO.eserciziVideo) delete DEMO.eserciziVideo["custom:" + id];
+  if (typeof salvaCustom === "function") salvaCustom();
+  chiudiScheda(); disegna();
+}
+
 function vistaEserciziSpeciali() {
-  const spec = _lanciRefSpec(pistaDi("lanci"));
-  const attrezzi = [];
-  LANCI_ESERCIZI.forEach(e => { if (!attrezzi.includes(e[0])) attrezzi.push(e[0]); });
+  if (!S.esSpecCat || !ES_SPEC_CAT.includes(S.esSpecCat)) S.esSpecCat = "Peso";
+  const cat = S.esSpecCat;
   const catCol = c => c === "CE" ? "var(--rosso,#c00000)" : "var(--blu,#1f3864)";
-  const gruppi = attrezzi.map(att => {
-    const es = LANCI_ESERCIZI.filter(e => e[0] === att);
-    const righe = es.map(e => `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
-        <b style="font-size:13px">${e[1]}</b>
-        <span class="pill" style="background:${catCol(e[2])};color:#fff">${e[2]}</span></div>
-      <p class="et" style="margin:3px 0 0"><b>Scopo:</b> ${e[3]}</p>
-      <p style="margin:3px 0 0;font-size:12px;color:var(--txt2)">${e[4]}</p>
-      <p class="et" style="margin:3px 0 0">${e[5]} · <b>${e[6]}</b></p>
-    </div>`).join("");
-    return `<div class="card"><h3 style="margin-bottom:2px">${att}</h3>${righe}</div>`;
-  }).join("");
-  return `<div class="card"><h3>Esercizi speciali in pedana</h3>
-    <p class="et" style="margin-top:2px">Gli esercizi da fare IN PEDANA, attrezzo per attrezzo (progressione didattica USATF capp. 14-17 + Bondarchuk). Tutti sono nella tendina «Mezzo / contenuto» del <b>Campo</b>.</p>
-    <p class="et" style="margin-top:6px">${LANCI_CAT_LEGENDA}. <b>Regola del transfer:</b> più ti avvicini alla gara, più il volume si sposta da GPE/SPE verso SDE/CE.</p>
-    ${spec ? `<p class="et" style="margin-top:6px;color:var(--txt3)">Riferimento programma: ${spec}. In Campo la tendina mostra questo attrezzo + i comuni.</p>` : ""}</div>
-    ${gruppi}
-    <div class="card"><p class="et" style="margin:0"><b>Come si usa:</b> non passare al gesto completo finché i drill che lo compongono non sono puliti (regola esplicita del manuale USATF). Quando un lancio completo non funziona, torna al drill che isola la fase che non va. Per il <b>giavellotto</b>, palla medica/zavorrate/stubbies fanno volume senza caricare spalla e gomito.</p></div>
-    <div class="card"><p class="et" style="margin:0;color:var(--txt3)">${LANCI_ESERCIZI.length} esercizi speciali. Fonti: USA Track & Field Coaching Manual capp. 14-17; Bondarchuk; biomeccanica in RICERCA_Lanci_Evidenze.md.</p></div>`;
+  const builtin = esBuiltinCat(cat), custom = esCustomCat(cat);
+  const isSeed = ES_SPEC_SEED.includes(cat);
+  const selettore = `<div class="card">
+    <label class="lab">Disciplina / gruppo</label>
+    <select onchange="setEsSpecCat(this.value)" style="margin-top:6px">${ES_SPEC_CAT.map(c => `<option ${c === cat ? "selected" : ""}>${c}</option>`).join("")}</select>
+    <p class="et" style="margin-top:8px">${builtin.length + custom.length} esercizi in «${cat}»${isSeed ? " · progressione USATF + i tuoi" : " · aggiungi i tuoi per iniziare"}. Tocca per scheda e video.</p>
+  </div>`;
+  const rowBuiltin = (e, i) => { const hasV = !!esVideoDi(_esKeyBuiltin(e)); return `<div class="lib-row" onclick="apriEsScheda('b',${i})">
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${e[1]} <span class="pill" style="background:${catCol(e[2])};color:#fff;font-size:10px">${e[2]}</span></div>
+        <div class="et" style="margin-top:1px">${e[3]}</div></div>
+      ${hasV ? '<span class="vid-ic">▶</span>' : ""}<span class="freccia">›</span></div>`; };
+  const rowCustom = (x, i) => { const hasV = !!esVideoDi("custom:" + x.id); const s = (x.spiegazione || ""); return `<div class="lib-row" onclick="apriEsScheda('c',${i})">
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${x.nome} <span class="pill" style="background:var(--verde,#3a9);color:#fff;font-size:10px">tuo</span></div>
+        <div class="et" style="margin-top:1px">${s.slice(0, 60)}${s.length > 60 ? "…" : ""}</div></div>
+      ${hasV ? '<span class="vid-ic">▶</span>' : ""}<span class="freccia">›</span></div>`; };
+  const lista = (builtin.length || custom.length)
+    ? builtin.map(rowBuiltin).join("") + custom.map(rowCustom).join("")
+    : `<div class="card"><p class="et" style="margin:0">Ancora nessun esercizio in «${cat}». Aggiungine uno qui sotto: nel tempo costruisci la tua libreria.</p></div>`;
+  return `<div class="card"><h3>Esercizi speciali</h3>
+      <p class="et" style="margin-top:2px">Libreria di esercizi per disciplina, con video. Scegli la disciplina, apri scheda e video, e aggiungi i tuoi (con spiegazione e video): nel tempo diventa una libreria completa. Gli esercizi dei lanci sono anche nella tendina «Mezzo / contenuto» del <b>Campo</b>.</p></div>
+    ${selettore}
+    ${lista}
+    <button class="btn btn-1" style="margin-top:4px" onclick="apriAggiungiEsercizio()">＋ Aggiungi esercizio a «${cat}»</button>`;
 }
 
 // ============================================================================

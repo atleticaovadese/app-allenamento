@@ -24,6 +24,8 @@ function bundleCustom() {
     testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara,
     lattato: DEMO.lattato || {}, critSpeed: DEMO.critSpeed || {},
     lanci: DEMO.lanci || {}, lanciLog: DEMO.lanciLog || [],
+    profiloAttrezzo: DEMO.profiloAttrezzo || {}, velRilascio: DEMO.velRilascio || {},
+    eserciziSpec: DEMO.eserciziSpec || [], eserciziVideo: DEMO.eserciziVideo || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {}
   };
 }
@@ -44,6 +46,10 @@ function applicaBundle(c) {
   if (c.critSpeed) DEMO.critSpeed = c.critSpeed;
   if (c.lanci) DEMO.lanci = c.lanci;
   if (c.lanciLog) DEMO.lanciLog = c.lanciLog;
+  if (c.profiloAttrezzo) DEMO.profiloAttrezzo = c.profiloAttrezzo;
+  if (c.velRilascio) DEMO.velRilascio = c.velRilascio;
+  if (c.eserciziSpec) DEMO.eserciziSpec = c.eserciziSpec;
+  if (c.eserciziVideo) DEMO.eserciziVideo = c.eserciziVideo;
   if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
 }
