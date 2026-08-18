@@ -466,12 +466,37 @@ function registraLancio(atletaId, mezzo, kg, tipo, lanci, migliore) {
 // Categorie: lanci (seed USATF) + sprint/salti (vuote, da riempire nel tempo).
 const ES_SPEC_CAT = ["Peso", "Giavellotto", "Disco", "Martello", "Velocità", "Lungo", "Triplo", "Alto", "Asta", "Multilanci comuni"];
 const ES_SPEC_SEED = ["Peso", "Giavellotto", "Disco", "Martello", "Multilanci comuni"]; // categorie con contenuti di serie
+// Video di DEFAULT per i drill dei lanci — link YouTube REALI trovati per titolo (verificati esistenti, non inventati).
+// Chiave = valore della tendina Campo ("PESO · <nome>"). L'utente può sovrascriverli con ✏.
+const LANCI_VIDEO_DEFAULT = {
+  "PESO · Lancio da fermo con inversione (full-reverse)": "https://www.youtube.com/watch?v=OwsXF5fal5U",
+  "PESO · Lancio da fermo rotazionale (power position)": "https://www.youtube.com/watch?v=4NR2kDYc1OM",
+  "PESO · Traslazione continua (ritmo e velocità)": "https://www.youtube.com/shorts/rev-g39rEVc",
+  "DISCO · Standing throw (lancio da fermo)": "https://www.youtube.com/watch?v=NBxOuWSwNbA",
+  "DISCO · Lancio completo (full throw)": "https://www.youtube.com/watch?v=U4vNCW91eKU",
+  "MARTELLO · Mulinelli / winds (5×5)": "https://www.youtube.com/watch?v=cuAQtOPCaWA",
+  "MARTELLO · Lanci a 1 giro": "https://www.youtube.com/watch?v=z0eE2w4Qeoc",
+  "MARTELLO · Lancio completo (3-4 giri)": "https://www.youtube.com/watch?v=WlB0R0-RFvc",
+  "GIAVELLOTTO · Lancio da fermo con giavellotto": "https://www.youtube.com/watch?v=WZlCwlpWI04",
+  "GIAVELLOTTO · Lancio da fermo con palla medica (2 mani)": "https://www.youtube.com/watch?v=qO-secJ5Rnw",
+  "GIAVELLOTTO · Lanci a 3 passi": "https://www.youtube.com/watch?v=8IAxD0xCcOs",
+  "GIAVELLOTTO · Corsa con passi incrociati (con attrezzo)": "https://www.youtube.com/watch?v=ccZMIxzuKJ0",
+  "GIAVELLOTTO · Simulazione con elastico / cavo": "https://www.youtube.com/watch?v=_v0qNrD0cCo",
+  "GIAVELLOTTO · Lancio completo con rincorsa": "https://www.youtube.com/watch?v=bFus_PF1QFU",
+  "COMUNI · Lancio dietro sopra la testa (overhead backward)": "https://www.youtube.com/watch?v=6P9zvmA_fxo",
+  "COMUNI · Lancio laterale in rotazione (power position)": "https://www.youtube.com/watch?v=lMTOOyMdPYE"
+};
 // mappa l'attrezzo di un esercizio built-in → categoria della libreria
 function _esCatDi(att) { const t = _lanciTag(att); return t === "COMUNI" ? "Multilanci comuni" : t.charAt(0) + t.slice(1).toLowerCase(); }
 function esBuiltinCat(cat) { return LANCI_ESERCIZI.filter(e => _esCatDi(e[0]) === cat); }
 function esCustomCat(cat) { return (DEMO.eserciziSpec || []).filter(x => x.cat === cat); }
 function _esKeyBuiltin(e) { return _lanciTag(e[0]) + " · " + e[1]; }   // = valore tendina Campo (i video si riflettono nella seduta)
-function esVideoDi(key) { return (DEMO.eserciziVideo || {})[key] || ""; }
+// video di un esercizio: prima quello impostato dall'utente (anche "" = nascosto), poi il default reale
+function esVideoDi(key) {
+  const m = DEMO.eserciziVideo || {};
+  if (Object.prototype.hasOwnProperty.call(m, key)) return m[key] || "";
+  return LANCI_VIDEO_DEFAULT[key] || "";
+}
 function setEsSpecCat(c) { S.esSpecCat = c; disegna(); window.scrollTo(0, 0); }
 // apre il video di un mezzo/esercizio (usato nella seduta dell'atleta)
 function vediVideoMezzo(mezzo) { const url = esVideoDi(mezzo); if (url && typeof apriVideo === "function") apriVideo(mezzo, url); }
@@ -493,6 +518,8 @@ function apriEsScheda(kind, idx) {
     corpo = `<p style="font-size:14px;margin:0;white-space:pre-wrap">${(x.spiegazione || "").replace(/</g, "&lt;") || "<span class='et'>(nessuna spiegazione)</span>"}</p>`;
   }
   const url = esVideoDi(key), emb = (typeof ytEmbed === "function") ? ytEmbed(url) : "";
+  const implEng = { Peso: "shot put", Giavellotto: "javelin throw", Disco: "discus throw", Martello: "hammer throw", "Multilanci comuni": "medicine ball throw" }[cat] || cat;
+  const searchUrl = "https://www.youtube.com/results?search_query=" + encodeURIComponent(implEng + " " + nome + " drill");
   mostraFoglio(`
     <div class="foglio-top"><h3>${nome}</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     ${corpo}
@@ -502,6 +529,7 @@ function apriEsScheda(kind, idx) {
       : `<p class="et" style="margin-top:10px">Nessun video ancora per questo esercizio.</p>`}
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="apriVideoEs('${kind}',${idx})">${url ? "✏ Cambia video" : "＋ Aggiungi video"}</button>
+      <a class="btn btn-2" style="width:auto;padding:8px 14px;text-decoration:none;text-align:center" href="${searchUrl}" target="_blank" rel="noopener">🔎 Cerca su YouTube</a>
       ${cid ? `<button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="delEsercizioSpec('${cid}')">🗑 Elimina</button>` : ""}
     </div>`);
 }
@@ -522,7 +550,7 @@ function apriVideoEs(kind, idx) {
 function salvaVideoEs(key, rimuovi) {
   DEMO.eserciziVideo = DEMO.eserciziVideo || {};
   const v = rimuovi ? "" : ((document.getElementById("es-vid-url") || {}).value || "").trim();
-  if (v) DEMO.eserciziVideo[key] = v; else delete DEMO.eserciziVideo[key];
+  DEMO.eserciziVideo[key] = v;   // "" nasconde anche l'eventuale video di default
   // se è un esercizio tuo, tieni allineato anche il campo video del record
   if (key.indexOf("custom:") === 0) { const id = key.slice(7); const x = (DEMO.eserciziSpec || []).find(e => e.id === id); if (x) x.video = v; }
   if (typeof salvaCustom === "function") salvaCustom();

@@ -34,7 +34,7 @@ const MENU_COACH = [
     ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"], ["guida-test", "Guida test mezzofondo"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
     ["screening", "Screening"], ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
-  { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"], ["esercizi-speciali", "Esercizi speciali (lanci)"]] },
+  { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"], ["esercizi-speciali", "Esercizi speciali"]] },
   { k: "gare", ic: "★", l: "Gare" },
   { k: "report", ic: "✉", l: "Report settimanale" },
   { k: "dati", ic: "⇅", l: "Import / Export" },
