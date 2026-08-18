@@ -156,7 +156,10 @@ function fmtMisura(disc, val) {
 function pbSuff(disc) { return disc === "lanci" ? " m" : ((disc === "mezzofondo" || disc === "fondo") ? "" : " s"); }
 
 const ESERCIZI_MASSIMALI = ["Squat", "1/2 Squat", "Panca piana", "Stacco", "Trap Bar", "Strappo (snatch)", "Girata (clean)", "Hip thrust", "Pressa"];
-const TEST_SALTI = [["CMJ", "cm"], ["SJ", "cm"], ["Drop jump", "cm"], ["RSI", "index"], ["Broad jump", "cm"], ["Sprint 30 m volante", "s"]];
+const TEST_SALTI = [["CMJ", "cm"], ["SJ", "cm"], ["Drop jump", "cm"], ["RSI", "index"], ["Broad jump", "cm"], ["Sprint 30 m volante", "s"],
+  ["Pistol squat dx", "0-3"], ["Pistol squat sx", "0-3"],
+  ["Rotazione interna anca dx", "°"], ["Rotazione interna anca sx", "°"],
+  ["Rotazione esterna anca dx", "°"], ["Rotazione esterna anca sx", "°"]];
 
 // Menù a tendina con le voci + "Altro…" (che apre un campo libero).
 // voci = array piatto, oppure array di gruppi [ ["Etichetta", [voci...]], ... ] per gli optgroup.

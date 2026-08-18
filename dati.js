@@ -26,6 +26,7 @@ function bundleCustom() {
     lanci: DEMO.lanci || {}, lanciLog: DEMO.lanciLog || [],
     profiloAttrezzo: DEMO.profiloAttrezzo || {}, velRilascio: DEMO.velRilascio || {},
     eserciziSpec: DEMO.eserciziSpec || [], eserciziVideo: DEMO.eserciziVideo || {},
+    notifVisti: DEMO.notifVisti || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {}
   };
 }
@@ -50,6 +51,7 @@ function applicaBundle(c) {
   if (c.velRilascio) DEMO.velRilascio = c.velRilascio;
   if (c.eserciziSpec) DEMO.eserciziSpec = c.eserciziSpec;
   if (c.eserciziVideo) DEMO.eserciziVideo = c.eserciziVideo;
+  if (c.notifVisti) DEMO.notifVisti = c.notifVisti;
   if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
 }

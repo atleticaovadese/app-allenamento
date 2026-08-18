@@ -212,56 +212,71 @@ function _notifPront(v) {
   const p = [v.sonno_qualita, v.stress, v.dolori, v.energia].map(Number).filter(x => !isNaN(x));
   return p.length ? p.reduce((s, x) => s + x, 0) / p.length : null;
 }
-function notificheCoach() {
+// chiave stabile di una notifica: cambia se la situazione cambia (→ ricompare)
+function _notifKey(atletaId, tipo, sig) { return atletaId + "|" + tipo + "|" + sig; }
+function notificheCoach(includiVisti) {
   const out = [], oggiN = new Date();
   const gg = iso => iso ? Math.round((oggiN - new Date(iso + "T00:00:00")) / 86400000) : 999;
   const sog = (typeof CONFIG !== "undefined" && CONFIG.soglie) ? CONFIG.soglie : { prontezzaBassa: 2.5, acwrAlto: 1.5 };
+  const add = (a, tipo, lv, data, testo, sig) => out.push({ atletaId: a.id, nome: a.nome, tipo, lv, data, testo, key: _notifKey(a.id, tipo, sig) });
   (DEMO.atleti || []).forEach(a => {
-    const nome = a.nome;
-    // infortuni/fastidi aperti
+    // infortuni/fastidi aperti (sig = id infortunio)
     (DEMO.infortuni || []).filter(i => i.atleta === a.id && (i.stato || "") !== "Risolto").forEach(i => {
-      out.push({ atletaId: a.id, nome, tipo: "infortunio", lv: "r", data: i.dataInizio || i.dal || "", testo: `Infortunio/fastidio: ${i.zona || "?"}${i.lato ? " " + i.lato : ""}${i.tipo ? " · " + i.tipo : ""} — stato ${i.stato || "attivo"}` });
+      add(a, "infortunio", "r", i.dataInizio || i.dal || "", `Infortunio/fastidio: ${i.zona || "?"}${i.lato ? " " + i.lato : ""}${i.tipo ? " · " + i.tipo : ""} — stato ${i.stato || "attivo"}`, i.id + "|" + (i.stato || ""));
     });
-    // fastidio recente segnalato nel diario (ultimi 14 gg)
+    // fastidio recente nel diario (sig = data → un nuovo fastidio ricompare)
     const storia = ((DEMO.diariStorico || {})[a.id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
     const fx = storia.find(v => v.fastidi && gg(v.data) <= 14);
-    if (fx) out.push({ atletaId: a.id, nome, tipo: "fastidio", lv: "y", data: fx.data, testo: `Fastidio segnalato nel diario${fx.doveFastidi ? ": " + fx.doveFastidi : ""}` });
-    // warning già calcolati sul cruscotto (ACWR, prontezza, asimmetria, sedute saltate…)
+    if (fx) add(a, "fastidio", "y", fx.data, `Fastidio segnalato nel diario${fx.doveFastidi ? ": " + fx.doveFastidi : ""}`, fx.data);
+    // warning già calcolati (sig = testo → cambia se il warning cambia)
     const m = (DEMO.mon || {})[a.id] || {};
     const haAlert = m.alert && m.alert.length;
-    (m.alert || []).forEach(([lv, t]) => { if (lv === "r" || lv === "w") out.push({ atletaId: a.id, nome, tipo: "monitor", lv: _NOTIF_LV[lv] || "y", data: "", testo: t }); });
-    // per gli atleti senza warning pre-calcolati: calo di condizione dai diari + ACWR se disponibile
+    (m.alert || []).forEach(([lv, t]) => { if (lv === "r" || lv === "w") add(a, "monitor", _NOTIF_LV[lv] || "y", "", t, t); });
+    // atleti senza warning pre-calcolati: calo condizione + ACWR (sig = valore → ricompare se peggiora)
     if (!haAlert) {
       if (storia.length) {
         const p = _notifPront(storia[0]);
-        if (p != null && p < sog.prontezzaBassa) out.push({ atletaId: a.id, nome, tipo: "prontezza", lv: "y", data: storia[0].data, testo: `Prontezza bassa: ${p.toFixed(1)}/5` });
-        else if (p != null) { const prev = storia.slice(1, 6).map(_notifPront).filter(x => x != null); if (prev.length >= 3) { const med = prev.reduce((s, x) => s + x, 0) / prev.length; if (med - p >= 1.0) out.push({ atletaId: a.id, nome, tipo: "prontezza", lv: "y", data: storia[0].data, testo: `Calo di condizione: prontezza ${p.toFixed(1)} (media recente ${med.toFixed(1)})` }); } }
+        if (p != null && p < sog.prontezzaBassa) add(a, "prontezza", "y", storia[0].data, `Prontezza bassa: ${p.toFixed(1)}/5`, p.toFixed(1));
+        else if (p != null) { const prev = storia.slice(1, 6).map(_notifPront).filter(x => x != null); if (prev.length >= 3) { const med = prev.reduce((s, x) => s + x, 0) / prev.length; if (med - p >= 1.0) add(a, "prontezza", "y", storia[0].data, `Calo di condizione: prontezza ${p.toFixed(1)} (media recente ${med.toFixed(1)})`, p.toFixed(1)); } }
       }
       const ac = parseFloat(String(m.acwr).replace(",", "."));
       if (!isNaN(ac)) {
-        if (ac > sog.acwrAlto) out.push({ atletaId: a.id, nome, tipo: "acwr", lv: "r", data: "", testo: `ACWR alto ${ac.toFixed(2)}: picco di carico (rischio)` });
-        else if (ac < 0.8) out.push({ atletaId: a.id, nome, tipo: "acwr", lv: "y", data: "", testo: `ACWR basso ${ac.toFixed(2)}: carico giù / calo di condizione` });
+        if (ac > sog.acwrAlto) add(a, "acwr", "r", "", `ACWR alto ${ac.toFixed(2)}: picco di carico (rischio)`, "alto" + ac.toFixed(2));
+        else if (ac < 0.8) add(a, "acwr", "y", "", `ACWR basso ${ac.toFixed(2)}: carico giù / calo di condizione`, "basso" + ac.toFixed(2));
       }
     }
   });
+  const visti = DEMO.notifVisti || {};
+  const lista = includiVisti ? out : out.filter(x => !visti[x.key]);
   const rank = { r: 0, y: 1, v: 2 };
-  return out.sort((x, y) => (rank[x.lv] - rank[y.lv]) || (x.data < y.data ? 1 : -1));
+  return lista.sort((x, y) => (rank[x.lv] - rank[y.lv]) || (x.data < y.data ? 1 : -1));
 }
+// "✓ visto": nasconde la notifica finché la situazione resta identica (la sig non cambia)
+function segnaNotifVista(key) { DEMO.notifVisti = DEMO.notifVisti || {}; DEMO.notifVisti[key] = 1; if (typeof salvaCustom === "function") salvaCustom(); disegna(); }
+function riattivaNotifiche() { DEMO.notifVisti = {}; if (typeof salvaCustom === "function") salvaCustom(); disegna(); }
+function _notifNascoste() { return notificheCoach(true).filter(x => (DEMO.notifVisti || {})[x.key]).length; }
 function vistaNotifiche() {
   const list = notificheCoach();
   const crit = list.filter(x => x.lv === "r").length, warn = list.filter(x => x.lv === "y").length;
   const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️" })[t] || "•";
   const col = lv => lv === "r" ? "#c0392b" : lv === "y" ? "#d99000" : "#3a9a5a";
+  const nascoste = (typeof _notifNascoste === "function") ? _notifNascoste() : 0;
   const intro = `<div class="card"><h3>🔔 Notifiche</h3>
     <p class="et" style="margin-top:2px">Avvisi automatici sui tuoi atleti: <b>infortuni/fastidi</b> segnalati, <b>cali di condizione</b> e <b>ACWR</b> fuori range. Un doppio controllo oltre ai cruscotti.</p>
-    <p class="et" style="margin-top:8px">${list.length ? `<b style="color:${crit ? "#c0392b" : "var(--txt)"}">${list.length}</b> avvisi · ${crit} critici · ${warn} da tenere d'occhio` : "✓ Tutto tranquillo: nessun avviso al momento."}</p></div>`;
+    <p class="et" style="margin-top:8px">${list.length ? `<b style="color:${crit ? "#c0392b" : "var(--txt)"}">${list.length}</b> avvisi · ${crit} critici · ${warn} da tenere d'occhio` : "✓ Tutto tranquillo: nessun avviso al momento."}</p>
+    <p class="et" style="margin-top:6px;color:var(--txt3)">Un avviso sparisce da solo quando la causa rientra (infortunio risolto, prontezza/ACWR di nuovo a posto). Con <b>✓ Visto</b> lo nascondi tu: torna solo se la situazione <b>peggiora o cambia</b>.</p>
+    ${nascoste ? `<button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="riattivaNotifiche()">↺ Rivedi i ${nascoste} avvisi nascosti</button>` : ""}</div>`;
   if (!list.length) return intro;
-  const rows = list.map(x => `<div class="card" style="border-left:4px solid ${col(x.lv)};cursor:pointer" onclick="apriAtleta('${x.atletaId}')">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+  const esc = s => String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const rows = list.map(x => `<div class="card" style="border-left:4px solid ${col(x.lv)}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;cursor:pointer" onclick="apriAtleta('${x.atletaId}')">
         <b style="font-size:14px">${ico(x.tipo)} ${x.nome}</b>
         <span class="et" style="margin:0">${x.data ? (typeof fmtDataAnno === "function" ? fmtDataAnno(x.data) : x.data) : ""}</span></div>
       <p class="et" style="margin:4px 0 0;color:var(--txt2)">${x.testo}</p>
-      <p class="et" style="margin:6px 0 0;color:var(--txt3)">tocca per aprire l'atleta ›</p>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px" onclick="apriAtleta('${x.atletaId}')">apri atleta ›</button>
+        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px" onclick="segnaNotifVista('${esc(x.key)}')">✓ Visto</button>
+      </div>
     </div>`).join("");
   return intro + rows;
 }
