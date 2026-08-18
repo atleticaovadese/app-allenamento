@@ -40,6 +40,57 @@ function _rClsAcwr(v) { v = parseFloat(v); return isNaN(v) ? "" : (v >= 0.8 && v
 function _rClsAder(v) { return v >= 85 ? "g" : v >= 70 ? "y" : "r"; }
 function _rDataL(v) { return typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v; }
 
+// un evento è un salto (misura in metri) anche se l'atleta è "velocità"
+function _rEvSalto(ev) { return (typeof EV_SALTI !== "undefined" && EV_SALTI.includes(ev)) || /salto|lungo|triplo|asta/i.test(ev || ""); }
+// formato risultato per disciplina: velocità "10.96s" / oltre il minuto 1'00"00 · mezzo/fondo min o ore:min:sec.cent · lanci/salti metri
+function _rFmtMis(disc, raw, evento) {
+  if (raw == null || raw === "") return "";
+  const metri = disc === "lanci" || _rEvSalto(evento);
+  const n = (typeof parseMisura === "function") ? parseMisura(metri ? "lanci" : disc, raw) : parseFloat(String(raw).replace(",", "."));
+  if (n == null || isNaN(n)) return String(raw);
+  if (metri) return n.toFixed(2) + " m";
+  if (disc === "mezzofondo" || disc === "fondo") {
+    const h = Math.floor(n / 3600), rem = n - h * 3600, mm = Math.floor(rem / 60), ss = rem - mm * 60;
+    const sw = Math.floor(ss + 1e-6), cc = Math.round((ss - sw) * 100);
+    const cs = cc > 0 ? "." + String(cc).padStart(2, "0") : "";
+    return (h > 0 ? h + ":" + String(mm).padStart(2, "0") : String(mm)) + ":" + String(sw).padStart(2, "0") + cs;
+  }
+  // velocità (e default): secondi sotto il minuto, M'SS"cc oltre (es. 400 m)
+  if (n < 60) return (Math.round(n * 100) / 100).toFixed(2) + "s";
+  const mm = Math.floor(n / 60), ss = n - mm * 60, sw = Math.floor(ss + 1e-6), sc = Math.round((ss - sw) * 100);
+  return mm + "'" + String(sw).padStart(2, "0") + "\"" + String(sc).padStart(2, "0");
+}
+
+// programma per mesociclo (Pista/Campo + Palestra del gruppo dell'atleta): settimana-tipo per giorno
+function _rProgrammaMesocicli(a) {
+  const g = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  const pista = (typeof pistaDi === "function") ? pistaDi(g) : (DEMO.pista || null);
+  const pal = (typeof palDi === "function") ? palDi(g) : (DEMO.palestra || null);
+  const rigaPista = r => {
+    if (g === "lanci") return `${r.mezzo || r.contenuto || ""}${r.kg ? " " + r.kg + "kg" : ""}${r.n ? " ×" + r.n : ""}${r.tipo ? " (" + r.tipo + ")" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
+    if (g === "mezzo") return `${r.mezzo || r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.min ? " " + r.min + "′" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
+    return `${r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
+  };
+  const rigaPal = r => `${r.esercizio || ""}${(r.serie && r.rep) ? " " + r.serie + "×" + r.rep : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
+  const sezione = (titolo, prog, rigaFn, colLavoro) => {
+    if (!prog || !prog.mesocicli || !prog.mesocicli.length) return "";
+    let s = "";
+    prog.mesocicli.forEach((m, mi) => {
+      const testa = ["Mesociclo " + (mi + 1), m.blocco || m.ciclo || "", m.inizio ? "dal " + _rDataL(m.inizio) : "", m.focus ? "focus: " + m.focus : ""].filter(Boolean).join(" · ");
+      const giorni = (m.giorni || []).map((gi, idx) => {
+        const sett = (gi.settimane && gi.settimane[0]) || {};
+        const righe = (sett.righe || []).map(rigaFn).filter(t => t);
+        return righe.length ? `<tr><td>Giorno ${idx + 1}${gi.giornoSett ? " (" + gi.giornoSett + ")" : ""}</td><td>${righe.join(" · ")}</td></tr>` : "";
+      }).filter(Boolean).join("");
+      if (giorni) s += `<p class="sub" style="margin-top:10px"><b>${testa}</b></p><table><tr><th>Giorno</th><th>${colLavoro} (settimana tipo)</th></tr>${giorni}</table>`;
+    });
+    return s ? `<h2>${titolo}</h2>${s}` : "";
+  };
+  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto" : "Lavoro")
+    + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi");
+  return html || `<h2>Programma</h2><p class="muted">Nessun programma impostato per questo gruppo.</p>`;
+}
+
 // mini grafico a barre SVG (prontezza ultimi giorni)
 function _svgBars(punti) {
   if (!punti.length) return "";
@@ -85,12 +136,14 @@ function _reportBodyHTML(id) {
   // --- PB (gara + allenamento) ---
   const pb = (a.scheda && a.scheda.pb) || [];
   const rankd = t => (typeof rankDist === "function" ? rankDist(t) : 0);
-  const pbRow = p => `<tr><td>${p[0]}</td><td><b>${p[1]}</b></td><td>${p[2] || ""}</td></tr>`;
+  const colProva = a.disciplina === "lanci" ? "Attrezzo" : (a.disciplina === "mezzofondo" || a.disciplina === "fondo") ? "Distanza" : "Prova";
+  const colRis = a.disciplina === "lanci" ? "Misura" : "Tempo";
+  const pbRow = p => `<tr><td>${p[0]}</td><td><b>${_rFmtMis(a.disciplina, p[1], p[0])}</b></td><td>${p[2] || ""}</td></tr>`;
   const gara = pb.filter(p => (p[7] || "gara") === "gara").sort((x, y) => rankd(x[0]) - rankd(y[0]));
   const allen = pb.filter(p => p[7] === "allenamento").sort((x, y) => rankd(x[0]) - rankd(y[0]));
   h += `<h2>Personali (PB)</h2><div class="two">
-    <div><p class="sub"><b>🏆 In gara</b></p>${gara.length ? `<table><tr><th>Distanza</th><th>Tempo</th><th>Data</th></tr>${gara.map(pbRow).join("")}</table>` : `<p class="muted">Nessun PB in gara.</p>`}</div>
-    <div><p class="sub"><b>🏋 In allenamento</b></p>${allen.length ? `<table><tr><th>Distanza</th><th>Tempo</th><th>Data</th></tr>${allen.map(pbRow).join("")}</table>` : `<p class="muted">Nessun PB in allenamento.</p>`}</div>
+    <div><p class="sub"><b>🏆 In gara</b></p>${gara.length ? `<table><tr><th>${colProva}</th><th>${colRis}</th><th>Data</th></tr>${gara.map(pbRow).join("")}</table>` : `<p class="muted">Nessun PB in gara.</p>`}</div>
+    <div><p class="sub"><b>🏋 In allenamento</b></p>${allen.length ? `<table><tr><th>${colProva}</th><th>${colRis}</th><th>Data</th></tr>${allen.map(pbRow).join("")}</table>` : `<p class="muted">Nessun PB in allenamento.</p>`}</div>
   </div>`;
 
   // --- massimali + test/salti ---
@@ -122,17 +175,27 @@ function _reportBodyHTML(id) {
   if (inf.length) h += `<p class="sub" style="margin-top:8px"><b class="r">Infortuni/fastidi in corso</b></p><table><tr><th>Zona</th><th>Tipo</th><th>Stato</th><th>Dal</th></tr>${inf.map(i => `<tr><td>${i.zona}${i.lato ? " " + i.lato : ""}</td><td>${i.tipo || ""}</td><td>${i.stato || "Attivo"}</td><td>${_rDataL(i.dataInizio || i.dal || "")}</td></tr>`).join("")}</table>`;
 
   // --- allenamenti svolti ---
-  const svolte = ((DEMO.seduteSvolte || {})[id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1).slice(0, 12);
-  h += `<h2>Allenamenti svolti (recenti)</h2>`;
+  const tutteSvolte = ((DEMO.seduteSvolte || {})[id] || []);
+  const nSvolte = tutteSvolte.length, nPista = tutteSvolte.filter(s => s.tipo === "pista").length;
+  const svolte = tutteSvolte.slice().sort((x, y) => x.data < y.data ? 1 : -1).slice(0, 12);
+  h += `<h2>Allenamenti svolti (${nSvolte})</h2>`;
+  if (nSvolte) h += `<p class="sub">${nPista} in pista/campo · ${nSvolte - nPista} in palestra${nSvolte > 12 ? " · sotto gli ultimi 12" : ""}</p>`;
   if (svolte.length) {
     h += `<table><tr><th>Data</th><th>Tipo</th><th>Durata · RPE</th><th>Contenuto svolto</th></tr>${svolte.map(sv => {
       const d = sv.dati || {};
       const cont = sv.tipo === "pista"
-        ? (d.elementi || []).map(e => { const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(t => Number(t).toFixed(2)).join(", ") + ")" : ""}`; }).join(" · ")
+        ? (d.elementi || []).map(e => {
+            if (e.misure) { const f = (e.misure || []).filter(v => v != null); return `${e.mezzo || "lanci"}${e.lanci ? " " + e.lanci + " lanci" : ""}${f.length ? " (best " + Math.max(...f).toFixed(2) + "m)" : ""}`; }
+            if (e.min != null) return `${e.mezzo || "continuo"} ${e.min}′`;
+            const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(t => Number(t).toFixed(2)).join(", ") + ")" : ""}`;
+          }).join(" · ")
         : (d.esercizi || []).map(x => { const f = (x.vbt || []).filter(v => v != null); const vm = f.length ? (f.reduce((s, v) => s + v, 0) / f.length).toFixed(2) : null; return `${x.nome} ${x.serie || "?"}×${x.rep || "?"}${x.peso ? "@" + x.peso + "kg" : ""}${vm ? " VBT " + vm : ""}`; }).join(" · ");
       return `<tr><td>${_rDataL(sv.data)}</td><td>${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.fastidi ? ' <span class="r">⚠</span>' : ""}</td><td>${sv.durata_min ? sv.durata_min + "′" : "—"}${sv.rpe ? " · RPE " + sv.rpe : ""}</td><td>${cont || "—"}</td></tr>`;
     }).join("")}</table>`;
   } else h += `<p class="muted">Nessun allenamento chiuso ancora dall'atleta.</p>`;
+
+  // --- programma per mesociclo (parte da una nuova pagina) ---
+  h += `<div style="page-break-before:always"></div>${_rProgrammaMesocicli(a)}`;
 
   h += `<div class="foot">Metis Performance · «Chi non pianifica è destinato a fallire.»</div>`;
   return h;
