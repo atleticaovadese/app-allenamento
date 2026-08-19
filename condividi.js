@@ -3,7 +3,7 @@
 // ridimensionata sul telefono ed embeddata come data-URI. Per condividere: SVG → canvas → immagine
 // → navigator.share (share sheet nativo) con fallback "scarica/tieni premuto per salvare".
 
-function apriCondividi(sid) { S.share = { sid, foto: null, eser: null }; disegna(); window.scrollTo(0, 0); }
+function apriCondividi(sid) { S.share = { sid, foto: null, eser: null, el: null }; disegna(); window.scrollTo(0, 0); }
 function chiudiCondividi() { S.share = null; disegna(); window.scrollTo(0, 0); }
 
 function _shareEsc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -48,23 +48,52 @@ function _shareStats(s, a) {
   if (s.lanci) {
     let best = null, n = 0, attrezzo = "";
     el.forEach(e => { (e.misure || []).forEach(m => { if (m != null) { n++; if (best == null || m > best) best = m; } }); if (e.mezzo) attrezzo = e.mezzo + (e.kg ? " " + e.kg + "kg" : ""); });
-    return { chip: "LANCI", heroLabel: "MIGLIOR LANCIO", heroVal: best != null ? best.toFixed(2) : "—", heroUnit: best != null ? " m" : "", stats: [n ? { v: String(n), l: "lanci" } : null, attrezzo ? { v: _shareEsc(attrezzo), l: "attrezzo" } : null, rpe].filter(Boolean) };
+    return { chip: "THROW", heroLabel: "MIGLIOR LANCIO", heroVal: best != null ? best.toFixed(2) : "—", heroUnit: best != null ? " m" : "", stats: [n ? { v: String(n), l: "lanci" } : null, attrezzo ? { v: _shareEsc(attrezzo), l: "attrezzo" } : null, rpe].filter(Boolean) };
   }
+  const chip = g === "mezzo" ? "RUNNING" : "SPRINT";
+  // elementi selezionabili (rip×dist con tempi, o continuo a minuti) — l'atleta sceglie cosa mettere in evidenza
+  const items = [];
+  el.forEach((e, i) => {
+    if (e.distanza && e.ripetute) items.push({ i, e, label: e.ripetute + "×" + e.distanza + "m" });
+    else if (e.min) items.push({ i, e, label: (e.mezzo || "continuo") + " " + e.min + "′" });
+  });
+  const elList = [{ v: "tot", l: "Tutta la seduta" }].concat(items.map(it => ({ v: String(it.i), l: it.label })));
+  const primoTimed = items.find(it => (it.e.tempi || []).some(t => t != null));
+  const def = primoTimed ? String(primoTimed.i) : "tot"; // default: il 1° set con tempi
+  const elSel = (S.share.el != null && (S.share.el === "tot" || items.some(it => String(it.i) === String(S.share.el)))) ? String(S.share.el) : def;
+
+  if (elSel !== "tot") {
+    const it = items.find(x => String(x.i) === String(elSel));
+    if (it) {
+      const e = it.e, times = (e.tempi || []).filter(t => t != null).map(Number), vol = e.ripetute * e.distanza;
+      if (times.length) {
+        const avg = times.reduce((x, y) => x + y, 0) / times.length, bt = Math.min(...times);
+        const heroVal = _shareFmtSec(avg).replace("s", ""), heroUnit = avg < 60 ? "s" : "";
+        const repsLbl = e.ripetute + " × " + e.distanza + " M";
+        if (g === "mezzo") {
+          const pace = e.distanza ? _shareFmtPace(avg / e.distanza * 1000) : null;
+          const avgR = Math.round(avg); // per la corsa: tempo medio al secondo (senza centesimi)
+          return { chip, heroLabel: repsLbl, heroVal: _shareFmtSec(avgR).replace("s", ""), heroUnit: avgR < 60 ? "s" : "", stats: [pace ? { v: pace, l: "passo /km" } : null, { v: vol >= 1000 ? (vol / 1000).toFixed(1) + " km" : vol + " m", l: "volume" }, rpe].filter(Boolean), elList, elSel };
+        }
+        return { chip, heroLabel: repsLbl, heroVal, heroUnit, stats: [{ v: _shareFmtSec(bt), l: "miglior tempo" }, { v: vol + " m", l: "volume" }, rpe].filter(Boolean), elList, elSel };
+      }
+      if (e.min) return { chip, heroLabel: _shareEsc(e.mezzo || "CONTINUO").toUpperCase(), heroVal: String(e.min), heroUnit: "′", stats: [dur, rpe].filter(Boolean), elList, elSel };
+    }
+  }
+  // "Tutta la seduta" (riepilogo)
   let metri = 0, prove = 0, tempi = [], distTimed = 0, timeSum = 0, minuti = 0;
   el.forEach(e => {
     if (e.distanza && e.ripetute) { metri += e.ripetute * e.distanza; prove += e.ripetute; }
     if (e.min) minuti += Number(e.min) || 0;
     (e.tempi || []).forEach(t => { if (t != null) { tempi.push(Number(t)); if (e.distanza) { distTimed += e.distanza; timeSum += Number(t); } } });
   });
-  const best = tempi.length ? Math.min(...tempi) : null;
+  const bestAll = tempi.length ? Math.min(...tempi) : null;
   if (g === "mezzo") {
-    const km = metri / 1000;
-    const pace = distTimed > 0 ? _shareFmtPace(timeSum / distTimed * 1000) : null;
-    const heroBig = km >= 1 ? { v: km.toFixed(1), u: " km", l: "DISTANZA" } : minuti ? { v: String(minuti), u: "′", l: "CORSA" } : { v: String(Math.round(metri)), u: " m", l: "LAVORO" };
-    return { chip: "MEZZOFONDO", heroLabel: heroBig.l, heroVal: heroBig.v, heroUnit: heroBig.u, stats: [pace ? { v: pace, l: "passo /km" } : null, dur, rpe].filter(Boolean) };
+    const km = metri / 1000, pace = distTimed > 0 ? _shareFmtPace(timeSum / distTimed * 1000) : null;
+    const hb = km >= 1 ? { v: km.toFixed(1), u: " km", l: "DISTANZA" } : minuti ? { v: String(minuti), u: "′", l: "CORSA" } : { v: String(Math.round(metri)), u: " m", l: "LAVORO" };
+    return { chip, heroLabel: hb.l, heroVal: hb.v, heroUnit: hb.u, stats: [pace ? { v: pace, l: "passo /km" } : null, dur, rpe].filter(Boolean), elList, elSel };
   }
-  // velocità / salti
-  return { chip: "VELOCITÀ", heroLabel: "VOLUME", heroVal: String(Math.round(metri)), heroUnit: " m", stats: [prove ? { v: String(prove), l: "prove" } : null, best != null ? { v: _shareFmtSec(best), l: "miglior tempo" } : null, rpe].filter(Boolean) };
+  return { chip, heroLabel: "VOLUME", heroVal: String(Math.round(metri)), heroUnit: " m", stats: [prove ? { v: String(prove), l: "prove" } : null, bestAll != null ? { v: _shareFmtSec(bestAll), l: "miglior tempo" } : null, rpe].filter(Boolean), elList, elSel };
 }
 
 // card come SVG 1080×1920 (story). L'anteprima a schermo È lo stesso SVG → WYSIWYG.
@@ -132,6 +161,7 @@ function caricaFotoSeduta(input) {
 }
 function rimuoviFotoSeduta() { if (S.share) S.share.foto = null; disegna(); }
 function setShareEser(nome) { if (S.share) S.share.eser = nome; disegna(); }
+function setShareEl(v) { if (S.share) S.share.el = v; disegna(); }
 
 // SVG → canvas → immagine → share sheet nativo (o fallback salva/scarica)
 function condividiCard() {
@@ -175,6 +205,9 @@ function vistaCondividi() {
   const esBlocco = (s.tipo === "palestra" && st.eserList && st.eserList.length > 1)
     ? `<div class="card"><label class="lab">Esercizio in evidenza</label>
         <select onchange="setShareEser(this.value)" style="margin-top:6px">${st.eserList.map(n => `<option ${n === st.eserSel ? "selected" : ""}>${_shareEsc(n)}</option>`).join("")}</select></div>`
+    : (st.elList && st.elList.length > 1)
+    ? `<div class="card"><label class="lab">Cosa mettere in evidenza</label>
+        <select onchange="setShareEl(this.value)" style="margin-top:6px">${st.elList.map(o => `<option value="${o.v}" ${o.v === st.elSel ? "selected" : ""}>${_shareEsc(o.l)}</option>`).join("")}</select></div>`
     : "";
   return `<button class="indietro" onclick="chiudiCondividi()">‹ Indietro</button>
     <div class="card"><h3>Condividi l'allenamento</h3>
