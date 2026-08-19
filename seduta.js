@@ -228,6 +228,9 @@ function bloccoChiusura(s) {
     <button class="btn" style="margin-top:14px" onclick="chiudiSeduta('${s.id}')">
       ${s.chiusa ? "Allenamento salvato ✓" : "Chiudi allenamento e segna presenza"}
     </button>
+    ${S.utente && S.utente.ruolo !== "coach" && typeof apriCondividi === "function"
+      ? `<button class="btn btn-2" style="margin-top:8px" onclick="apriCondividi('${s.id}')">📸 Condividi l'allenamento (card Metis)</button>`
+      : ""}
   </div>`;
 }
 function segnaChiusura(sid, campo, val) {
