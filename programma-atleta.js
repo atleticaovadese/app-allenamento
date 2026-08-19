@@ -52,7 +52,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     const n = Number(r.n);
     const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, r.distanza, r.perc, profilo)
       : (typeof pistaTempo === "function" ? pistaTempo(r.distanza, r.perc) : null);
-    return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: Number(r.perc) || null, recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
+    return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
   });
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
@@ -72,7 +72,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     const peso = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r)
       : (typeof palPeso === "function" ? palPeso(r) : null);
     const rec = String(r.rec || ""), recSec = rec.indexOf("'") >= 0 ? (parseFloat(rec) * 60) : (parseInt(rec) || null);
-    return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: Number(r.perc) || null, peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, vbt: Array(serie).fill(null) };
+    return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, vbt: Array(serie).fill(null) };
   });
   return _cacheSeduta({
     id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,

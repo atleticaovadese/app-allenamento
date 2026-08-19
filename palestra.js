@@ -36,7 +36,8 @@ function massimaleDi(esercizio) {
 }
 function palPeso(r) {
   const rm = massimaleDi(r.esercizio);
-  if (rm != null && r.perc) return Math.round(rm * Number(r.perc) / 100);   // dal massimale
+  const pc = parseFloat(String(r.perc).replace(",", "."));
+  if (rm != null && pc > 0) return Math.round(rm * pc / 100);   // dal massimale
   const man = parseFloat(String(r.peso).replace(",", "."));
   return isNaN(man) ? null : man;                                            // manuale (accessori senza massimale)
 }
@@ -51,7 +52,8 @@ function massimaleAtleta(atleta, esercizio) {
 }
 function palPesoAtleta(atleta, r) {
   const rm = massimaleAtleta(atleta, r.esercizio);
-  if (rm != null && r.perc) return Math.round(rm * Number(r.perc) / 100);
+  const pc = parseFloat(String(r.perc).replace(",", "."));
+  if (rm != null && pc > 0) return Math.round(rm * pc / 100);
   const man = parseFloat(String(r.peso).replace(",", "."));
   return isNaN(man) ? null : man;
 }
@@ -116,7 +118,7 @@ function applicaProgrPal(s) {
   cur.righe = prev.righe.map((pr, i) => {
     const nr = { ...((!curVuota && base[i]) ? base[i] : pr) };
     if (tipo === "volume") { const rp = Number(pr.rep); if (rp > 0) nr.rep = String(Math.max(1, Math.round(rp * f))); }
-    else { const p = Number(pr.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 80 + 2.5 = 82.5
+    else { const p = parseFloat(String(pr.perc).replace(",", ".")); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 80 + 2.5 = 82.5
     return nr;
   });
   if (curVuota) cur.nota = prev.nota || "";
@@ -219,7 +221,7 @@ function vistaProgrammaPalestra() {
         <td><select onchange="setPalRiga(${s},${i},'esercizio',this.value)" style="min-width:150px"><option value="">—</option>${optSel(r.esercizio, esercizi)}</select></td>
         <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setPalRigaVal(${s},${i},'serie',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setPalRigaVal(${s},${i},'rep',this.value)" onchange="disegna()" style="min-width:48px"></td>
-        <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setPalRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:48px"></td>
+        <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPalRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPalRigaVal(${s},${i},'rec',this.value)" style="min-width:64px"></td>
         <td><input value="${(r.tut || "").replace(/"/g, "&quot;")}" placeholder="TUT" oninput="setPalRigaVal(${s},${i},'tut',this.value)" style="min-width:64px"></td>
         <td><input inputmode="decimal" value="${r.vbt || ""}" placeholder="m/s" oninput="setPalRigaVal(${s},${i},'vbt',this.value)" style="min-width:56px"></td>

@@ -195,7 +195,7 @@ function applicaProgrPista(s) {
       const n = Number(pr.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f)));
       const mn = Number(pr.min); if (mn > 0) nr.min = String(Math.max(1, Math.round(mn * f)));   // corsa continua (mezzofondo)
     }
-    else { const p = Number(pr.perc); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 85 + 2.5 = 87.5
+    else { const p = parseFloat(String(pr.perc).replace(",", ".")); if (p > 0) nr.perc = String(Math.min(100, Math.round((p + pct) * 10) / 10)); } // additiva: 85 + 2.5 = 87.5
     return nr;
   });
   if (curVuota) cur.nota = prev.nota || "";
@@ -263,7 +263,8 @@ function pistaTempo(distanza, perc) {
   if (!p.profilo || !pb || !distanza || !perc) return null;
   const co = PISTA_COEFF[p.profilo]; if (!co) return null;
   const coeff = co[Number(distanza)]; if (coeff == null) return null;
-  return pb * coeff / (Number(perc) / 100);
+  const pc = parseFloat(String(perc).replace(",", ".")); if (!(pc > 0)) return null;
+  return pb * coeff / (pc / 100);
 }
 
 // --- PER ATLETA: il tempo target si calcola sul PB del singolo atleta ---
@@ -298,7 +299,8 @@ function pistaTempoAtleta(atleta, distanza, perc, profilo) {
   if (!atleta || !D || !perc) return null;
   const base = baseAtletaDist(atleta, D, profilo);
   if (base == null) return null;
-  return base / (Number(perc) / 100);   // % di velocità: 95% → tempo = base / 0.95
+  const pc = parseFloat(String(perc).replace(",", ".")); if (!(pc > 0)) return null;
+  return base / (pc / 100);   // % di velocità: 95% → tempo = base / 0.95
 }
 function volumeSett(sett) {
   return (sett.righe || []).reduce((t, r) => t + (Number(r.distanza) || 0) * (Number(r.n) || 0), 0);
@@ -416,7 +418,7 @@ function vistaProgrammaPista() {
         <td><select onchange="setPistaRiga(${s},${i},'distanza',this.value)"><option value="">—</option>${optSel(r.distanza, distOpt, false)}</select></td>
         <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
-        <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:52px"></td>
+        <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
         <td class="pauto">${ms != null ? ms.toFixed(2) : "—"}</td>
         <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>

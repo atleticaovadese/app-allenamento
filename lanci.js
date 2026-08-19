@@ -346,7 +346,7 @@ function vistaProgrammaPistaLanci() {
         <td><input inputmode="decimal" value="${r.kg || ""}" placeholder="kg" oninput="setPistaRigaVal(${s},${i},'kg',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:46px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:58px"></td>
-        <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" style="min-width:46px"></td>
+        <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" style="min-width:46px"></td>
         <td><select onchange="setPistaRiga(${s},${i},'tipo',this.value)"><option value="">—</option>${optSel(r.tipo, LANCI_TIPO_ATTR)}</select></td>
         <td class="pauto ${dCls}">${dTxt}</td>
         <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
@@ -392,7 +392,7 @@ function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, p
     const nMis = Math.min(Math.max(nl, 1), 6);
     return {
       id: "e" + i, mezzo: r.mezzo, contenuto: r.contenuto || "", kg: isNaN(kg) ? null : kg,
-      tipo: r.tipo || "", lanci: nl, deltaPct: delta, perc: Number(r.perc) || null,
+      tipo: r.tipo || "", lanci: nl, deltaPct: delta, perc: (parseFloat(String(r.perc).replace(",", ".")) || null),
       recupero: r.rec || "", misure: Array(nMis).fill(null)
     };
   });
