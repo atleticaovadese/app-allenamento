@@ -3,6 +3,7 @@
   --txt:#f1f0ec; --txt2:#a8a7a1; --txt3:#76756f;
   --blu:#4d9aff; --blu-bg:rgba(77,154,255,.15); --blu-pieno:#2563c9;
   --verde:#7cc243; --verde-bg:rgba(124,194,67,.15);
+  --ambra:#e6a83c; --ambra-bg:rgba(230,168,60,.15);
   --giallo:#f0a83c; --giallo-bg:rgba(240,168,60,.15);
   --rosso:#ff6b6b; --rosso-bg:rgba(255,107,107,.15);
   --r:10px;
@@ -212,6 +213,19 @@ select{padding:11px 12px;border:1px solid var(--line2);border-radius:var(--r);ba
 .tacche{display:flex;gap:4px;margin-top:8px}
 .tacche i{flex:1;height:4px;border-radius:3px;background:var(--line2)}
 .tacche i.on{background:var(--blu)}
+.q{position:relative}
+.q-ic{position:absolute;top:11px;right:11px;width:26px;height:26px;border-radius:9px;background:var(--card2);
+  display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:.92}
+.q-attn{border-color:rgba(230,168,60,.45)}
+.q-ok{border-color:rgba(124,194,67,.42)}
+.qbar{height:5px;background:var(--line2);border-radius:3px;margin-top:9px;overflow:hidden}
+.qbar i{display:block;height:100%;background:var(--blu);border-radius:3px;transition:width .3s}
+.qpill{display:inline-block;background:var(--blu-bg);color:var(--blu);border-radius:10px;padding:1px 7px;
+  font-size:10px;font-weight:700;margin-right:4px}
+.riposo{display:flex;align-items:center;gap:14px;cursor:pointer}
+.riposo-ic{font-size:23px;width:46px;height:46px;border-radius:13px;background:var(--card2);
+  display:flex;align-items:center;justify-content:center;flex:none}
+.top-av{flex:none;cursor:pointer}
 .griglia2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 
 /* ---- seduta ---- */

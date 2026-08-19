@@ -152,10 +152,16 @@ function vistaOggi() {
         <p class="et">Allenamento di oggi</p>
         <h3>${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
         <p class="et" style="color:#dbe9ff">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</p></div>`).join("")
-    : `<div class="card"><p class="et">Nessun allenamento programmato oggi — riposo o guarda il <button class="link-indietro" onclick="vai('calendario')">calendario ›</button></p></div>`;
+    : `<div class="card riposo" onclick="vai('calendario')">
+        <div class="riposo-ic">🌙</div>
+        <div><p class="et" style="margin:0">Oggi</p>
+          <div style="font-weight:600;font-size:16px;margin-top:1px">Riposo — nessun allenamento</div>
+          <p class="et" style="margin-top:2px;color:var(--blu)">Recupera bene · guarda il calendario ›</p></div>
+      </div>`;
   const tacche = pos ? Array.from({ length: pos.tot },
     (_, i) => `<i class="${i < pos.sett ? "on" : ""}"></i>`).join("") : "";
-  const ad = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
+  const ad = a.presenzeStagione[1] ? Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100) : 0;
+  const pmPct = a.presenzeMese[1] ? Math.round(a.presenzeMese[0] / a.presenzeMese[1] * 100) : 0;
   const d = DEMO.diarioOggi, fatto = d.salvato && diarioCompleto(d);
 
   // il cruscotto si adatta: per il mezzofondo mostra ritmi/zone e km invece di sprint/salti
@@ -166,25 +172,25 @@ function vistaOggi() {
   const lanciN = isLanci && typeof lanciSettAtleta === "function" ? lanciSettAtleta(a) : null;
   const li = isLanci && typeof pbLanciInfo === "function" ? pbLanciInfo(a) : null;
   const obiL = isLanci && typeof obiettivoLanciScheda === "function" ? obiettivoLanciScheda(a) : null;
-  const cardVolume = isMezzo ? `<div class="q" onclick="vai('calendario')">
+  const cardVolume = isMezzo ? `<div class="q" onclick="vai('calendario')"><div class="q-ic">🏃</div>
       <div class="k">Volume settimana</div>
       <div><div class="v">${kmS != null ? kmS + " km" : "—"}</div><div class="d">${kmS != null ? "programmati" : "nessun lavoro"}</div></div>
     </div>`
-    : isLanci ? `<div class="q" onclick="vai('calendario')">
+    : isLanci ? `<div class="q" onclick="vai('calendario')"><div class="q-ic">🏋</div>
       <div class="k">Lanci settimana</div>
       <div><div class="v">${lanciN != null ? lanciN : "—"}</div><div class="d">${lanciN != null ? "programmati" : "nessun lancio"}</div></div>
     </div>` : "";
   const cardTestZone = isMezzo
-    ? `<div class="q wide" onclick="vai('calendario')">
+    ? `<div class="q wide" onclick="vai('calendario')"><div class="q-ic">🏃</div>
         <div class="k">Le mie zone di ritmo (/km)</div>
         <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">Facile <b>${rm.facile}</b> &nbsp;·&nbsp; Soglia <b>${rm.soglia}</b> &nbsp;·&nbsp; VO2max <b>${rm.vo2}</b> &nbsp;·&nbsp; Gara 5k <b>${rm.gara5}</b></div>
       </div>`
     : isLanci
-    ? `<div class="q wide" onclick="vai('io')">
+    ? `<div class="q wide" onclick="vai('io')"><div class="q-ic">📏</div>
         <div class="k">Le mie misure</div>
         <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">${li && li.pb != null ? `PB <b>${li.pb.toFixed(2)} m</b>${li.evento ? " (" + li.evento + ")" : ""}` : "PB —"}${obiL != null ? ` &nbsp;·&nbsp; Obiettivo <b>${obiL.toFixed(2)} m</b>` : ""}</div>
       </div>`
-    : `<div class="q wide" onclick="vai('io')">
+    : `<div class="q wide" onclick="vai('io')"><div class="q-ic">🧪</div>
         <div class="k">Ultimi test</div>
         <div class="d" style="margin-top:6px;font-size:13px;color:var(--txt)">${a.test.map(([n, v, dd]) => `${n} <b>${v}</b> <span style="color:var(--verde)">${dd}</span>`).join(" &nbsp;·&nbsp; ")}</div>
       </div>`;
@@ -193,7 +199,7 @@ function vistaOggi() {
   ${cardOggi}
 
   <div class="quadri">
-    ${pos ? `<div class="q wide" onclick="vai('calendario')">
+    ${pos ? `<div class="q wide" onclick="vai('calendario')"><div class="q-ic">📊</div>
       <div><div class="k">Dove sei nel programma</div>
         <div class="v s">${pos.titolo}</div>
         <div class="d">settimana ${pos.sett} di ${pos.tot} · ${pos.dal} – ${pos.al}</div></div>
@@ -201,30 +207,45 @@ function vistaOggi() {
     </div>` : ""}
     ${cardVolume}
 
-    <div class="q" onclick="vai('diario')">
+    <div class="q ${fatto ? "q-ok" : "q-attn"}" onclick="vai('diario')"><div class="q-ic">${fatto ? "✅" : "📝"}</div>
       <div class="k">Diario di oggi</div>
-      <div><div class="v s" style="${fatto ? "color:var(--verde)" : ""}">${fatto ? "Fatto ✓" : "Da fare"}</div>
+      <div><div class="v s" style="${fatto ? "color:var(--verde)" : "color:var(--ambra)"}">${fatto ? "Fatto ✓" : "Da fare"}</div>
         <div class="d">${fatto ? "grazie" : "tocca per compilarlo"}</div></div>
     </div>
 
-    <div class="q" onclick="vai('gare')">
+    <div class="q" onclick="vai('gare')"><div class="q-ic">🏁</div>
       <div class="k">Prossima gara</div>
       <div><div class="v s">${g.luogo}</div>
-        <div class="d">tra ${g.traSettimane} sett · ${g.gara} · ${g.obiettivo}</div></div>
+        <div class="d"><span class="qpill">tra ${g.traSettimane} sett</span>${g.gara} · ${g.obiettivo}</div></div>
     </div>
 
-    <div class="q" onclick="vai('presenze')">
+    <div class="q" onclick="vai('presenze')"><div class="q-ic">📅</div>
       <div class="k">Presenze del mese</div>
-      <div><div class="v">${a.presenzeMese[0]} / ${a.presenzeMese[1]}</div></div>
+      <div><div class="v">${a.presenzeMese[0]} / ${a.presenzeMese[1]}</div>
+        <div class="qbar"><i style="width:${pmPct}%"></i></div></div>
     </div>
 
-    <div class="q" onclick="vai('presenze')">
+    <div class="q" onclick="vai('presenze')"><div class="q-ic">📈</div>
       <div class="k">Stagione</div>
-      <div><div class="v">${ad}%</div><div class="d">${a.presenzeStagione[0]} su ${a.presenzeStagione[1]}</div></div>
+      <div style="display:flex;align-items:center;gap:11px;margin-top:5px">
+        ${_ringPct(ad, 46, ad >= 85 ? "var(--verde)" : "var(--blu)")}
+        <div class="d">${a.presenzeStagione[0]} su ${a.presenzeStagione[1]}<br>presenze</div>
+      </div>
     </div>
 
     ${cardTestZone}
   </div>`;
+}
+// piccolo anello di progresso (donut SVG) con la percentuale al centro
+function _ringPct(pct, size, color) {
+  size = size || 46; color = color || "var(--blu)";
+  pct = Math.max(0, Math.min(100, isFinite(pct) ? pct : 0));
+  const r = (size - 5) / 2, c = 2 * Math.PI * r, off = c * (1 - pct / 100), cx = size / 2;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex:none">
+    <circle cx="${cx}" cy="${cx}" r="${r.toFixed(1)}" fill="none" stroke="var(--line2)" stroke-width="4"/>
+    <circle cx="${cx}" cy="${cx}" r="${r.toFixed(1)}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 ${cx} ${cx})"/>
+    <text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" font-size="${(size * 0.29).toFixed(0)}" font-weight="700" fill="var(--txt)">${Math.round(pct)}%</text>
+  </svg>`;
 }
 
 function apriSeduta(id) { S.seduta = id; T.id = null; fermaTimer(); disegna(); window.scrollTo(0, 0); }
@@ -715,7 +736,8 @@ function disegna() {
 
     <div class="top">
       <button class="hamb" onclick="apriMenu()" aria-label="Menù"><i></i><i></i><i></i></button>
-      <div><div class="nome">Ciao ${S.utente.nome.split(" ")[0]}</div><div class="data">${oggi}</div></div>
+      <div style="flex:1"><div class="nome">Ciao ${S.utente.nome.split(" ")[0]}</div><div class="data">${oggi}</div></div>
+      ${!coach && typeof atletaCorrente === "function" && typeof avatarAtleta === "function" ? `<div class="top-av" onclick="vai('io')">${avatarAtleta(atletaCorrente(), 38)}</div>` : ""}
     </div>
     <div class="main">${corpo}</div>`;
   aggiornaMenu();
