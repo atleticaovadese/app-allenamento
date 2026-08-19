@@ -24,14 +24,31 @@ const _REPORT_CSS = `
 #app-report .two{display:flex;gap:22px;flex-wrap:wrap}
 #app-report .two>div{flex:1;min-width:280px}
 #app-report .foot{margin-top:26px;padding-top:8px;border-top:1px solid #d7dde7;font-size:11px;color:#8a94a3;text-align:center}
+#app-report .only-print{display:none}
+#app-report .report-nota{width:100%;box-sizing:border-box;font-family:inherit;font-size:13px;line-height:1.5;padding:9px 11px;border:1px solid #cdd6e4;border-radius:6px;margin-top:4px;resize:vertical}
+#app-report .cover{background:linear-gradient(135deg,#2B4C7E,#3d6bb0);color:#fff;padding:22px 24px;border-radius:8px;margin-bottom:16px}
+#app-report .cover-brand{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.92}
+#app-report .cover-logo{width:22px;height:22px;border-radius:6px;background:#fff;padding:1px}
+#app-report .cover-hero{display:flex;align-items:center;gap:16px;margin-top:14px}
+#app-report .cover-foto{width:74px;height:74px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.85);flex:none}
+#app-report .cover-foto-ph{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700;color:#fff;border:3px solid rgba(255,255,255,.5);flex:none}
+#app-report .cover-name{font-size:27px;font-weight:700;line-height:1.1}
+#app-report .cover-sub{font-size:14px;opacity:.95;margin-top:4px}
+#app-report .cover-meta{margin-top:14px;font-size:11px;opacity:.82;border-top:1px solid rgba(255,255,255,.28);padding-top:9px}
+#app-report .print-footer{display:none}
 @media print{
   body *{visibility:hidden!important}
   #app-report,#app-report *{visibility:visible!important}
   #app-report{position:absolute;left:0;top:0;width:100%;max-width:none;box-shadow:none;border-radius:0;padding:0}
   .no-print{display:none!important}
+  #app-report .only-print{display:block!important}
+  #app-report .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #app-report th,#app-report .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #app-report .print-footer{display:block;position:fixed;bottom:4mm;left:0;right:0;text-align:center;font-size:8.5px;color:#8a94a3}
   h2{page-break-after:avoid}
   tr{page-break-inside:avoid}
-  @page{margin:13mm}
+  table,svg,.kpi{page-break-inside:avoid}
+  @page{margin:14mm}
 }
 `;
 
@@ -164,6 +181,290 @@ function _svgBars(punti) {
   }).join("");
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;margin-top:6px">${barre}</svg>`;
 }
+// grafico del sonno (ore) con linea della media
+function _svgBarsSonno(punti, media) {
+  if (!punti.length) return "";
+  const W = 460, H = 96, pad = 18, max = 10, base = H - 18;
+  const bw = Math.min(46, (W - pad * 2) / punti.length - 6);
+  const yFor = h => base - (Math.min(h, max) / max) * (H - 34);
+  const barre = punti.map((p, i) => {
+    const x = pad + i * ((W - pad * 2) / punti.length) + 3;
+    const y = yFor(p.v), hh = Math.max(2, base - y);
+    const col = p.v >= media - 0.5 ? "#2f9e52" : "#d99a00";
+    return `<rect x="${x.toFixed(0)}" y="${y.toFixed(0)}" width="${bw.toFixed(0)}" height="${hh.toFixed(0)}" fill="${col}" rx="2"/>
+      <text x="${(x + bw / 2).toFixed(0)}" y="${(y - 3).toFixed(0)}" font-size="9" fill="#555" text-anchor="middle">${p.v}</text>
+      <text x="${(x + bw / 2).toFixed(0)}" y="${H - 4}" font-size="8" fill="#8a94a3" text-anchor="middle">${p.lab}</text>`;
+  }).join("");
+  const my = yFor(media);
+  const mline = `<line x1="${pad}" y1="${my.toFixed(0)}" x2="${W - pad}" y2="${my.toFixed(0)}" stroke="#2B4C7E" stroke-width="1" stroke-dasharray="4 3"/><text x="${W - pad}" y="${(my - 3).toFixed(0)}" font-size="8" fill="#2B4C7E" text-anchor="end">media ${media.toFixed(1)} h</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;margin-top:6px">${mline}${barre}</svg>`;
+}
+
+// (1) sintesi esecutiva: 4-6 bandierine automatiche
+function _rExecSummary(a, id, m, ader) {
+  const b = [];
+  b.push({ lv: ader >= 85 ? "g" : ader >= 70 ? "y" : "r", t: `Aderenza <b>${ader}%</b>` });
+  const ac = parseFloat(String(m.acwr).replace(",", "."));
+  if (!isNaN(ac)) b.push({ lv: (ac >= 0.8 && ac <= 1.3) ? "g" : (ac <= 1.5 ? "y" : "r"), t: `Carico ACWR <b>${ac.toFixed(2)}</b>${ac > 1.5 ? " (picco)" : ac < 0.8 ? " (basso)" : ""}` });
+  const storia = ((DEMO.diariStorico || {})[id] || []);
+  const pr = storia.slice(0, 14).map(v => v.prontezza).filter(x => x != null);
+  if (pr.length) { const mp = pr.reduce((s, x) => s + x, 0) / pr.length; b.push({ lv: mp >= 3.5 ? "g" : mp >= 2.5 ? "y" : "r", t: `Prontezza media <b>${mp.toFixed(1)}/5</b>` }); }
+  const son = storia.slice(0, 14).map(v => Number(v.oreSonno)).filter(x => !isNaN(x));
+  if (son.length) { const ms = son.reduce((s, x) => s + x, 0) / son.length; b.push({ lv: ms >= 7 ? "g" : "y", t: `Sonno medio <b>${ms.toFixed(1)} h</b>` }); }
+  const prev = (typeof sessioniDi === "function") ? sessioniDi(id, "prevenzione")[0] : null;
+  if (prev && prev.dati) { const fl = Object.values(prev.dati).map(x => x.asym).filter(a2 => a2 != null); const ro = fl.filter(a2 => a2 > 15).length, gi = fl.filter(a2 => a2 >= 10 && a2 <= 15).length; if (ro || gi) b.push({ lv: ro ? "r" : "y", t: ro ? `${ro} asimmetria/e da correggere` : `${gi} asimmetria/e da tenere d'occhio` }); else if (fl.length) b.push({ lv: "g", t: "Simmetria dx/sx nella norma" }); }
+  const inf = (DEMO.infortuni || []).filter(i => i.atleta === id && i.stato !== "Risolto").length;
+  if (inf) b.push({ lv: "r", t: `${inf} infortunio/fastidio in corso` });
+  if (!b.length) return "";
+  const ic = lv => lv === "g" ? "🟢" : lv === "y" ? "🟡" : "🔴";
+  const bd = lv => lv === "g" ? "#1a7a3a" : lv === "y" ? "#a86800" : "#b02a37";
+  return `<h2>In sintesi</h2><div style="display:flex;flex-wrap:wrap;gap:8px">${b.map(x => `<div style="flex:1;min-width:150px;border:1px solid #d7dde7;border-left:4px solid ${bd(x.lv)};border-radius:6px;padding:7px 10px;font-size:12.5px">${ic(x.lv)} ${x.t}</div>`).join("")}</div>`;
+}
+// (2) obiettivo vs realtà (dai PB con obiettivo impostato)
+function _rObiettivi(a) {
+  const disc = a.disciplina, pb = (a.scheda && a.scheda.pb) || [];
+  const higher = ev => disc === "lanci" || _rEvSalto(ev);
+  const byEv = {};
+  pb.forEach(p => { const ev = p[0], hi = higher(ev), v = parseMisura(hi ? "lanci" : disc, p[1]); if (v == null || isNaN(v)) return; const ob = (p[4] != null && p[4] !== "") ? parseMisura(hi ? "lanci" : disc, p[4]) : null; if (!byEv[ev]) byEv[ev] = { best: v, ob }; else { byEv[ev].best = hi ? Math.max(byEv[ev].best, v) : Math.min(byEv[ev].best, v); if (ob != null) byEv[ev].ob = ob; } });
+  const evs = Object.keys(byEv).filter(ev => byEv[ev].ob != null);
+  if (!evs.length) return "";
+  const rows = evs.map(ev => { const o = byEv[ev], hi = higher(ev); const gap = hi ? o.ob - o.best : o.best - o.ob; const stato = gap <= 0 ? `<b class="g">✓ raggiunto</b>` : `manca <b>${_rFmtMis(disc, Math.abs(gap), ev)}</b>`; return `<tr><td>${ev}</td><td><b>${_rFmtMis(disc, o.best, ev)}</b></td><td>${_rFmtMis(disc, o.ob, ev)}</td><td>${stato}</td></tr>`; }).join("");
+  return `<h2>Obiettivo vs realtà</h2><table><tr><th>Prova</th><th>Attuale</th><th>Obiettivo</th><th>Stato</th></tr>${rows}</table>`;
+}
+// (3) prevenzione: ultima sessione asimmetrie
+function _rPrevenzione(id) {
+  const s = (typeof sessioniDi === "function") ? sessioniDi(id, "prevenzione")[0] : null;
+  if (!s || !s.dati) return "";
+  const tests = (typeof prevTestsAll === "function") ? prevTestsAll() : (typeof PREV_TESTS !== "undefined" ? PREV_TESTS : []);
+  const nameOf = k => { const t = tests.find(x => x.k === k); return t ? t.nome : k; };
+  const rows = Object.keys(s.dati).map(k => { const d = s.dati[k], a2 = d.asym; const cls = a2 == null ? "" : a2 > 15 ? "r" : a2 >= 10 ? "y" : "g"; const fl = a2 == null ? "" : a2 > 15 ? "🔴" : a2 >= 10 ? "🟡" : "🟢"; return `<tr><td>${nameOf(k)}</td><td>${d.dx ?? "—"}</td><td>${d.sx ?? "—"}</td><td class="${cls}"><b>${a2 != null ? a2.toFixed(1) + "%" : "—"}</b> ${fl}</td></tr>`; }).join("");
+  return `<h2>Prevenzione — asimmetrie dx/sx</h2><p class="sub">Test del ${_rDataL(s.data)} · &gt;15% 🔴 · 10-15% 🟡 · &lt;10% 🟢 (Limb Symmetry Index)</p><table><tr><th>Test</th><th>Dx</th><th>Sx</th><th>Asimmetria</th></tr>${rows}</table>`;
+}
+// (5) progressione dei PB nel tempo (per evento con >=2 date)
+function _rProgressionePB(a) {
+  const disc = a.disciplina, pb = (a.scheda && a.scheda.pb) || [];
+  const higher = ev => disc === "lanci" || _rEvSalto(ev);
+  const byEv = {};
+  pb.forEach(p => { const ev = p[0], v = parseMisura(higher(ev) ? "lanci" : disc, p[1]); if (v == null || isNaN(v)) return; (byEv[ev] = byEv[ev] || []).push({ v, d: p[6] || p[2] || "" }); });
+  const rows = Object.keys(byEv).map(ev => {
+    const serie = byEv[ev].slice().sort((x, y) => x.d < y.d ? -1 : 1);
+    if (serie.length < 2) return "";
+    const first = serie[0], last = serie[serie.length - 1], hi = higher(ev);
+    const better = hi ? last.v > first.v : last.v < first.v, delta = Math.abs(last.v - first.v);
+    const cls = last.v === first.v ? "" : better ? "g" : "r";
+    return `<tr><td>${ev}</td><td>${_rSpark(serie.map(p => hi ? p.v : -p.v))}</td><td>${serie.map(p => `${_rDataL(p.d) || "—"}: <b>${_rFmtMis(disc, p.v, ev)}</b>`).join(" · ")}</td><td><b class="${cls}">${last.v === first.v ? "=" : better ? "↑" : "↓"} ${_rFmtMis(disc, delta, ev)}</b></td></tr>`;
+  }).join("");
+  return rows ? `<h2>Progressione PB</h2><table><tr><th>Prova</th><th>Andamento</th><th>Storia</th><th>Δ</th></tr>${rows}</table>` : "";
+}
+// (7) andamento del peso corporeo (dal diario)
+function _rPesoTrend(id) {
+  const pts = ((DEMO.diariStorico || {})[id] || []).filter(v => v.peso != null && v.peso !== "" && !isNaN(Number(v.peso)) && _rInPeriodo(v.data)).map(v => ({ v: Number(v.peso), d: v.data })).sort((x, y) => x.d < y.d ? -1 : 1);
+  if (pts.length < 2) return "";
+  const first = pts[0], last = pts[pts.length - 1], delta = last.v - first.v;
+  return `<p class="sub" style="margin-top:10px"><b>Peso corporeo</b> · <b>${last.v} kg</b> (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} kg dal ${_rDataL(first.d)}) &nbsp;${_rSpark(pts.map(p => p.v))}</p>`;
+}
+// (6) carico e forma nel tempo (sRPE = durata × RPE → carico settimanale + ACWR)
+function _rCaricoTrend(id) {
+  const sv = ((DEMO.seduteSvolte || {})[id] || []).filter(s => s.data && _rInPeriodo(s.data));
+  if (sv.length < 4) return "";
+  const byWeek = {};
+  sv.forEach(s => { const d = new Date(s.data + "T00:00:00"); if (isNaN(d)) return; const dow = (d.getDay() + 6) % 7; const mon = new Date(d.getTime()); mon.setDate(d.getDate() - dow); const key = mon.toISOString().slice(0, 10); const load = (Number(s.durata_min) || 60) * (Number(s.rpe) || 5); byWeek[key] = (byWeek[key] || 0) + load; });
+  const weeks = Object.keys(byWeek).sort();
+  if (weeks.length < 3) return "";
+  const rec = weeks.slice(-9).map(w => { const idx = weeks.indexOf(w); const cw = weeks.slice(Math.max(0, idx - 3), idx + 1).map(k => byWeek[k]); const chronic = cw.reduce((s, x) => s + x, 0) / cw.length; return { w, load: byWeek[w], acwr: chronic > 0 ? byWeek[w] / chronic : null }; });
+  const maxL = Math.max(...rec.map(r => r.load)) || 1;
+  const W = 460, H = 120, pad = 18, base = H - 26, bw = Math.min(40, (W - pad * 2) / rec.length - 6);
+  const acol = a => a == null ? "#8a94a3" : (a >= 0.8 && a <= 1.3) ? "#1a7a3a" : (a <= 1.5) ? "#a86800" : "#b02a37";
+  const bars = rec.map((r, i) => { const x = pad + i * ((W - pad * 2) / rec.length) + 3; const bh = Math.max(2, (r.load / maxL) * (base - 16)); return `<rect x="${x.toFixed(0)}" y="${(base - bh).toFixed(0)}" width="${bw.toFixed(0)}" height="${bh.toFixed(0)}" fill="#c7d3e6" rx="2"/>
+      <text x="${(x + bw / 2).toFixed(0)}" y="${(base - bh - 3).toFixed(0)}" font-size="8" fill="${acol(r.acwr)}" text-anchor="middle" font-weight="700">${r.acwr != null ? r.acwr.toFixed(2) : "—"}</text>
+      <text x="${(x + bw / 2).toFixed(0)}" y="${H - 6}" font-size="7.5" fill="#8a94a3" text-anchor="middle">${r.w.slice(8, 10)}/${r.w.slice(5, 7)}</text>`; }).join("");
+  const last = rec[rec.length - 1];
+  const cls = last.acwr == null ? "" : (last.acwr >= 0.8 && last.acwr <= 1.3) ? "g" : last.acwr <= 1.5 ? "y" : "r";
+  return `<h2>Carico e forma nel tempo</h2>
+    <p class="sub">Carico settimanale (sRPE = durata × RPE) con l'<b>ACWR</b> sopra ogni barra (acuto/cronico 4 sett). Zona sicura 0.8–1.3.</p>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;margin-top:4px">${bars}</svg>
+    <p class="sub">Ultima settimana: carico <b>${Math.round(last.load)}</b> u.a. · ACWR <b class="${cls}">${last.acwr != null ? last.acwr.toFixed(2) : "—"}</b>${last.acwr > 1.5 ? " — picco: attenzione" : last.acwr < 0.8 ? " — carico basso" : ""}</p>`;
+}
+// (9) profilo specifico per disciplina
+function _rPerDisciplina(a) {
+  const g = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  if (g === "lanci" && typeof pbLanciInfo === "function") {
+    const info = pbLanciInfo(a), obi = (typeof obiettivoLanciScheda === "function") ? obiettivoLanciScheda(a) : null, diag = (typeof _profiloAttrDiag === "function") ? _profiloAttrDiag(a) : null;
+    if (info.pb == null && !diag && obi == null) return "";
+    const rows = [info.pb != null ? ["Personale", info.pb.toFixed(2) + " m" + (info.evento ? " (" + info.evento + ")" : "")] : null, obi != null ? ["Obiettivo", obi.toFixed(2) + " m"] : null, diag ? ["Profilo attrezzo (over/under)", diag.diag] : null].filter(Boolean);
+    return `<h2>Profilo lanci</h2><table>${rows.map(r => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join("")}</table>`;
+  }
+  if (g === "mezzo" && typeof ritmiHomeMezzo === "function") {
+    const R = ritmiHomeMezzo(a);
+    if (!R || (R.soglia === "—" && R.vo2 === "—")) return "";
+    return `<h2>Profilo mezzofondo — ritmi target</h2><table><tr><th>Zona</th><th>Ritmo /km</th></tr>
+      <tr><td>Facile / lungo</td><td><b>${R.facile}</b></td></tr>
+      <tr><td>Soglia</td><td><b>${R.soglia}</b></td></tr>
+      <tr><td>VO2max</td><td><b>${R.vo2}</b></td></tr>
+      <tr><td>Ritmo gara 5000</td><td><b>${R.gara5}</b></td></tr></table>`;
+  }
+  return "";
+}
+// (8) batteria test dall'area Analisi: F-V bilanciere, F-V sprint, RSI/Drop jump, VBT
+function _rTestBattery(id) {
+  if (typeof sessioniDi !== "function") return "";
+  const blocks = [];
+  const fv = sessioniDi(id, "fv")[0];
+  if (fv && fv.dati) {
+    const d = fv.dati;
+    blocks.push(`<p class="sub" style="margin-top:8px"><b>Profilo Forza-Velocità (salti · ${_rDataL(fv.data)})</b></p>
+      <table><tr><th>F0</th><th>V0</th><th>Pmax</th><th>Pmax/kg</th><th>Squilibrio F-V</th></tr>
+      <tr><td>${d.F0 != null ? Math.round(d.F0) + " N" : "—"}</td><td>${d.V0 != null ? d.V0.toFixed(2) + " m/s" : "—"}</td><td>${d.Pmax != null ? Math.round(d.Pmax) + " W" : "—"}</td><td>${d.Pkg != null ? d.Pkg.toFixed(1) + " W/kg" : "—"}</td><td>${d.FVimb != null ? Math.round(d.FVimb) + "% · " + (d.dir || "") : "equilibrato"}</td></tr></table>`);
+  }
+  const fvs = sessioniDi(id, "fv-sprint")[0];
+  if (fvs && fvs.dati) {
+    const d = fvs.dati;
+    blocks.push(`<p class="sub" style="margin-top:8px"><b>Profilo F-V Sprint (${_rDataL(fvs.data)})</b></p>
+      <table><tr><th>F0/kg</th><th>V0</th><th>Pmax/kg</th><th>RF max</th></tr>
+      <tr><td>${d.F0kg != null ? d.F0kg.toFixed(1) + " N/kg" : "—"}</td><td>${d.V0 != null ? d.V0.toFixed(2) + " m/s" : "—"}</td><td>${d.Pmaxkg != null ? d.Pmaxkg.toFixed(1) + " W/kg" : "—"}</td><td>${d.RFmax != null ? d.RFmax.toFixed(1) + "%" : "—"}</td></tr></table>`);
+  }
+  const dj = sessioniDi(id, "dropjump")[0];
+  if (dj && dj.dati) {
+    const d = dj.dati, cls = d.bestRsi >= 2 ? "g" : d.bestRsi >= 1.5 ? "y" : "r";
+    blocks.push(`<p class="sub" style="margin-top:8px"><b>Reattività — Drop Jump / RSI (${_rDataL(dj.data)})</b></p>
+      <table><tr><th>RSI migliore</th><th>Caduta ottimale</th></tr><tr><td><b class="${cls}">${d.bestRsi != null ? d.bestRsi.toFixed(2) + " m/s" : "—"}</b></td><td>${d.bestH != null ? d.bestH + " cm" : "—"}</td></tr></table>`);
+  }
+  const vlog = (DEMO.vbtLog || []).filter(l => l.atletaId === id && l.vbtEseguita != null);
+  if (vlog.length) {
+    const byEx = {};
+    vlog.forEach(l => { const e = l.esercizio || "?"; if (!byEx[e] || (l.data || "") > (byEx[e].data || "")) byEx[e] = { v: Number(l.vbtEseguita), data: l.data, target: l.vbtTarget }; });
+    const rows = Object.keys(byEx).map(e => { const o = byEx[e]; return `<tr><td>${e}</td><td><b>${o.v.toFixed(2)} m/s</b></td><td>${(o.target != null && o.target !== "") ? Number(o.target).toFixed(2) + " m/s" : "—"}</td><td>${_rDataL(o.data)}</td></tr>`; }).join("");
+    blocks.push(`<p class="sub" style="margin-top:8px"><b>Velocità al bilanciere (VBT) — ultima per esercizio</b></p>
+      <table><tr><th>Esercizio</th><th>Eseguita</th><th>Target</th><th>Data</th></tr>${rows}</table>`);
+  }
+  return blocks.length ? `<h2>Batteria test (Analisi)</h2>${blocks.join("")}` : "";
+}
+// (4) note dell'allenatore (editabili a schermo, stampate nel PDF)
+function setReportNotaVal(id, v) { DEMO.reportNote = DEMO.reportNote || {}; DEMO.reportNote[id] = v; if (typeof salvaCustom === "function") salvaCustom(); }
+function _rNoteCoach(id) {
+  const nota = ((DEMO.reportNote || {})[id] || "");
+  return `<h2>Note dell'allenatore</h2>
+    <textarea class="no-print report-nota" rows="3" placeholder="Valutazione, priorità, cosa curare nel prossimo blocco…" oninput="setReportNotaVal('${id}',this.value)" onchange="disegna()">${nota.replace(/</g, "&lt;")}</textarea>
+    ${nota ? `<div class="note only-print">${nota.replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>` : `<p class="muted no-print">Scrivi qui una nota: comparirà nel PDF.</p>`}`;
+}
+
+// (11) selettore periodo: filtra le sezioni temporali (diario, sonno, peso, carico, allenamenti)
+function setReportPeriodo(p) { S.reportPeriodo = p; disegna(); }
+function _rPeriodoCut() {
+  const p = S.reportPeriodo || "tutto";
+  if (p === "tutto") return null;
+  const days = Number(p) || 0; if (!days) return null;
+  return new Date(new Date().getTime() - days * 86400000);
+}
+function _rInPeriodo(dataISO) { const c = _rPeriodoCut(); if (!c) return true; const t = new Date((dataISO || "") + "T00:00:00"); return !isNaN(t) && t >= c; }
+function _rPeriodoLabel() { const p = S.reportPeriodo || "tutto"; return p === "tutto" ? "intera stagione" : "ultimi " + p + " giorni"; }
+
+// (12) copertina brandizzata: logo + nome prodotto + foto/placeholder atleta + disciplina + data
+function _rCover(a, an, oggi) {
+  const brand = (typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis Performance";
+  const foto = an.foto ? `<img class="cover-foto" src="${an.foto}" alt="" onerror="this.style.display='none'">`
+    : `<div class="cover-foto-ph">${((a.nome || "?").trim().charAt(0) || "?").toUpperCase()}</div>`;
+  const sub = [a.disciplina || "", a.specialita || "", an.categoria || ""].filter(Boolean).join(" · ");
+  return `<div class="cover">
+    <div class="cover-brand"><img class="cover-logo" src="icon-192.png" alt="" onerror="this.style.display='none'"><span>${brand}</span></div>
+    <div class="cover-hero">${foto}
+      <div><div class="cover-name">${a.nome}</div><div class="cover-sub">${sub || "&nbsp;"}</div></div>
+    </div>
+    <div class="cover-meta">Report individuale · ${_rPeriodoLabel()} · generato il ${oggi}</div>
+  </div>`;
+}
+
+// (10) Punteggio World Athletics — Scoring Tables 2022 (Bojidar/Attila Spiriev), coefficienti VERIFICATI ±1 punto
+// TRACK (t = secondi): round(A*(B-t)^2) se t<B, altrimenti 0. FIELD (d = metri): round(a*d^2+b*d+c).
+const WA_COEF = {
+  "60m":     { M: { A: 68.6203220047, B: 10.69928 }, F: { A: 24.9117754427, B: 13.997652 }, type: "track" }, // indoor
+  "100m":    { M: { A: 24.6536929929, B: 16.9953440254 }, F: { A: 9.926600016, B: 21.9940024224 }, type: "track" },
+  "200m":    { M: { A: 5.0824183918, B: 35.4930524053 }, F: { A: 2.2421246579, B: 45.4945535153 }, type: "track" },
+  "400m":    { M: { A: 1.0210075972, B: 78.9948247446 }, F: { A: 0.3350013982, B: 109.9948164 }, type: "track" },
+  "800m":    { M: { A: 0.19800169, B: 181.9947737429 }, F: { A: 0.0687998955, B: 249.9950204174 }, type: "track" },
+  "1500m":   { M: { A: 0.0406598378, B: 384.995271393 }, F: { A: 0.0134000092, B: 539.994762721 }, type: "track" },
+  "3000m":   { M: { A: 0.0081500119, B: 839.9948111538 }, F: { A: 0.0025389975, B: 1199.9954 }, type: "track" },
+  "5000m":   { M: { A: 0.0027780047, B: 1439.9944748965 }, F: { A: 0.0008079992, B: 2099.9956 }, type: "track" },
+  "10000m":  { M: { A: 0.0005239998, B: 3149.9953299972 }, F: { A: 0.0001712, B: 4499.9944 }, type: "track" },
+  "lungo":     { M: { a: 1.931092873, b: 186.7313473363, c: -479.7064044572 }, F: { a: 1.9581140326, b: 193.6954825441, c: -233.9898865274 }, type: "field" },
+  "triplo":    { M: { a: 0.4603666024, b: 90.9697876805, c: -514.9946082624 }, F: { a: 0.4296645887, b: 90.3430418781, c: -231.6675825306 }, type: "field" },
+  "alto":      { M: { a: 32.1457081634, b: 745.374682614, c: -705.259733494 }, F: { a: 39.5579087446, b: 831.3655724456, c: -601.5063267489 }, type: "field" },
+  "asta":      { M: { a: 3.0457199209, b: 239.6120266961, c: -280.5412229935 }, F: { a: 3.9325797501, b: 275.4896832994, c: -205.1216924619 }, type: "field" },
+  "peso":      { M: { a: 0.0423461436, b: 57.9996626593, c: -55.8236102462 }, F: { a: 0.0462143876, b: 60.7550311138, c: -25.9319418889 }, type: "field" },
+  "disco":     { M: { a: 0.0040063129, b: 17.892060501, c: -27.187774646 }, F: { a: 0.0040284238, b: 17.9416953835, c: -19.2107481937 }, type: "field" },
+  "martello":  { M: { a: 0.0028444951, b: 15.0816273081, c: -21.6890119851 }, F: { a: 0.003096724, b: 15.7301668765, c: -22.6994985433 }, type: "field" },
+  "giavellotto": { M: { a: 0.0024031525, b: 13.8411868132, c: -21.0582509535 }, F: { a: 0.0040722745, b: 18.0426160529, c: -18.8429043394 }, type: "field" }
+};
+// attrezzi standard senior (kg) per cui valgono le tabelle WA
+const WA_IMPL = { peso: { M: 7.26, F: 4.0 }, disco: { M: 2.0, F: 1.0 }, martello: { M: 7.26, F: 4.0 }, giavellotto: { M: 0.8, F: 0.6 } };
+function _waPoints(key, gender, mark) {
+  const e = WA_COEF[key]; if (!e) return null;
+  const g = e[gender]; if (!g || mark == null || isNaN(mark)) return null;
+  let p = e.type === "track" ? (mark < g.B ? g.A * (g.B - mark) ** 2 : 0) : (g.a * mark * mark + g.b * mark + g.c);
+  return Math.max(0, Math.min(1400, Math.round(p)));
+}
+// mappa un evento PB → {key, kind} oppure null se non supportato
+function _waEventKey(evento) {
+  const ev = String(evento || "").toLowerCase().trim();
+  if (/lungo/.test(ev)) return { key: "lungo", kind: "field" };
+  if (/triplo/.test(ev)) return { key: "triplo", kind: "field" };
+  if (/alto/.test(ev)) return { key: "alto", kind: "field" };
+  if (/asta/.test(ev)) return { key: "asta", kind: "field" };
+  if (/peso/.test(ev)) return { key: "peso", kind: "lancio" };
+  if (/disco/.test(ev)) return { key: "disco", kind: "lancio" };
+  if (/martello/.test(ev)) return { key: "martello", kind: "lancio" };
+  if (/giavellotto/.test(ev)) return { key: "giavellotto", kind: "lancio" };
+  if (/ostacol|\bhs\b|siepi|marcia|staffett|\d\s*x\s*\d/.test(ev)) return null; // tabelle diverse → escluso
+  const m = ev.match(/(\d{2,5})\s*m?/);
+  if (m) { const k = m[1] + "m"; if (WA_COEF[k]) return { key: k, kind: "track" }; }
+  return null;
+}
+// sesso dell'atleta: override coach → segnale "ciclo" nel diario → grammatica categoria → default M
+function _waSesso(a) {
+  if (DEMO.atletaSesso && DEMO.atletaSesso[a.id]) return DEMO.atletaSesso[a.id];
+  if (((DEMO.diariStorico || {})[a.id] || []).some(v => v.ciclo)) return "F";
+  const cat = ((a.scheda && a.scheda.anagrafica && a.scheda.anagrafica.categoria) || "").toLowerCase();
+  if (/allieve|cadette|ragazze|esordienti f|femmin|donne/.test(cat)) return "F";
+  if (/allievi|cadetti|ragazzi|maschi|uomini/.test(cat)) return "M";
+  return "M";
+}
+function setWaSesso(id, s) { DEMO.atletaSesso = DEMO.atletaSesso || {}; DEMO.atletaSesso[id] = s; if (typeof salvaCustom === "function") salvaCustom(); disegna(); }
+// sezione report: punteggio World Athletics per ogni PB mappabile
+function _rWAPoints(a) {
+  const gender = _waSesso(a);
+  const pb = (a.scheda && a.scheda.pb) || [];
+  const best = {}; // key → {mark, key, kind, evento, punti}
+  let esclusiImpl = 0;
+  pb.forEach(p => {
+    if (p[0] == null || p[1] == null || p[1] === "") return;
+    const map = _waEventKey(p[0]); if (!map) return;
+    const mark = parseMisura(a.disciplina, p[1]); if (mark == null || isNaN(mark)) return;
+    if (map.kind === "lancio") { // attrezzo standard per il sesso?
+      const kg = (typeof _parseKgAttrezzo === "function") ? _parseKgAttrezzo(p[0]) : null;
+      const std = WA_IMPL[map.key] && WA_IMPL[map.key][gender];
+      if (kg == null || std == null || Math.abs(kg - std) > 0.06) { esclusiImpl++; return; }
+    }
+    const pt = _waPoints(map.key, gender, mark); if (pt == null) return;
+    const better = map.kind === "track" ? (o => mark < o.mark) : (o => mark > o.mark);
+    if (!best[map.key] || better(best[map.key])) best[map.key] = { mark, key: map.key, kind: map.kind, evento: p[0], punti: pt };
+  });
+  const righe = Object.values(best).sort((x, y) => y.punti - x.punti);
+  if (!righe.length && !esclusiImpl) return "";
+  const top = righe[0];
+  const sesLabel = gender === "F" ? "Femminile" : "Maschile";
+  const toggle = `<span class="no-print" style="font-size:12px;color:#5a6472"> · tabella <b>${sesLabel}</b> <button class="btn btn-2" style="width:auto;padding:2px 8px;font-size:11px;display:inline-block" onclick="setWaSesso('${a.id}','${gender === "F" ? "M" : "F"}')">cambia in ${gender === "F" ? "M" : "F"}</button></span>`;
+  let h = `<h2>Punteggio World Athletics</h2>
+    <p class="sub">Punti dalle <b>Scoring Tables World Athletics 2022</b> (attrezzi standard senior): un punteggio unico e confrontabile tra discipline diverse.${toggle}</p>`;
+  if (righe.length) {
+    h += `<table><tr><th>Prova</th><th>Risultato</th><th>Punti WA</th></tr>${righe.map(r => {
+      const disc = r.kind === "track" ? (r.key === "800m" || r.key === "1500m" || r.key === "3000m" || r.key === "5000m" || r.key === "10000m" ? "mezzofondo" : "velocita") : "lanci";
+      return `<tr><td>${r.evento}</td><td>${_rFmtMis(disc, r.mark, r.evento)}</td><td><b>${r.punti}</b></td></tr>`;
+    }).join("")}</table>
+    <p class="sub" style="margin-top:6px">Migliore: <b>${top.punti} punti</b> (${top.evento}). <span class="muted">Riferimento indicativo: ~1200+ livello internazionale · ~1000 nazionale · ~800 regionale.</span></p>`;
+  }
+  if (esclusiImpl) h += `<p class="sub muted" style="margin-top:4px">${esclusiImpl} ${esclusiImpl === 1 ? "prova esclusa" : "prove escluse"} (attrezzo non standard per la tabella ${sesLabel.toLowerCase()}).</p>`;
+  return h;
+}
 
 function _reportBodyHTML(id) {
   const a = DEMO.atleti.find(x => x.id === id);
@@ -174,14 +475,15 @@ function _reportBodyHTML(id) {
   const ps = a.presenzeStagione || [0, 0], pm = a.presenzeMese || [0, 0];
   const ader = m.aderenza != null ? m.aderenza : (ps[1] ? Math.round(ps[0] / ps[1] * 100) : 0);
 
-  // --- intestazione ---
-  let h = `<h1>${a.nome}</h1>
-    <p class="sub"><b>${a.disciplina || ""}</b>${a.specialita ? " · " + a.specialita : ""}${an.categoria ? " · " + an.categoria : ""}</p>
-    <p class="sub muted">Report generato il ${oggi} · Metis Performance</p>`;
+  // --- intestazione / copertina ---
+  let h = _rCover(a, an, oggi);
 
   // --- anagrafica ---
   const anag = [an.nascita ? "Nascita " + an.nascita : "", an.altezza ? "Altezza " + an.altezza + " cm" : "", an.peso ? "Peso " + an.peso + " kg" : "", an.gambaStacco ? "Lead Leg " + an.gambaStacco : ""].filter(Boolean).join(" · ");
   if (anag) h += `<p class="sub" style="margin-top:8px">${anag}</p>`;
+
+  // --- sintesi esecutiva ---
+  h += _rExecSummary(a, id, m, ader);
 
   // --- stato attuale ---
   h += `<h2>Stato attuale</h2><div class="kpi">
@@ -204,6 +506,15 @@ function _reportBodyHTML(id) {
     <div><p class="sub"><b>🏋 In allenamento</b></p>${allen.length ? `<table><tr><th>${colProva}</th><th>${colRis}</th><th>Data</th></tr>${allen.map(pbRow).join("")}</table>` : `<p class="muted">Nessun PB in allenamento.</p>`}</div>
   </div>`;
 
+  // --- obiettivo vs realtà ---
+  h += _rObiettivi(a);
+
+  // --- punteggio World Athletics ---
+  h += _rWAPoints(a);
+
+  // --- progressione PB nel tempo ---
+  h += _rProgressionePB(a);
+
   // --- massimali + test/salti ---
   const mx = (a.scheda && a.scheda.massimali) || [];
   const salti = (a.scheda && a.scheda.salti) || [];
@@ -212,8 +523,17 @@ function _reportBodyHTML(id) {
     <div><h2>Test e salti</h2>${salti.length ? `<table><tr><th>Test</th><th>Valore</th><th>Data</th></tr>${salti.map(x => `<tr><td>${x[0]}</td><td><b>${x[1]}${x[2] ? " " + x[2] : ""}</b></td><td>${x[3] || ""}</td></tr>`).join("")}</table>` : `<p class="muted">Nessun test registrato.</p>`}</div>
   </div>`;
 
+  // --- profilo specifico per disciplina (lanci / mezzofondo) ---
+  h += _rPerDisciplina(a);
+
   // --- storico test e forza (progressione nel tempo) ---
   h += _rStoricoTestForza(a);
+
+  // --- batteria test dall'area Analisi (F-V, RSI, VBT) ---
+  h += _rTestBattery(id);
+
+  // --- prevenzione: asimmetrie dx/sx ---
+  h += _rPrevenzione(id);
 
   // --- presenze ---
   h += `<h2>Presenze</h2><div class="kpi">
@@ -223,7 +543,7 @@ function _reportBodyHTML(id) {
   </div>`;
 
   // --- salute: diario recente + grafico + infortuni ---
-  const storia = ((DEMO.diariStorico || {})[id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  const storia = ((DEMO.diariStorico || {})[id] || []).filter(v => _rInPeriodo(v.data)).slice().sort((x, y) => x.data < y.data ? 1 : -1);
   h += `<h2>Stato di salute</h2>`;
   if (storia.length) {
     const ult = storia[0];
@@ -231,12 +551,27 @@ function _reportBodyHTML(id) {
     if (ult.note) h += `<p class="note">"${ult.note}"</p>`;
     const bars = storia.slice(0, 8).reverse().map(v => ({ v: v.prontezza != null ? Math.round(v.prontezza * 10) / 10 : 0, lab: (v.data || "").slice(8, 10) + "/" + (v.data || "").slice(5, 7) }));
     if (bars.length) h += `<p class="sub" style="margin-top:8px"><b>Prontezza — ultimi giorni</b></p>${_svgBars(bars)}`;
+    // --- sonno: media + ultima notte + grafico ---
+    const sonnoS = storia.filter(v => v.oreSonno != null && v.oreSonno !== "" && !isNaN(Number(v.oreSonno)));
+    if (sonnoS.length) {
+      const recS = sonnoS.slice(0, 14);
+      const mediaS = recS.reduce((s, v) => s + Number(v.oreSonno), 0) / recS.length;
+      const ultimaS = Number(sonnoS[0].oreSonno);
+      h += `<p class="sub" style="margin-top:10px"><b>Sonno — ultimi giorni</b> · media <b>${mediaS.toFixed(1)} h</b> (${recS.length} gg) · ultima notte <b>${ultimaS.toFixed(1)} h</b>${mediaS < 7 ? ` <span class="y">(sotto le 7 h)</span>` : ""}</p>`;
+      const sbars = sonnoS.slice(0, 10).reverse().map(v => ({ v: Math.round(Number(v.oreSonno) * 10) / 10, lab: (v.data || "").slice(8, 10) + "/" + (v.data || "").slice(5, 7) }));
+      h += _svgBarsSonno(sbars, mediaS);
+    }
+    // peso corporeo
+    h += _rPesoTrend(id);
+    // giorni con ciclo (se registrati)
+    const nCiclo = storia.filter(v => v.ciclo).length;
+    if (nCiclo) h += `<p class="sub" style="margin-top:8px">🩸 Ciclo mestruale registrato in <b>${nCiclo}</b> ${nCiclo === 1 ? "giorno" : "giorni"} nel periodo.</p>`;
   } else h += `<p class="muted">Nessun diario registrato.</p>`;
   const inf = (DEMO.infortuni || []).filter(i => (i.atleta === id) && i.stato !== "Risolto");
   if (inf.length) h += `<p class="sub" style="margin-top:8px"><b class="r">Infortuni/fastidi in corso</b></p><table><tr><th>Zona</th><th>Tipo</th><th>Stato</th><th>Dal</th></tr>${inf.map(i => `<tr><td>${i.zona}${i.lato ? " " + i.lato : ""}</td><td>${i.tipo || ""}</td><td>${i.stato || "Attivo"}</td><td>${_rDataL(i.dataInizio || i.dal || "")}</td></tr>`).join("")}</table>`;
 
   // --- allenamenti svolti ---
-  const tutteSvolte = ((DEMO.seduteSvolte || {})[id] || []);
+  const tutteSvolte = ((DEMO.seduteSvolte || {})[id] || []).filter(s => _rInPeriodo(s.data));
   const nSvolte = tutteSvolte.length, nPista = tutteSvolte.filter(s => s.tipo === "pista").length;
   const svolte = tutteSvolte.slice().sort((x, y) => x.data < y.data ? 1 : -1).slice(0, 12);
   h += `<h2>Allenamenti svolti (${nSvolte})</h2>`;
@@ -255,22 +590,35 @@ function _reportBodyHTML(id) {
     }).join("")}</table>`;
   } else h += `<p class="muted">Nessun allenamento chiuso ancora dall'atleta.</p>`;
 
+  // --- carico e forma nel tempo (sRPE + ACWR) ---
+  h += _rCaricoTrend(id);
+
+  // --- note dell'allenatore ---
+  h += _rNoteCoach(id);
+
   // --- programma per mesociclo (parte da una nuova pagina) ---
   h += `<div style="page-break-before:always"></div>${_rProgrammaMesocicli(a)}`;
 
   h += `<div class="foot">Metis Performance · «Chi non pianifica è destinato a fallire.»</div>`;
+  // footer ripetuto su ogni pagina in stampa (Chrome: il n° pagina si attiva da "Altre impostazioni › Intestazioni e piè di pagina")
+  h += `<div class="print-footer">${(typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis Performance"} · ${a.nome} · ${oggi}</div>`;
   return h;
 }
 
 function vistaReportAtleta() {
   const a = DEMO.atleti.find(x => x.id === S.report);
   if (!a) { S.report = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
+  const per = S.reportPeriodo || "tutto";
+  const pill = (v, l) => `<button class="btn ${per === v ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setReportPeriodo('${v}')">${l}</button>`;
   return `<style>${_REPORT_CSS}</style>
-    <div class="no-print" style="display:flex;gap:8px;margin-bottom:14px">
+    <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-2" style="width:auto;padding:9px 14px" onclick="chiudiReport()">‹ Indietro</button>
       <button class="btn" style="width:auto;padding:9px 16px" onclick="window.print()">🖨 Stampa / Salva PDF</button>
     </div>
-    <p class="no-print et" style="margin-bottom:12px">Anteprima del report. Premi <b>Stampa</b> e scegli <b>«Salva come PDF»</b> come stampante.</p>
+    <div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <span class="et" style="margin:0 2px 0 0">Periodo:</span>${pill("tutto", "Stagione")}${pill("90", "90 giorni")}${pill("180", "180 giorni")}
+      <span class="et" style="margin:0 0 0 6px;color:var(--muted,#8a94a3)">Grafici e diario mostrano <b>${_rPeriodoLabel()}</b>. Premi <b>Stampa › Salva come PDF</b>.</span>
+    </div>
     <div id="app-report">${_reportBodyHTML(a.id)}</div>`;
 }
 
