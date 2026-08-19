@@ -35,8 +35,50 @@ function pianoDi(g) {
   while (p.righe.length < p.nSettimane) p.righe.push({ fase: "", blocco: "", sist: "", ciclo: "" });
   return p;
 }
-function pianoDati() { return pianoDi(S.pianoDisc || "vel"); }
-function setPianoDisc(g) { S.pianoDisc = g; disegna(); window.scrollTo(0, 0); }
+// piano di un SINGOLO atleta: alla prima selezione è una COPIA del madre del suo gruppo,
+// poi il coach lo modifica liberamente senza toccare il madre né gli altri atleti.
+function pianoAtletaDi(atletaId) {
+  DEMO.pianoAtleta = DEMO.pianoAtleta || {};
+  if (!DEMO.pianoAtleta[atletaId]) {
+    const a = DEMO.atleti.find(x => x.id === atletaId) || {};
+    const g = (typeof gruppoDi === "function") ? gruppoDi(a) : (S.pianoDisc || "vel");
+    const madre = pianoDi(g);
+    DEMO.pianoAtleta[atletaId] = JSON.parse(JSON.stringify({ inizio: madre.inizio, nSettimane: madre.nSettimane, righe: madre.righe, disc: g }));
+  }
+  const p = DEMO.pianoAtleta[atletaId];
+  if (!p.righe) p.righe = [];
+  if (!p.nSettimane) p.nSettimane = 24;
+  while (p.righe.length < p.nSettimane) p.righe.push({ fase: "", blocco: "", sist: "", ciclo: "" });
+  return p;
+}
+// il piano attualmente in modifica: quello dell'atleta scelto, altrimenti il madre della disciplina
+function pianoDati() {
+  if (S.pianoAtleta) return pianoAtletaDi(S.pianoAtleta);
+  return pianoDi(S.pianoDisc || "vel");
+}
+function setPianoDisc(g) { S.pianoDisc = g; S.pianoAtleta = null; disegna(); window.scrollTo(0, 0); }
+// scegli chi stai pianificando: "" = programma madre, altrimenti l'atleta (crea la sua copia dal madre)
+function setPianoAtleta(atletaId) {
+  if (!atletaId) { S.pianoAtleta = null; disegna(); window.scrollTo(0, 0); return; }
+  S.pianoAtleta = atletaId;
+  const a = DEMO.atleti.find(x => x.id === atletaId);
+  if (a && typeof gruppoDi === "function") S.pianoDisc = gruppoDi(a);
+  pianoAtletaDi(atletaId);
+  if (typeof savePiano === "function") savePiano();
+  disegna(); window.scrollTo(0, 0);
+}
+// ributta il piano dell'atleta uguale al madre (scarta le sue modifiche), restando su di lui
+function pianoAtletaResetMadre() {
+  if (!S.pianoAtleta) return;
+  if (typeof confirm === "function" && !confirm("Riallineare il piano al madre? Le modifiche personali di questo atleta verranno perse.")) return;
+  const a = DEMO.atleti.find(x => x.id === S.pianoAtleta) || {};
+  const g = (typeof gruppoDi === "function") ? gruppoDi(a) : (S.pianoDisc || "vel");
+  const madre = pianoDi(g);
+  DEMO.pianoAtleta = DEMO.pianoAtleta || {};
+  DEMO.pianoAtleta[S.pianoAtleta] = JSON.parse(JSON.stringify({ inizio: madre.inizio, nSettimane: madre.nSettimane, righe: madre.righe, disc: g }));
+  if (typeof savePiano === "function") savePiano();
+  disegna(); window.scrollTo(0, 0);
+}
 
 // Calcola le colonne automatiche per ogni settimana (formule del foglio Excel).
 function calcolaPiano() {
@@ -90,6 +132,7 @@ function prossimaGaraA() {
 // ---------- vista ----------
 function vistaPiano() {
   if (S.pianoGrafici) return vistaPianoGrafici();
+  if (S.pianoAtleta && !DEMO.atleti.find(x => x.id === S.pianoAtleta)) S.pianoAtleta = null; // atleta rimosso → torna al madre
   const disc = S.pianoDisc || "vel";
   const p = pianoDati();
   const rows = calcolaPiano();
@@ -116,13 +159,28 @@ function vistaPiano() {
   }).join("");
 
   const grp = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
+  const nomeG = (typeof nomeGruppo === "function") ? nomeGruppo(disc) : ((grp.find(x => x[0] === disc) || [])[1] || "");
+  const isAtl = !!S.pianoAtleta;
+  const atl = isAtl ? DEMO.atleti.find(x => x.id === S.pianoAtleta) : null;
+  const listaAtl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(disc) : DEMO.atleti.filter(x => ((typeof gruppoDi === "function") ? gruppoDi(x) : "vel") === disc);
   return `
   <div class="card"><h3>Piano & Picco</h3>
     <p class="et" style="margin-top:2px">Piano annuale della stagione (Bompa). Tu compili <b>Fase</b>, <b>Blocco forza</b>, <b>Sist. energetico</b> e il <b>Ciclo</b>; Intensità, Volume, Gara, Scarico e Peaking escono da soli.</p></div>
   <div class="card">
-    <label class="lab">Piano per disciplina</label>
+    <label class="lab">Piano per disciplina (madre)</label>
     <select onchange="setPianoDisc(this.value)" style="margin-top:6px">${grp.map(([k, l]) => `<option value="${k}" ${k === disc ? "selected" : ""}>${l}</option>`).join("")}</select>
-    <p class="et" style="margin-top:8px">Ogni disciplina ha il <b>suo</b> piano e i suoi sistemi energetici. Per i <b>${(grp.find(x => x[0] === disc) || [])[1] || ""}</b>: <span style="color:var(--txt)">${sistEnDi(disc).join(" · ")}</span>.</p>
+    <label class="lab" style="display:block;margin-top:12px">Chi stai pianificando</label>
+    <select onchange="setPianoAtleta(this.value)" style="margin-top:6px">
+      <option value="">🗂 Programma madre — ${nomeG}</option>
+      ${listaAtl.map(x => { const has = DEMO.pianoAtleta && DEMO.pianoAtleta[x.id]; return `<option value="${x.id}" ${S.pianoAtleta === x.id ? "selected" : ""}>${x.nome}${has ? " · personalizzato" : ""}</option>`; }).join("")}
+    </select>
+    <div style="margin-top:10px;padding:9px 11px;border-radius:9px;background:${isAtl ? "var(--blu-bg)" : "var(--card2)"};font-size:12.5px;color:${isAtl ? "var(--blu)" : "var(--txt2)"};line-height:1.5">
+      ${isAtl
+        ? `✏️ Stai modificando il piano <b>solo di ${atl ? atl.nome : ""}</b>. Il <b>madre</b> e gli altri atleti <b>non cambiano</b>.`
+        : `🗂 Stai modificando il <b>piano madre</b> dei <b>${nomeG}</b>: vale per tutti gli atleti del gruppo che non hanno un piano personale. Seleziona un atleta per adattarglielo su misura.`}
+    </div>
+    ${isAtl ? `<button class="btn btn-2" style="margin-top:10px" onclick="pianoAtletaResetMadre()">↺ Riallinea al piano madre</button>` : ""}
+    ${isAtl ? "" : `<p class="et" style="margin-top:8px">Sistemi energetici dei <b>${nomeG}</b>: <span style="color:var(--txt)">${sistEnDi(disc).join(" · ")}</span>.</p>`}
   </div>
   <div class="card">
     <div class="griglia2">

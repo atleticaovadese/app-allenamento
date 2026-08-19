@@ -20,7 +20,7 @@ function mergeEserciziCustom(lista) {
 function bundleCustom() {
   return {
     esercizi: DEMO.customEsercizi || [], schede: DEMO.schede, schedeTipo: DEMO.schedeTipo,
-    piano: DEMO.piano, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
+    piano: DEMO.piano, pianoAtleta: DEMO.pianoAtleta || {}, pista: DEMO.pista, palestra: DEMO.palestra, vbtLog: DEMO.vbtLog, pistaLog: DEMO.pistaLog,
     testSessioni: DEMO.testSessioni, risultatiGara: DEMO.risultatiGara,
     lattato: DEMO.lattato || {}, critSpeed: DEMO.critSpeed || {},
     lanci: DEMO.lanci || {}, lanciLog: DEMO.lanciLog || [],
@@ -39,6 +39,7 @@ function applicaBundle(c) {
   if (c.schede) DEMO.schede = c.schede;
   if (c.schedeTipo) DEMO.schedeTipo = c.schedeTipo;
   if (c.piano) DEMO.piano = c.piano;
+  if (c.pianoAtleta) DEMO.pianoAtleta = c.pianoAtleta;
   if (c.pista) DEMO.pista = c.pista;
   if (c.palestra) DEMO.palestra = c.palestra;
   if (c.vbtLog) DEMO.vbtLog = c.vbtLog;
