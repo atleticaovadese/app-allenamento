@@ -808,7 +808,7 @@ function delPrevEs(i) {
 // ---------- monitoraggio: presenze squadra ----------
 function vistaPresenzeCoach() {
   const righe = ordinaAtleti().map(a => {
-    const stag = Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100);
+    const stag = a.presenzeStagione[1] ? Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100) : 0;
     const col = stag >= 85 ? "var(--verde)" : stag >= 70 ? "var(--giallo)" : "var(--rosso)";
     return `<div class="card riga-a">
       <div style="flex:1;min-width:0"><h3>${a.nome}</h3>

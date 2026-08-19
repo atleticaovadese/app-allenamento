@@ -547,13 +547,31 @@ function apriSchedaAtleta() { S.mostraScheda = true; disegna(); window.scrollTo(
 function chiudiSchedaAtleta() { S.mostraScheda = false; disegna(); window.scrollTo(0, 0); }
 
 // ---------- Presenze ----------
+// dati presenze REALI per mese (stagione set→oggi): fatti = sedute svolte, programmati = dal programma
+function _presenzeMesiReali(a) {
+  const svolte = (DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [];
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const now = new Date(), todayISO = iso(now);
+  const seasonY = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const MESI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+  const out = []; let y = seasonY, mo = 8, guard = 0; // settembre
+  while ((y < now.getFullYear() || (y === now.getFullYear() && mo <= now.getMonth())) && guard++ < 14) {
+    const startISO = iso(new Date(y, mo, 1)); let endISO = iso(new Date(y, mo + 1, 0));
+    if (endISO > todayISO) endISO = todayISO; // non contare giorni futuri del mese corrente
+    const done = svolte.filter(s => s.data >= startISO && s.data <= endISO).length;
+    const prog = (typeof contaProgrammate === "function") ? contaProgrammate(a, startISO, endISO) : 0;
+    out.push([MESI[mo], prog, done]);
+    mo++; if (mo > 11) { mo = 0; y++; }
+  }
+  return out;
+}
 function vistaPresenze() {
   const a = atletaCorrente();
-  const mesi = DEMO.presenzeMesi;
+  const mesi = _presenzeMesiReali(a);
   const totFatti = mesi.reduce((s, m) => s + m[2], 0);
   const totProg = mesi.reduce((s, m) => s + m[1], 0);
-  const ader = Math.round(totFatti / totProg * 100);
-  const max = Math.max(...mesi.map(m => m[1]));
+  const ader = totProg > 0 ? Math.round(totFatti / totProg * 100) : 0;
+  const max = Math.max(1, ...mesi.map(m => m[1]), ...mesi.map(m => m[2]));
 
   const barre = mesi.map(([nome, prog, fatti]) => `
     <div class="barra">
@@ -563,6 +581,12 @@ function vistaPresenze() {
       </div>
       <div class="et" style="text-align:center">${nome}</div>
     </div>`).join("");
+
+  // nota infortunio SOLO se reale (dall'archivio infortuni dell'atleta)
+  const inf = (DEMO.infortuni || []).filter(i => i.atleta === a.id);
+  const notaInf = inf.length ? `<div class="card" style="border-color:rgba(240,168,60,.45)">
+    <p style="font-size:13px;color:var(--giallo)">🩹 ${inf.map(i => `${i.zona || "Infortunio"}${i.lato ? " " + i.lato : ""}${i.stato ? " · " + i.stato : ""}`).join(" · ")}</p></div>` : "";
+  const vuoto = totFatti === 0 && totProg === 0;
 
   return `
   <div class="quadri" style="margin-bottom:11px">
@@ -580,12 +604,10 @@ function vistaPresenze() {
         <span class="et"><span class="quad fatti"></span> fatti</span>
       </div>
     </div>
-    <div class="grafico">${barre}</div>
+    ${vuoto ? `<p class="et" style="text-align:center;padding:18px 0">Ancora nessun allenamento registrato.<br>Chiudi le sedute e qui vedrai le tue presenze mese per mese.</p>` : `<div class="grafico">${barre}</div>`}
   </div>
 
-  <div class="card" style="border-color:rgba(240,168,60,.45)">
-    <p style="font-size:13px;color:var(--giallo)">${DEMO.presenzeNota}</p>
-  </div>
+  ${notaInf}
 
   <div class="griglia2">
     <div class="num"><div class="k">Questo mese</div><div class="v">${a.presenzeMese[0]} / ${a.presenzeMese[1]}</div></div>
