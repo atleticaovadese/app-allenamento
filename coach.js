@@ -847,9 +847,9 @@ function vistaDiarioAtleta() {
   if (!a) { S.diarioAtleta = null; return vistaDiarioCoach(); }
   const storia = ((DEMO.diariStorico || {})[a.id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
   const dl = v => typeof dataLunga === "function" ? dataLunga(v) : v;
-  const giorni = storia.map(v => `<div class="card">
+  const giorni = storia.map(v => `<div class="card"${v.ciclo ? ' style="border-color:#e2a0b8;background:rgba(214,74,120,.06)"' : ""}>
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <h3 style="font-size:16px">${dl(v.data)}</h3>
+        <h3 style="font-size:16px">${dl(v.data)}${v.ciclo ? ' <span style="color:#c74a78;font-size:13px;font-weight:600">🩸 ciclo</span>' : ""}</h3>
         <div style="text-align:right"><span class="et" style="margin:0">prontezza</span>
           <b style="font-size:17px;margin-left:6px;color:${colProntezza(v.prontezza)}">${v.prontezza != null ? v.prontezza : "—"}</b></div></div>
       <p class="et" style="margin-top:6px">sonno ${v.oreSonno != null ? v.oreSonno + " h" : "—"} · qualità ${v.sonno_qualita ?? "—"}/5 · stress ${v.stress ?? "—"}/5 · dolori ${v.dolori ?? "—"}/5 · energia ${v.energia ?? "—"}/5</p>
@@ -857,9 +857,11 @@ function vistaDiarioAtleta() {
       ${v.peso ? `<p class="et" style="margin-top:3px">peso ${v.peso} kg</p>` : ""}
       ${v.note ? `<p style="font-size:14px;line-height:1.5;margin-top:6px">${v.note}</p>` : ""}
     </div>`).join("");
+  const sonno = (typeof _sonnoRiepilogo === "function") ? _sonnoRiepilogo(storia) : "";
   return `<button class="indietro" onclick="chiudiDiarioAtleta()">‹ Diario squadra</button>
     <div class="card"><h3>Diario · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Giorno per giorno${storia.length ? ` · ${storia.length} inserimenti` : ""}</p></div>
+    ${sonno}
     ${giorni || `<div class="card"><p class="et">Nessun diario registrato ancora per ${a.nome}.</p></div>`}`;
 }
 

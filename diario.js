@@ -17,6 +17,50 @@ function statoProntezza(p) {
 
 function diarioCompleto(d) { return prontezza(d) !== null; }
 
+// storia diario dell'atleta loggato (recente → vecchio)
+function _diarioStoriaMia() {
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const aid = a ? a.id : (S.utente && S.utente.atletaId);
+  return aid ? ((DEMO.diariStorico || {})[aid] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1) : [];
+}
+// riepilogo sonno: media (ultimi giorni) + ultima notte + mini-trend. Condiviso atleta/allenatore.
+function _sonnoRiepilogo(storia) {
+  const conSonno = (storia || []).filter(v => v.oreSonno != null && v.oreSonno !== "" && !isNaN(Number(v.oreSonno)));
+  if (!conSonno.length) return "";
+  const rec = conSonno.slice(0, 14);
+  const media = rec.reduce((s, v) => s + Number(v.oreSonno), 0) / rec.length;
+  const ultima = Number(conSonno[0].oreSonno);
+  const diff = ultima - media;
+  const nota = Math.abs(diff) < 0.5 ? "in linea con la tua media" : (diff < 0 ? `${Math.abs(diff).toFixed(1)} h in meno del solito` : `${diff.toFixed(1)} h in più del solito`);
+  const notaCol = diff <= -1 ? "var(--rosso)" : diff >= 0.5 ? "var(--verde)" : "var(--txt2)";
+  const barre = conSonno.slice(0, 10).reverse().map(v => { const h = Number(v.oreSonno); const ph = Math.max(6, Math.round((h / 10) * 46)); const c = h >= media - 0.5 ? "var(--verde)" : "var(--giallo)"; return `<div title="${h} h" style="width:13px;height:${ph}px;background:${c};border-radius:3px"></div>`; }).join("");
+  return `<div class="card">
+    <p class="et" style="margin-bottom:8px">😴 Sonno — nel tempo</p>
+    <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+      <div><div style="font-size:30px;font-weight:800;line-height:1">${media.toFixed(1)}<span style="font-size:14px;color:var(--txt3);font-weight:600"> h</span></div>
+        <div class="et" style="margin:2px 0 0">media ultimi ${rec.length} giorni</div></div>
+      <div style="border-left:1px solid var(--line);padding-left:16px">
+        <div style="font-size:21px;font-weight:700;line-height:1">${ultima.toFixed(1)}<span style="font-size:12px;color:var(--txt3)"> h</span></div>
+        <div class="et" style="margin:2px 0 0">ultima notte</div></div>
+      <div style="display:flex;align-items:flex-end;gap:3px;height:48px;margin-left:auto">${barre}</div>
+    </div>
+    <p class="et" style="margin-top:9px;color:${notaCol}">Ultima notte: <b>${nota}</b>. ${media < 7 ? "Media sotto le 7 h: prova a dormire di più." : "Buona media di sonno 👍"}</p>
+  </div>`;
+}
+// storia diario per l'ATLETA (senza prontezza, che non deve vedere); evidenzia il ciclo
+function _diarioStoriaAtleta(storia) {
+  if (!storia || !storia.length) return "";
+  const dl = v => (typeof fmtDataAnno === "function") ? fmtDataAnno(v) : v;
+  const rows = storia.slice(0, 21).map(v => `<div style="padding:8px 0;border-bottom:1px solid var(--line)${v.ciclo ? ";background:rgba(214,74,120,.08);border-radius:8px;padding:8px 9px;border-bottom:0;margin-bottom:2px" : ""}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <b style="font-size:13px">${dl(v.data)}${v.ciclo ? ' <span style="color:#c74a78">🩸</span>' : ""}</b>
+        <span class="et" style="margin:0">${v.oreSonno != null ? v.oreSonno + " h sonno" : ""}</span></div>
+      <div class="et" style="margin-top:3px">qualità ${v.sonno_qualita ?? "—"} · stress ${v.stress ?? "—"} · dolori ${v.dolori ?? "—"} · energia ${v.energia ?? "—"}${v.fastidi ? ' · <span style="color:var(--rosso)">fastidio</span>' : ""}</div>
+    </div>`).join("");
+  return `<div class="card"><p class="et" style="margin-bottom:6px">📅 Come stavo — i miei giorni</p>${rows}
+    ${storia.length > 21 ? `<p class="et" style="margin-top:8px;color:var(--txt3)">mostrati gli ultimi 21 giorni</p>` : ""}</div>`;
+}
+
 function vistaDiario() {
   const d = DEMO.diarioOggi;
 
@@ -77,7 +121,9 @@ function vistaDiario() {
       <p style="font-size:15px">Diario salvato ✓</p>
       <p class="et" style="margin-top:4px">Grazie — l'allenatore lo vede subito.</p>
     </div>`
-    : `<button class="btn" style="margin-bottom:14px" onclick="salvaDiario()">Salva il diario</button>`}`;
+    : `<button class="btn" style="margin-bottom:14px" onclick="salvaDiario()">Salva il diario</button>`}
+
+  ${(() => { const st = _diarioStoriaMia(); return _sonnoRiepilogo(st) + _diarioStoriaAtleta(st); })()}`;
 }
 
 function segnaDiario(campo, val) {
