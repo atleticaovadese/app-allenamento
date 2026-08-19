@@ -102,17 +102,19 @@ function vistaLogin() {
     <h1>${CONFIG.nome}</h1>
     <p class="sub" style="font-style:italic">${reg ? "Registrazione atleta" : "«Chi non pianifica è destinato a fallire.»"}</p>
     <div id="loginErr" class="login-err" style="display:none"></div>
-    <div class="campo"><label>Email</label><input id="inEmail" type="email" placeholder="nome@esempio.it" value="${(reg ? "" : savedEmail).replace(/"/g, "&quot;")}"></div>
-    <div class="campo"><label>Password</label>
-      <input id="inPwd" type="password" placeholder="${reg ? "almeno 6 caratteri" : "••••••••"}" onkeydown="if(event.key==='Enter')${reg ? "registraUI()" : "accediUI()"}"></div>
-    ${reg
-      ? `<button class="btn" onclick="registraUI()">Registrati</button>
-         <p class="et" style="text-align:center;margin-top:12px">Usa l'email che ti ha dato l'allenatore.<br>
-           <button class="link-indietro" onclick="toggleRegistra()">Hai già l'accesso? Entra ›</button></p>`
-      : `<label class="check" style="margin:4px 2px 14px"><input type="checkbox" id="inRicorda" ${savedEmail ? "checked" : ""}><span>Ricorda la mia email</span></label>
-         <button class="btn" onclick="accediUI()">Entra</button>
-         <p class="et" style="text-align:center;margin-top:12px">
-           <button class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>`}
+    <form autocomplete="on" onsubmit="${reg ? "registraUI()" : "accediUI()"};return false">
+      <div class="campo"><label>Email</label><input id="inEmail" name="email" type="email" autocomplete="username" inputmode="email" placeholder="nome@esempio.it" value="${(reg ? "" : savedEmail).replace(/"/g, "&quot;")}"></div>
+      <div class="campo"><label>Password</label>
+        <input id="inPwd" name="password" type="password" autocomplete="${reg ? "new-password" : "current-password"}" placeholder="${reg ? "almeno 6 caratteri" : "••••••••"}"></div>
+      ${reg
+        ? `<button class="btn" type="submit">Registrati</button>
+           <p class="et" style="text-align:center;margin-top:12px">Usa l'email che ti ha dato l'allenatore.<br>
+             <button type="button" class="link-indietro" onclick="toggleRegistra()">Hai già l'accesso? Entra ›</button></p>`
+        : `<label class="check" style="margin:4px 2px 14px"><input type="checkbox" id="inRicorda" ${savedEmail ? "checked" : ""}><span>Ricorda la mia email</span></label>
+           <button class="btn" type="submit">Entra</button>
+           <p class="et" style="text-align:center;margin-top:12px">
+             <button type="button" class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>`}
+    </form>
   </div>`;
 }
 function toggleRegistra() { S.mostraRegistra = !S.mostraRegistra; disegna(); }
