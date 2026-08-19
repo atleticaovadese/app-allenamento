@@ -557,9 +557,9 @@ const TOUR_COACH = [
   ["?", "Guida e glossario", "Dubbi su un termine (ACWR, RSI, TUT…)? È tutto in <b>Guida e glossario</b>, dove puoi anche rivedere questo tutorial. Buon lavoro! 💪", ["Tutti i termini spiegati semplici", "Rivedi il tutorial da qui"], "guida"]
 ];
 function _tourCorrente() { return (S.utente && S.utente.ruolo === "coach") ? TOUR_COACH : TOUR; }
-function setOnboarding(fase) { S.onboarding = fase; S.tourStep = 0; if (fase !== "tour") S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
-function tourAvanti() { if (S.tourStep < _tourCorrente().length - 1) { S.tourStep++; disegna(); window.scrollTo(0, 0); } else tourFine(); }
-function tourIndietro() { if (S.tourStep > 0) { S.tourStep--; disegna(); window.scrollTo(0, 0); } }
+function setOnboarding(fase) { S.onboarding = fase; S.tourStep = 0; S.tutI = {}; if (fase !== "tour") S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
+function tourAvanti() { if (S.tourStep < _tourCorrente().length - 1) { S.tourStep++; S.tutI = {}; disegna(); window.scrollTo(0, 0); } else tourFine(); }
+function tourIndietro() { if (S.tourStep > 0) { S.tourStep--; S.tutI = {}; disegna(); window.scrollTo(0, 0); } }
 function tourFine() {
   if (S.utente && S.utente.ruolo === "coach") { try { localStorage.setItem("metis_tut_coach", "1"); } catch (e) { } }
   S.onboarding = null; S.tourStep = 0; S.vista = (S.utente && S.utente.ruolo === "coach") ? "squadra" : "oggi"; disegna(); window.scrollTo(0, 0);
