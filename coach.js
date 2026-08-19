@@ -326,10 +326,12 @@ function vistaAtletaDettaglio() {
   <div class="card">
     <div style="display:flex;align-items:center;gap:12px">
       ${typeof avatarAtleta === "function" ? avatarAtleta(a) : `<div class="avatar">${a.nome.split(" ").map(x => x[0]).join("")}</div>`}
-      <div style="flex:1"><h3>${a.nome}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}</p></div>
+      <div style="flex:1"><h3>${a.nome}${a.bloccato ? ' <span title="Sola lettura">🔒</span>' : ""}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}</p></div>
       <span class="pill ${STATO[s.stato][0]}">${txt}</span>
     </div>
   </div>
+
+  ${a.bloccato ? `<div class="card" style="border-color:rgba(230,168,60,.55)"><p class="et" style="margin:0;color:var(--ambra,#e6a83c)">🔒 <b>Scheda dimostrativa in sola lettura</b> — esempio precompilato: non si può modificare né cancellare.</p></div>` : ""}
 
   ${s.alert.length ? `<div style="margin-bottom:11px">${avvisi}</div>` : ""}
 
@@ -345,8 +347,8 @@ function vistaAtletaDettaglio() {
   </div>
 
   <div class="griglia2" style="margin-bottom:11px">
-    <div class="num"><div class="k">Prossima gara</div><div class="v" style="font-size:16px">${DEMO.prossimaGara.luogo}</div>
-      <div class="et">tra ${DEMO.prossimaGara.traSettimane} sett</div></div>
+    <div class="num"><div class="k">Prossima gara</div><div class="v" style="font-size:16px">${DEMO.prossimaGara ? DEMO.prossimaGara.luogo : "—"}</div>
+      <div class="et">${DEMO.prossimaGara ? "tra " + DEMO.prossimaGara.traSettimane + " sett" : "nessuna in programma"}</div></div>
     <div class="num"><div class="k">Profilo F-V</div><div class="v" style="font-size:15px">${s.fv}</div></div>
   </div>
 
@@ -739,6 +741,7 @@ function vistaPrevenzione() {
 function salvaPrevenzione() {
   const a = DEMO.atleti.find(x => x.id === prevState.atletaRif);
   if (!a) { alert("Scegli un atleta."); return; }
+  if (typeof atletaBloccato === "function" && atletaBloccato(a.id)) { alert("🔒 Scheda bloccata (esempio dimostrativo): non modificabile."); return; }
   const dati = {}; let n = 0;
   prevTestsAll().forEach(t => { const asym = prevAsym(t.k); if (asym != null) { dati[t.k] = { dx: prevState.val[t.k].dx, sx: prevState.val[t.k].sx, asym }; n++; } });
   if (!n) { alert("Inserisci almeno un test (dx e sx)."); return; }
@@ -868,7 +871,7 @@ function vistaDiarioAtleta() {
 // ---------- TAPPA 3b: sposta i giorni di un atleta (override sul madre, senza toccarlo) ----------
 const GG_LABEL = { lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì", ven: "Venerdì", sab: "Sabato", dom: "Domenica" };
 const GG_ORDER = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
-function apriSpostaGiorni(id) { S.spostaGiorni = id; disegna(); window.scrollTo(0, 0); }
+function apriSpostaGiorni(id) { if (typeof atletaBloccato === "function" && atletaBloccato(id)) { alert("🔒 Scheda bloccata (esempio dimostrativo): non modificabile."); return; } S.spostaGiorni = id; disegna(); window.scrollTo(0, 0); }
 function chiudiSpostaGiorni() { S.spostaGiorni = null; disegna(); window.scrollTo(0, 0); }
 function _mesoRif(prog) {
   const act = (typeof mesoAttivo === "function") ? mesoAttivo(prog, oggiISO(), true) : null;
@@ -934,6 +937,7 @@ function _righeMadre(tipo, gi, wk) {
   return (m && m.giorni[gi] && m.giorni[gi].settimane[wk] && m.giorni[gi].settimane[wk].righe) || [];
 }
 function apriAdatta(atletaId) {
+  if (typeof atletaBloccato === "function" && atletaBloccato(atletaId)) { alert("🔒 Scheda bloccata (esempio dimostrativo): non modificabile."); return; }
   const sch = _giorniSched("pista");
   S.adatta = { atletaId, tipo: "pista", gi: sch.length ? sch[0].gi : 0, wk: 0 };
   disegna(); window.scrollTo(0, 0);

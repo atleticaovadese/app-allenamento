@@ -61,7 +61,7 @@ function schedaAtleta(a, mod) {
   <div class="card">
     <div style="display:flex;align-items:center;gap:12px">
       ${avatarAtleta(a)}
-      <div><h3>${a.nome}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}${an.categoria ? " · " + an.categoria : ""}</p></div>
+      <div><h3>${a.nome}${a.bloccato ? ' <span title="Sola lettura">🔒</span>' : ""}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}${an.categoria ? " · " + an.categoria : ""}</p></div>
     </div>
   </div>
 

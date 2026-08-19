@@ -7,12 +7,9 @@ const sb = (typeof supabase !== "undefined" && typeof SUPA !== "undefined")
   ? supabase.createClient(SUPA.url, SUPA.anon)
   : null;
 
-// ---- snapshot dei dati demo di monitoraggio (per riagganciarli agli atleti veri per nome) ----
-const _MON_DEMO   = { "Leonardo Zetti": DEMO.mon.at1, "Marco Bianchi": DEMO.mon.at2, "Sara Moretti": DEMO.mon.at3 };
-const _DIARI_DEMO = { "Leonardo Zetti": DEMO.diariCoach.at1, "Marco Bianchi": DEMO.diariCoach.at2, "Sara Moretti": DEMO.diariCoach.at3 };
-const _DAFARE_DEMO = { "Marco Bianchi": DEMO.report.daFare.at2, "Sara Moretti": DEMO.report.daFare.at3 };
-const _PRES_DEMO = {};
-DEMO.atleti.forEach(a => { _PRES_DEMO[a.nome] = { mese: a.presenzeMese, stag: a.presenzeStagione }; });
+// Nessun dato demo agganciato per nome: gli atleti veri partono PULITI (mon/diario/presenze
+// arrivano solo dai dati reali del DB). Evita che un vero "Leonardo Zetti" erediti dati d'esempio.
+const _MON_DEMO = {}, _DIARI_DEMO = {}, _DAFARE_DEMO = {}, _PRES_DEMO = {};
 
 const MESI_IT = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
 const ORD_DIST = ["30 m lanciato","30 m blocchi","60 m","80 m","100 m","120 m","150 m","200 m","300 m","400 m"];
@@ -88,7 +85,7 @@ async function caricaDati() {
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
-    .select("id,nome,disciplina,specialita,email,profilo_id,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine,vento),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
+    .select("id,nome,disciplina,specialita,email,profilo_id,bloccato,categoria,data_nascita,gamba_stacco,altezza_cm,peso_kg,pb(id,distanza,tempo,data,stagione,obiettivo,origine,vento),massimale(id,esercizio,kg,data,note),test(id,nome,valore,unita,data)")
     .order("creato_il");
 
   const nuoviMon = {}, nuoviDiari = {}, nuovaDaFare = {};
@@ -110,7 +107,7 @@ async function caricaDati() {
     if (_DAFARE_DEMO[a.nome]) nuovaDaFare[a.id] = _DAFARE_DEMO[a.nome];
     return {
       id: a.id, nome: a.nome, disciplina: a.disciplina, specialita: a.specialita,
-      email: a.email || "", haAccesso: !!a.profilo_id, dataNascita: a.data_nascita || "",
+      email: a.email || "", haAccesso: !!a.profilo_id, bloccato: !!a.bloccato, dataNascita: a.data_nascita || "",
       presenzeMese: pres.mese, presenzeStagione: pres.stag,
       test: salti.slice(0, 3).map(([n, v, u]) => [n, v + " " + u, ""]),
       pb: pb.map(p => [p[0], p[1]]), massimali: massimali.map(m => [m[0], m[1]]),
@@ -174,6 +171,9 @@ async function caricaDati() {
     DEMO.prossimaGara = { luogo: g0.luogo, gara: g0.gara, obiettivo: g0.obiettivo, traSettimane: settimaneA(g0.data) };
     DEMO.gareProssime = gare.slice(1).map(g => ({ data: fmtData(g.data), luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
     DEMO.gareRaw = gare.map(g => ({ data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
+  } else {
+    // nessuna gara nel calendario → niente "prossima gara" finta
+    DEMO.prossimaGara = null; DEMO.gareProssime = []; DEMO.gareRaw = [];
   }
 
   // diari (storico giorno per giorno): coach vede la società, atleta vede i propri (RLS). Ultimi ~60 giorni.
@@ -285,6 +285,7 @@ async function salvaDiarioDB(dataISO, d) {
   if (!haDB()) return;
   const aid = S.utente && S.utente.atletaId;
   if (!aid) return;
+  if (atletaBloccato(aid)) return;
   await sb.from("diario").upsert({
     atleta_id: aid, data: dataISO,
     ore_sonno: d.oreSonno, sonno_qualita: d.sonno_qualita, stress: d.stress, dolori: d.dolori, energia: d.energia,
@@ -297,6 +298,7 @@ async function salvaSedutaSvoltaDB(s) {
   if (!haDB() || !s) return;
   const aid = S.utente && S.utente.atletaId;
   if (!aid) return;
+  if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
     ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi })) }
     : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, vbtTarget: x.vbtTarget, vbt: x.vbt })) };
@@ -361,6 +363,7 @@ async function creaAtleta(d) {
 }
 // imposta/aggiorna l'email di accesso di un atleta esistente (il coach la dà all'atleta per registrarsi)
 async function impostaEmailAtleta(atletaId, email) {
+  if (_bloccatoStop(atletaId)) return false;
   const em = (email || "").trim().toLowerCase();
   if (haDB() && atletaId && !String(atletaId).startsWith("loc")) {
     const { error } = await sb.from("atleta").update({ email: em || null }).eq("id", atletaId);
@@ -369,8 +372,13 @@ async function impostaEmailAtleta(atletaId, email) {
   const a = _atl(atletaId); if (a) a.email = em;
   return true;
 }
+// scheda bloccata (esempio dimostrativo, sola lettura): non modificabile né cancellabile
+function atletaBloccato(id) { const a = (DEMO.atleti || []).find(x => x.id === id); return !!(a && a.bloccato); }
+function _bloccatoStop(id) { if (atletaBloccato(id)) { alert("🔒 Scheda bloccata (esempio dimostrativo): è in sola lettura e non può essere modificata."); return true; } return false; }
+
 // elimina un atleta e tutti i suoi dati collegati (solo coach)
 async function eliminaAtleta(atletaId) {
+  if (_bloccatoStop(atletaId)) return false;
   if (haDB() && atletaId && !String(atletaId).startsWith("loc")) {
     const { error } = await sb.from("atleta").delete().eq("id", atletaId);
     if (error) { alert("Errore nell'eliminazione: " + error.message); return false; }
@@ -383,6 +391,7 @@ async function eliminaAtleta(atletaId) {
 }
 // aggiorna l'anagrafica dell'atleta (può farlo l'atleta stesso dal suo profilo, o il coach)
 async function aggiornaAnagrafica(atletaId, d) {
+  if (_bloccatoStop(atletaId)) return false;
   const patch = {
     disciplina: d.disciplina || "velocita", specialita: d.specialita || null, categoria: d.categoria || null,
     data_nascita: d.data_nascita || null, gamba_stacco: d.gamba_stacco || null,
@@ -413,6 +422,7 @@ function _atl(id) { return DEMO.atleti.find(a => a.id === id); }
 // "" o NaN → null (le colonne numeriche del DB non accettano stringa vuota)
 function _numOrNull(x) { if (x === "" || x == null) return null; const n = Number(x); return isNaN(n) ? null : n; }
 async function creaPB(atletaId, d) {
+  if (_bloccatoStop(atletaId)) return false;
   let id = "loc" + Date.now();
   const origine = d.origine || "gara";
   const tempo = _numOrNull(d.tempo), stagione = _numOrNull(d.stagione), obiettivo = _numOrNull(d.obiettivo), vento = _numOrNull(d.vento);
@@ -433,6 +443,7 @@ async function creaPB(atletaId, d) {
 }
 // aggiorna il PB in allenamento per una distanza solo se il tempo è un nuovo migliore (meno = meglio)
 async function aggiornaPbAllenamento(atletaId, distanza, tempo) {
+  if (atletaBloccato(atletaId)) return false; // silenzioso: aggiornamento PB automatico
   if (!atletaId || !distanza || !(tempo > 0)) return false;
   const a = _atl(atletaId);
   if (a) {
@@ -443,6 +454,7 @@ async function aggiornaPbAllenamento(atletaId, distanza, tempo) {
 }
 
 async function creaMassimale(atletaId, d) {
+  if (_bloccatoStop(atletaId)) return false;
   let id = "loc" + Date.now();
   if (haDB()) {
     const { data, error } = await sb.from("massimale").insert({ atleta_id: atletaId, esercizio: d.esercizio, kg: d.kg, data: d.data || null, note: d.note || null }).select("id").single();
@@ -455,6 +467,7 @@ async function creaMassimale(atletaId, d) {
 }
 
 async function creaTest(atletaId, d) {
+  if (_bloccatoStop(atletaId)) return false;
   let id = "loc" + Date.now();
   if (haDB()) {
     const { data, error } = await sb.from("test").insert({ atleta_id: atletaId, nome: d.nome, valore: d.valore, unita: d.unita || null, data: d.data || null }).select("id").single();
@@ -467,6 +480,7 @@ async function creaTest(atletaId, d) {
 }
 
 async function creaInfortunio(atletaId, d) {
+  if (_bloccatoStop(atletaId)) return false;
   let id = "loc" + Date.now();
   if (haDB()) {
     const { data, error } = await sb.from("infortunio").insert({
@@ -498,6 +512,7 @@ async function eliminaInfortunio(id) {
 }
 
 async function eliminaVoce(tabella, atletaId, id, arrKey, idx) {
+  if (_bloccatoStop(atletaId)) return;
   if (haDB() && id && !String(id).startsWith("loc")) {
     const { error } = await sb.from(tabella).delete().eq("id", id);
     if (error) { alert("Errore: " + error.message); return; }

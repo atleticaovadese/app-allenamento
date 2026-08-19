@@ -239,6 +239,7 @@ function segnaChiusura(sid, campo, val) {
 }
 async function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
+  if (typeof atletaBloccato === "function" && S.utente && atletaBloccato(S.utente.atletaId)) { alert("🔒 Scheda dimostrativa in sola lettura: l'allenamento non viene salvato."); return; }
   if (s.durata === null || s.rpe === null) { alert("Scrivi durata e RPE prima di chiudere."); return; }
   // palestra: registra la seduta (Serie/Rep/Peso/Volume/RPE/VBT) → Monitoraggio VBT + Andamento Palestra
   if (s.tipo === "palestra" && typeof registraVbt === "function") {

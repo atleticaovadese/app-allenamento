@@ -139,6 +139,7 @@ function cambiaOre(x) {
   d.salvato = false; disegna();
 }
 async function salvaDiario() {
+  if (typeof atletaBloccato === "function" && S.utente && atletaBloccato(S.utente.atletaId)) { alert("🔒 Scheda dimostrativa in sola lettura: il diario non si può compilare qui."); return; }
   const d = DEMO.diarioOggi;
   if (!diarioCompleto(d)) { alert("Rispondi a tutte e quattro le domande prima di salvare."); return; }
   d.salvato = true;

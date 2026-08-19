@@ -217,8 +217,8 @@ function vistaOggi() {
 
     <div class="q" onclick="vai('gare')"><div class="q-ic">🏁</div>
       <div class="k">Prossima gara</div>
-      <div><div class="v s">${g.luogo}</div>
-        <div class="d"><span class="qpill">tra ${g.traSettimane} sett</span>${g.gara} · ${g.obiettivo}</div></div>
+      <div>${g ? `<div class="v s">${g.luogo}</div>
+        <div class="d"><span class="qpill">tra ${g.traSettimane} sett</span>${g.gara} · ${g.obiettivo}</div>` : `<div class="v s">—</div><div class="d">nessuna in programma</div>`}</div>
     </div>
 
     <div class="q" onclick="vai('presenze')"><div class="q-ic">📅</div>
@@ -284,11 +284,11 @@ function vistaGare() {
   ${ris || `<div class="card"><p class="et">Nessun risultato registrato. Tocca «Registra risultato».</p></div>`}
 
   <p class="sez">Prossima gara</p>
-  <div class="card" style="border-color:var(--blu)">
+  ${p ? `<div class="card" style="border-color:var(--blu)">
     <p class="et" style="color:var(--blu)">tra ${p.traSettimane} settimane</p>
     <h3 style="margin-top:4px">${p.luogo}</h3>
     <p class="et" style="margin-top:2px">${p.gara} · obiettivo ${p.obiettivo}</p>
-  </div>
+  </div>` : `<div class="card"><p class="et">Nessuna gara in programma${coach ? " — aggiungile dal calendario/gare." : "."}</p></div>`}
   <div class="card">
     <p class="et" style="margin-bottom:6px">In programma</p>
     ${prog || `<p class="et">Nessun'altra gara inserita.</p>`}
