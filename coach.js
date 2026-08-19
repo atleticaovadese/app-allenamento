@@ -325,7 +325,7 @@ function vistaAtletaDettaglio() {
   <button class="indietro" onclick="chiudiAtleta()">‹ Squadra</button>
   <div class="card">
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="avatar">${a.nome.split(" ").map(x => x[0]).join("")}</div>
+      ${typeof avatarAtleta === "function" ? avatarAtleta(a) : `<div class="avatar">${a.nome.split(" ").map(x => x[0]).join("")}</div>`}
       <div style="flex:1"><h3>${a.nome}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}</p></div>
       <span class="pill ${STATO[s.stato][0]}">${txt}</span>
     </div>

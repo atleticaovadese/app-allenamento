@@ -60,7 +60,7 @@ function schedaAtleta(a, mod) {
   return `
   <div class="card">
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="avatar">${a.nome.split(" ").map(x => x[0]).join("")}</div>
+      ${avatarAtleta(a)}
       <div><h3>${a.nome}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}${an.categoria ? " · " + an.categoria : ""}</p></div>
     </div>
   </div>
@@ -154,6 +154,46 @@ function fmtMisura(disc, val) {
   return n.toFixed(2); // velocità (s) e lanci (m): sempre 2 decimali → 45.20, 10.90
 }
 function pbSuff(disc) { return disc === "lanci" ? " m" : ((disc === "mezzofondo" || disc === "fondo") ? "" : " s"); }
+
+// ---------- Foto atleta (scattata o scelta dall'app, ridimensionata sul dispositivo) ----------
+function fotoAtleta(id) { return (DEMO.atletaFoto && DEMO.atletaFoto[id]) || ""; }
+// avatar: foto se c'è, altrimenti iniziali. size in px (default 46).
+function avatarAtleta(a, size) {
+  size = size || 46;
+  const src = fotoAtleta(a.id);
+  if (src) return `<div class="avatar" style="width:${size}px;height:${size}px;padding:0;overflow:hidden"><img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>`;
+  const ini = (a.nome || "").split(" ").map(x => x[0]).join("").slice(0, 3);
+  return `<div class="avatar" style="width:${size}px;height:${size}px">${ini}</div>`;
+}
+// carica una foto (input file: su telefono offre Fotocamera o Libreria), ritaglia quadrata e comprime a 256px
+function caricaFotoAtleta(input, id) {
+  const file = input && input.files && input.files[0]; if (!file) return;
+  if (!/^image\//.test(file.type || "")) { alert("Scegli un'immagine."); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const D = 256, cv = document.createElement("canvas"); cv.width = D; cv.height = D;
+      const ctx = cv.getContext("2d");
+      const side = Math.min(img.width, img.height), sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, D, D);
+      let q = 0.82, uri = cv.toDataURL("image/jpeg", q);
+      while (uri.length > 160000 && q > 0.4) { q -= 0.12; uri = cv.toDataURL("image/jpeg", q); } // tetto ~120KB
+      DEMO.atletaFoto = DEMO.atletaFoto || {};
+      DEMO.atletaFoto[id] = uri;
+      if (typeof salvaCustom === "function") salvaCustom();
+      disegna();
+    };
+    img.onerror = () => alert("Immagine non valida.");
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function rimuoviFotoAtleta(id) {
+  if (DEMO.atletaFoto) delete DEMO.atletaFoto[id];
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
 
 const ESERCIZI_MASSIMALI = ["Squat", "1/2 Squat", "Panca piana", "Stacco", "Trap Bar", "Strappo (snatch)", "Girata (clean)", "Hip thrust", "Pressa"];
 const TEST_SALTI = [["CMJ", "cm"], ["SJ", "cm"], ["Drop jump", "cm"], ["RSI", "index"], ["Broad jump", "cm"], ["Sprint 30 m volante", "s"],
@@ -439,9 +479,19 @@ function vistaModificaDati() {
   const m = S.modificaDati, a = DEMO.atleti.find(x => x.id === m.atletaId);
   const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["palestra", "Solo palestra"]];
   const spec = (typeof SPEC_DISC !== "undefined" ? SPEC_DISC[m.disciplina] : null) || [];
+  const foto = fotoAtleta(m.atletaId);
   return `<button class="indietro" onclick="chiudiModificaDati()">‹ Indietro</button>
     <div class="card"><h3>I miei dati</h3>
       <p class="et" style="margin-top:2px">${a ? a.nome : ""} · completa o aggiorna il profilo.</p></div>
+    <div class="card" style="text-align:center">
+      <div style="margin:0 auto 10px;width:96px;height:96px;border-radius:50%;overflow:hidden;background:var(--blu-bg);display:flex;align-items:center;justify-content:center">
+        ${foto ? `<img src="${foto}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<span style="font-size:34px;color:var(--blu);font-weight:700">${((m.nome || (a && a.nome) || "?").trim().charAt(0) || "?").toUpperCase()}</span>`}
+      </div>
+      <label class="btn btn-2" style="width:auto;display:inline-block;padding:9px 14px;cursor:pointer">📷 Scatta o scegli foto
+        <input type="file" accept="image/*" style="display:none" onchange="caricaFotoAtleta(this,'${m.atletaId}')"></label>
+      ${foto ? `<button class="btn btn-2" style="width:auto;display:inline-block;padding:9px 14px;margin-left:6px" onclick="rimuoviFotoAtleta('${m.atletaId}')">Rimuovi</button>` : ""}
+      <p class="et" style="margin-top:8px">Si ridimensiona da sola. Resta sul profilo e compare nel report.</p>
+    </div>
     <div class="card">
       <label class="lab">Nome e cognome</label>
       <input value="${(m.nome || "").replace(/"/g, "&quot;")}" placeholder="Nome Cognome" oninput="S.modificaDati.nome=this.value" style="margin-top:6px">

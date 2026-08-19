@@ -362,7 +362,8 @@ function _rPeriodoLabel() { const p = S.reportPeriodo || "tutto"; return p === "
 // (12) copertina brandizzata: logo + nome prodotto + foto/placeholder atleta + disciplina + data
 function _rCover(a, an, oggi) {
   const brand = (typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis Performance";
-  const foto = an.foto ? `<img class="cover-foto" src="${an.foto}" alt="" onerror="this.style.display='none'">`
+  const src = (typeof fotoAtleta === "function" ? fotoAtleta(a.id) : "") || an.foto || "";
+  const foto = src ? `<img class="cover-foto" src="${src}" alt="" onerror="this.style.display='none'">`
     : `<div class="cover-foto-ph">${((a.nome || "?").trim().charAt(0) || "?").toUpperCase()}</div>`;
   const sub = [a.disciplina || "", a.specialita || "", an.categoria || ""].filter(Boolean).join(" · ");
   return `<div class="cover">
