@@ -117,6 +117,8 @@ async function caricaDati() {
   DEMO.mon = nuoviMon;
   DEMO.diariCoach = nuoviDiari;
   DEMO.report.daFare = nuovaDaFare;
+  DEMO.report.positivo = null;   // niente riassunto squadra demo (Leonardo Z./Marco B.): esce dai dati reali
+  DEMO.report.settimana = null;
 
   // ri-aggancia per NOME i dati VBT demo (at1/at2/at3) ai veri atleti (uuid), così si vedono al login reale
   const _oldToName = { at1: "Leonardo Zetti", at2: "Marco Bianchi", at3: "Sara Moretti" };

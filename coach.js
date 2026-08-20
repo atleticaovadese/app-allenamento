@@ -454,10 +454,12 @@ function vistaReport() {
     </div>`;
   }).join("");
 
+  const p = r.positivo;
+  const haRiassunto = p && ((p.wins && p.wins.length) || p.pista || p.palestra);
   return `
   <div class="card">
     <h3>Report settimanale</h3>
-    <p class="et" style="margin-top:2px">${nomeGruppo(S.gruppo)} · ${r.settimana}</p>
+    <p class="et" style="margin-top:2px">${nomeGruppo(S.gruppo)} · ${r.settimana || _settimanaReport()}</p>
   </div>
   ${chipsGruppi()}
   <div class="quadri" style="margin-bottom:11px">
@@ -466,16 +468,24 @@ function vistaReport() {
     <div class="q"><div class="k">In regola</div><div class="v" style="color:var(--verde)">${t.v}</div></div>
   </div>
 
-  <div class="card" style="border-color:rgba(124,194,67,.4)">
+  ${haRiassunto ? `<div class="card" style="border-color:rgba(124,194,67,.4)">
     <p class="et" style="margin-bottom:9px;color:var(--verde)">Come sta andando la squadra</p>
-    <p style="font-size:13px;margin-bottom:7px"><b>Pista</b> · <span style="color:var(--txt2)">${r.positivo.pista}</span></p>
-    <p style="font-size:13px;margin-bottom:10px"><b>Palestra</b> · <span style="color:var(--txt2)">${r.positivo.palestra}</span></p>
-    ${r.positivo.wins.map(([n, w]) => `<div style="display:flex;gap:7px;padding:3px 0">
+    ${p.pista ? `<p style="font-size:13px;margin-bottom:7px"><b>Pista</b> · <span style="color:var(--txt2)">${p.pista}</span></p>` : ""}
+    ${p.palestra ? `<p style="font-size:13px;margin-bottom:10px"><b>Palestra</b> · <span style="color:var(--txt2)">${p.palestra}</span></p>` : ""}
+    ${(p.wins || []).map(([n, w]) => `<div style="display:flex;gap:7px;padding:3px 0">
       <span style="color:var(--verde)">▲</span><span style="font-size:13px"><b>${n}</b> <span style="color:var(--txt2)">${w}</span></span></div>`).join("")}
-  </div>
+  </div>` : ""}
 
   <p class="et" style="margin:14px 2px 8px">Atleti per priorità</p>
   ${schede}`;
+}
+// etichetta della settimana corrente (lun–dom) per il report
+function _settimanaReport() {
+  const now = new Date(), dow = (now.getDay() + 6) % 7;
+  const lun = new Date(now); lun.setDate(now.getDate() - dow);
+  const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+  const M = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+  return dom.getMonth() === lun.getMonth() ? `${lun.getDate()} – ${dom.getDate()} ${M[dom.getMonth()]}` : `${lun.getDate()} ${M[lun.getMonth()]} – ${dom.getDate()} ${M[dom.getMonth()]}`;
 }
 
 // ---------- monitoraggio: carico e forma ----------
