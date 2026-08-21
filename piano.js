@@ -83,7 +83,7 @@ function pianoAtletaResetMadre() {
 // Calcola le colonne automatiche per ogni settimana (formule del foglio Excel).
 function calcolaPiano() {
   const p = pianoDati();
-  const gare = (DEMO.gareRaw || []).map(g => ({ t: dnum(g.data), ob: g.obiettivo, nome: g.gara }))
+  const gare = (DEMO.gareRaw || []).map(g => ({ t: dnum(g.data), ob: g.obiettivo, nome: g.luogo || g.gara }))
     .filter(g => g.t != null).sort((a, b) => a.t - b.t);
   const gareA = gare.filter(g => g.ob === "A");
   const start = p.inizio ? dnum(p.inizio) : null;
@@ -191,8 +191,8 @@ function vistaPiano() {
           ${OPZ_SETT.map(n => `<option value="${n}" ${p.nSettimane === n ? "selected" : ""}>${n}</option>`).join("")}
         </select></div>
     </div>
-    ${gaA ? `<p class="et" style="margin-top:10px">Prossima gara A: <b>${gaA.data}</b> · tra ${gaA.tra} settimane</p>`
-          : `<p class="et" style="margin-top:10px">Nessuna gara «A» futura nel calendario gare.</p>`}
+    ${gaA ? `<p class="et" style="margin-top:10px">Prossima gara A: <b>${gaA.data}</b> · tra ${gaA.tra} settimane · <button class="link-indietro" onclick="vai('gare')">gestisci gare ›</button></p>`
+          : `<p class="et" style="margin-top:10px">Nessuna gara nel calendario. <button class="link-indietro" onclick="vai('gare')">Aggiungile in «Gare» ›</button> — poi compaiono qui (colonne Gara / →A).</p>`}
   </div>
   <button class="btn btn-2" style="margin-bottom:12px" onclick="apriPianoGrafici()">📊 Vedi i grafici</button>
   <div class="p-scroll">

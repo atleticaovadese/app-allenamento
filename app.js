@@ -262,8 +262,8 @@ function vistaGare() {
   const mio = S.utente && S.utente.atletaId;
   const prog = (DEMO.gareProssime || []).map(g => `
     <div class="riga">
-      <div><div style="font-weight:500">${g.luogo}</div>
-        <div class="et">${g.gara} · obiettivo ${g.obiettivo}</div></div>
+      <div><div style="font-weight:500">${g.luogo || "—"}${g.gara ? " · " + g.gara : ""}</div>
+        <div class="et">obiettivo ${g.obiettivo || "—"}${coach && g.id ? ` · <button class="link-indietro" style="color:var(--rosso);font-size:12px;padding:0" onclick="eliminaGaraUI('${g.id}')">togli</button>` : ""}</div></div>
       <b>${g.data}</b></div>`).join("");
   const ris = (DEMO.risultatiGara || []).filter(r => coach || r.atletaId === mio).slice(0, 30).map(r => `
     <div class="card" style="padding:12px 14px">
@@ -276,9 +276,23 @@ function vistaGare() {
     </div>`).join("");
   return `
   <div class="card"><h3>Gare</h3>
-    <p class="et" style="margin-top:2px">${coach ? "Registra i risultati: aggiornano in automatico i PB in gara dell'atleta. Sotto, il calendario." : "I tuoi risultati aggiornano in automatico i tuoi PB in gara. Sotto, le prossime gare."}</p></div>
+    <p class="et" style="margin-top:2px">${coach ? "Aggiungi le gare al calendario (compaiono nel Piano &amp; Picco) e registra i risultati." : "I tuoi risultati aggiornano in automatico i tuoi PB in gara. Sotto, le prossime gare."}</p></div>
 
-  <button class="btn" style="margin-bottom:12px" onclick="apriRisultatoGara('${coach ? "" : (mio || "")}')">＋ Registra risultato</button>
+  ${coach ? `<div class="card">
+    <p class="et" style="margin-bottom:8px"><b>＋ Aggiungi una gara al calendario</b> <span style="color:var(--txt3)">— compare qui e nel Piano &amp; Picco (colonne Gara / →A)</span></p>
+    <div class="griglia2">
+      <div><label class="lab">Data</label><input id="ngData" type="date" style="margin-top:6px"></div>
+      <div><label class="lab">Obiettivo</label>
+        <select id="ngOb" style="margin-top:6px"><option value="A">A · principale</option><option value="B">B · secondaria</option><option value="C">C · preparazione</option></select></div>
+    </div>
+    <div class="griglia2" style="margin-top:10px">
+      <div><label class="lab">Luogo</label><input id="ngLuogo" placeholder="es. Rieti" style="margin-top:6px"></div>
+      <div><label class="lab">Gara / distanza</label><input id="ngGara" placeholder="es. 100 m" style="margin-top:6px"></div>
+    </div>
+    <button class="btn" style="margin-top:12px" onclick="salvaNuovaGaraUI()">Aggiungi al calendario</button>
+  </div>` : ""}
+
+  <button class="btn ${coach ? "btn-2" : ""}" style="margin-bottom:12px" onclick="apriRisultatoGara('${coach ? "" : (mio || "")}')">＋ Registra risultato</button>
 
   <p class="sez">${coach ? "Risultati recenti" : "I tuoi risultati"}</p>
   ${ris || `<div class="card"><p class="et">Nessun risultato registrato. Tocca «Registra risultato».</p></div>`}
@@ -286,13 +300,28 @@ function vistaGare() {
   <p class="sez">Prossima gara</p>
   ${p ? `<div class="card" style="border-color:var(--blu)">
     <p class="et" style="color:var(--blu)">tra ${p.traSettimane} settimane</p>
-    <h3 style="margin-top:4px">${p.luogo}</h3>
-    <p class="et" style="margin-top:2px">${p.gara} · obiettivo ${p.obiettivo}</p>
-  </div>` : `<div class="card"><p class="et">Nessuna gara in programma${coach ? " — aggiungile dal calendario/gare." : "."}</p></div>`}
+    <h3 style="margin-top:4px">${p.luogo || "—"}${p.gara ? " · " + p.gara : ""}</h3>
+    <p class="et" style="margin-top:2px">obiettivo ${p.obiettivo || "—"}${coach && p.id ? ` · <button class="link-indietro" style="color:var(--rosso)" onclick="eliminaGaraUI('${p.id}')">togli dal calendario</button>` : ""}</p>
+  </div>` : `<div class="card"><p class="et">Nessuna gara in programma${coach ? " — aggiungine una qui sopra." : "."}</p></div>`}
   <div class="card">
     <p class="et" style="margin-bottom:6px">In programma</p>
     ${prog || `<p class="et">Nessun'altra gara inserita.</p>`}
   </div>`;
+}
+async function salvaNuovaGaraUI() {
+  const data = ($("ngData") || {}).value || "";
+  const luogo = (($("ngLuogo") || {}).value || "").trim();
+  const gara = (($("ngGara") || {}).value || "").trim();
+  const ob = ($("ngOb") || {}).value || "A";
+  if (!data) { alert("Metti la data della gara."); return; }
+  if (!luogo && !gara) { alert("Metti almeno il luogo o la gara."); return; }
+  const ok = typeof creaGara === "function" ? await creaGara({ data, luogo, gara, obiettivo: ob }) : false;
+  if (ok) { disegna(); window.scrollTo(0, 0); }
+}
+async function eliminaGaraUI(id) {
+  if (typeof confirm === "function" && !confirm("Togliere questa gara dal calendario?")) return;
+  if (typeof eliminaGara === "function") await eliminaGara(id);
+  disegna();
 }
 
 function apriRisultatoGara(atletaId) {

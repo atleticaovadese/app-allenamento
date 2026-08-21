@@ -166,17 +166,9 @@ async function caricaDati() {
   const { data: inf } = await sb.from("infortunio").select("id,atleta_id,zona,lato,tipo,gravita,stato,dal,data_inizio,data_rientro,nota").eq("aperto", true);
   DEMO.infortuni = (inf || []).map(i => ({ id: i.id, atleta: i.atleta_id, zona: i.zona, lato: i.lato, tipo: i.tipo, gravita: i.gravita, stato: i.stato, dal: i.dal, dataInizio: i.data_inizio || i.dal, dataRientro: i.data_rientro, nota: i.nota }));
 
-  // gare (prossima + successive)
-  const { data: gare } = await sb.from("gara").select("data,luogo,gara,obiettivo").order("data");
-  if (gare && gare.length) {
-    const g0 = gare[0];
-    DEMO.prossimaGara = { luogo: g0.luogo, gara: g0.gara, obiettivo: g0.obiettivo, traSettimane: settimaneA(g0.data) };
-    DEMO.gareProssime = gare.slice(1).map(g => ({ data: fmtData(g.data), luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
-    DEMO.gareRaw = gare.map(g => ({ data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
-  } else {
-    // nessuna gara nel calendario → niente "prossima gara" finta
-    DEMO.prossimaGara = null; DEMO.gareProssime = []; DEMO.gareRaw = [];
-  }
+  // gare (prossima + successive) dal calendario
+  const { data: gare } = await sb.from("gara").select("id,data,luogo,gara,obiettivo").order("data");
+  _applicaGare(gare || []);
 
   // diari (storico giorno per giorno): coach vede la società, atleta vede i propri (RLS). Ultimi ~60 giorni.
   try {
@@ -391,6 +383,39 @@ async function eliminaAtleta(atletaId) {
   if (DEMO.report && DEMO.report.daFare) delete DEMO.report.daFare[atletaId];
   return true;
 }
+// ---------- calendario gare (della società) ----------
+function _applicaGare(gare) {
+  if (gare && gare.length) {
+    const g0 = gare[0];
+    DEMO.prossimaGara = { id: g0.id, luogo: g0.luogo, gara: g0.gara, obiettivo: g0.obiettivo, data: g0.data, traSettimane: (typeof settimaneA === "function" ? settimaneA(g0.data) : 0) };
+    DEMO.gareProssime = gare.slice(1).map(g => ({ id: g.id, data: (typeof fmtData === "function" ? fmtData(g.data) : g.data), dataISO: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
+    DEMO.gareRaw = gare.map(g => ({ id: g.id, data: g.data, luogo: g.luogo, gara: g.gara, obiettivo: g.obiettivo }));
+  } else {
+    DEMO.prossimaGara = null; DEMO.gareProssime = []; DEMO.gareRaw = [];
+  }
+}
+async function caricaGare() {
+  if (!haDB()) return;
+  const { data: gare } = await sb.from("gara").select("id,data,luogo,gara,obiettivo").order("data");
+  _applicaGare(gare || []);
+}
+async function creaGara(d) {
+  if (haDB()) {
+    const { error } = await sb.from("gara").insert({ societa_id: S.utente.societaId, data: d.data || null, luogo: d.luogo || null, gara: d.gara || null, obiettivo: d.obiettivo || null });
+    if (error) { alert("Errore nel salvataggio della gara: " + error.message); return false; }
+    await caricaGare();
+  }
+  return true;
+}
+async function eliminaGara(id) {
+  if (haDB() && id) {
+    const { error } = await sb.from("gara").delete().eq("id", id);
+    if (error) { alert("Errore: " + error.message); return false; }
+    await caricaGare();
+  }
+  return true;
+}
+
 // aggiorna l'anagrafica dell'atleta (può farlo l'atleta stesso dal suo profilo, o il coach)
 async function aggiornaAnagrafica(atletaId, d) {
   if (_bloccatoStop(atletaId)) return false;
