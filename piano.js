@@ -97,21 +97,23 @@ function calcolaPiano() {
     const t0 = start != null ? start + i * WEEK_MS : null;
     let gara = "", aA = null, scar = "", intv = "", vol = "", peak = "";
     if (t0 != null) {
-      const g = gare.find(x => x.t >= t0 && x.t <= t0 + 6 * 86400000);
-      if (g) gara = g.nome + " (" + g.ob + ")";
+      const gThis = gare.find(x => x.t >= t0 && x.t <= t0 + 6 * 86400000);
+      if (gThis) gara = gThis.nome + " (" + gThis.ob + ")";
       const ga = gareA.find(x => x.t >= t0);
       if (ga) aA = Math.floor((ga.t - t0) / WEEK_MS);
 
-      scar = (aA === 0) ? "GARA" : (ae === ad - 1 ? "SCARICO" : "carico");
+      const garaA = (aA === 0);            // gara A questa settimana → picco/taper pieno
+      const garaW = !!gThis;               // una gara qualsiasi (A/B/C) questa settimana
+      scar = garaA ? "GARA" : (garaW ? "GARA " + gThis.ob : (ae === ad - 1 ? "SCARICO" : "carico"));
 
-      if (scar === "GARA") intv = 5;
+      if (garaA) intv = 5;
       else if (inp.blocco) intv = INT_BLOCCO[inp.blocco];
       else if (aA != null) intv = Math.max(2, Math.min(5, Math.round(5 - aA / 4)));
       else intv = 2;
 
       if (aA != null) {
         const base = Math.min(5, Math.round(1 + aA / 3));
-        vol = scar === "GARA" ? 1 : scar === "SCARICO" ? Math.max(1, base - 2) : Math.max(1, base);
+        vol = garaA ? 1 : garaW ? Math.max(1, base - 1) : (ae === ad - 1 ? Math.max(1, base - 2) : Math.max(1, base));
         peak = Math.min(5, aA + 1);
       }
     }
@@ -139,7 +141,7 @@ function vistaPiano() {
   const rows = calcolaPiano();
   const gaA = prossimaGaraA();
   const opt = (arr, val) => `<option value=""></option>` + arr.map(x => `<option ${x === val ? "selected" : ""}>${x}</option>`).join("");
-  const colScar = s => s === "GARA" ? "var(--rosso)" : s === "SCARICO" ? "var(--giallo)" : "var(--txt3)";
+  const colScar = s => s === "GARA" ? "var(--rosso)" : (s && s.indexOf("GARA") === 0) ? "var(--blu)" : s === "SCARICO" ? "var(--giallo)" : "var(--txt3)";
 
   const corpo = rows.map((r, i) => {
     const inp = p.righe[i];
@@ -255,7 +257,11 @@ function chartPianoSVG(calc) {
     return pts ? `<polyline points="${pts}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round"/>` : "";
   };
   const grid = [1, 2, 3, 4, 5].map(v => `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="#2c2c34" stroke-width="1"/><text x="2" y="${(y(v) + 3).toFixed(1)}" fill="#76756f" font-size="9">${v}</text>`).join("");
-  const gara = calc.map((c, i) => c.scarico === "GARA" ? `<line x1="${x(i).toFixed(1)}" y1="${padT}" x2="${x(i).toFixed(1)}" y2="${H - padB}" stroke="#ff6b6b" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>` : "").join("");
+  const gara = calc.map((c, i) => {
+    if (!c.scarico || c.scarico.indexOf("GARA") !== 0) return "";
+    const col = c.scarico === "GARA" ? "#ff6b6b" : "#4d9aff"; // A = rosso, B/C = blu
+    return `<line x1="${x(i).toFixed(1)}" y1="${padT}" x2="${x(i).toFixed(1)}" y2="${H - padB}" stroke="${col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>`;
+  }).join("");
   const xlab = calc.map((c, i) => (i % 4 === 0 || i === n - 1) ? `<text x="${x(i).toFixed(1)}" y="${H - 6}" fill="#76756f" font-size="9" text-anchor="middle">${i + 1}</text>` : "").join("");
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${gara}${xlab}${serie.map(linea).join("")}</svg>`;
 }
@@ -264,7 +270,7 @@ function vistaPianoGrafici() {
   const calc = calcolaPiano();
   return `<button class="indietro" onclick="chiudiPianoGrafici()">‹ Torna al piano</button>
     <div class="card"><h3>Grafici del piano</h3>
-      <p class="et" style="margin-top:2px">L'andamento programmato della stagione. Le linee tratteggiate rosse sono le gare A.</p></div>
+      <p class="et" style="margin-top:2px">L'andamento programmato della stagione. Linee tratteggiate: <span style="color:#ff6b6b">gare A</span> · <span style="color:#4d9aff">gare B/C</span>.</p></div>
 
     <div class="card">
       <p class="et" style="margin-bottom:6px">Intensità · Volume · Picco (1–5) per settimana</p>
