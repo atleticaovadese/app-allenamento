@@ -214,7 +214,28 @@ function setPianoNsett(n) {
   while (p.righe.length < p.nSettimane) p.righe.push({ fase: "", blocco: "", sist: "", ciclo: "" });
   if (typeof savePiano === "function") savePiano(); disegna();
 }
-function setPianoCella(i, campo, v) { pianoDati().righe[i][campo] = v; if (typeof savePiano === "function") savePiano(); disegna(); }
+// propaga Fase / Blocco forza / Sist. energetico dalla settimana d'inizio blocco (quella col Ciclo)
+// a tutte le settimane del blocco, fino allo scarico compreso. Il Ciclo resta solo sull'inizio.
+function _pianoFillGiu(p, i) {
+  const src = p.righe[i];
+  if (!src || !src.ciclo) return;
+  const n = AD_CICLO[src.ciclo] || 0;
+  for (let k = i + 1; k < Math.min(i + n, p.nSettimane); k++) {
+    p.righe[k].fase = src.fase;
+    p.righe[k].blocco = src.blocco;
+    p.righe[k].sist = src.sist;
+    p.righe[k].ciclo = "";
+  }
+}
+function setPianoCella(i, campo, v) {
+  const p = pianoDati();
+  p.righe[i][campo] = v;
+  // inizio blocco (settimana col Ciclo): riempi in automatico il resto del blocco con gli stessi valori
+  if (campo === "ciclo") { if (v) _pianoFillGiu(p, i); }
+  else if ((campo === "fase" || campo === "blocco" || campo === "sist") && p.righe[i].ciclo) _pianoFillGiu(p, i);
+  if (typeof savePiano === "function") savePiano();
+  disegna();
+}
 
 // ---------- grafici ----------
 function apriPianoGrafici() { S.pianoGrafici = true; disegna(); window.scrollTo(0, 0); }
