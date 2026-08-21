@@ -83,7 +83,7 @@ function pianoAtletaResetMadre() {
 // Calcola le colonne automatiche per ogni settimana (formule del foglio Excel).
 function calcolaPiano() {
   const p = pianoDati();
-  const gare = (DEMO.gareRaw || []).map(g => ({ t: dnum(g.data), ob: g.obiettivo, nome: g.luogo || g.gara }))
+  const gare = ((typeof gareGruppo === "function" ? gareGruppo(S.pianoDisc || "vel") : (DEMO.gareRaw || []))).map(g => ({ t: dnum(g.data), ob: g.obiettivo, nome: g.luogo || g.gara }))
     .filter(g => g.t != null).sort((a, b) => a.t - b.t);
   const gareA = gare.filter(g => g.ob === "A");
   const start = p.inizio ? dnum(p.inizio) : null;
@@ -123,7 +123,8 @@ function calcolaPiano() {
 
 function prossimaGaraA() {
   const now = Date.now();
-  const gA = (DEMO.gareRaw || []).map(g => ({ t: dnum(g.data), ob: g.obiettivo }))
+  const src = (typeof gareGruppo === "function") ? gareGruppo(S.pianoDisc || "vel") : (DEMO.gareRaw || []);
+  const gA = src.map(g => ({ t: dnum(g.data), ob: g.obiettivo }))
     .filter(g => g.ob === "A" && g.t != null && g.t >= now).sort((a, b) => a.t - b.t)[0];
   if (!gA) return null;
   return { data: new Date(gA.t).toLocaleDateString("it-IT"), tra: Math.ceil((gA.t - now) / WEEK_MS) };

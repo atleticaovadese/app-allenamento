@@ -146,7 +146,8 @@ function atletaCorrente() {
 
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
-  const a = atletaCorrente(), g = DEMO.prossimaGara;
+  const a = atletaCorrente();
+  const g = (typeof prossimaGaraGruppo === "function" && typeof gruppoDi === "function") ? prossimaGaraGruppo(gruppoDi(a)) : DEMO.prossimaGara;
   const pos = typeof posizioneProgramma === "function" ? posizioneProgramma() : null;
   const oggiSed = typeof seduteDelGiorno === "function" ? seduteDelGiorno(oggiISO(), false) : [];
   const cardOggi = oggiSed.length
@@ -257,14 +258,21 @@ const DIST_GARA = ["60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "300 m", 
 function nomeAtletaGara(id) { const a = DEMO.atleti.find(x => x.id === id); return a ? a.nome : "—"; }
 
 function vistaGare() {
-  const p = DEMO.prossimaGara;
   const coach = S.utente && S.utente.ruolo === "coach";
   const mio = S.utente && S.utente.atletaId;
-  const prog = (DEMO.gareProssime || []).map(g => `
+  const grL = g => ({ vel: "Velocisti / Salti", lanci: "Lanci", mezzo: "Mezzofondo" })[g] || "tutti i gruppi";
+  const mioGr = (!coach && typeof atletaCorrente === "function" && typeof gruppoDi === "function") ? gruppoDi(atletaCorrente()) : null;
+  // coach = tutte le gare (di ogni gruppo); atleta = solo quelle del suo gruppo
+  const tutte = coach ? (DEMO.gareRaw || []) : (typeof gareGruppo === "function" ? gareGruppo(mioGr) : (DEMO.gareRaw || []));
+  const cut = Date.now() - 86400000;
+  const future = tutte.filter(g => g.data && new Date(g.data + "T00:00:00").getTime() >= cut).sort((a, b) => (a.data < b.data ? -1 : 1));
+  const p = coach ? null : (typeof prossimaGaraGruppo === "function" ? prossimaGaraGruppo(mioGr) : null);
+  const grp = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
+  const prog = future.map(g => `
     <div class="riga">
-      <div><div style="font-weight:500">${g.luogo || "—"}${g.gara ? " · " + g.gara : ""}</div>
-        <div class="et">obiettivo ${g.obiettivo || "—"}${coach && g.id ? ` · <button class="link-indietro" style="color:var(--rosso);font-size:12px;padding:0" onclick="eliminaGaraUI('${g.id}')">togli</button>` : ""}</div></div>
-      <b>${g.data}</b></div>`).join("");
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${g.luogo || "—"}${g.gara ? " · " + g.gara : ""}${g.obiettivo ? ` <span style="color:var(--txt3)">(${g.obiettivo})</span>` : ""}</div>
+        <div class="et">${coach ? `<b style="color:var(--blu)">${grL(g.gruppo)}</b> · ` : ""}${typeof fmtData === "function" ? fmtData(g.data) : g.data}${coach && g.id ? ` · <button class="link-indietro" style="color:var(--rosso);font-size:12px;padding:0" onclick="eliminaGaraUI('${g.id}')">togli</button>` : ""}</div></div>
+    </div>`).join("");
   const ris = (DEMO.risultatiGara || []).filter(r => coach || r.atletaId === mio).slice(0, 30).map(r => `
     <div class="card" style="padding:12px 14px">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
@@ -276,11 +284,13 @@ function vistaGare() {
     </div>`).join("");
   return `
   <div class="card"><h3>Gare</h3>
-    <p class="et" style="margin-top:2px">${coach ? "Aggiungi le gare al calendario (compaiono nel Piano &amp; Picco) e registra i risultati." : "I tuoi risultati aggiornano in automatico i tuoi PB in gara. Sotto, le prossime gare."}</p></div>
+    <p class="et" style="margin-top:2px">${coach ? "Aggiungi le gare al calendario del <b>gruppo</b> (velocisti / mezzofondo / lanci): compaiono nel Piano &amp; Picco di quella disciplina." : "Le tue prossime gare. I risultati aggiornano in automatico i tuoi PB in gara."}</p></div>
 
   ${coach ? `<div class="card">
-    <p class="et" style="margin-bottom:8px"><b>＋ Aggiungi una gara al calendario</b> <span style="color:var(--txt3)">— compare qui e nel Piano &amp; Picco (colonne Gara / →A)</span></p>
-    <div class="griglia2">
+    <p class="et" style="margin-bottom:8px"><b>＋ Aggiungi una gara al calendario</b></p>
+    <label class="lab">Per quale gruppo (madre)</label>
+    <select id="ngGruppo" style="margin-top:6px">${grp.map(([k, l]) => `<option value="${k}" ${k === (S.gruppo || "vel") ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <div class="griglia2" style="margin-top:10px">
       <div><label class="lab">Data</label><input id="ngData" type="date" style="margin-top:6px"></div>
       <div><label class="lab">Obiettivo</label>
         <select id="ngOb" style="margin-top:6px"><option value="A">A · principale</option><option value="B">B · secondaria</option><option value="C">C · preparazione</option></select></div>
@@ -290,6 +300,7 @@ function vistaGare() {
       <div><label class="lab">Gara / distanza</label><input id="ngGara" placeholder="es. 100 m" style="margin-top:6px"></div>
     </div>
     <button class="btn" style="margin-top:12px" onclick="salvaNuovaGaraUI()">Aggiungi al calendario</button>
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Vale per tutti gli atleti del gruppo (compare nel loro «Prossima gara» e nel Piano &amp; Picco).</p>
   </div>` : ""}
 
   <button class="btn ${coach ? "btn-2" : ""}" style="margin-bottom:12px" onclick="apriRisultatoGara('${coach ? "" : (mio || "")}')">＋ Registra risultato</button>
@@ -297,15 +308,16 @@ function vistaGare() {
   <p class="sez">${coach ? "Risultati recenti" : "I tuoi risultati"}</p>
   ${ris || `<div class="card"><p class="et">Nessun risultato registrato. Tocca «Registra risultato».</p></div>`}
 
-  <p class="sez">Prossima gara</p>
+  ${!coach ? `<p class="sez">Prossima gara</p>
   ${p ? `<div class="card" style="border-color:var(--blu)">
     <p class="et" style="color:var(--blu)">tra ${p.traSettimane} settimane</p>
     <h3 style="margin-top:4px">${p.luogo || "—"}${p.gara ? " · " + p.gara : ""}</h3>
-    <p class="et" style="margin-top:2px">obiettivo ${p.obiettivo || "—"}${coach && p.id ? ` · <button class="link-indietro" style="color:var(--rosso)" onclick="eliminaGaraUI('${p.id}')">togli dal calendario</button>` : ""}</p>
-  </div>` : `<div class="card"><p class="et">Nessuna gara in programma${coach ? " — aggiungine una qui sopra." : "."}</p></div>`}
+    <p class="et" style="margin-top:2px">obiettivo ${p.obiettivo || "—"}</p>
+  </div>` : `<div class="card"><p class="et">Nessuna gara in programma.</p></div>`}` : ""}
+
   <div class="card">
-    <p class="et" style="margin-bottom:6px">In programma</p>
-    ${prog || `<p class="et">Nessun'altra gara inserita.</p>`}
+    <p class="et" style="margin-bottom:6px">${coach ? "Calendario gare (tutti i gruppi)" : "In programma"}</p>
+    ${prog || `<p class="et">Nessuna gara in calendario.</p>`}
   </div>`;
 }
 async function salvaNuovaGaraUI() {
@@ -313,9 +325,10 @@ async function salvaNuovaGaraUI() {
   const luogo = (($("ngLuogo") || {}).value || "").trim();
   const gara = (($("ngGara") || {}).value || "").trim();
   const ob = ($("ngOb") || {}).value || "A";
+  const gruppo = ($("ngGruppo") || {}).value || "vel";
   if (!data) { alert("Metti la data della gara."); return; }
   if (!luogo && !gara) { alert("Metti almeno il luogo o la gara."); return; }
-  const ok = typeof creaGara === "function" ? await creaGara({ data, luogo, gara, obiettivo: ob }) : false;
+  const ok = typeof creaGara === "function" ? await creaGara({ data, luogo, gara, obiettivo: ob, gruppo }) : false;
   if (ok) { disegna(); window.scrollTo(0, 0); }
 }
 async function eliminaGaraUI(id) {

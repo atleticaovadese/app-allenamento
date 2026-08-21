@@ -346,11 +346,12 @@ function vistaAtletaDettaglio() {
     <div class="mini-week">${sett}</div>
   </div>
 
+  ${(() => { const pg = (typeof prossimaGaraGruppo === "function" && typeof gruppoDi === "function") ? prossimaGaraGruppo(gruppoDi(a)) : DEMO.prossimaGara; return `
   <div class="griglia2" style="margin-bottom:11px">
-    <div class="num"><div class="k">Prossima gara</div><div class="v" style="font-size:16px">${DEMO.prossimaGara ? DEMO.prossimaGara.luogo : "—"}</div>
-      <div class="et">${DEMO.prossimaGara ? "tra " + DEMO.prossimaGara.traSettimane + " sett" : "nessuna in programma"}</div></div>
+    <div class="num"><div class="k">Prossima gara</div><div class="v" style="font-size:16px">${pg ? (pg.luogo || pg.gara || "—") : "—"}</div>
+      <div class="et">${pg ? "tra " + pg.traSettimane + " sett" : "nessuna in programma"}</div></div>
     <div class="num"><div class="k">Profilo F-V</div><div class="v" style="font-size:15px">${s.fv}</div></div>
-  </div>
+  </div>`; })()}
 
   ${(typeof gruppoDi === "function" && gruppoDi(a) === "mezzo" && typeof cardProfiloMezzo === "function") ? cardProfiloMezzo(a) : ""}
   ${(typeof gruppoDi === "function" && gruppoDi(a) === "lanci" && typeof cardProfiloLanci === "function") ? cardProfiloLanci(a) : ""}
