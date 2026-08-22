@@ -15,14 +15,15 @@ function nSettDi(m) { return typeof nSettimaneMeso === "function" ? nSettimaneMe
 function mesoAttivo(prog, dataISO, clamp) {
   const mc = ((prog && prog.mesocicli) || []).filter(m => m.inizio);
   if (!mc.length) return null;
-  const oggi = new Date(dataISO + "T00:00:00").getTime();
+  // giorni tra due date ISO, robusto all'ora legale (Math.round assorbe l'ora del cambio CEST/CET)
+  const gg = (aISO, bISO) => Math.round((new Date(bISO + "T00:00:00") - new Date(aISO + "T00:00:00")) / 86400000);
   for (const m of mc) {
-    const inizio = new Date(m.inizio + "T00:00:00").getTime(), fine = inizio + nSettDi(m) * 7 * 86400000;
-    if (oggi >= inizio && oggi < fine) return { m, settIdx: Math.floor((oggi - inizio) / (7 * 86400000)) };
+    const d = gg(m.inizio, dataISO), tot = nSettDi(m) * 7;
+    if (d >= 0 && d < tot) return { m, settIdx: Math.floor(d / 7) };
   }
   if (!clamp) return null;
   const primo = mc[0], ultimo = mc[mc.length - 1];
-  if (oggi < new Date(primo.inizio + "T00:00:00").getTime()) return { m: primo, settIdx: 0 };
+  if (gg(primo.inizio, dataISO) < 0) return { m: primo, settIdx: 0 };
   return { m: ultimo, settIdx: nSettDi(ultimo) - 1 };
 }
 
@@ -140,10 +141,10 @@ function seduteDelGiorno(dataISO, clamp, atleta) {
 function settimanaProgramma(off) {
   off = off || 0;
   const base = new Date(oggiISO() + "T00:00:00");
-  const lunedi = new Date(base.getTime() - wdIdx(oggiISO()) * 86400000 + off * 7 * 86400000);
+  const lunedi = new Date(base.getFullYear(), base.getMonth(), base.getDate() - wdIdx(oggiISO()) + off * 7);
   const giorni = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(lunedi.getTime() + i * 86400000), dataISO = isoDiData(d);
+    const d = new Date(lunedi.getFullYear(), lunedi.getMonth(), lunedi.getDate() + i), dataISO = isoDiData(d);
     giorni.push({ dataISO, wd: GG_ISO[i], nomeGiorno: GG_FULL[i], oggi: dataISO === oggiISO(), sedute: seduteDelGiorno(dataISO, false) });
   }
   return giorni;
@@ -156,7 +157,7 @@ function posizioneProgramma() {
   if (!pa) return null;
   const m = pa.m, tot = nSettDi(m), sett = pa.settIdx + 1;
   const inizio = new Date(m.inizio + "T00:00:00");
-  const fine = new Date(inizio.getTime() + (tot * 7 - 1) * 86400000);
+  const fine = new Date(inizio.getFullYear(), inizio.getMonth(), inizio.getDate() + (tot * 7 - 1));
   const fmt = d => d.getDate() + " " + MESI_FULL[d.getMonth()].slice(0, 3);
   return {
     titolo: m.ciclo || m.blocco || m.focus || "Programma in corso",
@@ -173,7 +174,7 @@ function riepilogoSeduta(s) {
 
 // allinea un eventuale programma DEMO alla settimana reale del browser (solo per l'anteprima demo)
 function allineaDemoProgramma() {
-  const lunISO = (() => { const b = new Date(); const off = (b.getDay() + 6) % 7; const l = new Date(b.getTime() - off * 86400000); return isoDiData(l); })();
+  const lunISO = (() => { const b = new Date(); const off = (b.getDay() + 6) % 7; const l = new Date(b.getFullYear(), b.getMonth(), b.getDate() - off); return isoDiData(l); })();
   [DEMO.pista, DEMO.palestra].forEach(root => {
     if (!root) return;
     const progs = root.mesocicli ? [root] : Object.keys(root).map(k => root[k]);

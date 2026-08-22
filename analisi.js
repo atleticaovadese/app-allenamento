@@ -302,9 +302,23 @@ function setFvAtleta(id) {
   fvState.atletaRif = id;
   const a = DEMO.atleti.find(x => x.id === id);
   if (a && a.scheda && a.scheda.anagrafica && a.scheda.anagrafica.peso) fvState.massa = String(a.scheda.anagrafica.peso);
+  // altezze anca (grande trocantere): dati fissi dell'atleta, ripescati da quelli salvati
+  const ant = (DEMO.atletaAntropo && DEMO.atletaAntropo[id]) || {};
+  fvState.hFine = ant.hFine != null ? String(ant.hFine) : "";
+  fvState.hPart = ant.hPart != null ? String(ant.hPart) : "";
   disegna();
 }
-function setFvVal(campo, val) { fvState[campo] = val; }
+function setFvVal(campo, val) {
+  fvState[campo] = val;
+  // le altezze anca (trocantere) sono dati fissi: si salvano subito sull'atleta e si ripropongono ai test futuri
+  if ((campo === "hFine" || campo === "hPart") && fvState.atletaRif) {
+    DEMO.atletaAntropo = DEMO.atletaAntropo || {};
+    const ant = DEMO.atletaAntropo[fvState.atletaRif] = DEMO.atletaAntropo[fvState.atletaRif] || {};
+    const n = parseFloat(String(val).replace(",", "."));
+    ant[campo] = isNaN(n) ? null : n;
+    if (typeof salvaCustom === "function") salvaCustom();
+  }
+}
 function setFvRigaVal(i, campo, val) { fvState.righe[i][campo] = val; }
 
 // pendenza ottimale F-V (Samozino 2012), da hPO (m) e Pmax/kg (W/kg)
@@ -372,7 +386,7 @@ function vistaProfiloFV() {
 
   <div class="card">
     <div class="griglia2">
-      <div><label class="lab">Atleta (prende il peso)</label>
+      <div><label class="lab">Atleta (peso + altezze salvate)</label>
         <select onchange="setFvAtleta(this.value)" style="margin-top:6px">
           <option value="">— a mano —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${fvState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
       <div><label class="lab">Massa corporea (kg)</label>
@@ -384,7 +398,7 @@ function vistaProfiloFV() {
       <div><label class="lab">Anca in PARTENZA (cm)</label>
         <input inputmode="numeric" value="${fvState.hPart || ""}" placeholder="es. 70" oninput="setFvVal('hPart',this.value)" onchange="disegna()" style="margin-top:6px"></div>
     </div>
-    <p class="et" style="margin-top:8px">hPO (distanza di spinta): <b style="color:var(--txt)">${hPO != null ? hPO.toFixed(2) + " m" : "—"}</b> · misura al grande trocantere (anca), da terra. Tipico 0.30-0.40 m.</p>
+    <p class="et" style="margin-top:8px">hPO (distanza di spinta): <b style="color:var(--txt)">${hPO != null ? hPO.toFixed(2) + " m" : "—"}</b> · misura al grande trocantere (anca), da terra. Tipico 0.30-0.40 m.${fvState.atletaRif ? " Le altezze si <b>salvano</b> sull'atleta e si ripropongono ai prossimi test." : ""}</p>
   </div>
 
   <div class="card">

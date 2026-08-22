@@ -397,7 +397,7 @@ function _applicaGare(gare) {
 function gareGruppo(g) { return (DEMO.gareRaw || []).filter(x => !x.gruppo || x.gruppo === g); }
 // prossima gara futura di un gruppo (per la home atleta e il dettaglio coach)
 function prossimaGaraGruppo(g) {
-  const now = Date.now();
+  const nd = new Date(); nd.setHours(0, 0, 0, 0); const now = nd.getTime();
   const arr = gareGruppo(g).map(x => ({ x, t: x.data ? new Date(x.data + "T00:00:00").getTime() : null }))
     .filter(o => o.t != null && o.t >= now).sort((a, b) => a.t - b.t);
   if (!arr.length) return null;

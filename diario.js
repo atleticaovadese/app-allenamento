@@ -23,6 +23,16 @@ function _diarioStoriaMia() {
   const aid = a ? a.id : (S.utente && S.utente.atletaId);
   return aid ? ((DEMO.diariStorico || {})[aid] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1) : [];
 }
+// il peso si chiede ogni 14 giorni, non ogni giorno (meno pesante, meglio per chi ha problemi di peso).
+// true = è ora di richiederlo (mai registrato, oppure ≥14 giorni dall'ultima volta).
+function _pesoDaChiedere() {
+  const conPeso = _diarioStoriaMia().filter(v => v.peso != null && v.peso !== "" && !isNaN(Number(v.peso)) && v.data);
+  if (!conPeso.length) return true;
+  const ultima = conPeso[0].data; // storia già ordinata recente→vecchio
+  const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  if (ultima >= oggi) return false; // già pesato oggi
+  return Math.round((new Date(oggi + "T00:00:00").getTime() - new Date(ultima + "T00:00:00").getTime()) / 86400000) >= 14;
+}
 // riepilogo sonno: media (ultimi giorni) + ultima notte + mini-trend. Condiviso atleta/allenatore.
 function _sonnoRiepilogo(storia) {
   const conSonno = (storia || []).filter(v => v.oreSonno != null && v.oreSonno !== "" && !isNaN(Number(v.oreSonno)));
@@ -90,14 +100,17 @@ function vistaDiario() {
   </div>
 
   <div class="card">
-    <div class="griglia2">
-      <div><div class="lab">Peso (kg)</div>
-        <input inputmode="decimal" value="${d.peso ?? ""}" placeholder="es. 72.4"
-          onchange="segnaDiario('peso',this.value)"></div>
-      <div><div class="lab">Ciclo mestruale</div>
-        <button class="btn ${d.ciclo ? "" : "btn-2"}" style="padding:11px"
-          onclick="segnaDiario('ciclo',${!d.ciclo})">${d.ciclo ? "Segnato ✓" : "Segna"}</button></div>
-    </div>
+    ${(() => {
+      const chiediPeso = (typeof _pesoDaChiedere === "function" ? _pesoDaChiedere() : true) || (d.peso != null);
+      const cicloBtn = `<div><div class="lab">Ciclo mestruale</div>
+        <button class="btn ${d.ciclo ? "" : "btn-2"}" style="padding:11px" onclick="segnaDiario('ciclo',${!d.ciclo})">${d.ciclo ? "Segnato ✓" : "Segna"}</button></div>`;
+      return chiediPeso
+        ? `<div class="griglia2">
+        <div><div class="lab">Peso (kg)</div>
+          <input inputmode="decimal" value="${d.peso ?? ""}" placeholder="es. 72.4" onchange="segnaDiario('peso',this.value)"></div>
+        ${cicloBtn}</div>`
+        : `${cicloBtn}<p class="et" style="margin-top:9px;color:var(--txt3)">Peso: si registra ogni 2 settimane (già fatto di recente).</p>`;
+    })()}
   </div>
 
   <div class="card">

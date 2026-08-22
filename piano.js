@@ -83,10 +83,14 @@ function pianoAtletaResetMadre() {
 // Calcola le colonne automatiche per ogni settimana (formule del foglio Excel).
 function calcolaPiano() {
   const p = pianoDati();
-  const gare = ((typeof gareGruppo === "function" ? gareGruppo(S.pianoDisc || "vel") : (DEMO.gareRaw || []))).map(g => ({ t: dnum(g.data), ob: g.obiettivo, nome: g.luogo || g.gara }))
-    .filter(g => g.t != null).sort((a, b) => a.t - b.t);
-  const gareA = gare.filter(g => g.ob === "A");
-  const start = p.inizio ? dnum(p.inizio) : null;
+  const startD = p.inizio ? new Date(p.inizio + "T00:00:00") : null;
+  const gg = (a, b) => Math.round((b - a) / 86400000); // giorni tra due date, robusto all'ora legale
+  // ogni gara → settimana del piano in cui cade (indice), calcolata a GIORNI (niente sfasamento CEST/CET)
+  const gare = ((typeof gareGruppo === "function" ? gareGruppo(S.pianoDisc || "vel") : (DEMO.gareRaw || []))).map(g => {
+    const d = g.data ? new Date(g.data + "T00:00:00") : null;
+    return (d && !isNaN(d) && startD) ? { wk: Math.floor(gg(startD, d) / 7), ob: g.obiettivo, nome: g.luogo || g.gara } : null;
+  }).filter(Boolean);
+  const gareA = gare.filter(g => g.ob === "A").sort((a, b) => a.wk - b.wk);
   const out = [];
   let ad = 4, ae = -1;   // helper ciclo: lunghezza e posizione (carry come nell'Excel)
   for (let i = 0; i < p.nSettimane; i++) {
@@ -94,13 +98,12 @@ function calcolaPiano() {
     if (inp.ciclo) { ad = AD_CICLO[inp.ciclo] || 4; ae = 0; }
     else { ae = ((ae + 1) % ad + ad) % ad; }
 
-    const t0 = start != null ? start + i * WEEK_MS : null;
     let gara = "", aA = null, scar = "", intv = "", vol = "", peak = "";
-    if (t0 != null) {
-      const gThis = gare.find(x => x.t >= t0 && x.t <= t0 + 6 * 86400000);
+    if (startD) {
+      const gThis = gare.find(x => x.wk === i);
       if (gThis) gara = gThis.nome + " (" + gThis.ob + ")";
-      const ga = gareA.find(x => x.t >= t0);
-      if (ga) aA = Math.floor((ga.t - t0) / WEEK_MS);
+      const gaNext = gareA.find(x => x.wk >= i);
+      if (gaNext) aA = gaNext.wk - i;
 
       const garaA = (aA === 0);            // gara A questa settimana → picco/taper pieno
       const garaW = !!gThis;               // una gara qualsiasi (A/B/C) questa settimana
@@ -117,19 +120,19 @@ function calcolaPiano() {
         peak = Math.min(5, aA + 1);
       }
     }
-    const d = t0 != null ? new Date(t0) : null;
-    out.push({ inizio: d ? d.getDate() + "/" + (d.getMonth() + 1) : "", intensita: intv, volume: vol, gara, aA, scarico: scar, peaking: peak });
+    const dCol = startD ? new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i * 7) : null;
+    out.push({ inizio: dCol ? dCol.getDate() + "/" + (dCol.getMonth() + 1) : "", intensita: intv, volume: vol, gara, aA, scarico: scar, peaking: peak });
   }
   return out;
 }
 
 function prossimaGaraA() {
-  const now = Date.now();
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   const src = (typeof gareGruppo === "function") ? gareGruppo(S.pianoDisc || "vel") : (DEMO.gareRaw || []);
-  const gA = src.map(g => ({ t: dnum(g.data), ob: g.obiettivo }))
-    .filter(g => g.ob === "A" && g.t != null && g.t >= now).sort((a, b) => a.t - b.t)[0];
+  const gA = src.filter(g => g.obiettivo === "A" && g.data).map(g => new Date(g.data + "T00:00:00"))
+    .filter(d => !isNaN(d) && d >= now).sort((a, b) => a - b)[0];
   if (!gA) return null;
-  return { data: new Date(gA.t).toLocaleDateString("it-IT"), tra: Math.ceil((gA.t - now) / WEEK_MS) };
+  return { data: gA.toLocaleDateString("it-IT"), tra: Math.max(0, Math.ceil(Math.round((gA - now) / 86400000) / 7)) };
 }
 
 // ---------- vista ----------
@@ -195,8 +198,17 @@ function vistaPiano() {
         </select></div>
     </div>
     ${gaA ? `<p class="et" style="margin-top:10px">Prossima gara A: <b>${gaA.data}</b> · tra ${gaA.tra} settimane · <button class="link-indietro" onclick="vai('gare')">gestisci gare ›</button></p>`
-          : `<p class="et" style="margin-top:10px">Nessuna gara nel calendario. <button class="link-indietro" onclick="vai('gare')">Aggiungile in «Gare» ›</button> — poi compaiono qui (colonne Gara / →A).</p>`}
+          : `<p class="et" style="margin-top:10px">Nessuna gara «A». <button class="link-indietro" onclick="vai('gare')">Gestisci gare ›</button></p>`}
   </div>
+  ${(() => {
+    const src = (typeof gareGruppo === "function" ? gareGruppo(disc) : (DEMO.gareRaw || [])).filter(g => g.data);
+    const fut = src.slice().sort((a, b) => a.data < b.data ? -1 : 1).filter(g => new Date(g.data + "T00:00:00").getTime() >= Date.now() - 7 * 86400000);
+    if (!fut.length) return "";
+    const colOb = o => o === "A" ? "var(--rosso)" : "var(--blu)";
+    return `<div class="card"><p class="et" style="margin-bottom:6px"><b>🏁 Gare in calendario</b> — ${nomeG}</p>${fut.map(g => `<div class="riga" style="padding:6px 0">
+      <div style="font-weight:500">${g.luogo || g.gara || "gara"}${g.luogo && g.gara ? " · " + g.gara : ""} <b style="color:${colOb(g.obiettivo)}">(${g.obiettivo || "?"})</b></div>
+      <b class="pdata">${typeof fmtData === "function" ? fmtData(g.data) : g.data}</b></div>`).join("")}<p class="et" style="margin-top:6px;color:var(--txt3)">Le trovi anche nella tabella (colonne Gara / Scarico): <span style="color:var(--rosso)">A</span> · <span style="color:var(--blu)">B/C</span>.</p></div>`;
+  })()}
   <button class="btn btn-2" style="margin-bottom:12px" onclick="apriPianoGrafici()">📊 Vedi i grafici</button>
   <div class="p-scroll">
     <table class="piano">

@@ -118,7 +118,7 @@ function _rMesoWin(mesocicli, i) {
   const next = mesocicli[i + 1];
   let end;
   if (next && next.inizio) end = new Date(next.inizio + "T00:00:00");
-  else { const n = (typeof nSettimaneMeso === "function") ? nSettimaneMeso(m) : 4; end = new Date(start.getTime() + n * 7 * 86400000); }
+  else { const n = (typeof nSettimaneMeso === "function") ? nSettimaneMeso(m) : 4; end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + n * 7); }
   return { start, end };
 }
 // grafico salute (prontezza) + n° allenamenti nel periodo di un mesociclo

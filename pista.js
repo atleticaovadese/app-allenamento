@@ -134,7 +134,7 @@ function pistaCicliPiano() {
     const w = p.righe[i] || {};
     if (w.ciclo) { AD = AD_CICLO[w.ciclo] || 4; AE = 0; label = w.ciclo; }
     else { AE = (AE === null ? 0 : (AE + 1) % AD); }
-    if (AE === 0) res.push({ startIdx: i, ciclo: label || cicloDaLen(AD), data: new Date(inizio.getTime() + i * 7 * 86400000), blocco: w.blocco || "" });
+    if (AE === 0) res.push({ startIdx: i, ciclo: label || cicloDaLen(AD), data: new Date(inizio.getFullYear(), inizio.getMonth(), inizio.getDate() + i * 7), blocco: w.blocco || "" });
   }
   res.forEach((c, k) => { c.nWeeks = ((k + 1 < res.length) ? res[k + 1].startIdx : p.nSettimane) - c.startIdx; });
   return res;
