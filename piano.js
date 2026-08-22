@@ -100,25 +100,29 @@ function calcolaPiano() {
 
     let gara = "", aA = null, scar = "", intv = "", vol = "", peak = "";
     if (startD) {
-      const gThis = gare.find(x => x.wk === i);
+      const gThis = gare.find(x => x.wk === i);                                  // gara di questa settimana (qualsiasi livello)
+      const gNext = gare.filter(x => x.wk >= i).sort((a, b) => a.wk - b.wk)[0];  // prossima gara (qualsiasi livello) da qui in poi
+      const gaNextA = gareA.find(x => x.wk >= i);                                // prossima gara A (per la colonna →A)
       if (gThis) gara = gThis.nome + " (" + gThis.ob + ")";
-      const gaNext = gareA.find(x => x.wk >= i);
-      if (gaNext) aA = gaNext.wk - i;
+      if (gaNextA) aA = gaNextA.wk - i;
+      const dNear = gNext ? gNext.wk - i : null;                                 // settimane alla prossima gara (qualsiasi)
+      const PMAX = { A: 5, B: 4, C: 3 };                                         // picco massimo per livello gara
 
-      const garaA = (aA === 0);            // gara A questa settimana → picco/taper pieno
-      const garaW = !!gThis;               // una gara qualsiasi (A/B/C) questa settimana
-      scar = garaA ? "GARA" : (garaW ? "GARA " + gThis.ob : (ae === ad - 1 ? "SCARICO" : "carico"));
+      scar = gThis ? (gThis.ob === "A" ? "GARA" : "GARA " + gThis.ob) : (ae === ad - 1 ? "SCARICO" : "carico");
 
-      if (garaA) intv = 5;
-      else if (inp.blocco) intv = INT_BLOCCO[inp.blocco];
-      else if (aA != null) intv = Math.max(2, Math.min(5, Math.round(5 - aA / 4)));
-      else intv = 2;
+      // INTENSITÀ: alta in gara; altrimenti dal Blocco forza (scelta del coach); se manca, sale avvicinandosi alla prossima gara
+      intv = gThis ? (gThis.ob === "A" ? 5 : 4)
+        : inp.blocco ? INT_BLOCCO[inp.blocco]
+          : dNear != null ? Math.max(2, Math.min(5, 5 - Math.floor(dNear / 3)))
+            : 2;
 
-      if (aA != null) {
-        const base = Math.min(5, Math.round(1 + aA / 3));
-        vol = garaA ? 1 : garaW ? Math.max(1, base - 1) : (ae === ad - 1 ? Math.max(1, base - 2) : Math.max(1, base));
-        peak = Math.min(5, aA + 1);
-      }
+      // VOLUME: alto in preparazione (lontano dalle gare), cala verso la competizione; taper in gara (A pieno, B/C parziale); scarico dal ciclo
+      const base = dNear != null ? Math.max(1, Math.min(5, 1 + Math.round(dNear / 3))) : 3;
+      vol = gThis ? (gThis.ob === "A" ? 1 : 2)
+        : (ae === ad - 1 ? Math.max(1, base - 2) : base);
+
+      // PICCO (forma): sale avvicinandosi alla gara → massimo sulla A (5), parziale su B (4) / C (3); basso in preparazione lontana
+      if (dNear != null) { const pm = PMAX[gNext.ob] || 3; peak = Math.max(1, Math.min(pm, pm - dNear)); }
     }
     const dCol = startD ? new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i * 7) : null;
     out.push({ inizio: dCol ? dCol.getDate() + "/" + (dCol.getMonth() + 1) : "", intensita: intv, volume: vol, gara, aA, scarico: scar, peaking: peak });
@@ -297,6 +301,6 @@ function vistaPianoGrafici() {
     <div class="card">
       <p class="et" style="margin-bottom:6px">Forma misurata (TSB) per settimana</p>
       <div style="background:var(--card2);border:1px dashed var(--line2);border-radius:12px;padding:16px;font-size:13px;color:var(--txt2);line-height:1.6">
-        Si riempirà quando gli atleti registreranno gli allenamenti (Carico &amp; Forma). Obiettivo: la forma reale sale quando il <b>picco</b> scende a 1 sulla gara A.</div>
+        Si riempirà quando gli atleti registreranno gli allenamenti (Carico &amp; Forma). Obiettivo: la <b>forma reale</b> deve salire insieme al <b>picco</b> programmato, che cresce verso ogni gara e arriva al massimo (5) sulla gara A.</div>
     </div>`;
 }
