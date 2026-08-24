@@ -62,6 +62,12 @@ function riscRiassunto(g) {
   const att = RISC_TIPI_PISTA.filter(([k]) => risc[k].on);
   return att.length ? att.map(([k, label]) => `${label}${risc[k].prot ? " (" + risc[k].prot + ")" : ""}`).join(" · ") : "non impostato";
 }
+// nomi dei protocolli scelti dal coach → lista che l'atleta vede nella seduta (ogni voce apribile).
+// Vale per pista velocità, palestra, mezzofondo e lanci (stessa struttura g.risc).
+function riscLista(g) {
+  const risc = (g && g.risc) || {};
+  return RISC_TIPI_PISTA.filter(([k]) => risc[k] && risc[k].on).map(([k, label]) => risc[k].prot || label);
+}
 
 // ---------- pliometria / policoncorrenza (dopo il riscaldamento) — condivisa vel + mezzo ----------
 const PLIO_MODI = [["balzi", "balzi"], ["metri", "m"], ["ostacoli", "ostacoli"]];

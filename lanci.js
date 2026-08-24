@@ -399,7 +399,7 @@ function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, p
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", lanci: true, giorno: giornoNum,
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
-    focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
+    focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });

@@ -411,13 +411,15 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
     return {
       id: "e" + i, contenuto: r.contenuto || "", mezzo: r.mezzo, distanza: dist, ripetute: n,
       min: cont ? Number(r.min) : null, ritmoSecKm: sec, ritmoKm: sec != null ? _mzMMSS(sec) : "—",
-      tempoRipSec: tempoRip, recupero: r.rec || "", volume: vol
+      tempoRipSec: tempoRip, recupero: r.rec || "", volume: vol,
+      // ripetute: l'atleta segna il tempo reale di ognuna (mm:ss). Continuo: niente caselle.
+      tempi: cont ? null : Array(n).fill(null)
     };
   });
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", mezzo: true, giorno: giornoNum,
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
-    focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: [],
+    focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
@@ -425,6 +427,14 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
 
 // ---------- vista atleta: seduta pista mezzofondo (prescrizione da seguire a ritmo) ----------
 function volumePistaMezzo(s) { return (s.elementi || []).reduce((t, e) => t + (e.volume || 0), 0); }
+// l'atleta scrive il tempo di una ripetuta (mm:ss oppure secondi) → salvato in secondi
+function segnaTempoMezzo(sid, eid, i, val) {
+  const s = sedutaDaId(sid), e = s && s.elementi.find(x => x.id === eid);
+  if (!e || !e.tempi) return;
+  const sec = _mzToSec(val);
+  e.tempi[i] = (sec != null && sec > 0) ? sec : null;
+  disegna();
+}
 function vistaPistaMezzo(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
@@ -433,6 +443,20 @@ function vistaPistaMezzo(s) {
     const prescr = cont ? `${e.min}′ in continuo` : `${e.ripetute} × ${e.distanza} m`;
     const tr = e.tempoRipSec != null ? _mzMMSS(e.tempoRipSec) : null;
     const km = e.volume ? Math.round(e.volume / 100) / 10 : 0;
+    // caselle per i tempi reali delle ripetute (mm:ss). Verde/rosso vs il tempo target a ripetuta.
+    let bloccoTempi = "";
+    if (e.tempi) {
+      const fatte = e.tempi.filter(v => v != null);
+      const best = fatte.length ? Math.min(...fatte) : null;
+      const caselle = e.tempi.map((t, i) => {
+        let cls = "";
+        if (t != null && e.tempoRipSec != null) cls = (t - e.tempoRipSec) / e.tempoRipSec * 100 > 4 ? "male" : "bene";
+        return `<input class="tempo ${cls}" value="${t != null ? _mzMMSS(t) : ""}" placeholder="m:ss"
+          onchange="segnaTempoMezzo('${s.id}','${e.id}',${i},this.value)">`;
+      }).join("");
+      bloccoTempi = `<p class="et" style="margin:8px 0 6px">Segna il tempo di ogni ripetuta${best != null ? ` · <b style="color:var(--verde)">meglio ${_mzMMSS(best)}</b>` : ""}</p>
+        <div class="tempi">${caselle}</div>`;
+    }
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <h3>${prescr}</h3>
@@ -441,6 +465,7 @@ function vistaPistaMezzo(s) {
       <p class="et" style="margin:4px 0 2px">ritmo <b>${e.ritmoKm}/km</b>${tr ? " · ~" + tr + " a ripetuta" : ""}${e.recupero ? " · rec " + e.recupero : ""}</p>
       <p class="et" style="margin:0">volume ${(e.volume || 0).toLocaleString("it-IT")} m${km ? " · " + km + " km" : ""}</p>
       ${e.contenuto ? `<p class="et" style="margin:6px 0 0">${e.contenuto}</p>` : ""}
+      ${bloccoTempi}
     </div>`;
   }).join("")}
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">

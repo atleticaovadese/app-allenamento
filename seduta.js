@@ -267,9 +267,9 @@ async function chiudiSeduta(sid) {
       if (!fatti.length) return;
       const tmedio = fatti.reduce((a, b) => a + b, 0) / fatti.length;
       registraPista(aid, e.distanza, tmedio, e.ripetute * e.distanza, tmedio ? e.distanza / tmedio : null);
-      // miglior tempo della seduta su questa distanza → aggiorna PB in allenamento
-      const migliore = Math.min(...fatti);
-      if (typeof aggiornaPbAllenamento === "function") aggiornaPbAllenamento(aid, e.distanza + " m", migliore);
+      // miglior tempo della seduta su questa distanza → aggiorna PB in allenamento.
+      // NON per il mezzofondo: le ripetute si corrono a ritmo prescritto (non al massimo) → eviterei falsi PB.
+      if (!s.mezzo && typeof aggiornaPbAllenamento === "function") aggiornaPbAllenamento(aid, e.distanza + " m", Math.min(...fatti));
     });
   }
   s.chiusa = true;
