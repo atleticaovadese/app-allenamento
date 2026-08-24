@@ -165,10 +165,43 @@ function seduteDelGiorno(dataISO, clamp, atleta) {
   const wd = GG_ISO[wdIdx(dataISO)], out = [];
   const progP = _progPista(atleta), progL = _progPal(atleta);
   const pa = mesoAttivo(progP, dataISO, clamp);
-  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta, progP); if (s) out.push(s); } });
+  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta, progP); if (s) out.push(_applicaSvolta(s)); } });
   const pl = mesoAttivo(progL, dataISO, clamp);
-  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(s); } });
+  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(_applicaSvolta(s)); } });
   return out;
+}
+// se per quel giorno esiste già una seduta_svolta (chiusa dall'atleta), rimetti i dati e marcala chiusa:
+// così non risulta di nuovo "da compilare" dopo un reload e l'atleta rivede cosa aveva fatto.
+function _svoltaDi(s) {
+  const arr = (DEMO.seduteSvolte && DEMO.seduteSvolte[s.atletaId]) || [];
+  return arr.find(sv => sv.data === s.dataISO && sv.tipo === s.tipo && (sv.giorno == null || sv.giorno === s.giorno)) || null;
+}
+function _applicaSvolta(s) {
+  if (!s || s.chiusa) return s;                 // già chiusa in questa sessione (edit live): non toccare
+  const sv = _svoltaDi(s);
+  if (!sv) return s;
+  s.chiusa = true;
+  if (sv.durata_min != null) s.durata = sv.durata_min;
+  if (sv.rpe != null) s.rpe = sv.rpe;
+  s.fastidi = !!sv.fastidi;
+  const d = sv.dati || {};
+  if (s.tipo === "pista" && d.elementi) {
+    (s.elementi || []).forEach((e, i) => {
+      const de = d.elementi[i]; if (!de) return;
+      if (de.tempi) e.tempi = de.tempi;
+      if (de.misure) e.misure = de.misure;
+      if (de.rpe != null) e.rpe = de.rpe;
+      if (de.nonCompletato) { e.nonCompletato = true; e.notaAtleta = de.notaAtleta || ""; }
+    });
+  } else if (s.esercizi && d.esercizi) {
+    (s.esercizi || []).forEach((x, i) => {
+      const dx = d.esercizi[i]; if (!dx) return;
+      if (dx.vbt) x.vbt = dx.vbt;
+      if (dx.rpe != null) x.rpe = dx.rpe;
+      if (dx.nonCompletato) { x.nonCompletato = true; x.serieFatte = dx.serieFatte; x.repFatte = dx.repFatte; x.notaAtleta = dx.notaAtleta || ""; }
+    });
+  }
+  return s;
 }
 
 // la settimana (lun→dom) a partire da oggi + off settimane; ogni giorno con le sue sedute

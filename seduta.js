@@ -94,6 +94,7 @@ function vistaPista(s) {
       </div>
       <p class="et" style="margin:4px 0 10px">${e.target != null ? "obiettivo <b>" + e.target.toFixed(2) + " s</b> · " : ""}volume ${e.ripetute * e.distanza} m</p>
       <div class="tempi">${caselle}</div>
+      ${bloccoSforzoPista(s.id, e)}
     </div>`;
   }).join("")}
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
@@ -108,6 +109,58 @@ function segnaTempo(sid, eid, i, val) {
   const n = parseFloat(String(val).replace(",", "."));
   e.tempi[i] = isNaN(n) ? null : n;
   disegna();
+}
+
+// ---------- sforzo percepito (RPE) + "non chiuse/non completato" per singolo lavoro ----------
+// Blocco per un ELEMENTO di pista (ripetute velocità / mezzo / lanci): RPE + segnalazione se non chiuse.
+function bloccoSforzoPista(sid, e) {
+  return `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <label class="lab" style="margin:0">Sforzo percepito (RPE 1-10)</label>
+      <input inputmode="decimal" value="${e.rpe ?? ""}" placeholder="es. 8.5" style="width:90px"
+        onchange="setEsitoPista('${sid}','${e.id}','rpe',this.value)">
+    </div>
+    <label class="check" style="margin-top:8px">
+      <input type="checkbox" ${e.nonCompletato ? "checked" : ""} onchange="setEsitoPista('${sid}','${e.id}','nonCompletato',this.checked)">
+      <span>Non ho chiuso le ripetute</span></label>
+    ${e.nonCompletato ? `<textarea rows="2" style="margin-top:6px" placeholder="Cosa è successo? (es. fermato dopo la 3ª, fastidio al polpaccio...)"
+       onchange="setEsitoPista('${sid}','${e.id}','notaAtleta',this.value)">${e.notaAtleta || ""}</textarea>` : ""}
+  </div>`;
+}
+function setEsitoPista(sid, eid, campo, val) {
+  const s = sedutaDaId(sid), e = s && (s.elementi || []).find(x => x.id === eid);
+  if (!e) return;
+  if (campo === "nonCompletato") { e.nonCompletato = val; disegna(); }
+  else if (campo === "rpe") e.rpe = (val === "" ? null : Number(String(val).replace(",", ".")));
+  else e[campo] = val;
+}
+// Blocco per un ESERCIZIO di palestra: RPE + "non chiuso" con serie/rep effettive.
+function bloccoSforzoEs(sid, x) {
+  return `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <label class="lab" style="margin:0">Sforzo percepito (RPE 1-10)</label>
+      <input inputmode="decimal" value="${x.rpe ?? ""}" placeholder="es. 8.5" style="width:90px"
+        onchange="setEsitoEs('${sid}','${x.id}','rpe',this.value)">
+    </div>
+    <label class="check" style="margin-top:8px">
+      <input type="checkbox" ${x.nonCompletato ? "checked" : ""} onchange="setEsitoEs('${sid}','${x.id}','nonCompletato',this.checked)">
+      <span>Non ho chiuso — ho fatto meno del previsto</span></label>
+    ${x.nonCompletato ? `<div class="griglia2" style="margin-top:6px">
+        <div><label class="lab">Serie fatte</label><input inputmode="numeric" value="${x.serieFatte ?? ""}" placeholder="es. 2"
+          onchange="setEsitoEs('${sid}','${x.id}','serieFatte',this.value)"></div>
+        <div><label class="lab">Rep dell'ultima</label><input inputmode="numeric" value="${x.repFatte ?? ""}" placeholder="es. 6"
+          onchange="setEsitoEs('${sid}','${x.id}','repFatte',this.value)"></div>
+      </div>
+      <textarea rows="2" style="margin-top:6px" placeholder="Cosa è successo? (es. carico troppo alto, fastidio...)"
+        onchange="setEsitoEs('${sid}','${x.id}','notaAtleta',this.value)">${x.notaAtleta || ""}</textarea>` : ""}
+  </div>`;
+}
+function setEsitoEs(sid, xid, campo, val) {
+  const s = sedutaDaId(sid), x = s && (s.esercizi || []).find(e => e.id === xid);
+  if (!x) return;
+  if (campo === "nonCompletato") { x.nonCompletato = val; disegna(); }
+  else if (campo === "rpe" || campo === "serieFatte" || campo === "repFatte") x[campo] = (val === "" ? null : Number(String(val).replace(",", ".")));
+  else x[campo] = val;
 }
 
 // ---------- PALESTRA ----------
@@ -165,6 +218,7 @@ function esercizioAperto(s, x) {
     </p>
     ${righe}${parziale}
     ${T.sec > 0 ? bloccoTimer() : ""}
+    ${bloccoSforzoEs(s.id, x)}
   </div>`;
 }
 
@@ -209,8 +263,8 @@ function bloccoChiusura(s) {
       <div><label class="lab">Durata (min)</label>
         <input inputmode="numeric" value="${s.durata ?? ""}" placeholder="es. 75"
           onchange="segnaChiusura('${s.id}','durata',this.value)"></div>
-      <div><label class="lab">RPE (1-10)</label>
-        <input inputmode="numeric" value="${s.rpe ?? ""}" placeholder="es. 8"
+      <div><label class="lab">RPE (1-10, anche mezzi)</label>
+        <input inputmode="decimal" value="${s.rpe ?? ""}" placeholder="es. 8.5"
           onchange="segnaChiusura('${s.id}','rpe',this.value)"></div>
     </div>
     <label class="check" style="margin-top:12px">
@@ -235,7 +289,7 @@ function bloccoChiusura(s) {
 }
 function segnaChiusura(sid, campo, val) {
   const s = sedutaDaId(sid);
-  s[campo] = (campo === "fastidi") ? val : (val === "" ? null : Number(val));
+  s[campo] = (campo === "fastidi") ? val : (val === "" ? null : Number(String(val).replace(",", ".")));
 }
 async function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
@@ -290,6 +344,7 @@ function vistaSeduta() {
       <h3 style="color:#fff">${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
       <p style="font-size:13px;margin-top:6px;opacity:.9">${s.focus}</p>
     </div>
+    ${s.chiusa ? `<div class="card" style="border-color:var(--verde);background:var(--verde-bg)"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Allenamento già svolto${s.rpe ? " · RPE " + s.rpe : ""}${s.durata ? " · " + s.durata + "′" : ""}</p><p class="et" style="margin:4px 0 0">Lo stai <b>rivedendo</b>: i tuoi dati sono già salvati. Puoi correggere qualcosa se serve e richiudere.</p></div>` : ""}
     ${bloccoObiettivi(s)}
     <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>
     ${corpo}`;

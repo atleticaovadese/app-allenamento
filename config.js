@@ -3,7 +3,7 @@
 const CONFIG = {
   nome: "Metis Performance",
   nomeBreve: "Metis",
-  versione: "1.38 · 24 ago",
+  versione: "1.40 · 24 ago",
 
   // Soglie per gli avvisi all'allenatore (decise con l'utente)
   soglie: {
@@ -11,7 +11,8 @@ const CONFIG = {
     pistaPeggioPct: 3,    // tempo in pista peggiore del target di piu' del 3% -> avviso
     prontezzaBassa: 2.5,  // sotto questa soglia = prontezza bassa
     acwrAlto: 1.5,        // sopra = carico in salita pericoloso
-    giorniAssenza: 3      // atleta che non si allena da N giorni -> avviso
+    giorniAssenza: 3,     // atleta che non si allena da N giorni -> avviso
+    rpeAlto: 9            // RPE del singolo lavoro sopra questo -> notifica (sforzo altissimo)
   },
 
   // Scale del diario (1-5). Su TUTTE, 5 = sto bene: serve perche' la prontezza

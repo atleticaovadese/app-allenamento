@@ -434,6 +434,7 @@ function vistaPistaLanci(s) {
       ${e.contenuto ? `<p class="et" style="margin:0 0 8px">${e.contenuto}</p>` : ""}
       <p class="et" style="margin:0 0 6px">Segna le misure (m) che hai preso${best != null ? ` · <b style="color:var(--verde)">meglio ${best.toFixed(2)} m</b>` : ""}</p>
       <div class="tempi">${caselle}</div>
+      ${typeof bloccoSforzoPista === "function" ? bloccoSforzoPista(s.id, e) : ""}
     </div>`;
   }).join("")}
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">

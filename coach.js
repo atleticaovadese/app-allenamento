@@ -267,6 +267,22 @@ function notificheCoach(includiVisti) {
         else if (ac < 0.8) add(a, "acwr", "y", "", `ACWR basso ${ac.toFixed(2)}: carico giù / calo di condizione`, "basso" + ac.toFixed(2));
       }
     }
+    // sedute svolte recenti: sforzo altissimo (RPE > soglia) o lavoro NON completato (dal singolo esercizio/ripetuta)
+    const rpeLim = (sog.rpeAlto || 9);
+    ((DEMO.seduteSvolte || {})[a.id] || []).forEach(sv => {
+      if (gg(sv.data) > 21) return;                       // solo le ultime ~3 settimane
+      const items = (sv.dati && (sv.dati.esercizi || sv.dati.elementi)) || [];
+      items.forEach(it => {
+        const nome = it.nome || it.mezzo || (it.distanza ? it.ripetute + "×" + it.distanza + "m" : "lavoro");
+        const rpe = Number(it.rpe);
+        if (!isNaN(rpe) && rpe > rpeLim)
+          add(a, "sforzo", "r", sv.data, `Sforzo altissimo · RPE ${rpe} su «${nome}»`, "rpe|" + sv.data + "|" + nome + "|" + rpe);
+        if (it.nonCompletato) {
+          const dett = it.serieFatte != null ? ` (fatte ${it.serieFatte}${it.repFatte != null ? "×" + it.repFatte : ""})` : "";
+          add(a, "incompleto", "y", sv.data, `Non completato · «${nome}»${dett}${it.notaAtleta ? " — " + it.notaAtleta : ""}`, "nc|" + sv.data + "|" + nome);
+        }
+      });
+    });
   });
   const visti = DEMO.notifVisti || {};
   const lista = includiVisti ? out : out.filter(x => !visti[x.key]);
@@ -280,7 +296,7 @@ function _notifNascoste() { return notificheCoach(true).filter(x => (DEMO.notifV
 function vistaNotifiche() {
   const list = notificheCoach();
   const crit = list.filter(x => x.lv === "r").length, warn = list.filter(x => x.lv === "y").length;
-  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️" })[t] || "•";
+  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔" })[t] || "•";
   const col = lv => lv === "r" ? "#c0392b" : lv === "y" ? "#d99000" : "#3a9a5a";
   const nascoste = (typeof _notifNascoste === "function") ? _notifNascoste() : 0;
   const intro = `<div class="card"><h3>🔔 Notifiche</h3>
@@ -1070,40 +1086,55 @@ function vistaAdatta() {
 // ---------- TAPPA 4: allenamenti SVOLTI da un atleta (cronologia) ----------
 function apriSeduteSvolte(id) { S.sedSvolte = id; disegna(); window.scrollTo(0, 0); }
 function chiudiSeduteSvolte() { S.sedSvolte = null; disegna(); window.scrollTo(0, 0); }
+// card di UN allenamento svolto (condivisa coach + atleta): mostra tempi/misure, RPE e "non chiuse"
+function _cardSvolta(sv) {
+  const dl = v => typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v;
+  const d = sv.dati || {};
+  const esito = it => {
+    const parts = [];
+    if (it.rpe != null && it.rpe !== "") parts.push(`RPE ${it.rpe}`);
+    if (it.nonCompletato) parts.push(`⛔ non chiuso${it.serieFatte != null ? ` (${it.serieFatte}${it.repFatte != null ? "×" + it.repFatte : ""})` : ""}${it.notaAtleta ? " — " + it.notaAtleta : ""}`);
+    return parts.length ? `<div class="et" style="color:${it.nonCompletato ? "var(--rosso)" : "var(--txt3)"}">${parts.join(" · ")}</div>` : "";
+  };
+  const riga = (titolo, meta, sub, valore, col, it) =>
+    `<div class="riga" style="align-items:baseline"><div style="flex:1;min-width:0"><b>${titolo}</b>${meta ? ` <span class="et">${meta}</span>` : ""}
+      ${sub ? `<div class="et">${sub}</div>` : ""}${esito(it)}</div>${valore ? `<b style="color:${col || "var(--txt2)"}">${valore}</b>` : ""}</div>`;
+  let corpo = "";
+  if (sv.tipo === "pista") {
+    corpo = (d.elementi || []).map(e => {
+      // lanci: misure in metri (il migliore è il più lungo)
+      if (e.misure && e.misure.length) {
+        const f = e.misure.filter(v => v != null), best = f.length ? Math.max(...f) : null;
+        return riga(e.mezzo || "Lanci", e.lanci ? e.lanci + " lanci" : "", f.length ? "misure " + f.map(m => Number(m).toFixed(2)).join(" · ") : "—", best != null ? best.toFixed(2) + " m" : "", "var(--verde)", e);
+      }
+      const isMezzo = !!e.mezzo, cont = e.min != null && Number(e.min) > 0;
+      if (cont) return riga(`${e.min}′ ${e.mezzo || "continuo"}`, "", "", "", "", e);
+      const f = (e.tempi || []).filter(v => v != null);
+      const fmtT = t => isMezzo && typeof _mzMMSSc === "function" ? _mzMMSSc(Number(t)) : Number(t).toFixed(2);
+      const tstr = f.length ? f.map(fmtT).join(" · ") : "—", best = f.length ? Math.min(...f) : null;
+      const col = (best != null && e.target != null) ? (best <= e.target ? "var(--verde)" : "var(--rosso)") : "var(--txt2)";
+      const bestStr = best != null ? fmtT(best) : "";
+      return riga(`${e.ripetute}×${e.distanza} m`, e.percentuale ? e.percentuale + "%" : "", `tempi ${tstr}${e.target != null ? ` · obiettivo ${Number(e.target).toFixed(2)}` : ""}`, bestStr, col, e);
+    }).join("");
+  } else {
+    corpo = (d.esercizi || []).map(x => {
+      const f = (x.vbt || []).filter(v => v != null), vmed = f.length ? f.reduce((s, v) => s + v, 0) / f.length : null;
+      return riga(x.nome, `${x.serie || "?"}×${x.rep || "?"}${x.peso ? ` @${x.peso} kg` : ""}`, vmed != null ? `VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}` : "", "", "", x);
+    }).join("");
+  }
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h3 style="font-size:16px">${dl(sv.data)} · ${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.giorno ? " · g" + sv.giorno : ""}</h3>
+      <span class="et">${sv.durata_min ? sv.durata_min + "′" : ""}${sv.rpe ? " · RPE " + sv.rpe : ""}</span></div>
+    ${sv.fastidi ? `<p class="et" style="color:var(--rosso);margin-top:4px">⚠ fastidio segnalato</p>` : ""}
+    <div style="margin-top:8px">${corpo || `<span class="et">Nessun dato inserito.</span>`}</div>
+  </div>`;
+}
 function vistaSeduteSvolte() {
   const a = DEMO.atleti.find(x => x.id === S.sedSvolte);
   if (!a) { S.sedSvolte = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
   const lista = (((DEMO.seduteSvolte || {})[a.id]) || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
-  const dl = v => typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v;
-  const cards = lista.map(sv => {
-    const d = sv.dati || {};
-    let corpo = "";
-    if (sv.tipo === "pista") {
-      corpo = (d.elementi || []).map(e => {
-        const fatti = (e.tempi || []).filter(v => v != null);
-        const tstr = fatti.length ? fatti.map(t => Number(t).toFixed(2)).join(" · ") : "—";
-        const best = fatti.length ? Math.min(...fatti) : null;
-        const col = (best != null && e.target != null) ? (best <= e.target ? "var(--verde)" : "var(--rosso)") : "var(--txt2)";
-        return `<div class="riga" style="align-items:baseline"><div style="flex:1;min-width:0"><b>${e.ripetute}×${e.distanza} m</b>${e.percentuale ? ` <span class="et">${e.percentuale}%</span>` : ""}
-          <div class="et">tempi ${tstr}${e.target != null ? ` · obiettivo ${Number(e.target).toFixed(2)}` : ""}</div></div>
-          ${best != null ? `<b style="color:${col}">${best.toFixed(2)}</b>` : ""}</div>`;
-      }).join("");
-    } else {
-      corpo = (d.esercizi || []).map(x => {
-        const fatte = (x.vbt || []).filter(v => v != null);
-        const vmed = fatte.length ? (fatte.reduce((s, v) => s + v, 0) / fatte.length) : null;
-        return `<div class="riga" style="align-items:baseline"><div style="flex:1;min-width:0"><b>${x.nome}</b> <span class="et">${x.serie || "?"}×${x.rep || "?"}${x.peso ? ` @${x.peso} kg` : ""}</span>
-          ${vmed != null ? `<div class="et">VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}</div>` : ""}</div></div>`;
-      }).join("");
-    }
-    return `<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <h3 style="font-size:16px">${dl(sv.data)} · ${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.giorno ? " · g" + sv.giorno : ""}</h3>
-        <span class="et">${sv.durata_min ? sv.durata_min + "′" : ""}${sv.rpe ? " · RPE " + sv.rpe : ""}</span></div>
-      ${sv.fastidi ? `<p class="et" style="color:var(--rosso);margin-top:4px">⚠ ha segnalato un fastidio</p>` : ""}
-      <div style="margin-top:8px">${corpo || `<span class="et">Nessun dato inserito.</span>`}</div>
-    </div>`;
-  }).join("");
+  const cards = lista.map(_cardSvolta).join("");
   return `<button class="indietro" onclick="chiudiSeduteSvolte()">‹ Torna all'atleta</button>
     <div class="card"><h3>Allenamenti svolti · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Cosa ha davvero fatto, dal più recente${lista.length ? ` · ${lista.length} sedute` : ""}.</p></div>

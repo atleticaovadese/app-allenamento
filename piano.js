@@ -12,6 +12,9 @@ const SIST_EN_BY = {
 };
 function sistEnDi(g) { return SIST_EN_BY[g] || SIST_EN_BY.vel; }
 const SIST_EN = SIST_EN_BY.vel;   // retrocompatibilità
+// sist energetico ora è MULTIPLO: salvato come stringa "A · B · C". Helper per leggerlo/riassumerlo.
+function _sistArr(v) { return v ? String(v).split(" · ").filter(Boolean) : []; }
+function _sistSummary(v) { const a = _sistArr(v); return a.length ? (a.length === 1 ? a[0] : a[0] + " +" + (a.length - 1)) : "—"; }
 const CICLI = ["4+1", "3+1", "2+1", "1+1", "1"];
 const INT_BLOCCO = { "AA (Adatt. Anatomico)": 2, "Mx-S (Forza Max)": 4, "Conv. a Potenza": 4, "Mant. P+MxS": 5, "Competitivo": 5 };
 const AD_CICLO = { "1": 1, "1+1": 2, "2+1": 3, "3+1": 4, "4+1": 5 };
@@ -157,7 +160,7 @@ function vistaPiano() {
       <td class="pdata">${r.inizio || "—"}</td>
       <td><select onchange="setPianoCella(${i},'fase',this.value)">${opt(FASI, inp.fase)}</select></td>
       <td><select onchange="setPianoCella(${i},'blocco',this.value)">${opt(BLOCCHI, inp.blocco)}</select></td>
-      <td><select onchange="setPianoCella(${i},'sist',this.value)">${opt(sistEnDi(disc), inp.sist)}</select></td>
+      <td><button class="btn btn-2" style="width:auto;padding:6px 9px;font-size:12px;text-align:left;min-width:110px" onclick="apriSistEn(${i})">${_sistSummary(inp.sist)}</button></td>
       <td class="pauto">${r.intensita === "" ? "—" : r.intensita}</td>
       <td class="pauto">${r.volume === "" ? "—" : r.volume}</td>
       <td class="pgara">${r.gara || ""}</td>
@@ -255,6 +258,29 @@ function setPianoCella(i, campo, v) {
   if (typeof savePiano === "function") savePiano();
   disegna();
 }
+// ---------- sistemi energetici multipli (checklist) ----------
+function apriSistEn(i) {
+  const disc = S.pianoDisc || "vel";
+  const p = pianoDati();
+  const sel = _sistArr((p.righe[i] || {}).sist);
+  const opts = (typeof sistEnDi === "function") ? sistEnDi(disc) : [];
+  const body = opts.map(o => `<label class="check" style="padding:11px 0;border-bottom:1px solid var(--line)">
+      <input type="checkbox" ${sel.indexOf(o) >= 0 ? "checked" : ""} onchange="toggleSistEn(${i},'${String(o).replace(/'/g, "\\'")}',this.checked)">
+      <span>${o}</span></label>`).join("");
+  mostraFoglio(`<div class="foglio-top"><h3>Sistemi energetici · settimana ${i + 1}</h3>
+      <button class="chiudi" onclick="chiudiSistEn()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:4px">Spunta <b>uno o più</b> sistemi da allenare in questa settimana. Se la settimana ha un Ciclo, la scelta si propaga al blocco.</p>${body}`);
+}
+function toggleSistEn(i, sistema, on) {
+  const p = pianoDati();
+  const arr = _sistArr(p.righe[i].sist), k = arr.indexOf(sistema);
+  if (on && k < 0) arr.push(sistema); else if (!on && k >= 0) arr.splice(k, 1);
+  p.righe[i].sist = arr.join(" · ");
+  if (p.righe[i].ciclo) _pianoFillGiu(p, i);
+  if (typeof savePiano === "function") savePiano();
+  apriSistEn(i);   // rinfresca la checklist con lo stato aggiornato
+}
+function chiudiSistEn() { if (typeof chiudiScheda === "function") chiudiScheda(); disegna(); }
 
 // ---------- grafici ----------
 function apriPianoGrafici() { S.pianoGrafici = true; disegna(); window.scrollTo(0, 0); }

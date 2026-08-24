@@ -84,31 +84,76 @@ function _rProgrammaMesocicli(a, gOverride) {
   const g = gOverride || ((typeof gruppoDi === "function" && a) ? gruppoDi(a) : "vel");
   const pista = (typeof pistaDi === "function") ? pistaDi(g) : (DEMO.pista || null);
   const pal = (typeof palDi === "function") ? palDi(g) : (DEMO.palestra || null);
+  const esc = t => String(t == null ? "" : t);
   const rigaPista = r => {
-    if (g === "lanci") return `${r.mezzo || r.contenuto || ""}${r.kg ? " " + r.kg + "kg" : ""}${r.n ? " ×" + r.n : ""}${r.tipo ? " (" + r.tipo + ")" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
-    if (g === "mezzo") return `${r.mezzo || r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.min ? " " + r.min + "′" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
-    return `${r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
+    if (g === "lanci") return `${r.mezzo || r.contenuto || ""}${r.kg ? " " + r.kg + "kg" : ""}${r.n ? " ×" + r.n : ""}${r.tipo ? " (" + r.tipo + ")" : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+    if (g === "mezzo") return `${r.mezzo || r.contenuto || ""}${(Number(r.distanza) > 0) ? " " + (Number(r.n) > 0 ? r.n + "×" : "") + r.distanza + "m" : ""}${r.min ? " " + r.min + "′" : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+    return `${r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
   };
-  const rigaPal = r => `${r.esercizio || ""}${(r.serie && r.rep) ? " " + r.serie + "×" + r.rep : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " rec " + r.rec : ""}`.trim();
+  const rigaPal = r => `${r.esercizio || ""}${(r.serie && r.rep) ? " " + r.serie + "×" + r.rep : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.tut ? " · TUT " + r.tut : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+
+  // dettaglio riscaldamento del giorno (mobilità/attivazione/andature/ostacoli attivati, con gli esercizi del protocollo)
+  const riscDett = gi => {
+    const risc = gi.risc || {};
+    const tipi = (typeof RISC_TIPI_PISTA !== "undefined") ? RISC_TIPI_PISTA : [];
+    const parts = tipi.filter(([k]) => risc[k] && risc[k].on).map(([k, label]) => {
+      const prot = risc[k].prot || "";
+      const es = (prot && DEMO.schede && DEMO.schede[prot]) ? DEMO.schede[prot] : [];
+      return `<div class="rz"><b>${esc(label)}</b>${prot ? " — " + esc(prot) : ""}${es.length ? `<div class="rzes">${es.map(esc).join(" · ")}</div>` : ""}</div>`;
+    });
+    return parts.length ? `<div class="gsec"><span class="gk">Riscaldamento</span>${parts.join("")}</div>` : "";
+  };
+  const plioDett = gi => {
+    const pl = (gi.plio || []).filter(r => r.es);
+    if (!pl.length) return "";
+    const txt = pl.map(r => (typeof plioTxt === "function" ? plioTxt(r) : r.es)).map(esc).join(" · ");
+    return `<div class="gsec"><span class="gk">Pliometria / policoncorrenza</span><div class="rz">${txt}</div></div>`;
+  };
+  // lavoro (ripetute) settimana per settimana — così si legge tutto il mesociclo
+  const lavoroDett = (gi, rigaFn, colLabel, m) => {
+    const nSett = (typeof nSettimaneMeso === "function" && m) ? nSettimaneMeso(m) : (gi.settimane || []).length;
+    const setts = (gi.settimane || []).slice(0, nSett);
+    const rows = setts.map((sett, si) => {
+      const righe = (sett.righe || []).map(rigaFn).filter(Boolean);
+      if (!righe.length) return "";
+      const scar = (typeof isScaricoIdx === "function" && m) ? isScaricoIdx(m, si) : false;
+      return `<tr><td class="wk">Sett ${si + 1}${scar ? " ⬇" : ""}</td><td>${righe.map(r => `<div>${esc(r)}</div>`).join("")}</td></tr>`;
+    }).filter(Boolean).join("");
+    return rows ? `<div class="gsec"><span class="gk">${esc(colLabel)}</span><table class="lavtab"><tbody>${rows}</tbody></table></div>` : "";
+  };
+  const giornoCard = (gi, idx, rigaFn, colLabel, m) => {
+    const risc = riscDett(gi), plio = plioDett(gi), lav = lavoroDett(gi, rigaFn, colLabel, m);
+    if (!risc && !plio && !lav) return "";
+    return `<div class="gday"><h3 class="gtit">Giorno ${idx + 1}${gi.giornoSett ? " · " + esc(gi.giornoSett) : ""}</h3>${risc}${plio}${lav}</div>`;
+  };
   const sezione = (titolo, prog, rigaFn, colLavoro, atletaIdGraf) => {
     if (!prog || !prog.mesocicli || !prog.mesocicli.length) return "";
     let s = "";
     prog.mesocicli.forEach((m, mi) => {
       const testa = ["Mesociclo " + (mi + 1), m.blocco || m.ciclo || "", m.inizio ? "dal " + _rDataL(m.inizio) : "", m.focus ? "focus: " + m.focus : ""].filter(Boolean).join(" · ");
-      const giorni = (m.giorni || []).map((gi, idx) => {
-        const sett = (gi.settimane && gi.settimane[0]) || {};
-        const righe = (sett.righe || []).map(rigaFn).filter(t => t);
-        return righe.length ? `<tr><td>Giorno ${idx + 1}${gi.giornoSett ? " (" + gi.giornoSett + ")" : ""}</td><td>${righe.join(" · ")}</td></tr>` : "";
-      }).filter(Boolean).join("");
+      const giorni = (m.giorni || []).map((gi, idx) => giornoCard(gi, idx, rigaFn, colLavoro, m)).filter(Boolean).join("");
       if (!giorni) return;
-      s += `<div style="page-break-inside:avoid"><p class="sub" style="margin-top:10px"><b>${testa}</b></p><table><tr><th>Giorno</th><th>${colLavoro} (settimana tipo)</th></tr>${giorni}</table>`;
+      s += `<div class="gmeso"><p class="sub gmt"><b>${testa}</b></p>${giorni}`;
       s += (atletaIdGraf ? _rGraficoMeso(atletaIdGraf, _rMesoWin(prog.mesocicli, mi)) : "") + `</div>`;
     });
     return s ? `<h2>${titolo}</h2>${s}` : "";
   };
-  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto" : "Lavoro", a ? a.id : null)
+  const css = `<style>
+    .gmeso{page-break-inside:avoid;margin-bottom:14px}
+    .gmt{margin:12px 0 6px;font-size:12px}
+    .gday{page-break-inside:avoid;border:1px solid #d8dde6;border-radius:8px;padding:9px 11px;margin:8px 0}
+    .gtit{margin:0 0 6px;font-size:14px}
+    .gsec{margin:6px 0}
+    .gk{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#7a8496;margin-bottom:2px}
+    .rz{font-size:12px;line-height:1.45;margin:1px 0}
+    .rzes{font-size:11px;color:#5a6472;margin:1px 0 3px 8px}
+    .lavtab{width:100%;border-collapse:collapse;margin-top:2px}
+    .lavtab td{border:1px solid #e3e7ee;padding:3px 6px;font-size:12px;vertical-align:top}
+    .lavtab td.wk{white-space:nowrap;font-weight:600;color:#2B4C7E;width:64px}
+  </style>`;
+  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto / lanci" : "Ripetute in pista", a ? a.id : null)
     + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi", null);
-  return html || `<h2>Programma</h2><p class="muted">Nessun programma impostato per questo gruppo.</p>`;
+  return html ? css + html : `<h2>Programma</h2><p class="muted">Nessun programma impostato per questo gruppo.</p>`;
 }
 
 // finestra temporale (start/end) del mesociclo i

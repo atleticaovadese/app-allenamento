@@ -632,7 +632,7 @@ function vistaCalendario() {
   ${sett.map(d => `<div class="card"${d.oggi ? ' style="border-color:var(--blu)"' : ""}>
     <p style="font-weight:600${d.oggi ? ";color:var(--blu)" : ""}">${cap(d.nomeGiorno)} ${dNum(d.dataISO)}${d.oggi ? " · oggi" : ""}</p>
     ${d.sedute.length ? d.sedute.map(s => `<div class="lib-row" style="margin-top:8px" onclick="apriSeduta('${s.id}')">
-      <div style="flex:1;min-width:0"><div style="font-weight:500">${s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra"} · giorno ${s.giorno}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${s.chiusa ? "<span style='color:var(--verde)'>✓</span> " : ""}${s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra"} · giorno ${s.giorno}${s.chiusa ? " <span class='et' style='color:var(--verde)'>· svolto</span>" : ""}</div>
         <div class="et" style="margin-top:1px">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</div></div>
       <span class="freccia">›</span></div>`).join("")
       : `<p class="et" style="margin-top:6px">Riposo</p>`}
@@ -640,6 +640,16 @@ function vistaCalendario() {
   ${!haQualcosa ? `<div class="card"><p class="et">Nessun allenamento programmato in questa settimana. Il programma lo imposta l'allenatore.</p></div>` : ""}`;
 }
 function calSett(d) { S.calOff = (S.calOff || 0) + d; disegna(); window.scrollTo(0, 0); }
+
+// ---------- I miei allenamenti svolti (l'atleta rivede cosa ha fatto e tiene traccia) ----------
+function vistaMieiAllenamenti() {
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const lista = ((a && DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  const cards = (typeof _cardSvolta === "function") ? lista.map(_cardSvolta).join("") : "";
+  return `<div class="card"><h3>I miei allenamenti svolti</h3>
+      <p class="et" style="margin-top:2px">Tutto quello che hai chiuso, dal più recente${lista.length ? ` · ${lista.length} allenamenti` : ""}. Tempi, misure, sforzo e note: puoi riguardare tutto quando vuoi.</p></div>
+    ${cards || `<div class="card"><p class="et">Ancora nessun allenamento chiuso. Quando chiudi una seduta (con durata e RPE) compare qui e la puoi rivedere.</p></div>`}`;
+}
 
 function calMesociclo() {
   const m = DEMO.mesociclo;

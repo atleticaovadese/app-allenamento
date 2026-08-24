@@ -13,6 +13,7 @@ const $ = (id) => document.getElementById(id);
 const MENU_ATLETA = [
   { k: "oggi", ic: "◧", l: "Oggi" },
   { k: "calendario", ic: "▦", l: "Calendario" },
+  { k: "svolti", ic: "✓", l: "Allenamenti svolti" },
   { k: "diario", ic: "✎", l: "Diario" },
   { k: "gare", ic: "★", l: "Gare" },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
@@ -151,8 +152,8 @@ function vistaOggi() {
   const pos = typeof posizioneProgramma === "function" ? posizioneProgramma() : null;
   const oggiSed = typeof seduteDelGiorno === "function" ? seduteDelGiorno(oggiISO(), false) : [];
   const cardOggi = oggiSed.length
-    ? oggiSed.map(s => `<div class="card oggi" onclick="apriSeduta('${s.id}')">
-        <p class="et">Allenamento di oggi</p>
+    ? oggiSed.map(s => `<div class="card oggi" onclick="apriSeduta('${s.id}')"${s.chiusa ? ' style="opacity:.92"' : ""}>
+        <p class="et">${s.chiusa ? "✓ Allenamento di oggi · svolto — tocca per rivederlo" : "Allenamento di oggi"}</p>
         <h3>${s.tipo === "pista" ? "Pista" : "Palestra"} · giorno ${s.giorno}</h3>
         <p class="et" style="color:#dbe9ff">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</p></div>`).join("")
     : `<div class="card riposo" onclick="vai('calendario')">
@@ -757,6 +758,7 @@ function disegna() {
   else if (coach && S.vista === "dati") corpo = vistaImportExport();
   else if (!coach && S.vista === "oggi") corpo = vistaOggi();
   else if (!coach && S.vista === "calendario") corpo = vistaCalendario();
+  else if (!coach && S.vista === "svolti") corpo = vistaMieiAllenamenti();
   else if (!coach && S.vista === "diario") corpo = vistaDiario();
   else if (!coach && S.vista === "io") corpo = vistaIo();
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();

@@ -36,6 +36,13 @@ function _mzToSec(x) {
   const n = Number(x); return isNaN(n) ? null : n;
 }
 function _mzMMSS(sec) { if (sec == null || isNaN(sec)) return "—"; sec = Math.round(sec); const m = Math.floor(sec / 60); return m + ":" + String(sec % 60).padStart(2, "0"); }
+// come _mzMMSS ma tiene i centesimi (m:ss.cc) — per i tempi reali che scrive l'atleta in allenamento
+function _mzMMSSc(sec) {
+  if (sec == null || isNaN(sec)) return "";
+  const cc = Math.round(sec * 100) % 100, tot = Math.floor(Math.round(sec * 100) / 100);
+  const m = Math.floor(tot / 60), s = tot % 60;
+  return m + ":" + String(s).padStart(2, "0") + (cc ? "." + String(cc).padStart(2, "0") : "");
+}
 // PB in secondi dell'atleta per una distanza-ancora esatta (il migliore)
 function _mzPbSec(atleta, dist) {
   if (!atleta || !atleta.scheda) return null;
@@ -451,10 +458,10 @@ function vistaPistaMezzo(s) {
       const caselle = e.tempi.map((t, i) => {
         let cls = "";
         if (t != null && e.tempoRipSec != null) cls = (t - e.tempoRipSec) / e.tempoRipSec * 100 > 4 ? "male" : "bene";
-        return `<input class="tempo ${cls}" value="${t != null ? _mzMMSS(t) : ""}" placeholder="m:ss"
+        return `<input class="tempo ${cls}" value="${t != null ? _mzMMSSc(t) : ""}" placeholder="m:ss.cc"
           onchange="segnaTempoMezzo('${s.id}','${e.id}',${i},this.value)">`;
       }).join("");
-      bloccoTempi = `<p class="et" style="margin:8px 0 6px">Segna il tempo di ogni ripetuta${best != null ? ` · <b style="color:var(--verde)">meglio ${_mzMMSS(best)}</b>` : ""}</p>
+      bloccoTempi = `<p class="et" style="margin:8px 0 6px">Segna il tempo di ogni ripetuta${best != null ? ` · <b style="color:var(--verde)">meglio ${_mzMMSSc(best)}</b>` : ""}</p>
         <div class="tempi">${caselle}</div>`;
     }
     return `<div class="card">
@@ -466,6 +473,7 @@ function vistaPistaMezzo(s) {
       <p class="et" style="margin:0">volume ${(e.volume || 0).toLocaleString("it-IT")} m${km ? " · " + km + " km" : ""}</p>
       ${e.contenuto ? `<p class="et" style="margin:6px 0 0">${e.contenuto}</p>` : ""}
       ${bloccoTempi}
+      ${typeof bloccoSforzoPista === "function" ? bloccoSforzoPista(s.id, e) : ""}
     </div>`;
   }).join("")}
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
