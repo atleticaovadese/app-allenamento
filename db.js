@@ -203,9 +203,13 @@ async function caricaDati() {
 
   // TAPPA 4 — sedute svolte: pistaLog/vbtLog + carico + storico per la vista + presenze/aderenza reali
   try {
+    await _codaFlush();   // reinvia le sedute chiuse offline prima di rileggere (così rientrano nel select)
     const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const sv0 = new Date(Date.now() - 180 * 86400000);
-    const { data: svolte } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,giorno,durata_min,rpe,fastidi,dati").eq("chiusa", true).gte("data", isoL(sv0)).order("data", { ascending: false });
+    const { data: svolteDb } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,giorno,durata_min,rpe,fastidi,dati").eq("chiusa", true).gte("data", isoL(sv0)).order("data", { ascending: false });
+    // + le sedute ancora in coda (non sincronizzate): l'atleta le vede lo stesso come "svolte"
+    const pend = _codaLeggi().map(p => ({ atleta_id: p.atleta_id, data: p.data, tipo: p.tipo, giorno: p.giorno, durata_min: p.durata_min, rpe: p.rpe, fastidi: p.fastidi, dati: p.dati, _pending: true }));
+    const svolte = (svolteDb || []).concat(pend.filter(p => !(svolteDb || []).some(x => x.atleta_id === p.atleta_id && x.data === p.data && x.tipo === p.tipo && (x.giorno == null || x.giorno === p.giorno))));
     DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.lanciLog = []; DEMO.seduteSvolte = {};
     (svolte || []).forEach(sv => {
       (DEMO.seduteSvolte[sv.atleta_id] = DEMO.seduteSvolte[sv.atleta_id] || []).push(sv);
@@ -315,22 +319,55 @@ async function salvaDiarioDB(dataISO, d) {
   }, { onConflict: "atleta_id,data" });
 }
 
+// ---------- CODA OFFLINE delle sedute svolte (localStorage): se il salvataggio nel DB fallisce
+// (niente rete), la seduta resta in coda e viene reinviata da sola alla riconnessione / al prossimo login. ----------
+const _CODA_KEY = "metis_coda_svolte";
+function _codaLeggi() { try { return JSON.parse(localStorage.getItem(_CODA_KEY) || "[]"); } catch (e) { return []; } }
+function _codaScrivi(arr) { try { localStorage.setItem(_CODA_KEY, JSON.stringify(arr)); } catch (e) { /* storage pieno */ } }
+function _codaAggiungi(p) {
+  const arr = _codaLeggi();
+  const i = arr.findIndex(x => x.atleta_id === p.atleta_id && x.chiave === p.chiave);
+  if (i >= 0) arr[i] = p; else arr.push(p);   // dedup: una sola voce per atleta+seduta (l'ultima vince)
+  _codaScrivi(arr);
+}
+function codaSvoltePendenti() { return _codaLeggi().length; }
+// alla riconnessione, reinvia da sola le sedute in coda e aggiorna la schermata
+if (typeof window !== "undefined" && window.addEventListener) {
+  window.addEventListener("online", function () { _codaFlush().then(function () { if (typeof disegna === "function") disegna(); }); });
+}
+// prova a reinviare tutte le sedute in coda; toglie dalla coda solo quelle andate a buon fine
+async function _codaFlush() {
+  if (!haDB()) return;
+  const arr = _codaLeggi();
+  if (!arr.length) return;
+  const rimasti = [];
+  for (const p of arr) {
+    try { const { error } = await sb.from("seduta_svolta").upsert(p, { onConflict: "atleta_id,chiave" }); if (error) rimasti.push(p); }
+    catch (e) { rimasti.push(p); }
+  }
+  _codaScrivi(rimasti);
+}
+
 // TAPPA 4 — seduta svolta dall'atleta → DB (upsert per atleta+chiave). Solo l'atleta scrive la propria (RLS).
 async function salvaSedutaSvoltaDB(s) {
-  if (!haDB() || !s) return;
+  if (!s) return;
   const aid = S.utente && S.utente.atletaId;
   if (!aid) return;
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
     ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
     : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, vbtTarget: x.vbtTarget, vbt: x.vbt, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
+  const payload = {
+    atleta_id: aid, chiave: s.id, tipo: s.tipo,
+    data: s.dataISO || (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)),
+    durata_min: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, giorno: s.giorno || null, chiusa: true, dati
+  };
+  if (!haDB()) { _codaAggiungi(payload); return; }   // nessun DB al momento: metti in coda
   try {
-    await sb.from("seduta_svolta").upsert({
-      atleta_id: aid, chiave: s.id, tipo: s.tipo,
-      data: s.dataISO || (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)),
-      durata_min: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, giorno: s.giorno || null, chiusa: true, dati
-    }, { onConflict: "atleta_id,chiave" });
-  } catch (e) { /* offline: resta in locale */ }
+    const { error } = await sb.from("seduta_svolta").upsert(payload, { onConflict: "atleta_id,chiave" });
+    if (error) { _codaAggiungi(payload); return; }
+    _codaFlush();   // salvataggio ok → tento di svuotare eventuale arretrato
+  } catch (e) { _codaAggiungi(payload); }   // offline / errore rete: resta in coda, si reinvia da sola
 }
 
 // carico reale dalle sedute svolte (sRPE = rpe × durata): ACWR + forma (TSB) per atleta
