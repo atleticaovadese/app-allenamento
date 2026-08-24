@@ -396,14 +396,16 @@ function vistaProgrammaPistaMezzo() {
 
 // ---------- generazione seduta mezzofondo per l'atleta (dal madre del gruppo "mezzo") ----------
 function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe) {
-  const righe = allRighe.filter(r => r.mezzo && ((r.distanza && Number(r.n) > 0) || Number(r.min) > 0));
+  // Basta che ci sia del lavoro reale: una distanza (le ripetute vuote valgono 1) OPPURE dei minuti.
+  // La "zona" (mezzo) resta opzionale: se non è scelta la riga si mostra comunque, solo senza ritmo target.
+  const righe = allRighe.filter(r => Number(r.distanza) > 0 || Number(r.min) > 0);
   if (!righe.length) return null;
   const aid = atleta.id;
   const opts = { obiettivo: (prog && prog.mzObiettivo) || 0, offsets: (prog && prog.mzOffsets) || {} };  // PB = quelli dell'atleta
   const elementi = righe.map((r, i) => {
     const sec = ritmoMezzo(atleta, r.mezzo, opts);
     const cont = Number(r.min) > 0;
-    const dist = Number(r.distanza) || 0, n = Number(r.n) || 0;
+    const dist = Number(r.distanza) || 0, n = Number(r.n) || (dist > 0 ? 1 : 0);
     const vol = cont ? (sec != null ? Math.round(Number(r.min) * 60000 / sec) : 0) : dist * n;
     const tempoRip = cont ? null : (sec != null && dist ? Math.round((dist / 1000) * sec) : null);
     return {
