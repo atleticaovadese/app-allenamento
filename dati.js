@@ -28,7 +28,7 @@ function bundleCustom() {
     eserciziSpec: DEMO.eserciziSpec || [], eserciziVideo: DEMO.eserciziVideo || {},
     notifVisti: DEMO.notifVisti || {}, fastidiRisolti: DEMO.fastidiRisolti || {},
     prevTestCustom: DEMO.prevTestCustom || [], prevEserciziCustom: DEMO.prevEserciziCustom || [],
-    reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {},
+    reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {}
   };
 }
@@ -62,6 +62,7 @@ function applicaBundle(c) {
   if (c.atletaSesso) DEMO.atletaSesso = c.atletaSesso;
   if (c.atletaFoto) DEMO.atletaFoto = c.atletaFoto;
   if (c.atletaAntropo) DEMO.atletaAntropo = c.atletaAntropo;
+  if (c.programmaAssegnato) DEMO.programmaAssegnato = c.programmaAssegnato;
   if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
 }

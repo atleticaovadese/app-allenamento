@@ -5,7 +5,7 @@ const GRUPPI_PROG = [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], 
 function selettoreProgGruppo() {
   return `<div class="card" style="border-color:var(--blu)"><label class="lab">Programma madre per</label>
     <select onchange="setProgGruppo(this.value)" style="margin-top:6px">${GRUPPI_PROG.map(([k, l]) => `<option value="${k}" ${S.progGruppo === k ? "selected" : ""}>${l}</option>`).join("")}</select>
-    <p class="et" style="margin-top:8px">Stai scrivendo il programma per i <b>${(GRUPPI_PROG.find(x => x[0] === S.progGruppo) || [])[1] || ""}</b>. Va solo a loro; per gli altri gruppi scegli qui sopra.</p></div>`;
+    <p class="et" style="margin-top:8px">Stai scrivendo il programma per i <b>${(GRUPPI_PROG.find(x => x[0] === S.progGruppo) || [])[1] || ""}</b>. Va solo agli atleti col flag qui sotto.</p></div>${typeof _barraProgrammaMadre === "function" ? _barraProgrammaMadre(S.progGruppo || "vel") : ""}`;
 }
 const $ = (id) => document.getElementById(id);
 
@@ -137,7 +137,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -710,6 +710,7 @@ function disegna() {
   else if (coach && S.adatta) corpo = vistaAdatta();
   else if (coach && S.sedSvolte) corpo = vistaSeduteSvolte();
   else if (coach && S.report) corpo = vistaReportAtleta();
+  else if (coach && S.stampaProg && typeof vistaStampaProgramma === "function") corpo = vistaStampaProgramma();
   else if (coach && S.atletaSel && S.mostraScheda) corpo = vistaSchedaAtleta();
   else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
   else if (coach && S.diarioAtleta) corpo = vistaDiarioAtleta();

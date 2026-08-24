@@ -78,9 +78,10 @@ function _rFmtMis(disc, raw, evento) {
   return mm + "'" + String(sw).padStart(2, "0") + "\"" + String(sc).padStart(2, "0");
 }
 
-// programma per mesociclo (Pista/Campo + Palestra del gruppo dell'atleta): settimana-tipo per giorno
-function _rProgrammaMesocicli(a) {
-  const g = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+// programma per mesociclo (Pista/Campo + Palestra): settimana-tipo per giorno.
+// gOverride = per stampare il programma MADRE di un gruppo (a può essere null → niente grafico salute)
+function _rProgrammaMesocicli(a, gOverride) {
+  const g = gOverride || ((typeof gruppoDi === "function" && a) ? gruppoDi(a) : "vel");
   const pista = (typeof pistaDi === "function") ? pistaDi(g) : (DEMO.pista || null);
   const pal = (typeof palDi === "function") ? palDi(g) : (DEMO.palestra || null);
   const rigaPista = r => {
@@ -105,7 +106,7 @@ function _rProgrammaMesocicli(a) {
     });
     return s ? `<h2>${titolo}</h2>${s}` : "";
   };
-  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto" : "Lavoro", a.id)
+  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto" : "Lavoro", a ? a.id : null)
     + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi", null);
   return html || `<h2>Programma</h2><p class="muted">Nessun programma impostato per questo gruppo.</p>`;
 }
@@ -626,4 +627,31 @@ function vistaReportAtleta() {
 // per validazione/uso esterno: documento HTML autonomo
 function _reportStandalone(id) {
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Report ${(DEMO.atleti.find(x => x.id === id) || {}).nome || ""}</title><style>body{margin:0;background:#e9edf2;padding:16px}${_REPORT_CSS}</style></head><body><div id="app-report">${_reportBodyHTML(id)}</div></body></html>`;
+}
+
+// ---------- Stampa del programma MADRE di un gruppo (PDF, stesso stile del report) ----------
+function apriStampaProgramma(g) { S.stampaProg = g || (S.progGruppo || "vel"); disegna(); window.scrollTo(0, 0); }
+function chiudiStampaProgramma() { S.stampaProg = null; disegna(); window.scrollTo(0, 0); }
+function vistaStampaProgramma() {
+  const g = S.stampaProg || "vel";
+  const grp = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
+  const nomeG = (grp.find(x => x[0] === g) || [])[1] || g;
+  const brand = (typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis";
+  const oggi = new Date().toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  const body = `<h1>Programma madre — ${nomeG}</h1>
+    <p class="sub muted">${brand} · settimana-tipo per giorno di ogni mesociclo · stampato il ${oggi}</p>
+    ${(typeof _rProgrammaMesocicli === "function") ? _rProgrammaMesocicli(null, g) : ""}
+    <div class="foot">${brand} · «Chi non pianifica è destinato a fallire.»</div>
+    <div class="print-footer">${brand} · programma madre ${nomeG} · ${oggi}</div>`;
+  return `<style>${_REPORT_CSS}</style>
+    <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn btn-2" style="width:auto;padding:9px 14px" onclick="chiudiStampaProgramma()">‹ Indietro</button>
+      <button class="btn" style="width:auto;padding:9px 16px" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+    </div>
+    <div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <span class="et" style="margin:0 4px 0 0">Disciplina:</span>
+      ${grp.map(([k, l]) => `<button class="btn ${g === k ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="apriStampaProgramma('${k}')">${l}</button>`).join("")}
+    </div>
+    <p class="no-print et" style="margin-bottom:12px">Anteprima del programma madre. Premi <b>Stampa</b> → <b>«Salva come PDF»</b>. Ogni mesociclo sta in un blocco che non si spezza tra le pagine.</p>
+    <div id="app-report">${body}</div>`;
 }

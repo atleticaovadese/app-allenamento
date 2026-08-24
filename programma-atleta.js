@@ -98,8 +98,42 @@ function overrideRighe(atleta, tipo, gi, wk) {
 
 // TAPPA 4 — conta le sedute PROGRAMMATE per un atleta tra due date ISO (rispetta sposta-giorni + override contenuto)
 // programma del GRUPPO dell'atleta (per-disciplina). Se manca l'atleta → gruppo "vel".
-function _progPista(atleta) { if (typeof pistaDi !== "function") return DEMO.pista; const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel"; return pistaDi(g); }
-function _progPal(atleta) { if (typeof palDi !== "function") return DEMO.palestra; const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel"; return palDi(g); }
+// un atleta segue il programma madre solo se ASSEGNATO (default sì; il coach toglie il flag a chi non deve seguirlo)
+function programmaAssegnatoA(id) { return !(DEMO.programmaAssegnato && DEMO.programmaAssegnato[id] === false); }
+function _progVuoto() { return { mesocicli: [] }; }
+function _progPista(atleta) {
+  if (typeof pistaDi !== "function") return DEMO.pista;
+  if (atleta && !programmaAssegnatoA(atleta.id)) return _progVuoto();
+  const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
+  return pistaDi(g);
+}
+function _progPal(atleta) {
+  if (typeof palDi !== "function") return DEMO.palestra;
+  if (atleta && !programmaAssegnatoA(atleta.id)) return _progVuoto();
+  const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
+  return palDi(g);
+}
+// flag on/off "questo atleta segue il madre"
+function toggleAssegna(id) {
+  DEMO.programmaAssegnato = DEMO.programmaAssegnato || {};
+  DEMO.programmaAssegnato[id] = programmaAssegnatoA(id) ? false : true;
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
+// barra condivisa in cima agli editor di programma: chi segue il madre (flag) + stampa PDF
+function _barraProgrammaMadre(g) {
+  const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(g) : [];
+  const nAss = atl.filter(a => programmaAssegnatoA(a.id)).length;
+  const chips = atl.map(a => { const on = programmaAssegnatoA(a.id); return `<button class="chip" style="border-color:${on ? "var(--blu)" : "var(--line2)"};color:${on ? "var(--blu)" : "var(--txt3)"};background:${on ? "var(--blu-bg)" : "var(--card2)"}" onclick="toggleAssegna('${a.id}')">${on ? "☑" : "☐"} ${a.nome}</button>`; }).join("");
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <p class="et" style="margin:0"><b>Chi segue questo programma madre</b> · ${nAss}/${atl.length}</p>
+      <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px" onclick="apriStampaProgramma('${g}')">🖨 Stampa in PDF</button>
+    </div>
+    ${atl.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${chips}</div>
+      <p class="et" style="margin-top:8px;color:var(--txt3)">Togli il flag a chi NON deve seguire il madre (programma su misura, infortunato…). Senza flag l'atleta non vede sedute finché non lo riattivi.</p>` : `<p class="et">Nessun atleta in questo gruppo.</p>`}
+  </div>`;
+}
 
 function contaProgrammate(atleta, fromISO, toISO) {
   let n = 0, guard = 0;
