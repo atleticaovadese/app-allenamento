@@ -35,6 +35,9 @@ function _cacheSeduta(s) {
   DEMO.seduteGen.push(s); return s;
 }
 function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
+// quando il coach modifica il programma madre, le anteprime NON chiuse vanno rigenerate (altrimenti la cache
+// mostra la versione vecchia). Teniamo quelle chiuse (dati già inseriti) che comunque si riapplicano dalla svolta.
+function _invalidaSeduteGen() { if (DEMO.seduteGen) DEMO.seduteGen = DEMO.seduteGen.filter(s => s.chiusa); }
 
 function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   const sett = g.settimane && g.settimane[settIdx];
@@ -45,7 +48,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     return _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe);
   if (atleta && typeof gruppoDi === "function" && gruppoDi(atleta) === "lanci" && typeof _generaSedutaPistaLanci === "function")
     return _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe);
-  const righe = allRighe.filter(r => r.distanza && Number(r.n) > 0);
+  const righe = allRighe.filter(r => _rigaValidaPista(r, "vel"));
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
   const profilo = prog && prog.profilo;   // il profilo velocità del programma del GRUPPO dell'atleta
@@ -149,7 +152,8 @@ function contaProgrammate(atleta, fromISO, toISO) {
         if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
         const sett = g.settimane && g.settimane[pa.settIdx];
         const righe = overrideRighe(atleta, tipo, gi, pa.settIdx) || (sett && sett.righe) || [];
-        const ok = tipo === "pista" ? righe.some(r => (r.distanza && Number(r.n) > 0) || Number(r.min) > 0) : righe.some(r => r.esercizio);
+        const gr = (typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
+        const ok = tipo === "pista" ? righe.some(r => _rigaValidaPista(r, gr)) : righe.some(r => r.esercizio);
         if (ok) n++;
       });
     });
@@ -185,17 +189,27 @@ function _applicaSvolta(s) {
   if (sv.rpe != null) s.rpe = sv.rpe;
   s.fastidi = !!sv.fastidi;
   const d = sv.dati || {};
+  // overlay per IDENTITÀ (non solo per indice): se il coach riordina/aggiunge righe dopo la chiusura,
+  // i dati salvati restano sull'elemento giusto. Ripiego sull'indice se non trovo un match.
   if (s.tipo === "pista" && d.elementi) {
+    const used = [];
     (s.elementi || []).forEach((e, i) => {
-      const de = d.elementi[i]; if (!de) return;
+      let de = d.elementi.find((c, j) => !used[j] && Number(c.distanza) === Number(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
+      if (!de && d.elementi[i] && !used[i]) de = d.elementi[i];
+      if (!de) return;
+      used[d.elementi.indexOf(de)] = true;
       if (de.tempi) e.tempi = de.tempi;
       if (de.misure) e.misure = de.misure;
       if (de.rpe != null) e.rpe = de.rpe;
       if (de.nonCompletato) { e.nonCompletato = true; e.notaAtleta = de.notaAtleta || ""; }
     });
   } else if (s.esercizi && d.esercizi) {
+    const used = [];
     (s.esercizi || []).forEach((x, i) => {
-      const dx = d.esercizi[i]; if (!dx) return;
+      let dx = d.esercizi.find((c, j) => !used[j] && (c.nome || "") === (x.nome || ""));
+      if (!dx && d.esercizi[i] && !used[i]) dx = d.esercizi[i];
+      if (!dx) return;
+      used[d.esercizi.indexOf(dx)] = true;
       if (dx.vbt) x.vbt = dx.vbt;
       if (dx.rpe != null) x.rpe = dx.rpe;
       if (dx.nonCompletato) { x.nonCompletato = true; x.serieFatte = dx.serieFatte; x.repFatte = dx.repFatte; x.notaAtleta = dx.notaAtleta || ""; }

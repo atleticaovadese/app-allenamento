@@ -381,7 +381,7 @@ function vistaProgrammaPistaLanci() {
 
 // ---------- generazione seduta lanci per l'atleta (dal madre del gruppo "lanci") ----------
 function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe) {
-  const righe = allRighe.filter(r => r.mezzo && Number(r.n) > 0);
+  const righe = allRighe.filter(r => (typeof _rigaValidaPista === "function") ? _rigaValidaPista(r, "lanci") : (r.mezzo && Number(r.n) > 0));
   if (!righe.length) return null;
   const aid = atleta.id;
   const kgGara = _lanciKgGara(prog);
@@ -455,7 +455,7 @@ function registraLancio(atletaId, mezzo, kg, tipo, lanci, migliore) {
   if (!atletaId || !mezzo) return;
   DEMO.lanciLog = DEMO.lanciLog || [];
   DEMO.lanciLog.push({
-    data: new Date().toISOString().slice(0, 10), atletaId, mezzo,
+    data: (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)), atletaId, mezzo,
     kg: kg != null ? kg : null, tipo: tipo || null,
     lanci: lanci != null ? Number(lanci) : null,
     misura: migliore != null ? Math.round(migliore * 100) / 100 : null

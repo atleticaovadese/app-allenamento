@@ -873,7 +873,7 @@ function registraVbt(atletaId, esercizio, peso, vbtEseguita, vbtTarget, extra) {
   if (!hasVbt && peso == null && extra.serie == null) return; // niente da registrare
   DEMO.vbtLog = DEMO.vbtLog || [];
   DEMO.vbtLog.push({
-    data: new Date().toISOString().slice(0, 10), atletaId, esercizio,
+    data: (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)), atletaId, esercizio,
     peso: peso != null ? peso : null, carico: peso != null ? peso : null,
     serie: extra.serie != null ? extra.serie : null, rep: extra.rep != null ? extra.rep : null,
     volume: extra.volume != null ? extra.volume : null, rpe: extra.rpe != null ? extra.rpe : null,
@@ -886,7 +886,7 @@ function registraPista(atletaId, distanza, tempo, volume, velocita) {
   if (!atletaId || !distanza) return;
   DEMO.pistaLog = DEMO.pistaLog || [];
   DEMO.pistaLog.push({
-    data: new Date().toISOString().slice(0, 10), atletaId, distanza: Number(distanza),
+    data: (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)), atletaId, distanza: Number(distanza),
     tempo: tempo != null ? Math.round(tempo * 100) / 100 : null,
     volume: volume != null ? volume : null,
     velocita: velocita != null ? Math.round(velocita * 100) / 100 : null

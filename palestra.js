@@ -19,7 +19,7 @@ function palDi(g) {
   return DEMO.palestra[g];
 }
 function palestraInit() { return palDi(S.progGruppo || "vel"); }
-function savePalestra() { if (typeof salvaCustom === "function") salvaCustom(); }
+function savePalestra() { if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
 function palGiornoCorrente() { return palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno]; }
 
 // massimale dell'atleta di riferimento per un esercizio (dalla scheda)

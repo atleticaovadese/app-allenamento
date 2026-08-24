@@ -206,12 +206,17 @@ async function caricaDati() {
     const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const sv0 = new Date(Date.now() - 180 * 86400000);
     const { data: svolte } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,giorno,durata_min,rpe,fastidi,dati").eq("chiusa", true).gte("data", isoL(sv0)).order("data", { ascending: false });
-    DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.seduteSvolte = {};
+    DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.lanciLog = []; DEMO.seduteSvolte = {};
     (svolte || []).forEach(sv => {
       (DEMO.seduteSvolte[sv.atleta_id] = DEMO.seduteSvolte[sv.atleta_id] || []).push(sv);
       const d = sv.dati || {};
       if (sv.tipo === "pista") {
         (d.elementi || []).forEach(e => {
+          if (Array.isArray(e.misure)) {   // elemento LANCI: ricostruisco lanciLog (niente doppioni alla ri-chiusura)
+            const f = e.misure.filter(v => v != null);
+            DEMO.lanciLog.push({ data: sv.data, atletaId: sv.atleta_id, mezzo: e.mezzo || "", kg: e.kg != null ? e.kg : null, tipo: e.tipo || null, lanci: e.lanci != null ? Number(e.lanci) : null, misura: f.length ? Math.round(Math.max.apply(null, f) * 100) / 100 : null });
+            return;
+          }
           const fatti = (e.tempi || []).filter(v => v != null);
           if (!fatti.length) return;
           const tmed = fatti.reduce((a, b) => a + b, 0) / fatti.length;
@@ -241,7 +246,7 @@ async function caricaDati() {
       const progS = (typeof contaProgrammate === "function") ? contaProgrammate(a, stagStart, oggiStr) : 0;
       a.presenzeMese = [doneM, Math.max(progM, doneM)];
       a.presenzeStagione = [doneS, Math.max(progS, doneS)];
-      if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progS > 0 ? Math.round(doneS / progS * 100) : (doneS > 0 ? 100 : 0);
+      if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progS > 0 ? Math.min(100, Math.round(doneS / progS * 100)) : (doneS > 0 ? 100 : 0);
       // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
       if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; }
     });
@@ -317,7 +322,7 @@ async function salvaSedutaSvoltaDB(s) {
   if (!aid) return;
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
-    ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
+    ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
     : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, vbtTarget: x.vbtTarget, vbt: x.vbt, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
   try {
     await sb.from("seduta_svolta").upsert({

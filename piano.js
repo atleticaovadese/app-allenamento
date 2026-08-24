@@ -106,12 +106,12 @@ function calcolaPiano() {
       const gThis = gare.find(x => x.wk === i);                                  // gara di questa settimana (qualsiasi livello)
       const gNext = gare.filter(x => x.wk >= i).sort((a, b) => a.wk - b.wk)[0];  // prossima gara (qualsiasi livello) da qui in poi
       const gaNextA = gareA.find(x => x.wk >= i);                                // prossima gara A (per la colonna →A)
-      if (gThis) gara = gThis.nome + " (" + gThis.ob + ")";
+      if (gThis) gara = gThis.nome + " (" + (gThis.ob || "?") + ")";
       if (gaNextA) aA = gaNextA.wk - i;
       const dNear = gNext ? gNext.wk - i : null;                                 // settimane alla prossima gara (qualsiasi)
       const PMAX = { A: 5, B: 4, C: 3 };                                         // picco massimo per livello gara
 
-      scar = gThis ? (gThis.ob === "A" ? "GARA" : "GARA " + gThis.ob) : (ae === ad - 1 ? "SCARICO" : "carico");
+      scar = gThis ? (gThis.ob === "A" ? "GARA" : "GARA " + (gThis.ob || "?")) : (ae === ad - 1 ? "SCARICO" : "carico");
 
       // INTENSITÀ: alta in gara; altrimenti dal Blocco forza (scelta del coach); se manca, sale avvicinandosi alla prossima gara
       intv = gThis ? (gThis.ob === "A" ? 5 : 4)

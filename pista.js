@@ -14,6 +14,14 @@ const PISTA_COEFF = {
   "400m": { 50: 0.1403, 100: 0.2508, 150: 0.3642, 200: 0.4816, 250: 0.6021, 300: 0.7261, 350: 0.8574, 400: 1.0 }
 };
 
+// una riga di pista "conta" (= genera seduta E va nell'aderenza) secondo il gruppo.
+// DEVE restare allineata ai filtri dei tre generatori (velocità / mezzo / lanci).
+function _rigaValidaPista(r, gruppo) {
+  if (!r) return false;
+  if (gruppo === "lanci") return !!(r.mezzo && Number(r.n) > 0);
+  if (gruppo === "mezzo") return Number(r.distanza) > 0 || Number(r.min) > 0;
+  return !!(r.distanza && Number(r.n) > 0);   // velocità / salti
+}
 function rigaVuota() { return { contenuto: "", distanza: "", n: "", rec: "", perc: "" }; }
 function settVuota() { return { righe: [rigaVuota()], nota: "" }; }
 function giornoVuoto() { return { giornoSett: "", risc: {}, settimane: [settVuota(), settVuota(), settVuota(), settVuota()] }; }
@@ -247,7 +255,7 @@ function pistaDi(g) {
   return DEMO.pista[g];
 }
 function pistaInit() { return pistaDi(S.progGruppo || "vel"); }
-function savePista() { if (typeof salvaCustom === "function") salvaCustom(); }
+function savePista() { if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
 
 // PB di riferimento: dall'atleta scelto (in base al profilo) oppure scritto a mano.
 function pistaPB() {

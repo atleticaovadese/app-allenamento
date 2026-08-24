@@ -173,7 +173,7 @@ function vistaPalestra(s) {
 
 function esercizioChiuso(s, x) {
   const fatte = x.vbt.filter(v => v !== null).length;
-  const finito = fatte === x.serie;
+  const finito = x.serie > 0 && fatte === x.serie;
   const vol = volumeKg(x);
   const presc = `${x.serie} × ${x.rep}${x.peso ? " · " + x.peso + " kg" : ""}${x.tut ? " · TUT " + x.tut : ""}${vol ? " · vol " + vol + " kg" : ""}`;
   let cls = "", stato = "";
@@ -222,7 +222,7 @@ function esercizioAperto(s, x) {
   </div>`;
 }
 
-function media(a) { const v = a.filter(x => x !== null); return v.reduce((s, x) => s + x, 0) / v.length; }
+function media(a) { const v = a.filter(x => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0; }
 
 function apriEsercizio(id) { T.id = (T.id === id ? null : id); fermaTimer(); disegna(); }
 
@@ -289,7 +289,9 @@ function bloccoChiusura(s) {
 }
 function segnaChiusura(sid, campo, val) {
   const s = sedutaDaId(sid);
-  s[campo] = (campo === "fastidi") ? val : (val === "" ? null : Number(String(val).replace(",", ".")));
+  if (campo === "fastidi") { s[campo] = val; return; }
+  const n = Number(String(val).replace(",", "."));
+  s[campo] = (val === "" || !Number.isFinite(n)) ? null : n;   // scarta NaN (es. testo) invece di salvarlo
 }
 async function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);

@@ -405,7 +405,7 @@ function vistaProgrammaPistaMezzo() {
 function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, prog, sett, allRighe) {
   // Basta che ci sia del lavoro reale: una distanza (le ripetute vuote valgono 1) OPPURE dei minuti.
   // La "zona" (mezzo) resta opzionale: se non è scelta la riga si mostra comunque, solo senza ritmo target.
-  const righe = allRighe.filter(r => Number(r.distanza) > 0 || Number(r.min) > 0);
+  const righe = allRighe.filter(r => (typeof _rigaValidaPista === "function") ? _rigaValidaPista(r, "mezzo") : (Number(r.distanza) > 0 || Number(r.min) > 0));
   if (!righe.length) return null;
   const aid = atleta.id;
   const opts = { obiettivo: (prog && prog.mzObiettivo) || 0, offsets: (prog && prog.mzOffsets) || {} };  // PB = quelli dell'atleta

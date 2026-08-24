@@ -21,6 +21,8 @@ function ordinaAtleti() {
 function colAcwr(v) { const n = parseFloat(v); return n >= 1.5 ? "var(--rosso)" : n >= 1.3 ? "var(--giallo)" : "var(--verde)"; }
 function colProntezza(v) { const n = parseFloat(v); return n >= 3.5 ? "var(--verde)" : n >= 2.5 ? "var(--giallo)" : "var(--rosso)"; }
 function nomeAtleta(id) { return (DEMO.atleti.find(a => a.id === id) || {}).nome || id; }
+// nome breve "Mario R." robusto anche con una sola parola (evita crash su nomi senza cognome)
+function nomeBreve(nome) { const p = String(nome || "").trim().split(/\s+/).filter(Boolean); return p.length >= 2 ? p[0] + " " + p[1][0] + "." : (p[0] || "—"); }
 
 // gruppi per disciplina: si toccano per vedere solo gli atleti di quel gruppo
 const GRUPPI = [
@@ -272,15 +274,20 @@ function notificheCoach(includiVisti) {
     ((DEMO.seduteSvolte || {})[a.id] || []).forEach(sv => {
       if (gg(sv.data) > 21) return;                       // solo le ultime ~3 settimane
       const items = (sv.dati && (sv.dati.esercizi || sv.dati.elementi)) || [];
+      // RPE più alto della seduta: quello dell'intera seduta (obbligatorio in chiusura) o di un singolo lavoro
+      let maxRpe = Number(sv.rpe); if (isNaN(maxRpe)) maxRpe = 0;
+      let dove = "intera seduta";
       items.forEach(it => {
+        const r = Number(it.rpe);
+        if (!isNaN(r) && r > maxRpe) { maxRpe = r; dove = "«" + (it.nome || it.mezzo || (it.distanza ? it.ripetute + "×" + it.distanza + "m" : "lavoro")) + "»"; }
+      });
+      if (maxRpe > rpeLim) add(a, "sforzo", "r", sv.data, `Sforzo altissimo · RPE ${maxRpe} (${dove})`, "rpe|" + sv.data + "|" + maxRpe + "|" + dove);
+      // lavori NON completati (uno per esercizio/ripetuta)
+      items.forEach(it => {
+        if (!it.nonCompletato) return;
         const nome = it.nome || it.mezzo || (it.distanza ? it.ripetute + "×" + it.distanza + "m" : "lavoro");
-        const rpe = Number(it.rpe);
-        if (!isNaN(rpe) && rpe > rpeLim)
-          add(a, "sforzo", "r", sv.data, `Sforzo altissimo · RPE ${rpe} su «${nome}»`, "rpe|" + sv.data + "|" + nome + "|" + rpe);
-        if (it.nonCompletato) {
-          const dett = it.serieFatte != null ? ` (fatte ${it.serieFatte}${it.repFatte != null ? "×" + it.repFatte : ""})` : "";
-          add(a, "incompleto", "y", sv.data, `Non completato · «${nome}»${dett}${it.notaAtleta ? " — " + it.notaAtleta : ""}`, "nc|" + sv.data + "|" + nome);
-        }
+        const dett = it.serieFatte != null ? ` (fatte ${it.serieFatte}${it.repFatte != null ? "×" + it.repFatte : ""})` : "";
+        add(a, "incompleto", "y", sv.data, `Non completato · «${nome}»${dett}${it.notaAtleta ? " — " + it.notaAtleta : ""}`, "nc|" + sv.data + "|" + nome);
       });
     });
   });
@@ -321,8 +328,9 @@ function vistaNotifiche() {
 
 function vistaAtletaDettaglio() {
   const a = DEMO.atleti.find(x => x.id === S.atletaSel);
-  const s = DEMO.mon[a.id];
-  const [, txt, col] = STATO[s.stato];
+  if (!a) { S.atletaSel = null; return typeof vistaSquadra === "function" ? vistaSquadra() : ""; }
+  const s = DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { stato: "v", acwr: "—", forma: "—", prontezza: "—", alert: [], settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] });
+  const [, txt, col] = STATO[s.stato] || STATO.v;
 
   const avvisi = s.alert.map(([lv, t]) => {
     const c = STATO[lv][2];
@@ -420,19 +428,24 @@ async function cambiaEmailAtleta(id) {
 // ---------- calendario squadra ----------
 function vistaCalendarioSquadra() {
   const gg = DEMO.giorniSettimana;
-  const righe = DEMO.atleti.map(a => {
-    const s = DEMO.mon[a.id];
+  const lista = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(S.gruppo) : DEMO.atleti;
+  const righe = lista.map(a => {
+    const s = DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] });
     const celle = s.settimana.map((tp, i) => tp
-      ? `<div class="cell ${TIPO_CELLA[tp]} ${s.done[i] ? '' : 'nofatto'}">${s.done[i] ? '✓' : ''}</div>`
+      ? `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : 'nofatto'}">${s.done[i] ? '✓' : ''}</div>`
       : `<div class="cell off"></div>`).join("");
     return `<div class="srow">
-      <span class="srow-n">${a.nome.split(" ")[0]} ${a.nome.split(" ")[1][0]}.</span>${celle}</div>`;
+      <span class="srow-n">${nomeBreve(a.nome)}</span>${celle}</div>`;
   }).join("");
+  const settLbl = DEMO.report.settimana || (typeof _settimanaReport === "function" ? _settimanaReport() : "");
 
   return `
   <div class="card">
     <h3>Calendario squadra</h3>
-    <p class="et" style="margin-top:2px">${DEMO.report.settimana} · chi si allena quando</p>
+    <p class="et" style="margin-top:2px">${settLbl} · chi si allena quando</p></div>
+  ${typeof chipsGruppi === "function" ? chipsGruppi() : ""}
+  <div class="card">
+    <p class="et" style="margin-top:0">${nomeGruppo(S.gruppo)} · ${lista.length} atlet${lista.length === 1 ? "a" : "i"}</p>
     <div class="shead"><span></span>${gg.map(g => `<span>${g}</span>`).join("")}</div>
     ${righe}
     <div class="legenda">

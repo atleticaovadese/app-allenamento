@@ -240,9 +240,18 @@ function esportaSvoltiCSV() {
       const base = [_nomeAtl(aid), sv.data, sv.tipo, sv.giorno || "", sv.durata_min || "", sv.rpe || "", sv.fastidi ? "sì" : ""];
       if (sv.tipo === "pista") {
         (d.elementi || []).forEach(e => {
+          if (Array.isArray(e.misure)) {   // lanci: misure in metri
+            const f = e.misure.filter(v => v != null), best = f.length ? Math.max(...f) : "";
+            righe.push(base.concat([e.mezzo || "Lanci", (e.lanci ? e.lanci + " lanci" : "") + (e.kg ? " · " + e.kg + "kg" : "") + (e.tipo ? " · " + e.tipo : ""), e.perc || "", "", f.map(v => Number(v).toFixed(2)).join(" · "), best !== "" ? Number(best).toFixed(2) + " m" : ""]));
+            return;
+          }
+          const cont = Number(e.min) > 0, isMezzo = !!e.mezzo;
+          const fmtT = t => isMezzo && typeof _mzMMSSc === "function" ? _mzMMSSc(Number(t)) : Number(t).toFixed(2);
           const fatti = (e.tempi || []).filter(v => v != null);
           const best = fatti.length ? Math.min(...fatti) : "";
-          righe.push(base.concat([e.distanza + " m", e.ripetute + "×" + e.distanza, e.percentuale || "", e.target != null ? e.target : "", fatti.map(t => Number(t).toFixed(2)).join(" · "), best !== "" ? Number(best).toFixed(2) : ""]));
+          const voce = cont ? (e.min + "′ " + (e.mezzo || "continuo")) : ((e.distanza || "") + " m" + (e.mezzo ? " · " + e.mezzo : ""));
+          const presc = cont ? (e.min + "′") : ((e.ripetute || "") + "×" + (e.distanza || ""));
+          righe.push(base.concat([voce, presc, e.percentuale || "", e.target != null ? e.target : "", fatti.map(fmtT).join(" · "), best !== "" ? fmtT(best) : ""]));
         });
       } else {
         (d.esercizi || []).forEach(x => {
