@@ -242,8 +242,31 @@ async function caricaDati() {
       a.presenzeMese = [doneM, Math.max(progM, doneM)];
       a.presenzeStagione = [doneS, Math.max(progS, doneS)];
       if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progS > 0 ? Math.round(doneS / progS * 100) : (doneS > 0 ? 100 : 0);
+      // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
+      if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; }
     });
   } catch (e) { /* tabella seduta_svolta assente o offline */ }
+}
+// settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
+function _settimanaMonReale(a) {
+  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0];
+  const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const svolte = (DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [];
+  const gare = (typeof gareGruppo === "function" && typeof gruppoDi === "function") ? gareGruppo(gruppoDi(a)) : (DEMO.gareRaw || []);
+  for (let i = 0; i < 7; i++) {
+    const iso = isoL(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
+    const svGiorno = svolte.filter(sv => sv.data === iso);
+    done[i] = svGiorno.length ? 1 : 0;
+    let tipo = "";
+    if (typeof seduteDelGiorno === "function") {
+      try { const sd = seduteDelGiorno(iso, false, a); tipo = sd.some(x => x.tipo === "pista") ? "pista" : sd.some(x => x.tipo === "palestra") ? "palestra" : ""; } catch (e) { /* ignora */ }
+    }
+    if (!tipo && svGiorno.length) tipo = svGiorno.some(x => x.tipo === "palestra") ? "palestra" : "pista";  // svolto ma non programmato
+    sett[i] = (gare || []).some(g => g.data === iso) ? "gara" : tipo;
+  }
+  return { settimana: sett, done };
 }
 
 // ---------- scrittura: nuovo atleta ----------
