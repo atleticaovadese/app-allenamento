@@ -420,9 +420,9 @@ const GLOSSARIO = [
   ["Carico e forma", "ATL (Fatica)", "La stanchezza recente.",
     "Acute Training Load: media del carico su ~7 giorni. Sale e scende in fretta: rappresenta la fatica accumulata negli ultimi giorni."],
   ["Carico e forma", "TSB (Forma)", "La tua freschezza in questo momento.",
-    "Training Stress Balance = CTL − ATL (fondo meno fatica recente). <b>Positivo</b> = fresco e scarico, buono vicino alle gare; <b>negativo</b> = affaticato, normale nei blocchi di carico. Non è 'male' essere negativi: dipende dal momento della stagione."],
+    "Training Stress Balance = CTL − ATL (fondo meno fatica recente). <b>Positivo</b> = fresco e scarico, buono vicino alle gare; <b>negativo</b> = affaticato, normale nei blocchi di carico. Non è 'male' essere negativi: dipende dal momento della stagione. <b>Serve ~1 mese di allenamenti</b> perché sia affidabile: all'inizio, senza una base cronica, esce molto negativo (artefatto) — perciò mostriamo «—» finché non ci sono dati."],
   ["Carico e forma", "ACWR", "Rapporto tra carico recente e abituale.",
-    "Acute:Chronic Workload Ratio = carico acuto (7 gg) diviso cronico (28 gg). Dice se stai aumentando troppo in fretta. <b>0.8–1.3</b> = zona ideale; <b>1.31–1.50</b> = attenzione; <b>sopra 1.5</b> = rischio infortunio alto, scarica; <b>sotto 0.8</b> = carico basso. Nel monitoraggio è colorato verde/giallo/rosso."],
+    "Acute:Chronic Workload Ratio = carico acuto (7 gg) diviso cronico (28 gg). Dice se stai aumentando troppo in fretta. <b>0.8–1.3</b> = zona ideale; <b>1.31–1.50</b> = attenzione; <b>sopra 1.5</b> = rischio infortunio alto, scarica; <b>sotto 0.8</b> = carico basso. Nel monitoraggio è colorato verde/giallo/rosso. <b>Attenzione</b>: con poche sedute il cronico ≈ acuto, quindi l'ACWR uscirebbe sempre ~4 (falso allarme): diventa affidabile dopo <b>~4 settimane</b>. Fino ad allora mostriamo «—»."],
 
   ["Palestra e VBT", "VBT", "Allenarsi guardando la velocità del bilanciere.",
     "Velocity Based Training: si misura quanto velocemente si muove il bilanciere in ogni serie. Per ogni esercizio c'è una velocità richiesta (target). L'app fa la media delle serie: se cala <b>più del 10% sotto il target</b>, il carico è troppo alto o sei stanco, meglio togliere peso o chiudere."],

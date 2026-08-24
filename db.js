@@ -339,10 +339,19 @@ function ricalcolaCarico(svolte) {
   Object.keys(perA).forEach(aid => {
     const arr = perA[aid];
     const win = g => arr.filter(x => (oggi - x.t) / dayMs < g).reduce((s, x) => s + x.load, 0);
+    const m = DEMO.mon[aid] = DEMO.mon[aid] || monDefault();
+    // ACWR e forma (TSB) hanno senso solo con un carico CRONICO reale (~4 settimane). Con poche sedute
+    // acuto≈cronico → ACWR sempre ~4 e forma molto negativa: sono ARTEFATTI, non un vero rischio.
+    const firstT = Math.min.apply(null, arr.map(x => x.t));
+    const spanGiorni = (oggi - firstT) / dayMs;
+    if (spanGiorni < 21 || arr.length < 3) {
+      m.acwr = "—"; m.forma = "—"; m.stato = "v"; m.caricoInfo = "In raccolta dati: ACWR e forma diventano affidabili dopo ~4 settimane di allenamenti.";
+      return;
+    }
+    m.caricoInfo = "";
     const acute = win(7), chronic = win(28);
     const acwr = chronic > 0 ? Math.round(acute / (chronic / 4) * 100) / 100 : null;
     const tsb = Math.round((chronic / 28 - acute / 7) * 10) / 10;
-    const m = DEMO.mon[aid] = DEMO.mon[aid] || monDefault();
     if (acwr != null) { m.acwr = String(acwr); m.forma = (tsb >= 0 ? "+" : "") + tsb; m.stato = (acwr > 1.5 || acwr < 0.8) ? "r" : (acwr > 1.3 ? "w" : "v"); }
   });
 }

@@ -356,6 +356,7 @@ function vistaAtletaDettaglio() {
     <div class="q"><div class="k">Forma (TSB)</div><div class="v">${s.forma}</div></div>
     <div class="q"><div class="k">Prontezza</div><div class="v">${s.prontezza}</div></div>
   </div>
+  ${s.caricoInfo ? `<div class="card" style="border-color:rgba(77,154,255,.4);margin-bottom:11px"><p class="et" style="margin:0;color:var(--blu)">📊 ${s.caricoInfo}</p></div>` : ""}
 
   <div class="card">
     <p class="et" style="margin-bottom:8px">Ultima settimana</p>
@@ -522,7 +523,8 @@ function vistaCarico() {
   }).join("");
   return `<div class="card"><h3>Carico e forma</h3>
     <p class="et" style="margin-top:2px">ACWR, freschezza (TSB) e prontezza di ogni atleta ·
-      <button class="link-indietro" onclick="vai('aiuto')">cosa vogliono dire ›</button></p></div>
+      <button class="link-indietro" onclick="vai('aiuto')">cosa vogliono dire ›</button></p>
+    <p class="et" style="margin-top:6px;color:var(--txt3)">Gli atleti con <b>«—»</b> sono in <b>raccolta dati</b>: con poche sedute l'ACWR sarebbe sempre ~4 e la forma molto negativa (artefatti). Diventano affidabili dopo <b>~4 settimane</b> di allenamenti.</p></div>
     ${righe}`;
 }
 
