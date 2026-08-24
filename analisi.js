@@ -610,6 +610,13 @@ function chartSerie(punti) {
 }
 
 // ANDAMENTO PISTA — per distanza (Tempo / Volume / Vel), si compila dalle sedute di pista
+// formatta un tempo di pista: mm:ss.cc per i mezzofondisti o per i tempi lunghi (≥60s), altrimenti secondi.cc
+function fmtTempoPista(sec, atleta) {
+  if (sec == null || sec === "" || isNaN(Number(sec))) return "—";
+  sec = Number(sec);
+  const isMezzo = (typeof gruppoDi === "function" && atleta) ? gruppoDi(atleta) === "mezzo" : false;
+  return (isMezzo || sec >= 60) && typeof _mzMMSSc === "function" ? _mzMMSSc(sec) : sec.toFixed(2);
+}
 function vistaAndamentoPista() {
   const atl = DEMO.atleti.find(x => x.id === andaPistaState.atletaRif);
   const dist = andaPistaState.distanza, met = andaPistaState.metrica;
@@ -641,7 +648,7 @@ function vistaAndamentoPista() {
         ${statBlocco(serie.map(s => s.val))}
         ${chartSerie(serie)}
         <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
-          <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${v.tempo != null ? Number(v.tempo).toFixed(2) : "—"}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
+          <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${fmtTempoPista(v.tempo, atl)}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
       </div>`}`;
 }
 

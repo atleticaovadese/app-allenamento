@@ -395,7 +395,7 @@ function vistaAtletaDettaglio() {
       <button class="btn btn-2" onclick="vai('pista')">Programma</button>
       <button class="btn btn-2" onclick="apriSpostaGiorni('${a.id}')">Sposta giorni (personalizza)</button>
       <button class="btn btn-2" onclick="apriAdatta('${a.id}')">Adatta contenuto (per lui)</button>
-      <button class="btn btn-2" onclick="apriSeduteSvolte('${a.id}')">Allenamenti svolti</button>
+      <button class="btn" onclick="apriSeduteSvolte('${a.id}')">✓ Allenamenti svolti (cosa ha fatto)</button>
       <button class="btn btn-2" onclick="apriReport('${a.id}')">📄 Report completo (PDF)</button>
       <button class="btn btn-2" onclick="vai('diario-c')">Diario</button>
       <button class="btn btn-2" onclick="vai('presenze')">Presenze</button>
@@ -1110,7 +1110,7 @@ function _cardSvolta(sv) {
       const isMezzo = !!e.mezzo, cont = e.min != null && Number(e.min) > 0;
       if (cont) return riga(`${e.min}′ ${e.mezzo || "continuo"}`, "", "", "", "", e);
       const f = (e.tempi || []).filter(v => v != null);
-      const fmtT = t => isMezzo && typeof _mzMMSSc === "function" ? _mzMMSSc(Number(t)) : Number(t).toFixed(2);
+      const fmtT = t => (isMezzo || Number(t) >= 60) && typeof _mzMMSSc === "function" ? _mzMMSSc(Number(t)) : Number(t).toFixed(2);
       const tstr = f.length ? f.map(fmtT).join(" · ") : "—", best = f.length ? Math.min(...f) : null;
       const col = (best != null && e.target != null) ? (best <= e.target ? "var(--verde)" : "var(--rosso)") : "var(--txt2)";
       const bestStr = best != null ? fmtT(best) : "";
@@ -1146,6 +1146,7 @@ let screeningState = { atletaRif: "" };
 function setScreeningAtleta(id) { screeningState.atletaRif = id; disegna(); window.scrollTo(0, 0); }
 
 function bloccoScreening(atletaId, giorni, titolo) {
+  const atleta = (DEMO.atleti || []).find(x => x.id === atletaId);
   const oggiISO = new Date().toISOString().slice(0, 10);
   const dalISO = new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
   const inWin = d => d && d >= dalISO && d <= oggiISO;
@@ -1155,7 +1156,8 @@ function bloccoScreening(atletaId, giorni, titolo) {
   const vbtPrima = (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.vbtEseguita != null && l.data < dalISO);
   const gare = (DEMO.risultatiGara || []).filter(r => r.atletaId === atletaId && inWin(r.data));
 
-  const sedute = new Set([...pista.map(x => x.data), ...vbt.map(x => x.data)]).size;
+  // presenze REALI del periodo = sedute chiuse (seduta_svolta), non solo quelle con tempi/VBT segnati
+  const sedute = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(sv => inWin(sv.data)).length;
   const volume = pista.reduce((s, x) => s + (x.volume || 0), 0);
   const dist = [...new Set(pista.map(x => x.distanza))].sort((a, b) => a - b);
   let mig = 0, peg = 0;
@@ -1166,15 +1168,16 @@ function bloccoScreening(atletaId, giorni, titolo) {
     const delta = (best != null && bestPrima != null) ? best - bestPrima : null;
     if (delta != null) { if (delta < 0) mig++; else if (delta > 0) peg++; }
     const col = delta == null ? "var(--txt3)" : delta < 0 ? "var(--verde)" : delta > 0 ? "var(--rosso)" : "var(--txt2)";
-    return `<tr><td>${d} m</td><td class="pauto">${best != null ? best.toFixed(2) : "—"}</td><td style="color:${col}">${delta != null ? (delta > 0 ? "+" : "") + delta.toFixed(2) : "—"}</td></tr>`;
+    return `<tr><td>${d} m</td><td class="pauto">${best != null ? (typeof fmtTempoPista === "function" ? fmtTempoPista(best, atleta) : best.toFixed(2)) : "—"}</td><td style="color:${col}">${delta != null ? (delta > 0 ? "+" : "") + delta.toFixed(2) + " s" : "—"}</td></tr>`;
   }).join("");
   const vMedia = vbt.length ? vbt.reduce((s, x) => s + x.vbtEseguita, 0) / vbt.length : null;
   const vPrima = vbtPrima.length ? vbtPrima.reduce((s, x) => s + x.vbtEseguita, 0) / vbtPrima.length : null;
   const dVbt = (vMedia != null && vPrima != null) ? vMedia - vPrima : null;
   const m = (DEMO.mon || {})[atletaId] || {};
 
-  const perf = sedute === 0 ? "🕓 nessun dato nel periodo"
-    : mig > peg ? "🟢 tempi in miglioramento" : peg > mig ? "🔴 tempi in calo" : "🟡 tempi stabili";
+  const perf = sedute === 0 ? "🕓 nessun allenamento nel periodo"
+    : dist.length === 0 ? `✅ ${sedute} allenament${sedute === 1 ? "o" : "i"} svolt${sedute === 1 ? "o" : "i"} (nessun tempo cronometrato)`
+      : mig > peg ? "🟢 tempi in miglioramento" : peg > mig ? "🔴 tempi in calo" : "🟡 tempi stabili";
   const caricoTxt = m.acwr ? `ACWR ${m.acwr} · forma ${m.forma || "—"} · prontezza ${m.prontezza || "—"}` : "—";
 
   return `<div class="card">
@@ -1205,7 +1208,8 @@ function vistaScreening() {
     <select onchange="setScreeningAtleta(this.value)" style="margin-top:6px">
       <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${screeningState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
   </div>
-  ${atl ? `<p class="sez">Settimana</p>${bloccoScreening(atl.id, 7, "Questa settimana")}
+  ${atl ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriSeduteSvolte('${atl.id}')">✓ Vedi gli allenamenti svolti da ${atl.nome}</button>
+    <p class="sez">Settimana</p>${bloccoScreening(atl.id, 7, "Questa settimana")}
     <p class="sez">Mesociclo</p>${bloccoScreening(atl.id, 28, "Ultime 4 settimane")}`
     : `<div class="card"><p class="et">Scegli un atleta per vedere lo screening.</p></div>`}`;
 }
