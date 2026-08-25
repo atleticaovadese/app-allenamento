@@ -432,7 +432,7 @@ function vistaCalendarioSquadra() {
   const righe = lista.map(a => {
     const s = DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] });
     const celle = s.settimana.map((tp, i) => tp
-      ? `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : 'nofatto'}">${s.done[i] ? '✓' : ''}</div>`
+      ? `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : 'nofatto'}" style="cursor:pointer" onclick="apriSedutaCal('${a.id}',${i},'${tp}')">${s.done[i] ? '✓' : ''}</div>`
       : `<div class="cell off"></div>`).join("");
     return `<div class="srow">
       <span class="srow-n">${nomeBreve(a.nome)}</span>${celle}</div>`;
@@ -454,7 +454,21 @@ function vistaCalendarioSquadra() {
       <span><span class="quad" style="background:#d85a30"></span> gara</span>
       <span>✓ fatto</span>
     </div>
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Tocca una casella per aprire l'allenamento di quell'atleta in quel giorno.</p>
   </div>`;
+}
+// tocco su una casella del calendario squadra → apre la seduta di quell'atleta in quel giorno (settimana corrente)
+function apriSedutaCal(atletaId, off, tp) {
+  const a = DEMO.atleti.find(x => x.id === atletaId); if (!a) return;
+  if (tp === "gara") { alert("🏁 Gara in programma per " + a.nome + " in questo giorno."); return; }
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + Number(off));
+  const iso = (typeof isoDiData === "function") ? isoDiData(d) : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const sd = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(iso, false, a) : [];
+  const s = sd.find(x => x.tipo === tp) || sd[0];
+  if (!s) { alert("Nessun allenamento programmato per " + a.nome + " in questo giorno."); return; }
+  if (typeof apriSeduta === "function") apriSeduta(s.id); else { S.seduta = s.id; disegna(); window.scrollTo(0, 0); }
 }
 
 // ---------- report della domenica ----------
@@ -961,6 +975,11 @@ function vistaSpostaGiorni() {
 // programma del gruppo dell'atleta che sto adattando (S.adatta)
 function _progAdatta(tipo) {
   const a = DEMO.atleti.find(x => x.id === (S.adatta && S.adatta.atletaId));
+  // se l'atleta ha un PROGRAMMA PERSONALE (creato da «Programma per»), Adatta parte da quello (non dal madre)
+  if (a) {
+    if (tipo === "pista" && DEMO.pistaAtleta && DEMO.pistaAtleta[a.id]) return DEMO.pistaAtleta[a.id];
+    if (tipo === "palestra" && DEMO.palAtleta && DEMO.palAtleta[a.id]) return DEMO.palAtleta[a.id];
+  }
   const g = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
   return tipo === "pista" ? (typeof pistaDi === "function" ? pistaDi(g) : DEMO.pista) : (typeof palDi === "function" ? palDi(g) : DEMO.palestra);
 }
