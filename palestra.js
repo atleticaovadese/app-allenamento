@@ -178,11 +178,13 @@ function vistaProgrammaPalestra() {
     <div class="card"><h3>Programma Palestra</h3>
       <p class="et" style="margin-top:2px">Scrivi esercizio, serie, rep, %1RM, TUT e velocità target: il <b>peso</b> esce da solo dai massimali dell'atleta (%1RM × 1RM). Il volume in kg è automatico.</p>
       <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
+    <div class="card" style="border-color:rgba(240,168,60,.55)">
+      <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> vai su <b>Atleti → (atleta) → «Adatta contenuto»</b>.</p></div>
     <div class="card">
-      <label class="lab">Atleta di riferimento (per il peso dai massimali)</label>
+      <label class="lab">Atleta di riferimento <span style="color:var(--txt3)">(solo per calcolare i pesi dai massimali — NON limita le modifiche a lui)</span></label>
       <select onchange="setPalTop('atletaRif',this.value)" style="margin-top:6px">
         <option value="">🎯 Programma madre (peso a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
-      <p class="et" style="margin-top:8px">${p.atletaRif ? "Il peso usa l'<b>ultimo</b> massimale: dopo un test (Analisi → Stima 1RM) i pesi dei microcicli si <b>ricalibrano da soli</b>. Per gli accessori senza massimale lo scrivi a mano." : "Scegli un atleta per calcolare i pesi dai suoi massimali."}</p>
+      <p class="et" style="margin-top:8px">${p.atletaRif ? "Serve solo a <b>vedere i pesi</b> di " + (DEMO.atleti.find(x => x.id === p.atletaRif) || {}).nome + " dai suoi massimali. Le righe che scrivi qui restano del <b>madre</b> (tutti). Il peso usa l'<b>ultimo</b> massimale e si ricalibra dopo un test (Analisi → Stima 1RM)." : "Scegli un atleta per <b>vedere</b> i pesi calcolati dai suoi massimali (non cambia a chi è destinato il programma)."}</p>
     </div>`;
 
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>

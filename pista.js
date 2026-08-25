@@ -383,12 +383,14 @@ function vistaProgrammaPista() {
     <div class="card"><h3>Programma Pista</h3>
       <p class="et" style="margin-top:2px">Scrivi contenuto, distanza, n°, recupero e % velocità: il <b>tempo richiesto</b> e la <b>m/s</b> escono da soli dal PB. Il volume è automatico.</p>
       <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
+    <div class="card" style="border-color:rgba(240,168,60,.55)">
+      <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> vai su <b>Atleti → (atleta) → «Adatta contenuto»</b>.</p></div>
     <div class="card">
       <div class="griglia2">
         <div><label class="lab">Profilo velocità</label>
           <select onchange="setPistaTop('profilo',this.value)" style="margin-top:6px">
             <option value="">—</option>${optSel(p.profilo, PISTA_PROFILI, false)}</select></div>
-        <div><label class="lab">Riferimento tempi</label>
+        <div><label class="lab">Riferimento tempi <span style="color:var(--txt3)">(solo per i tempi, non limita a lui)</span></label>
           <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">
             <option value="">🎯 Programma madre (PB a mano)</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${p.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
       </div>
