@@ -310,21 +310,22 @@ function segnaChiusura(sid, campo, val) {
 }
 async function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
-  if (typeof atletaBloccato === "function" && S.utente && atletaBloccato(S.utente.atletaId)) { alert("🔒 Scheda dimostrativa in sola lettura: l'allenamento non viene salvato."); return; }
+  // l'atleta della seduta (per l'atleta = sé; per il coach che corregge = l'atleta di cui vede la seduta)
+  const aid = s.atletaId || (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
+  if (typeof atletaBloccato === "function" && atletaBloccato(aid)) { alert("🔒 Scheda dimostrativa in sola lettura: l'allenamento non viene salvato."); return; }
   if (s.durata === null || s.rpe === null) { alert("Scrivi durata e RPE prima di chiudere."); return; }
   // palestra: registra la seduta (Serie/Rep/Peso/Volume/RPE/VBT) → Monitoraggio VBT + Andamento Palestra
   if (s.tipo === "palestra" && typeof registraVbt === "function") {
-    const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
     (s.esercizi || []).forEach(x => {
       const fatte = x.vbt.filter(v => v !== null);
       const vbtMedia = fatte.length ? media(x.vbt) : null;
-      registraVbt(aid, x.nome, x.peso || null, vbtMedia, x.vbtTarget || null,
-        { serie: x.serie != null ? x.serie : null, rep: x.rep != null ? x.rep : null, volume: volumeKg(x), rpe: s.rpe });
+      const pw = (x.pesoFatto != null ? x.pesoFatto : x.peso);   // peso reale usato se segnato
+      registraVbt(aid, x.nome, pw || null, vbtMedia, x.vbtTarget || null,
+        { serie: x.serie != null ? x.serie : null, rep: x.rep != null ? x.rep : null, volume: (pw && x.serie && x.rep) ? x.serie * x.rep * pw : null, rpe: s.rpe });
     });
   }
   // lanci: registra mezzo / attrezzo / n. lanci / miglior misura → registro lanci
   if (s.lanci && typeof registraLancio === "function") {
-    const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
     (s.elementi || []).forEach(e => {
       const fatte = (e.misure || []).filter(v => v !== null);
       registraLancio(aid, e.mezzo, e.kg, e.tipo, e.lanci, fatte.length ? Math.max(...fatte) : null);
@@ -332,7 +333,6 @@ async function chiudiSeduta(sid) {
   }
   // pista: registra Tempo (media eseguita) / Volume (m) / Vel per distanza → Andamento Pista
   if (s.tipo === "pista" && typeof registraPista === "function") {
-    const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id);
     (s.elementi || []).forEach(e => {
       const fatti = (e.tempi || []).filter(v => v !== null);
       if (!fatti.length) return;
@@ -345,8 +345,11 @@ async function chiudiSeduta(sid) {
   }
   s.chiusa = true;
   // TAPPA 4: la seduta svolta va al coach (DB) → screening/andamento/VBT/carico reali
-  if (typeof salvaSedutaSvoltaDB === "function") { try { await salvaSedutaSvoltaDB(s); } catch (e) { /* offline: resta in locale */ } }
-  fermaTimer(); S.seduta = null; S.vista = "oggi"; disegna();
+  if (typeof salvaSedutaSvoltaDB === "function") { try { await salvaSedutaSvoltaDB(s); } catch (e) { /* offline: resta in coda */ } }
+  fermaTimer(); S.seduta = null;
+  // l'atleta torna a "oggi"; il coach torna alla lista degli allenamenti svolti dell'atleta
+  if (!(S.utente && S.utente.ruolo === "coach")) S.vista = "oggi";
+  disegna();
 }
 
 // ---------- ingresso ----------

@@ -352,7 +352,7 @@ async function _codaFlush() {
 // TAPPA 4 — seduta svolta dall'atleta → DB (upsert per atleta+chiave). Solo l'atleta scrive la propria (RLS).
 async function salvaSedutaSvoltaDB(s) {
   if (!s) return;
-  const aid = S.utente && S.utente.atletaId;
+  const aid = s.atletaId || (S.utente && S.utente.atletaId);   // l'atleta della seduta (coach corregge quella dell'atleta)
   if (!aid) return;
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
@@ -363,6 +363,14 @@ async function salvaSedutaSvoltaDB(s) {
     data: s.dataISO || (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)),
     durata_min: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, giorno: s.giorno || null, chiusa: true, dati
   };
+  // allinea SUBITO lo storico in memoria (senza aspettare il reload): così il carry-forward dei carichi,
+  // la lista "svolti", lo screening e le presenze riflettono la modifica appena fatta.
+  DEMO.seduteSvolte = DEMO.seduteSvolte || {};
+  const _lst = DEMO.seduteSvolte[aid] = DEMO.seduteSvolte[aid] || [];
+  const _sv = { atleta_id: aid, data: payload.data, tipo: payload.tipo, giorno: payload.giorno, durata_min: payload.durata_min, rpe: payload.rpe, fastidi: payload.fastidi, dati: payload.dati };
+  const _ix = _lst.findIndex(x => x.data === payload.data && x.tipo === payload.tipo && (x.giorno == null || x.giorno === payload.giorno));
+  if (_ix >= 0) _lst[_ix] = _sv; else _lst.push(_sv);
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();   // settimane future non ancora fatte → si rigenerano col nuovo carico
   if (!haDB()) { _codaAggiungi(payload); return; }   // nessun DB al momento: metti in coda
   try {
     const { error } = await sb.from("seduta_svolta").upsert(payload, { onConflict: "atleta_id,chiave" });

@@ -645,13 +645,23 @@ function calSett(d) { S.calOff = (S.calOff || 0) + d; disegna(); window.scrollTo
 function vistaMieiAllenamenti() {
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
   const lista = ((a && DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
-  const cards = (typeof _cardSvolta === "function") ? lista.map(_cardSvolta).join("") : "";
+  // ogni card è toccabile → riapre l'allenamento per correggere pesi / tempi
+  const cards = (typeof _cardSvolta === "function") ? lista.map(sv =>
+    `<div style="cursor:pointer" onclick="apriSedutaSvolta('${sv.data}','${sv.tipo}',${sv.giorno != null ? sv.giorno : "null"})">${_cardSvolta(sv)}</div>`).join("") : "";
   const pend = (typeof codaSvoltePendenti === "function") ? codaSvoltePendenti() : 0;
   const avviso = pend > 0 ? `<div class="card" style="border-color:rgba(240,168,60,.5)"><p class="et" style="margin:0;color:var(--giallo,#e6a83c)">📶 ${pend} allenament${pend === 1 ? "o" : "i"} in attesa di connessione: ${pend === 1 ? "è salvato" : "sono salvati"} sul telefono e si invia${pend === 1 ? "" : "no"} da solo appena torni online. Non perdi nulla.</p></div>` : "";
   return `<div class="card"><h3>I miei allenamenti svolti</h3>
-      <p class="et" style="margin-top:2px">Tutto quello che hai chiuso, dal più recente${lista.length ? ` · ${lista.length} allenamenti` : ""}. Tempi, misure, sforzo e note: puoi riguardare tutto quando vuoi.</p></div>
+      <p class="et" style="margin-top:2px">Tutto quello che hai chiuso, dal più recente${lista.length ? ` · ${lista.length} allenamenti` : ""}. <b>Tocca un allenamento</b> per rivederlo o correggere pesi e tempi.</p></div>
     ${avviso}
     ${cards || `<div class="card"><p class="et">Ancora nessun allenamento chiuso. Quando chiudi una seduta (con durata e RPE) compare qui e la puoi rivedere.</p></div>`}`;
+}
+// riapre l'allenamento svolto (rigenerandolo dal programma, con i dati già inseriti) per poterlo correggere
+function apriSedutaSvolta(dataISO, tipo, giorno) {
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const sd = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(dataISO, false, a) : [];
+  const s = sd.find(x => x.tipo === tipo && (giorno == null || x.giorno === giorno)) || sd.find(x => x.tipo === tipo);
+  if (!s) { alert("Questo allenamento non è più modificabile (il programma di quel giorno è cambiato). I dati salvati restano comunque qui."); return; }
+  if (typeof apriSeduta === "function") apriSeduta(s.id); else { S.seduta = s.id; disegna(); }
 }
 
 function calMesociclo() {

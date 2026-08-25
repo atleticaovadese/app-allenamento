@@ -1151,11 +1151,22 @@ function vistaSeduteSvolte() {
   const a = DEMO.atleti.find(x => x.id === S.sedSvolte);
   if (!a) { S.sedSvolte = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
   const lista = (((DEMO.seduteSvolte || {})[a.id]) || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
-  const cards = lista.map(_cardSvolta).join("");
+  // ogni card è toccabile → riapre la seduta dell'atleta per correggere pesi / tempi / RPE
+  const cards = lista.map(sv =>
+    `<div style="cursor:pointer" onclick="apriSedutaSvoltaCoach('${a.id}','${sv.data}','${sv.tipo}',${sv.giorno != null ? sv.giorno : "null"})">${_cardSvolta(sv)}</div>`).join("");
   return `<button class="indietro" onclick="chiudiSeduteSvolte()">‹ Torna all'atleta</button>
     <div class="card"><h3>Allenamenti svolti · ${a.nome}</h3>
-      <p class="et" style="margin-top:2px">Cosa ha davvero fatto, dal più recente${lista.length ? ` · ${lista.length} sedute` : ""}.</p></div>
+      <p class="et" style="margin-top:2px">Cosa ha davvero fatto, dal più recente${lista.length ? ` · ${lista.length} sedute` : ""}. <b>Tocca una seduta</b> per correggere pesi, tempi o RPE.</p></div>
     ${cards || `<div class="card"><p class="et">Nessun allenamento chiuso ancora da ${a.nome}. Compaiono qui quando l'atleta chiude una seduta.</p></div>`}`;
+}
+// riapre la seduta svolta di UN atleta specifico (dal coach), rigenerandola col programma + i dati inseriti
+function apriSedutaSvoltaCoach(atletaId, dataISO, tipo, giorno) {
+  const a = (DEMO.atleti || []).find(x => x.id === atletaId);
+  if (!a) return;
+  const sd = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(dataISO, false, a) : [];
+  const s = sd.find(x => x.tipo === tipo && (giorno == null || x.giorno === giorno)) || sd.find(x => x.tipo === tipo);
+  if (!s) { alert("Questo allenamento non è più modificabile (il programma di quel giorno è cambiato). I dati salvati restano comunque visibili qui."); return; }
+  if (typeof apriSeduta === "function") apriSeduta(s.id); else { S.seduta = s.id; disegna(); }
 }
 
 // ---------- monitoraggio: SCREENING (performance + carico) settimana / mesociclo ----------

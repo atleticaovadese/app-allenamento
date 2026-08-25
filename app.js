@@ -784,7 +784,7 @@ function disegna() {
 
     <div class="top">
       <button class="hamb" onclick="apriMenu()" aria-label="Menù"><i></i><i></i><i></i></button>
-      <div style="flex:1"><div class="nome">Ciao ${S.utente.nome.split(" ")[0]}</div><div class="data">${oggi}</div></div>
+      <div style="flex:1"><div class="nome">Ciao ${String((S.utente && S.utente.nome) || "").split(" ")[0]}</div><div class="data">${oggi}</div></div>
       ${!coach && typeof atletaCorrente === "function" && typeof avatarAtleta === "function" ? `<div class="top-av" onclick="vai('io')">${avatarAtleta(atletaCorrente(), 38)}</div>` : ""}
     </div>
     <div class="main">${corpo}</div>`;
