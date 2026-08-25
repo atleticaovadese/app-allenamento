@@ -1,11 +1,66 @@
 // Avvio, accesso, menù laterale e disegno delle schermate.
-const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", progGruppo: "vel", mostraRegistra: false, onboarding: null, tourStep: 0, calOff: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
+const S = { utente: null, vista: "oggi", seduta: null, menu: false, gruppi: {}, atletaSel: null, calModo: "mesociclo", libCat: null, routineEdit: null, esercizioEdit: null, mostraScheda: false, nuovoAtleta: null, infortunio: null, risultatoGara: null, modificaDati: null, nuovoTest: false, gruppo: "vel", progGruppo: "vel", progAtleta: null, mostraRegistra: false, onboarding: null, tourStep: 0, calOff: 0, pianoGrafici: false, pistaMeso: 0, pistaGiorno: 0, palMeso: 0, palGiorno: 0 };
 function setProgGruppo(g) { S.progGruppo = g; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; disegna(); window.scrollTo(0, 0); }
 const GRUPPI_PROG = [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
+// target dell'editor: MADRE del gruppo (default) oppure un singolo atleta (programma personale, isolato)
+function setProgAtleta(v) {
+  if (!v) { S.progAtleta = null; disegna(); window.scrollTo(0, 0); return; }
+  const a = DEMO.atleti.find(x => x.id === v); if (!a) return;
+  if (typeof atletaBloccato === "function" && atletaBloccato(v)) { alert("🔒 Scheda bloccata (esempio dimostrativo): non modificabile."); return; }
+  S.progAtleta = v;
+  if (typeof gruppoDi === "function") S.progGruppo = gruppoDi(a);   // editor giusto (vel/mezzo/lanci)
+  S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0;
+  disegna(); window.scrollTo(0, 0);
+}
+// crea il programma personale (copia dell'attuale madre) per l'atleta puntato — solo per il tipo indicato
+function creaProgAtletaTipo(tipo) {
+  const id = S.progAtleta, a = DEMO.atleti.find(x => x.id === id); if (!a) return;
+  const g = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  const clone = x => JSON.parse(JSON.stringify(x || {}));
+  if (tipo === "palestra") { DEMO.palAtleta = DEMO.palAtleta || {}; if (!DEMO.palAtleta[id] && typeof palDi === "function") { DEMO.palAtleta[id] = clone(palDi(g)); DEMO.palAtleta[id].atletaRif = id; } }
+  else { DEMO.pistaAtleta = DEMO.pistaAtleta || {}; if (!DEMO.pistaAtleta[id] && typeof pistaDi === "function") { DEMO.pistaAtleta[id] = clone(pistaDi(g)); DEMO.pistaAtleta[id].atletaRif = id; } }
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna(); window.scrollTo(0, 0);
+}
+// rimuove il programma personale → l'atleta torna a seguire il madre del gruppo
+function rimuoviProgAtletaTipo(tipo) {
+  const id = S.progAtleta, a = DEMO.atleti.find(x => x.id === id); if (!a) return;
+  if (typeof confirm === "function" && !confirm(`Rimuovere il programma personale di ${a.nome} (${tipo === "palestra" ? "palestra" : "pista"}) e tornare al programma madre del gruppo?\nLe modifiche personali andranno perse.`)) return;
+  if (tipo === "palestra") { if (DEMO.palAtleta) delete DEMO.palAtleta[id]; }
+  else { if (DEMO.pistaAtleta) delete DEMO.pistaAtleta[id]; }
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna(); window.scrollTo(0, 0);
+}
+// prompt di creazione mostrato al posto dell'editor quando l'atleta puntato non ha ancora un programma personale
+function _gateProgAtleta(tipo) {
+  const id = S.progAtleta, a = DEMO.atleti.find(x => x.id === id);
+  if (!a) { S.progAtleta = null; return null; }
+  const has = tipo === "palestra" ? (DEMO.palAtleta && DEMO.palAtleta[id]) : (DEMO.pistaAtleta && DEMO.pistaAtleta[id]);
+  if (has) return null;   // esiste già → l'editor procede sul personale
+  const lab = tipo === "palestra" ? "palestra" : "pista";
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + `<div class="card" style="border-color:var(--blu)">
+    <p class="et" style="margin:0"><b>👤 ${a.nome}</b> segue il <b>programma MADRE</b> del gruppo per la ${lab}.</p>
+    <p class="et" style="margin:8px 0 0">Per cambiarlo <b>solo per ${a.nome}</b> (aggiungere giorni, scegliere esercizi, ecc.) crea un <b>programma personale</b>: parte da una copia dell'attuale madre e le modifiche <b>non toccano gli altri</b>.</p>
+    <button class="btn" style="margin-top:10px" onclick="creaProgAtletaTipo('${tipo}')">✎ Crea programma personale per ${a.nome}</button></div>`;
+}
 function selettoreProgGruppo() {
-  return `<div class="card" style="border-color:var(--blu)"><label class="lab">Programma madre per</label>
+  const atl = S.progAtleta ? DEMO.atleti.find(x => x.id === S.progAtleta) : null;
+  const grpNome = (GRUPPI_PROG.find(x => x[0] === (S.progGruppo || "vel")) || [])[1] || "";
+  const opts = `<option value="">🎯 Madre del gruppo (tutti col flag)</option>` + DEMO.atleti.map(a => `<option value="${a.id}" ${S.progAtleta === a.id ? "selected" : ""}>👤 ${a.nome}</option>`).join("");
+  const sel = `<div class="card" style="border-color:var(--blu)">
+    <label class="lab">Programma per</label>
+    <select onchange="setProgAtleta(this.value)" style="margin-top:6px">${opts}</select>`;
+  if (atl) {
+    const tipo = S.vista === "palestra" ? "palestra" : "pista";
+    const ha = tipo === "palestra" ? (DEMO.palAtleta && DEMO.palAtleta[atl.id]) : (DEMO.pistaAtleta && DEMO.pistaAtleta[atl.id]);
+    return sel + `<p class="et" style="margin-top:8px;color:var(--blu)"><b>Stai programmando SOLO per ${atl.nome}</b> (${grpNome}) · ${tipo}. Gli altri NON cambiano.</p>
+      ${ha ? `<button class="btn btn-2" style="width:auto;padding:7px 12px;margin-top:6px" onclick="rimuoviProgAtletaTipo('${tipo}')">↺ Torna a far seguire il madre</button>` : ""}</div>`;
+  }
+  return sel + `<label class="lab" style="display:block;margin-top:12px">Gruppo (madre)</label>
     <select onchange="setProgGruppo(this.value)" style="margin-top:6px">${GRUPPI_PROG.map(([k, l]) => `<option value="${k}" ${S.progGruppo === k ? "selected" : ""}>${l}</option>`).join("")}</select>
-    <p class="et" style="margin-top:8px">Stai scrivendo il programma per i <b>${(GRUPPI_PROG.find(x => x[0] === S.progGruppo) || [])[1] || ""}</b>. Va solo agli atleti col flag qui sotto.</p></div>${typeof _barraProgrammaMadre === "function" ? _barraProgrammaMadre(S.progGruppo || "vel") : ""}`;
+    <p class="et" style="margin-top:8px">Programma <b>madre</b> dei <b>${grpNome}</b>: va agli atleti col flag qui sotto.</p></div>${typeof _barraProgrammaMadre === "function" ? _barraProgrammaMadre(S.progGruppo || "vel") : ""}`;
 }
 const $ = (id) => document.getElementById(id);
 

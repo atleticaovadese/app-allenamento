@@ -18,7 +18,10 @@ function palDi(g) {
   if (!DEMO.palestra[g]) DEMO.palestra[g] = _emptyPal();
   return DEMO.palestra[g];
 }
-function palestraInit() { return palDi(S.progGruppo || "vel"); }
+function palestraInit() {
+  if (S.progAtleta && DEMO.palAtleta && DEMO.palAtleta[S.progAtleta]) return DEMO.palAtleta[S.progAtleta];   // programma personale
+  return palDi(S.progGruppo || "vel");
+}
 function savePalestra() { if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
 function palGiornoCorrente() { return palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno]; }
 
@@ -156,6 +159,7 @@ function chiudiNotaPal() { chiudiScheda(); disegna(); }
 
 // ---------- vista ----------
 function vistaProgrammaPalestra() {
+  if (S.progAtleta && typeof _gateProgAtleta === "function") { const gate = _gateProgAtleta("palestra"); if (gate) return gate; }
   const p = palestraInit();
   if (S.palMeso >= p.mesocicli.length) S.palMeso = 0;
   const m = p.mesocicli[S.palMeso];
@@ -178,8 +182,8 @@ function vistaProgrammaPalestra() {
     <div class="card"><h3>Programma Palestra</h3>
       <p class="et" style="margin-top:2px">Scrivi esercizio, serie, rep, %1RM, TUT e velocità target: il <b>peso</b> esce da solo dai massimali dell'atleta (%1RM × 1RM). Il volume in kg è automatico.</p>
       <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
-    <div class="card" style="border-color:rgba(240,168,60,.55)">
-      <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> vai su <b>Atleti → (atleta) → «Adatta contenuto»</b>.</p></div>
+    ${S.progAtleta ? "" : `<div class="card" style="border-color:rgba(240,168,60,.55)">
+      <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> scegli il suo nome qui sopra in «Programma per», oppure dal suo dettaglio «Adatta contenuto».</p></div>`}
     <div class="card">
       <label class="lab">Atleta di riferimento <span style="color:var(--txt3)">(solo per calcolare i pesi dai massimali — NON limita le modifiche a lui)</span></label>
       <select onchange="setPalTop('atletaRif',this.value)" style="margin-top:6px">

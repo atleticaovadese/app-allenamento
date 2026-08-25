@@ -29,7 +29,8 @@ function bundleCustom() {
     notifVisti: DEMO.notifVisti || {}, fastidiRisolti: DEMO.fastidiRisolti || {},
     prevTestCustom: DEMO.prevTestCustom || [], prevEserciziCustom: DEMO.prevEserciziCustom || [],
     reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
-    overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {}
+    overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {},
+    pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {}
   };
 }
 function applicaBundle(c) {
@@ -65,6 +66,8 @@ function applicaBundle(c) {
   if (c.programmaAssegnato) DEMO.programmaAssegnato = c.programmaAssegnato;
   if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
+  if (c.pistaAtleta) DEMO.pistaAtleta = c.pistaAtleta;
+  if (c.palAtleta) DEMO.palAtleta = c.palAtleta;
 }
 
 function caricaCustom() {

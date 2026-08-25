@@ -254,7 +254,10 @@ function pistaDi(g) {
   if (!DEMO.pista[g]) DEMO.pista[g] = _emptyPista();
   return DEMO.pista[g];
 }
-function pistaInit() { return pistaDi(S.progGruppo || "vel"); }
+function pistaInit() {
+  if (S.progAtleta && DEMO.pistaAtleta && DEMO.pistaAtleta[S.progAtleta]) return DEMO.pistaAtleta[S.progAtleta];   // programma personale
+  return pistaDi(S.progGruppo || "vel");
+}
 function savePista() { if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
 
 // PB di riferimento: dall'atleta scelto (in base al profilo) oppure scritto a mano.
@@ -356,6 +359,8 @@ function selGiorno(i) { S.pistaGiorno = i; disegna(); window.scrollTo(0, 0); }
 
 // ---------- vista ----------
 function vistaProgrammaPista() {
+  // se stai programmando per un singolo atleta senza programma personale → prima il prompt di creazione (mai l'editor madre)
+  if (S.progAtleta && typeof _gateProgAtleta === "function") { const gate = _gateProgAtleta("pista"); if (gate) return gate; }
   // il gruppo Mezzofondo/Fondo ha un editor dedicato (mezzi, ritmi/km, corsa continua)
   if ((S.progGruppo || "vel") === "mezzo" && typeof vistaProgrammaPistaMezzo === "function") return vistaProgrammaPistaMezzo();
   if ((S.progGruppo || "vel") === "lanci" && typeof vistaProgrammaPistaLanci === "function") return vistaProgrammaPistaLanci();
@@ -383,8 +388,8 @@ function vistaProgrammaPista() {
     <div class="card"><h3>Programma Pista</h3>
       <p class="et" style="margin-top:2px">Scrivi contenuto, distanza, n°, recupero e % velocità: il <b>tempo richiesto</b> e la <b>m/s</b> escono da soli dal PB. Il volume è automatico.</p>
       <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
-    <div class="card" style="border-color:rgba(240,168,60,.55)">
-      <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> vai su <b>Atleti → (atleta) → «Adatta contenuto»</b>.</p></div>
+    ${S.progAtleta ? "" : `<div class="card" style="border-color:rgba(240,168,60,.55)">
+      <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> scegli il suo nome qui sopra in «Programma per», oppure dal suo dettaglio «Adatta contenuto».</p></div>`}
     <div class="card">
       <div class="griglia2">
         <div><label class="lab">Profilo velocità</label>

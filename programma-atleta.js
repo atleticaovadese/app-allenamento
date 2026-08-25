@@ -124,12 +124,15 @@ function programmaAssegnatoA(id) { return !(DEMO.programmaAssegnato && DEMO.prog
 function _progVuoto() { return { mesocicli: [] }; }
 function _progPista(atleta) {
   if (typeof pistaDi !== "function") return DEMO.pista;
+  // programma PERSONALE dell'atleta (se creato) → ha la precedenza sul madre e sul flag
+  if (atleta && DEMO.pistaAtleta && DEMO.pistaAtleta[atleta.id] && (DEMO.pistaAtleta[atleta.id].mesocicli || []).length) return DEMO.pistaAtleta[atleta.id];
   if (atleta && !programmaAssegnatoA(atleta.id)) return _progVuoto();
   const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
   return pistaDi(g);
 }
 function _progPal(atleta) {
   if (typeof palDi !== "function") return DEMO.palestra;
+  if (atleta && DEMO.palAtleta && DEMO.palAtleta[atleta.id] && (DEMO.palAtleta[atleta.id].mesocicli || []).length) return DEMO.palAtleta[atleta.id];
   if (atleta && !programmaAssegnatoA(atleta.id)) return _progVuoto();
   const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
   return palDi(g);
