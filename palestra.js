@@ -160,7 +160,8 @@ function vistaProgrammaPalestra() {
   if (S.palMeso >= p.mesocicli.length) S.palMeso = 0;
   const m = p.mesocicli[S.palMeso];
   const g = m.giorni[S.palGiorno];
-  const esercizi = (typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala.map(x => x.n) : [];
+  const esercizi = ((typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala.map(x => x.n) : [])
+    .slice().sort((a, b) => String(a).localeCompare(String(b), "it", { sensitivity: "base" }));   // ordine alfabetico
   const optSel = (val, arr) => arr.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
   // tendina esercizio: tutta la libreria + il valore già scelto (anche se personalizzato/non in libreria) + "Altro"
   const optEsercizio = (val) => {
