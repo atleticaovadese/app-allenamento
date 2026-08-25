@@ -73,6 +73,15 @@ function setPalMeso(campo, val) { palestraInit().mesocicli[S.palMeso][campo] = v
 function setPalMesoVal(campo, val) { palestraInit().mesocicli[S.palMeso][campo] = val; savePalestra(); }
 function setPalGiorno(campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno][campo] = val; savePalestra(); disegna(); }
 function setPalRiga(s, i, campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe[i][campo] = val; savePalestra(); disegna(); }
+// esercizio dalla tendina: "__altro__" chiede un nome scritto a mano, altrimenti salva la voce scelta
+function setPalEsercizio(s, i, val) {
+  if (val === "__altro__") {
+    const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio (scrivilo a mano):", "") : "";
+    if (t && t.trim()) setPalRiga(s, i, "esercizio", t.trim()); else disegna();   // annullato → torna alla tendina
+    return;
+  }
+  setPalRiga(s, i, "esercizio", val);
+}
 function setPalRigaVal(s, i, campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe[i][campo] = val; savePalestra(); }
 function palAddRiga(s) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe.push(palRigaVuota()); savePalestra(); disegna(); }
 function palDelRiga(s, i) { const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePalestra(); disegna(); }
@@ -153,6 +162,16 @@ function vistaProgrammaPalestra() {
   const g = m.giorni[S.palGiorno];
   const esercizi = (typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala.map(x => x.n) : [];
   const optSel = (val, arr) => arr.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  // tendina esercizio: tutta la libreria + il valore già scelto (anche se personalizzato/non in libreria) + "Altro"
+  const optEsercizio = (val) => {
+    const inLib = esercizi.indexOf(val) >= 0;
+    const esc = x => String(x).replace(/"/g, "&quot;");
+    let h = `<option value="">—</option>`;
+    if (val && !inLib) h += `<option value="${esc(val)}" selected>${val}</option>`;
+    h += esercizi.map(x => `<option value="${esc(x)}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+    h += `<option value="__altro__">✎ Altro (scrivi a mano)…</option>`;
+    return h;
+  };
 
   const testa = `
     <div class="card"><h3>Programma Palestra</h3>
@@ -220,7 +239,7 @@ function vistaProgrammaPalestra() {
         ? `<td class="pauto">${w != null ? w : "—"}</td>`
         : `<td><input inputmode="numeric" value="${r.peso || ""}" placeholder="kg" oninput="setPalRigaVal(${s},${i},'peso',this.value)" onchange="disegna()" style="min-width:56px"></td>`;
       return `<tr>
-        <td><input list="lib-sala" value="${(r.esercizio || "").replace(/"/g, "&quot;")}" placeholder="esercizio" onchange="setPalRiga(${s},${i},'esercizio',this.value)" style="min-width:150px"></td>
+        <td><select onchange="setPalEsercizio(${s},${i},this.value)" style="min-width:150px">${optEsercizio(r.esercizio)}</select></td>
         <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setPalRigaVal(${s},${i},'serie',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setPalRigaVal(${s},${i},'rep',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPalRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:48px"></td>
@@ -256,6 +275,5 @@ function vistaProgrammaPalestra() {
     </div>`;
   }).join("");
 
-  const datalist = `<datalist id="lib-sala">${esercizi.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}">`).join("")}</datalist>`;
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + datalist;
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
 }
