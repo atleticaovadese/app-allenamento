@@ -272,11 +272,25 @@ function pistaPB() {
   return isNaN(v) ? null : v;
 }
 
+// coefficiente per una distanza QUALSIASI: chiave esatta se c'è, altrimenti interpola tra le due vicine;
+// oltre il massimo della tabella (es. 150 per "100m M") estrapola con la pendenza dell'ultimo tratto → si può
+// programmare fino a 400 anche coi profili sprint (il target resta una stima; se l'atleta ha il PB reale, usa quello).
+function _coeffDist(co, D) {
+  if (!co || !(D > 0)) return null;
+  if (co[D] != null) return co[D];
+  const ks = Object.keys(co).map(Number).sort((a, b) => a - b);
+  if (ks.length < 2) return ks.length ? co[ks[0]] : null;
+  const lin = (x0, x1) => co[x0] + (co[x1] - co[x0]) * (D - x0) / (x1 - x0);
+  if (D <= ks[0]) return Math.max(0, lin(ks[0], ks[1]));
+  if (D >= ks[ks.length - 1]) return lin(ks[ks.length - 2], ks[ks.length - 1]);
+  for (let i = 0; i < ks.length - 1; i++) if (D >= ks[i] && D <= ks[i + 1]) return lin(ks[i], ks[i + 1]);
+  return null;
+}
 function pistaTempo(distanza, perc) {
   const p = pistaInit(), pb = pistaPB();
   if (!p.profilo || !pb || !distanza || !perc) return null;
   const co = PISTA_COEFF[p.profilo]; if (!co) return null;
-  const coeff = co[Number(distanza)]; if (coeff == null) return null;
+  const coeff = _coeffDist(co, Number(distanza)); if (coeff == null) return null;
   const pc = parseFloat(String(perc).replace(",", ".")); if (!(pc > 0)) return null;
   return pb * coeff / (pc / 100);
 }
@@ -299,12 +313,13 @@ function baseAtletaDist(atleta, D, profilo) {
   if (diretto != null) return diretto;                 // PB reale su quella distanza
   if (profilo == null) profilo = pistaInit().profilo;  // fallback (editor); in generazione arriva dal programma del gruppo
   const co = profilo ? PISTA_COEFF[profilo] : null;
-  if (!co || co[D] == null) return null;
+  const cD = co ? _coeffDist(co, D) : null;
+  if (cD == null) return null;
   const refDist = profilo.indexOf("400") === 0 ? 400 : profilo.indexOf("200") === 0 ? 200 : 100;
   const ancore = (D <= 60 ? [60, 100, refDist] : [100, refDist, 60]).filter((v, i, a) => a.indexOf(v) === i);
   for (const anc of ancore) {
     const pbAnc = pbAtletaDist(atleta, anc);
-    if (pbAnc != null && co[anc] != null) return pbAnc * co[D] / co[anc];   // ri-scalatura sulla curva
+    if (pbAnc != null && co[anc] != null) return pbAnc * cD / co[anc];   // ri-scalatura sulla curva
   }
   return null;
 }
@@ -349,7 +364,17 @@ function vistaProgrammaPista() {
   const m = p.mesocicli[S.pistaMeso];
   const g = m.giorni[S.pistaGiorno];
   const pb = pistaPB();
-  const distOpt = p.profilo ? Object.keys(PISTA_COEFF[p.profilo]).map(Number).sort((a, b) => a - b) : [];
+  // distanze selezionabili: lista sprint completa fino a 400 (+ eventuali chiavi extra del profilo, es. 300 per "100m F").
+  // Il tempo obiettivo si calcola su QUALSIASI distanza (interpolazione/estrapolazione), non solo sulle chiavi della tabella.
+  const SPRINT_DIST = [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150, 180, 200, 250, 300, 350, 400];
+  const coeffKeys = (p.profilo && PISTA_COEFF[p.profilo]) ? Object.keys(PISTA_COEFF[p.profilo]).map(Number) : [];
+  const distOpt = Array.from(new Set(SPRINT_DIST.concat(coeffKeys))).sort((a, b) => a - b);
+  const optDist = (val) => {
+    const arr = distOpt.slice(); const v = Number(val);
+    if (val !== "" && val != null && !isNaN(v) && arr.indexOf(v) < 0) arr.push(v);   // preserva un valore personalizzato
+    arr.sort((a, b) => a - b);
+    return `<option value="">—</option>` + arr.map(x => `<option value="${x}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  };
   const routineOpt = Object.keys(DEMO.schede || {});
   const optSel = (val, arr, mostraVuoto) => `${mostraVuoto ? '<option value="">—</option>' : ""}${arr.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("")}`;
 
@@ -429,7 +454,7 @@ function vistaProgrammaPista() {
       const ms = t && r.distanza ? (Number(r.distanza) / t) : null;
       return `<tr>
         <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
-        <td><select onchange="setPistaRiga(${s},${i},'distanza',this.value)"><option value="">—</option>${optSel(r.distanza, distOpt, false)}</select></td>
+        <td><select onchange="setPistaRiga(${s},${i},'distanza',this.value)">${optDist(r.distanza)}</select></td>
         <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
         <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:52px"></td>
