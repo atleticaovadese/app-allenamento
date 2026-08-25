@@ -230,7 +230,8 @@ async function caricaDati() {
         (d.esercizi || []).forEach(x => {
           const fatte = (x.vbt || []).filter(v => v != null);
           const vmed = fatte.length ? fatte.reduce((a, b) => a + b, 0) / fatte.length : null;
-          DEMO.vbtLog.push({ data: sv.data, atletaId: sv.atleta_id, esercizio: x.nome, peso: x.peso != null ? x.peso : null, carico: x.peso != null ? x.peso : null, serie: x.serie, rep: x.rep, volume: (x.peso && x.serie && x.rep) ? x.serie * x.rep * x.peso : null, rpe: sv.rpe, vbtEseguita: vmed != null ? Math.round(vmed * 100) / 100 : null, vbtTarget: x.vbtTarget != null ? x.vbtTarget : null });
+          const pw = (x.pesoFatto != null ? x.pesoFatto : x.peso);   // peso reale usato dall'atleta, se segnato
+          DEMO.vbtLog.push({ data: sv.data, atletaId: sv.atleta_id, esercizio: x.nome, peso: pw != null ? pw : null, carico: pw != null ? pw : null, serie: x.serie, rep: x.rep, volume: (pw && x.serie && x.rep) ? x.serie * x.rep * pw : null, rpe: sv.rpe, vbtEseguita: vmed != null ? Math.round(vmed * 100) / 100 : null, vbtTarget: x.vbtTarget != null ? x.vbtTarget : null });
         });
       }
     });
@@ -356,7 +357,7 @@ async function salvaSedutaSvoltaDB(s) {
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
     ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
-    : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, vbtTarget: x.vbtTarget, vbt: x.vbt, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
+    : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, pesoFatto: x.pesoFatto != null ? x.pesoFatto : null, vbtTarget: x.vbtTarget, vbt: x.vbt, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
   const payload = {
     atleta_id: aid, chiave: s.id, tipo: s.tipo,
     data: s.dataISO || (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)),

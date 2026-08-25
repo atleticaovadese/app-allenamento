@@ -65,18 +65,35 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
+// ultimo peso davvero usato dall'atleta per un esercizio, in una seduta di palestra PRECEDENTE a dataISO
+// e (se dato) dallo stesso mesociclo in poi (winStartISO = inizio meso). Serve al copia-incolla carichi.
+function _pesoFattoStorico(aid, esercizio, dataISO, winStartISO) {
+  if (!aid || !esercizio) return null;
+  const arr = ((DEMO.seduteSvolte || {})[aid] || [])
+    .filter(sv => sv.tipo === "palestra" && sv.data && sv.data < dataISO && (!winStartISO || sv.data >= winStartISO))
+    .sort((a, b) => a.data < b.data ? 1 : -1);   // più recente prima
+  for (const sv of arr) {
+    const e = ((sv.dati && sv.dati.esercizi) || []).find(x => (x.nome || "") === esercizio && x.pesoFatto != null && x.pesoFatto !== "");
+    if (e) return Number(e.pesoFatto);
+  }
+  return null;
+}
 function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
   const ovR = overrideRighe(atleta, "palestra", giornoNum - 1, settIdx);
   const righe = (ovR || (sett && sett.righe) || []).filter(r => r.esercizio);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
+  const winStart = meso && meso.inizio ? meso.inizio : null;   // inizio mesociclo → carry-forward SOLO dentro il meso
   const esercizi = righe.map((r, i) => {
     const serie = Number(r.serie) || 0;
-    const peso = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r)
+    let peso = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r)
       : (typeof palPeso === "function" ? palPeso(r) : null);
+    // se il coach non ha impostato un peso (né massimale né manuale), riprendi l'ultimo peso che l'atleta
+    // ha davvero usato per QUESTO esercizio in una seduta precedente dello stesso mesociclo (copia-incolla carichi)
+    if (peso == null && atleta) { const p = _pesoFattoStorico(aid, r.esercizio, dataISO, winStart); if (p != null) peso = p; }
     const rec = String(r.rec || ""), recSec = rec.indexOf("'") >= 0 ? (parseFloat(rec) * 60) : (parseInt(rec) || null);
-    return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, vbt: Array(serie).fill(null) };
+    return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, pesoFatto: null, vbt: Array(serie).fill(null) };
   });
   return _cacheSeduta({
     id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
@@ -212,6 +229,7 @@ function _applicaSvolta(s) {
       if (!dx) return;
       used[d.esercizi.indexOf(dx)] = true;
       if (dx.vbt) x.vbt = dx.vbt;
+      if (dx.pesoFatto != null) x.pesoFatto = dx.pesoFatto;
       if (dx.rpe != null) x.rpe = dx.rpe;
       if (dx.nonCompletato) { x.nonCompletato = true; x.serieFatte = dx.serieFatte; x.repFatte = dx.repFatte; x.notaAtleta = dx.notaAtleta || ""; }
     });

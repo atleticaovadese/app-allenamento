@@ -217,12 +217,26 @@ function esercizioAperto(s, x) {
     <p class="et" style="margin:4px 0 10px">
       ${x.peso ? x.peso + " kg" : "corpo libero"}${x.tut ? " · TUT " + x.tut : ""}${x.recuperoSec ? " · rec " + fmtRec(x.recuperoSec) : ""}${x.vbtTarget ? " · vel. " + x.vbtTarget.toFixed(2) + " m/s" : ""}${volumeKg(x) ? " · vol " + volumeKg(x) + " kg" : ""}
     </p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <label class="lab" style="margin:0">Peso usato (kg)</label>
+      <input inputmode="decimal" value="${x.pesoFatto != null ? x.pesoFatto : ""}" placeholder="${x.peso ? x.peso : "kg"}" style="width:110px"
+        onchange="setPesoFatto('${s.id}','${x.id}',this.value)">
+    </div>
     ${righe}${parziale}
     ${T.sec > 0 ? bloccoTimer() : ""}
     ${bloccoSforzoEs(s.id, x)}
   </div>`;
 }
 
+// l'atleta segna il peso davvero usato in un esercizio. Se la seduta è GIÀ chiusa (lo aggiunge dopo),
+// si salva subito nel DB senza dover richiudere.
+function setPesoFatto(sid, xid, val) {
+  const s = sedutaDaId(sid), x = s && (s.esercizi || []).find(e => e.id === xid);
+  if (!x) return;
+  const n = Number(String(val).replace(",", "."));
+  x.pesoFatto = (val === "" || !Number.isFinite(n)) ? null : n;
+  if (s.chiusa && typeof salvaSedutaSvoltaDB === "function") salvaSedutaSvoltaDB(s);
+}
 function media(a) { const v = a.filter(x => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0; }
 
 function apriEsercizio(id) { T.id = (T.id === id ? null : id); fermaTimer(); disegna(); }

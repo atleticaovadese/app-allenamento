@@ -1134,7 +1134,9 @@ function _cardSvolta(sv) {
   } else {
     corpo = (d.esercizi || []).map(x => {
       const f = (x.vbt || []).filter(v => v != null), vmed = f.length ? f.reduce((s, v) => s + v, 0) / f.length : null;
-      return riga(x.nome, `${x.serie || "?"}×${x.rep || "?"}${x.peso ? ` @${x.peso} kg` : ""}`, vmed != null ? `VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}` : "", "", "", x);
+      const pw = (x.pesoFatto != null && x.pesoFatto !== "") ? x.pesoFatto : x.peso;   // peso usato dall'atleta se segnato
+      const meta = `${x.serie || "?"}×${x.rep || "?"}${pw ? ` @${pw} kg${(x.pesoFatto != null && x.pesoFatto !== "") ? " (usato)" : ""}` : ""}`;
+      return riga(x.nome, meta, vmed != null ? `VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}` : "", "", "", x);
     }).join("");
   }
   return `<div class="card">
