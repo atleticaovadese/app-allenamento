@@ -88,7 +88,7 @@ function plioTxt(r) {
   return r.es + (q ? " — " + q.trim() : "") + (r.rec ? " · rec " + r.rec : "");
 }
 function apriPlio() {
-  const g = giornoCorrente(), plio = plioInit(g);
+  const g = riscGiorno(), plio = plioInit(g);   // riscGiorno = giorno attivo (pista o palestra)
   const optModo = sel => PLIO_MODI.map(([k]) => `<option value="${k}" ${sel === k ? "selected" : ""}>${k}</option>`).join("");
   const rows = plio.map((r, i) => `<tr>
       <td><input value="${(r.es || "").replace(/"/g, "&quot;")}" placeholder="es. Balzi tra ostacoli" oninput="setPlioRigaVal(${i},'es',this.value)" style="min-width:150px"></td>
@@ -107,10 +107,10 @@ function apriPlio() {
       <tbody>${rows}</tbody></table></div>
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="plioAddRiga()">＋ esercizio</button>`);
 }
-function plioAddRiga() { plioInit(giornoCorrente()).push({ es: "", serie: "", modo: "balzi", q: "", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
-function plioDelRiga(i) { const p = plioInit(giornoCorrente()); if (i >= 0 && i < p.length) p.splice(i, 1); if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
-function setPlioRiga(i, campo, v) { plioInit(giornoCorrente())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
-function setPlioRigaVal(i, campo, v) { plioInit(giornoCorrente())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); }
+function plioAddRiga() { plioInit(riscGiorno()).push({ es: "", serie: "", modo: "balzi", q: "", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
+function plioDelRiga(i) { const p = plioInit(riscGiorno()); if (i >= 0 && i < p.length) p.splice(i, 1); if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
+function setPlioRiga(i, campo, v) { plioInit(riscGiorno())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); apriPlio(); }
+function setPlioRigaVal(i, campo, v) { plioInit(riscGiorno())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); }
 function chiudiPlio() { chiudiScheda(); disegna(); }
 // blocco pliometria nella seduta dell'atleta (dopo il riscaldamento)
 function bloccoPliometria(s) {

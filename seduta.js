@@ -166,6 +166,7 @@ function setEsitoEs(sid, xid, campo, val) {
 // ---------- PALESTRA ----------
 function vistaPalestra(s) {
   return `${bloccoRiscaldamento(s)}
+  ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   <p class="et" style="margin:0 2px 8px">Tocca l'esercizio da cui parti</p>
   ${s.esercizi.map(x => x.id === T.id ? esercizioAperto(s, x) : esercizioChiuso(s, x)).join("")}
   ${bloccoChiusura(s)}`;

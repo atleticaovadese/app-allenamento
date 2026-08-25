@@ -200,6 +200,8 @@ function vistaProgrammaPalestra() {
       <select onchange="setPalGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"])}</select>
       <label class="lab" style="display:block;margin-top:12px">Riscaldamento</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
     </div>`;
 
   const listaSett = palSettimaneDelGiorno(m, g);
