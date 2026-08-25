@@ -1005,9 +1005,22 @@ function setAdattaRigaVal(campo, i, val) {
   if (typeof salvaCustom === "function") salvaCustom();
 }
 function setAdattaRiga(campo, i, val) { setAdattaRigaVal(campo, i, val); disegna(); }
+// esercizio dalla tendina in Adatta: "__altro__" chiede il nome a mano
+function setAdattaEsercizio(i, val) {
+  if (val === "__altro__") {
+    const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio (scrivilo a mano):", "") : "";
+    if (t && t.trim()) setAdattaRiga("esercizio", i, t.trim()); else disegna();
+    return;
+  }
+  setAdattaRiga("esercizio", i, val);
+}
 function addAdattaRiga() {
   const righe = _ensureAdattaRighe();
-  righe.push(S.adatta.tipo === "pista" ? { contenuto: "", distanza: "", n: "", rec: "", perc: "" } : { esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" });
+  const s = S.adatta, a = DEMO.atleti.find(x => x.id === s.atletaId);
+  const gr = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  if (s.tipo !== "pista") righe.push({ esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" });
+  else if (gr === "mezzo") righe.push({ contenuto: "", mezzo: "", distanza: "", n: "", min: "", rec: "" });
+  else righe.push({ contenuto: "", distanza: "", n: "", rec: "", perc: "" });
   if (typeof salvaCustom === "function") salvaCustom();
   disegna();
 }
@@ -1030,13 +1043,11 @@ function ripristinaAdatta() {
 }
 function _tabellaAdattaPista(a, righe) {
   const prof = (typeof pistaDi === "function" && typeof gruppoDi === "function") ? pistaDi(gruppoDi(a)).profilo : (DEMO.pista && DEMO.pista.profilo);
-  const distOpt = (prof && typeof PISTA_COEFF !== "undefined" && PISTA_COEFF[prof]) ? Object.keys(PISTA_COEFF[prof]).map(Number).sort((x, y) => x - y) : [];
-  const opt = (val, arr) => arr.map(x => `<option value="${x}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
   const rows = righe.map((r, i) => {
     const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
     return `<tr>
       <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setAdattaRigaVal('contenuto',${i},this.value)" style="min-width:110px"></td>
-      <td><select onchange="setAdattaRiga('distanza',${i},this.value)"><option value="">—</option>${opt(r.distanza, distOpt)}</select></td>
+      <td><select onchange="setAdattaRiga('distanza',${i},this.value)">${typeof optDistPista === "function" ? optDistPista(r.distanza, prof) : `<option value="">—</option>`}</select></td>
       <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal('rec',${i},this.value)" style="min-width:60px"></td>
@@ -1053,7 +1064,7 @@ function _tabellaAdattaPal(a, righe) {
   const rows = righe.map((r, i) => {
     const peso = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
     return `<tr>
-      <td><input value="${(r.esercizio || "").replace(/"/g, "&quot;")}" placeholder="esercizio" oninput="setAdattaRigaVal('esercizio',${i},this.value)" style="min-width:120px"></td>
+      <td><select onchange="setAdattaEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : `<option>${r.esercizio || ""}</option>`}</select></td>
       <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setAdattaRigaVal('serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setAdattaRigaVal('rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
@@ -1064,6 +1075,24 @@ function _tabellaAdattaPal(a, righe) {
   return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Peso</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button></div>`;
+}
+// Adatta per il MEZZOFONDO: righe con Mezzo (tendina) + distanza libera + n° + minuti (corsa continua)
+function _tabellaAdattaMezzo(a, righe) {
+  const MZ = (typeof MZ_MEZZI !== "undefined") ? MZ_MEZZI : [];
+  const optMezzo = (val) => `<option value="">—</option>` + MZ.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  const rows = righe.map((r, i) => `<tr>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setAdattaRigaVal('contenuto',${i},this.value)" style="min-width:100px"></td>
+      <td><select onchange="setAdattaRiga('mezzo',${i},this.value)">${optMezzo(r.mezzo)}</select></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal('distanza',${i},this.value)" onchange="disegna()" style="min-width:56px"></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:44px"></td>
+      <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setAdattaRigaVal('min',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal('rec',${i},this.value)" style="min-width:56px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`).join("");
+  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Focus</th><th>Mezzo</th><th>Dist (m)</th><th>n°</th><th>Min</th><th>Rec</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button></div>`;
 }
 function vistaAdatta() {
@@ -1087,9 +1116,13 @@ function vistaAdatta() {
       <span style="font-size:13px;margin:0;${hasOv ? "color:var(--blu);font-weight:600" : "color:var(--txt3)"}">${hasOv ? "✏️ Personalizzato per lui" : "Come il madre"}</span>
       ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:8px 12px" onclick="ripristinaAdatta()">↺ Ripristina il madre</button>` : ""}
     </div></div>`;
+  const grA = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
   const corpo = !sch.length
     ? `<div class="card"><p class="et">Nessun giorno programmato in ${s.tipo} nel madre. Imposta prima il programma.</p></div>`
-    : (s.tipo === "pista" ? _tabellaAdattaPista(a, righe) : _tabellaAdattaPal(a, righe));
+    : s.tipo !== "pista" ? _tabellaAdattaPal(a, righe)
+      : grA === "mezzo" ? _tabellaAdattaMezzo(a, righe)
+        : grA === "lanci" ? `<div class="card"><p class="et">Per i <b>lanciatori</b> l'adattamento fine (attrezzi, kg, tipi) si fa dall'editor completo: <b>Programma → Pista → «Programma per» → ${a.nome}</b>.</p></div>`
+          : _tabellaAdattaPista(a, righe);
   return `<button class="indietro" onclick="chiudiAdatta()">‹ Torna all'atleta</button>
     <div class="card"><h3>Adatta contenuto · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Cambia ripetute, %, distanze o carichi solo per ${a.nome}, senza toccare il madre. Tempi e pesi restano calcolati sui suoi PB. Si salva da solo.</p></div>

@@ -4,6 +4,19 @@
 // Riusa dal file pista.js: pistaCicliPiano, cicloDaLen, isoLocale, nSettimaneMeso, isScaricoIdx.
 
 function palRigaVuota() { return { esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" }; }
+// libreria esercizi sala in ordine alfabetico (condivisa: editor completo + Adatta)
+function _eserciziSala() {
+  return ((typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala.map(x => x.n) : [])
+    .slice().sort((a, b) => String(a).localeCompare(String(b), "it", { sensitivity: "base" }));
+}
+// <option> della tendina esercizio: tutta la libreria + il valore già scelto (anche personalizzato) + "Altro"
+function optEsercizioPal(val) {
+  const esercizi = _eserciziSala(), esc = x => String(x).replace(/"/g, "&quot;");
+  let h = `<option value="">—</option>`;
+  if (val && esercizi.indexOf(val) < 0) h += `<option value="${esc(val)}" selected>${val}</option>`;
+  h += esercizi.map(x => `<option value="${esc(x)}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  return h + `<option value="__altro__">✎ Altro (scrivi a mano)…</option>`;
+}
 function palSettVuota() { return { righe: [palRigaVuota()], nota: "" }; }
 function palGiornoVuoto() { return { giornoSett: "", settimane: [palSettVuota(), palSettVuota(), palSettVuota(), palSettVuota()] }; }
 function palMesoVuoto() { return { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [palGiornoVuoto(), palGiornoVuoto(), palGiornoVuoto()] }; }

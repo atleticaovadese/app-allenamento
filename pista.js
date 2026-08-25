@@ -289,6 +289,15 @@ function _coeffDist(co, D) {
   for (let i = 0; i < ks.length - 1; i++) if (D >= ks[i] && D <= ks[i + 1]) return lin(ks[i], ks[i + 1]);
   return null;
 }
+// distanze sprint fino a 400 (condivisa: editor completo + Adatta). Il tempo si calcola su qualsiasi distanza.
+const SPRINT_DIST = [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150, 180, 200, 250, 300, 350, 400];
+function optDistPista(val, profilo) {
+  const extra = (profilo && typeof PISTA_COEFF !== "undefined" && PISTA_COEFF[profilo]) ? Object.keys(PISTA_COEFF[profilo]).map(Number) : [];
+  const arr = Array.from(new Set(SPRINT_DIST.concat(extra))); const v = Number(val);
+  if (val !== "" && val != null && !isNaN(v) && arr.indexOf(v) < 0) arr.push(v);
+  arr.sort((a, b) => a - b);
+  return `<option value="">—</option>` + arr.map(x => `<option value="${x}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+}
 function pistaTempo(distanza, perc) {
   const p = pistaInit(), pb = pistaPB();
   if (!p.profilo || !pb || !distanza || !perc) return null;
