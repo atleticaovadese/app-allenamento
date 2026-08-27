@@ -242,6 +242,20 @@ function apriNotaSeduta(s) {
 function setNotaSeduta(s, v) { giornoCorrente().settimane[s].nota = v; savePista(); }
 function chiudiNotaSeduta() { chiudiScheda(); disegna(); }
 function mesoVuoto() { return { ciclo: "", blocco: "", inizio: "", focus: "", giorni: [giornoVuoto(), giornoVuoto(), giornoVuoto(), giornoVuoto()] }; }
+// avviso se il mesociclo non genererà sedute: manca la data d'inizio, oppure oggi è fuori dal periodo.
+function _avvisoInizioMeso(m) {
+  if (!m) return "";
+  if (!m.inizio) return `<div class="card" style="border-color:rgba(240,80,80,.55)"><p class="et" style="margin:0;color:var(--rosso)">⚠️ <b>Manca la data d'inizio</b> del mesociclo: senza, gli atleti <b>non vedono le sedute</b>. Impostala qui sotto in <b>«Inizio Sett. 1»</b>.</p></div>`;
+  const n = (typeof nSettimaneMeso === "function") ? nSettimaneMeso(m) : 4;
+  const start = new Date(m.inizio + "T00:00:00");
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + n * 7 - 1);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (today < start || today > end) {
+    const fmt = d => d.getDate() + " " + ((typeof MESI_IT !== "undefined" ? MESI_IT[d.getMonth()] : "") || (d.getMonth() + 1));
+    return `<div class="card" style="border-color:rgba(240,168,60,.5)"><p class="et" style="margin:0;color:var(--ambra,#e6a83c)">ℹ️ Questo mesociclo va dal <b>${fmt(start)}</b> al <b>${fmt(end)}</b>: <b>oggi è fuori</b> da questo periodo, quindi le sedute compaiono all'atleta solo tra quelle date.</p></div>`;
+  }
+  return "";
+}
 
 // TAPPA: programma madre PER DISCIPLINA. DEMO.pista è una mappa { vel:{...}, lanci:{...}, mezzo:{...} }.
 function _emptyPista() { return { profilo: "", pbManuale: "", atletaRif: "", mesocicli: [mesoVuoto()] }; }
@@ -423,7 +437,7 @@ function vistaProgrammaPista() {
 
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);
-  const testaMeso = `<div class="card">
+  const testaMeso = `${typeof _avvisoInizioMeso === "function" ? _avvisoInizioMeso(m) : ""}<div class="card">
       <label class="lab">Mesociclo dal Piano &amp; Picco</label>
       <select onchange="setPistaMesoDaPiano(this.value)" style="margin-top:6px">
         <option value="">— scegli (o imposta a mano) —</option>

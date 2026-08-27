@@ -430,7 +430,9 @@ function vistaCalendarioSquadra() {
   const gg = DEMO.giorniSettimana;
   const lista = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(S.gruppo) : DEMO.atleti;
   const righe = lista.map(a => {
-    const s = DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] });
+    // calcolo LIVE della settimana (riflette subito le modifiche ai programmi, senza aspettare il reload)
+    const s = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a)
+      : (DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] }));
     const celle = s.settimana.map((tp, i) => tp
       ? `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : 'nofatto'}" style="cursor:pointer" onclick="apriSedutaCal('${a.id}',${i},'${tp}')">${s.done[i] ? '✓' : ''}</div>`
       : `<div class="cell off"></div>`).join("");

@@ -297,7 +297,7 @@ function vistaProgrammaPistaLanci() {
     <button onclick="pistaAddMeso()">＋</button></div>`;
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);
-  const testaMeso = `<div class="card">
+  const testaMeso = `${typeof _avvisoInizioMeso === "function" ? _avvisoInizioMeso(m) : ""}<div class="card">
       <label class="lab">Mesociclo dal Piano &amp; Picco</label>
       <select onchange="setPistaMesoDaPiano(this.value)" style="margin-top:6px">
         <option value="">— scegli (o imposta a mano) —</option>
