@@ -413,14 +413,16 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
     const sec = ritmoMezzo(atleta, r.mezzo, opts);
     const cont = Number(r.min) > 0;
     const dist = Number(r.distanza) || 0, n = Number(r.n) || (dist > 0 ? 1 : 0);
+    // riga di SOLO TESTO: nessun numero (né minuti né distanza) ma un contenuto scritto (es. "10x2 min forte/piano")
+    const soloTesto = !cont && dist === 0;
     const vol = cont ? (sec != null ? Math.round(Number(r.min) * 60000 / sec) : 0) : dist * n;
     const tempoRip = cont ? null : (sec != null && dist ? Math.round((dist / 1000) * sec) : null);
     return {
-      id: "e" + i, contenuto: r.contenuto || "", mezzo: r.mezzo, distanza: dist, ripetute: n,
+      id: "e" + i, contenuto: r.contenuto || "", mezzo: r.mezzo, distanza: dist, ripetute: n, soloTesto: soloTesto,
       min: cont ? Number(r.min) : null, ritmoSecKm: sec, ritmoKm: sec != null ? _mzMMSS(sec) : "—",
       tempoRipSec: tempoRip, recupero: r.rec || "", volume: vol,
-      // ripetute: l'atleta segna il tempo reale di ognuna (mm:ss). Continuo: niente caselle.
-      tempi: cont ? null : Array(n).fill(null)
+      // ripetute: l'atleta segna il tempo reale di ognuna (mm:ss). Continuo / solo testo: niente caselle.
+      tempi: (cont || soloTesto) ? null : Array(n).fill(null)
     };
   });
   return _cacheSeduta({
@@ -463,6 +465,18 @@ function vistaPistaMezzo(s) {
       }).join("");
       bloccoTempi = `<p class="et" style="margin:8px 0 6px">Segna il tempo di ogni ripetuta${best != null ? ` · <b style="color:var(--verde)">meglio ${_mzMMSSc(best)}</b>` : ""}</p>
         <div class="tempi">${caselle}</div>`;
+    }
+    // riga di solo testo (nessun numero): mostra il contenuto come istruzione, senza "0 × 0 m" / volume
+    if (e.soloTesto) {
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <h3>${e.contenuto || "Lavoro"}</h3>
+          <span class="et" style="margin:0">${e.mezzo || ""}</span>
+        </div>
+        ${e.ritmoSecKm != null ? `<p class="et" style="margin:4px 0 0">ritmo indicativo <b>${e.ritmoKm}/km</b></p>` : ""}
+        ${e.recupero ? `<p class="et" style="margin:4px 0 0">rec ${e.recupero}</p>` : ""}
+        ${typeof bloccoSforzoPista === "function" ? bloccoSforzoPista(s.id, e) : ""}
+      </div>`;
     }
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:baseline">

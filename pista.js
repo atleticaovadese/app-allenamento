@@ -19,7 +19,8 @@ const PISTA_COEFF = {
 function _rigaValidaPista(r, gruppo) {
   if (!r) return false;
   if (gruppo === "lanci") return !!(r.mezzo && Number(r.n) > 0);
-  if (gruppo === "mezzo") return Number(r.distanza) > 0 || Number(r.min) > 0;
+  // mezzo: minuti O distanza O anche solo del testo scritto nel "Contenuto" (es. "10x2 min forte/piano")
+  if (gruppo === "mezzo") return Number(r.distanza) > 0 || Number(r.min) > 0 || !!(r.contenuto && String(r.contenuto).trim());
   return !!(r.distanza && Number(r.n) > 0);   // velocità / salti
 }
 function rigaVuota() { return { contenuto: "", distanza: "", n: "", rec: "", perc: "" }; }

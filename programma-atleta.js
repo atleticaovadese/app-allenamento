@@ -271,7 +271,7 @@ function posizioneProgramma() {
 // riepilogo breve di una seduta generata
 function riepilogoSeduta(s) {
   if (s.tipo === "pista") return (s.elementi || []).map(e =>
-    e.min != null ? `${e.min}′ ${e.mezzo || "continuo"}` : `${e.ripetute}×${e.distanza} m`).join(" · ");
+    e.soloTesto ? (e.contenuto || "lavoro") : e.min != null ? `${e.min}′ ${e.mezzo || "continuo"}` : e.lanci != null ? `${e.mezzo || "lanci"}${e.lanci ? " ×" + e.lanci : ""}` : `${e.ripetute}×${e.distanza} m`).join(" · ");
   return (s.esercizi || []).slice(0, 3).map(e => e.nome).join(" · ") + ((s.esercizi || []).length > 3 ? "…" : "");
 }
 
