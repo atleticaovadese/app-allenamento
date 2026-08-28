@@ -33,28 +33,33 @@ function apriVideo(nome, url, muscoli, cue, fonte) {
 // Libreria a lista raggruppata per distretto/zona (Sala, Mobilità, Pliometria).
 function vistaLibreria(tipo, titolo) {
   const items = LIBRERIE[tipo] || [];
-  const gruppi = {};
-  items.forEach((x, idx) => { (gruppi[x.g] = gruppi[x.g] || []).push(idx); });
   const conVideo = items.filter(x => x.v).length;
+  const q = (S.libQuery || "").toLowerCase().trim();
+  const riga = idx => { const x = items[idx]; return `<div class="lib-row" onclick="apriEs('${tipo}',${idx})">
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${x.n}</div><div class="et" style="margin-top:1px">${x.m || ""}</div></div>
+      ${x.v ? '<span class="vid-ic">▶</span>' : ""}<span class="freccia">›</span></div>`; };
 
   let h = `<div class="card"><h3>${titolo}</h3>
-    <p class="et" style="margin-top:2px">${items.length} esercizi · ${conVideo} con video · tocca per la scheda</p></div>`;
+    <p class="et" style="margin-top:2px">${items.length} esercizi · ${conVideo} con video · tocca per la scheda</p></div>
+    <div class="card"><input id="libSearch" value="${(S.libQuery || "").replace(/"/g, "&quot;")}" placeholder="🔎 Cerca un esercizio…" oninput="setLibQuery(this.value)" style="width:100%">
+      ${q ? `<button class="link-indietro" style="margin-top:8px" onclick="setLibQuery('')">✕ pulisci ricerca</button>` : ""}</div>`;
 
-  for (const g of Object.keys(gruppi)) {
-    h += `<p class="sez">${g}</p>`;
-    h += gruppi[g].map(idx => {
-      const x = items[idx];
-      return `<div class="lib-row" onclick="apriEs('${tipo}',${idx})">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:500">${x.n}</div>
-          <div class="et" style="margin-top:1px">${x.m || ""}</div>
-        </div>
-        ${x.v ? '<span class="vid-ic">▶</span>' : ""}
-        <span class="freccia">›</span>
-      </div>`;
-    }).join("");
+  if (q) {   // ricerca: lista piatta filtrata per nome o mezzo
+    const trovati = items.map((x, idx) => idx).filter(idx => (String(items[idx].n).toLowerCase().indexOf(q) >= 0) || (String(items[idx].m || "").toLowerCase().indexOf(q) >= 0));
+    h += trovati.length ? `<p class="sez">${trovati.length} risultat${trovati.length === 1 ? "o" : "i"}</p>` + trovati.map(riga).join("")
+      : `<div class="card"><p class="et">Nessun esercizio trovato per «${S.libQuery}».</p></div>`;
+    return h;
   }
+  const gruppi = {};
+  items.forEach((x, idx) => { (gruppi[x.g] = gruppi[x.g] || []).push(idx); });
+  for (const g of Object.keys(gruppi)) { h += `<p class="sez">${g}</p>` + gruppi[g].map(riga).join(""); }
   return h;
+}
+function setLibQuery(v) {
+  S.libQuery = v;
+  disegna();
+  const el = document.getElementById("libSearch");
+  if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n); } catch (e) { /* ok */ } }
 }
 
 function apriEs(tipo, idx) {

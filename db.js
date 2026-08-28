@@ -114,6 +114,7 @@ async function caricaDati() {
       scheda
     };
   });
+  DEMO.atleti.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "it", { sensitivity: "base" }));   // ordine alfabetico ovunque
   DEMO.mon = nuoviMon;
   DEMO.diariCoach = nuoviDiari;
   DEMO.report.daFare = nuovaDaFare;
@@ -422,6 +423,7 @@ function aggiungiAtletaLocale(a) {
   });
   DEMO.mon[a.id] = monDefault();
   DEMO.diariCoach[a.id] = diarioDefault();
+  DEMO.atleti.sort((x, y) => String(x.nome || "").localeCompare(String(y.nome || ""), "it", { sensitivity: "base" }));
 }
 
 async function creaAtleta(d) {

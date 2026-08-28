@@ -63,6 +63,23 @@ function apriEsercizioInfo(prot, i) {
       : `<div class="video-vuoto"><span>▶</span></div>
          <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio.</p>`}`);
 }
+// scheda "come si fa" di un esercizio dato solo il nome (usata nella seduta di palestra dell'atleta)
+function mostraSchedaEsercizio(nome) {
+  const lib = typeof cercaLibreria === "function" ? cercaLibreria(nome) : null;
+  const emb = lib && lib.v && typeof ytEmbed === "function" ? ytEmbed(lib.v) : "";
+  mostraFoglio(`
+    <div class="foglio-top"><h3 style="flex:1;text-align:center">${nome}</h3>
+      <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    ${lib && lib.cue ? `<p style="font-size:14px;line-height:1.6;margin-bottom:10px">${lib.cue}</p>` : ""}
+    ${emb
+      ? `<div class="yt-wrap"><iframe src="${emb}" title="${nome}"
+           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+           allowfullscreen loading="lazy"></iframe></div>
+         <a class="et" style="display:block;text-align:center;margin-top:8px;color:var(--blu)"
+            href="${lib.v}" target="_blank" rel="noopener">apri su YouTube ↗</a>`
+      : `<div class="video-vuoto"><span>▶</span></div>
+         <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio. Puoi cercarlo nella libreria (Sala).</p>`}`);
+}
 
 // recupero in secondi -> "3'" oppure "1'30"
 function fmtRec(sec) { if (!sec) return ""; const m = Math.floor(sec / 60), s = sec % 60; return s ? m + "'" + String(s).padStart(2, "0") : m + "'"; }
@@ -214,9 +231,10 @@ function esercizioAperto(s, x) {
       <h3>${x.nome}</h3>
       <span class="et" style="margin:0">${x.serie} × ${x.rep}${x.percentuale ? " · " + x.percentuale + "%" : ""}</span>
     </div>
-    <p class="et" style="margin:4px 0 10px">
+    <p class="et" style="margin:4px 0 8px">
       ${x.peso ? x.peso + " kg" : "corpo libero"}${x.tut ? " · TUT " + x.tut : ""}${x.recuperoSec ? " · rec " + fmtRec(x.recuperoSec) : ""}${x.vbtTarget ? " · vel. " + x.vbtTarget.toFixed(2) + " m/s" : ""}${volumeKg(x) ? " · vol " + volumeKg(x) + " kg" : ""}
     </p>
+    <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px;margin-bottom:10px" onclick="mostraSchedaEsercizio('${String(x.nome).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">▶ Come si fa</button>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <label class="lab" style="margin:0">Peso usato (kg)</label>
       <input inputmode="decimal" value="${x.pesoFatto != null ? x.pesoFatto : ""}" placeholder="${x.peso ? x.peso : "kg"}" style="width:110px"
