@@ -32,10 +32,23 @@ function palDi(g) {
   return DEMO.palestra[g];
 }
 function palestraInit() {
-  if (S.progAtleta && DEMO.palAtleta && DEMO.palAtleta[S.progAtleta]) return DEMO.palAtleta[S.progAtleta];   // programma personale
-  return palDi(S.progGruppo || "vel");
+  if (S.progAtleta && DEMO.palAtleta && DEMO.palAtleta[S.progAtleta]) return DEMO.palAtleta[S.progAtleta];   // programma personale (salva subito)
+  const g = S.progGruppo || "vel";
+  // MADRE: bozza solo dentro l'editor (S.vista "palestra"); fuori sempre il committed (gli atleti non vedono le bozze)
+  if (S.vista === "palestra") {
+    DEMO.draftPal = DEMO.draftPal || {};
+    if (!DEMO.draftPal[g]) DEMO.draftPal[g] = JSON.parse(JSON.stringify(palDi(g)));
+    return DEMO.draftPal[g];
+  }
+  return palDi(g);
 }
-function savePalestra() { if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
+function savePalestra() {
+  if (S.progAtleta) {   // programma personale: salva subito
+    if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+    if (typeof salvaCustom === "function") salvaCustom();
+  }
+  // madre: bozza in memoria; si salva con «Salva»
+}
 function palGiornoCorrente() { return palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno]; }
 
 // massimale dell'atleta di riferimento per un esercizio (dalla scheda)
@@ -295,5 +308,5 @@ function vistaProgrammaPalestra() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("palestra") : "");
 }

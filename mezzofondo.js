@@ -398,7 +398,7 @@ function vistaProgrammaPistaMezzo() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }
 
 // ---------- generazione seduta mezzofondo per l'atleta (dal madre del gruppo "mezzo") ----------

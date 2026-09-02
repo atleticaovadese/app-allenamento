@@ -270,10 +270,58 @@ function pistaDi(g) {
   return DEMO.pista[g];
 }
 function pistaInit() {
-  if (S.progAtleta && DEMO.pistaAtleta && DEMO.pistaAtleta[S.progAtleta]) return DEMO.pistaAtleta[S.progAtleta];   // programma personale
-  return pistaDi(S.progGruppo || "vel");
+  if (S.progAtleta && DEMO.pistaAtleta && DEMO.pistaAtleta[S.progAtleta]) return DEMO.pistaAtleta[S.progAtleta];   // programma personale (salva subito)
+  const g = S.progGruppo || "vel";
+  // MADRE: SOLO dentro l'editor (S.vista "pista") si lavora su una BOZZA in memoria; fuori (generazione, ecc.)
+  // si legge sempre il committed → le modifiche non salvate NON toccano gli atleti.
+  if (S.vista === "pista") {
+    DEMO.draftPista = DEMO.draftPista || {};
+    if (!DEMO.draftPista[g]) DEMO.draftPista[g] = JSON.parse(JSON.stringify(pistaDi(g)));
+    return DEMO.draftPista[g];
+  }
+  return pistaDi(g);
 }
-function savePista() { if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
+function savePista() {
+  if (S.progAtleta) {   // programma personale: isolato → salva subito
+    if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+    if (typeof salvaCustom === "function") salvaCustom();
+  }
+  // madre: la bozza è già aggiornata in memoria; nessun salvataggio finché non premi «Salva»
+}
+// ---------- SALVA / ANNULLA del programma MADRE (bozza) ----------
+function _bozzaProg(tipo, g) { return tipo === "palestra" ? (DEMO.draftPal && DEMO.draftPal[g]) : (DEMO.draftPista && DEMO.draftPista[g]); }
+function _liveProg(tipo, g) { return tipo === "palestra" ? (typeof palDi === "function" ? palDi(g) : null) : (typeof pistaDi === "function" ? pistaDi(g) : null); }
+function _bozzaModificata(tipo, g) { const d = _bozzaProg(tipo, g), l = _liveProg(tipo, g); return !!(d && l && JSON.stringify(d) !== JSON.stringify(l)); }
+function salvaProgMadre(tipo) {
+  const g = S.progGruppo || "vel";
+  const d = _bozzaProg(tipo, g);
+  if (d) {
+    if (tipo === "palestra") { DEMO.palestra[g] = d; delete DEMO.draftPal[g]; }
+    else { DEMO.pista[g] = d; delete DEMO.draftPista[g]; }
+    if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+    if (typeof salvaCustom === "function") salvaCustom();
+  }
+  disegna(); window.scrollTo(0, 0);
+  if (typeof alert === "function") alert("✓ Programma salvato: ora è attivo per gli atleti del gruppo che lo seguono.");
+}
+function annullaProgMadre(tipo) {
+  const g = S.progGruppo || "vel";
+  if (typeof confirm === "function" && !confirm("Annullare le modifiche non salvate del programma madre?")) return;
+  if (tipo === "palestra") { if (DEMO.draftPal) delete DEMO.draftPal[g]; } else { if (DEMO.draftPista) delete DEMO.draftPista[g]; }
+  disegna(); window.scrollTo(0, 0);
+}
+// barra in fondo all'editor madre: stato + Salva/Annulla (niente per il programma personale, che salva da solo)
+function _barraSalvaMadre(tipo) {
+  if (S.progAtleta) return "";
+  const g = S.progGruppo || "vel";
+  const mod = _bozzaModificata(tipo, g);
+  return `<div class="card" style="position:sticky;bottom:8px;${mod ? "border-color:var(--verde)" : ""};box-shadow:0 -2px 10px rgba(0,0,0,.15)">
+    <p class="et" style="margin:0 0 8px;${mod ? "color:var(--ambra,#e6a83c)" : "color:var(--txt3)"}">${mod ? "✏️ Hai <b>modifiche non salvate</b>: valgono per il gruppo solo dopo «Salva»." : "Le modifiche al programma madre si applicano solo quando premi «Salva»."}</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn" style="flex:1${mod ? "" : ";opacity:.55"}" onclick="salvaProgMadre('${tipo}')">💾 Salva programma</button>
+      ${mod ? `<button class="btn btn-2" style="width:auto;padding:10px 14px" onclick="annullaProgMadre('${tipo}')">Annulla</button>` : ""}
+    </div></div>`;
+}
 
 // PB di riferimento: dall'atleta scelto (in base al profilo) oppure scritto a mano.
 function pistaPB() {
@@ -518,5 +566,5 @@ function vistaProgrammaPista() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane;
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }

@@ -339,9 +339,11 @@ function vistaAtletaDettaglio() {
       <span style="color:${c};font-size:13px">${t}</span></div>`;
   }).join("");
 
-  const sett = s.settimana.map((tp, i) => `
+  // settimana LIVE (riflette subito i programmi) e quadratini cliccabili → aprono l'allenamento del giorno
+  const wk = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a) : s;
+  const sett = wk.settimana.map((tp, i) => `
     <div class="mini-g">
-      <div class="mini-c ${tp ? TIPO_CELLA[tp] : 'vuoto'} ${s.done[i] ? '' : 'nofatto'}">${s.done[i] ? '✓' : ''}</div>
+      <div class="mini-c ${tp ? TIPO_CELLA[tp] : 'vuoto'} ${wk.done[i] ? '' : 'nofatto'}"${tp ? ` style="cursor:pointer" onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}>${wk.done[i] ? '✓' : ''}</div>
       <div class="et" style="text-align:center;font-size:10px">${DEMO.giorniSettimana[i]}</div>
     </div>`).join("");
 
@@ -1004,6 +1006,18 @@ function apriAdatta(atletaId) {
   const sch = _giorniSched("pista");
   S.adatta = { atletaId, tipo: "pista", gi: sch.length ? sch[0].gi : 0, wk: 0 };
   disegna(); window.scrollTo(0, 0);
+}
+// voce di menu "Adatta contenuto": scegli l'atleta, poi apre l'editor Adatta (override per lui, non tocca il madre)
+function vistaAdattaScegli() {
+  const lista = DEMO.atleti || [];
+  const opts = lista.map(a => `<option value="${a.id}">${a.nome}${a.bloccato ? " 🔒" : ""}</option>`).join("");
+  return `<div class="card"><h3>Adatta contenuto</h3>
+      <p class="et" style="margin-top:2px">Scegli un atleta per personalizzare il suo programma (ripetute, %, distanze, carichi) <b>senza toccare il madre</b>.</p></div>
+    <div class="card">
+      <label class="lab">Atleta</label>
+      <select onchange="if(this.value)apriAdatta(this.value)" style="margin-top:6px"><option value="">— scegli l'atleta —</option>${opts}</select>
+      <p class="et" style="margin-top:8px;color:var(--txt3)">In alternativa, per riscrivere tutto il programma di un atleta usa <b>Pista/Palestra → «Programma per» → il suo nome</b>.</p>
+    </div>`;
 }
 function chiudiAdatta() { S.adatta = null; disegna(); window.scrollTo(0, 0); }
 function setAdattaSel(campo, val) {

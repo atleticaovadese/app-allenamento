@@ -83,7 +83,7 @@ const MENU_COACH = [
   { k: "cal-squadra", ic: "▦", l: "Calendario squadra" },
   { k: "notifiche", ic: "🔔", l: "Notifiche" },
   { g: "Programma", ic: "▦", subs: [
-    ["pista", "Pista"], ["palestra", "Palestra"], ["riscaldamento", "Riscaldamento"],
+    ["pista", "Pista"], ["palestra", "Palestra"], ["adatta", "Adatta contenuto (per atleta)"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["per-disciplina", "Per disciplina"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
@@ -782,6 +782,7 @@ function disegna() {
   else if (coach && S.vista === "periodizzazione") corpo = vistaPeriodizzazione();
   else if (coach && S.vista === "pista") corpo = vistaProgrammaPista();
   else if (coach && S.vista === "palestra") corpo = vistaProgrammaPalestra();
+  else if (coach && S.vista === "adatta") corpo = vistaAdattaScegli();
   else if (coach && S.vista === "vel-target") corpo = vistaVelocitaTarget();
   else if (coach && S.vista === "ritmi-mezzo") corpo = vistaRitmiMezzofondo();
   else if (coach && S.vista === "test-lattato") corpo = vistaTestLattato();
