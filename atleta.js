@@ -565,16 +565,25 @@ function _presenzeMesiReali(a) {
   }
   return out;
 }
+// presenze dell'atleta da UNA sola fonte (_presenzeMesiReali) → Home e vista Presenze coerenti (fatti/programmati/%)
+function _presenzeAtleta(a) {
+  const mesi = _presenzeMesiReali(a);
+  const totF = mesi.reduce((s, m) => s + m[2], 0);
+  const totP = Math.max(mesi.reduce((s, m) => s + m[1], 0), totF);   // programmati almeno = fatti (niente "1/0")
+  const cur = mesi.length ? mesi[mesi.length - 1] : ["", 0, 0];
+  const curF = cur[2], curP = Math.max(cur[1], curF);
+  const pct = (f, p) => p > 0 ? Math.round(f / p * 100) : 0;
+  return {
+    mese: { nome: cur[0], fatti: curF, prog: curP, pct: pct(curF, curP) },
+    stagione: { fatti: totF, prog: totP, pct: pct(totF, totP) }
+  };
+}
 function vistaPresenze() {
   const a = atletaCorrente();
   const mesi = _presenzeMesiReali(a);
-  const totFatti = mesi.reduce((s, m) => s + m[2], 0);
-  const totProg = mesi.reduce((s, m) => s + m[1], 0);
-  const ader = totProg > 0 ? Math.round(totFatti / totProg * 100) : 0;
-  // mese corrente = ultimo elemento (la lista va da settembre a oggi)
-  const meseCur = mesi.length ? mesi[mesi.length - 1] : ["", 0, 0];
-  const meseNome = meseCur[0], progMese = meseCur[1], fattiMese = meseCur[2];
-  const aderMese = progMese > 0 ? Math.round(fattiMese / progMese * 100) : 0;
+  const pr = _presenzeAtleta(a);   // stessa fonte della Home
+  const totFatti = pr.stagione.fatti, totProg = pr.stagione.prog, ader = pr.stagione.pct;
+  const meseNome = pr.mese.nome, progMese = pr.mese.prog, fattiMese = pr.mese.fatti, aderMese = pr.mese.pct;
   const max = Math.max(1, ...mesi.map(m => m[1]), ...mesi.map(m => m[2]));
 
   const barre = mesi.map(([nome, prog, fatti]) => `

@@ -219,8 +219,11 @@ function vistaOggi() {
       </div>`;
   const tacche = pos ? Array.from({ length: pos.tot },
     (_, i) => `<i class="${i < pos.sett ? "on" : ""}"></i>`).join("") : "";
-  const ad = a.presenzeStagione[1] ? Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100) : 0;
-  const pmPct = a.presenzeMese[1] ? Math.round(a.presenzeMese[0] / a.presenzeMese[1] * 100) : 0;
+  // presenze dalla STESSA fonte della vista Presenze (evita che Home e Presenze diano numeri diversi)
+  const pres = (typeof _presenzeAtleta === "function") ? _presenzeAtleta(a)
+    : { mese: { fatti: a.presenzeMese[0], prog: a.presenzeMese[1], pct: a.presenzeMese[1] ? Math.round(a.presenzeMese[0] / a.presenzeMese[1] * 100) : 0 }, stagione: { fatti: a.presenzeStagione[0], prog: a.presenzeStagione[1], pct: a.presenzeStagione[1] ? Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100) : 0 } };
+  const ad = pres.stagione.pct;
+  const pmPct = pres.mese.pct;
   const d = DEMO.diarioOggi, fatto = d.salvato && diarioCompleto(d);
 
   // il cruscotto si adatta: per il mezzofondo mostra ritmi/zone e km invece di sprint/salti
@@ -280,7 +283,7 @@ function vistaOggi() {
 
     <div class="q" onclick="vai('presenze')"><div class="q-ic">📅</div>
       <div class="k">Presenze del mese</div>
-      <div><div class="v">${a.presenzeMese[0]} / ${a.presenzeMese[1]}</div>
+      <div><div class="v">${pres.mese.fatti} / ${pres.mese.prog}</div>
         <div class="qbar"><i style="width:${pmPct}%"></i></div></div>
     </div>
 
@@ -288,7 +291,7 @@ function vistaOggi() {
       <div class="k">Stagione</div>
       <div style="display:flex;align-items:center;gap:11px;margin-top:5px">
         ${_ringPct(ad, 46, ad >= 85 ? "var(--verde)" : "var(--blu)")}
-        <div class="d">${a.presenzeStagione[0]} su ${a.presenzeStagione[1]}<br>presenze</div>
+        <div class="d">${pres.stagione.fatti} su ${pres.stagione.prog}<br>presenze</div>
       </div>
     </div>
 
