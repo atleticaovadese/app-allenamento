@@ -571,6 +571,10 @@ function vistaPresenze() {
   const totFatti = mesi.reduce((s, m) => s + m[2], 0);
   const totProg = mesi.reduce((s, m) => s + m[1], 0);
   const ader = totProg > 0 ? Math.round(totFatti / totProg * 100) : 0;
+  // mese corrente = ultimo elemento (la lista va da settembre a oggi)
+  const meseCur = mesi.length ? mesi[mesi.length - 1] : ["", 0, 0];
+  const meseNome = meseCur[0], progMese = meseCur[1], fattiMese = meseCur[2];
+  const aderMese = progMese > 0 ? Math.round(fattiMese / progMese * 100) : 0;
   const max = Math.max(1, ...mesi.map(m => m[1]), ...mesi.map(m => m[2]));
 
   const barre = mesi.map(([nome, prog, fatti]) => `
@@ -589,11 +593,15 @@ function vistaPresenze() {
   const vuoto = totFatti === 0 && totProg === 0;
 
   return `
-  <div class="quadri" style="margin-bottom:11px">
-    <div class="q"><div class="k">Fatti</div><div class="v">${totFatti}</div></div>
-    <div class="q"><div class="k">Programmati</div><div class="v">${totProg}</div></div>
-    <div class="q" style="border-color:rgba(124,194,67,.4)">
-      <div class="k">Aderenza</div><div class="v" style="color:var(--verde)">${ader}%</div></div>
+  <div class="griglia2" style="margin-bottom:11px">
+    <div class="num" style="border-color:rgba(77,154,255,.4)">
+      <div class="k">Questo mese${meseNome ? " · " + meseNome : ""}</div>
+      <div class="v">${fattiMese} / ${progMese}</div>
+      <div class="et" style="margin-top:2px;color:var(--blu)">${aderMese}% aderenza</div></div>
+    <div class="num" style="border-color:rgba(124,194,67,.4)">
+      <div class="k">Generale (stagione)</div>
+      <div class="v">${totFatti} / ${totProg}</div>
+      <div class="et" style="margin-top:2px;color:var(--verde)">${ader}% aderenza</div></div>
   </div>
 
   <div class="card">
@@ -607,12 +615,7 @@ function vistaPresenze() {
     ${vuoto ? `<p class="et" style="text-align:center;padding:18px 0">Ancora nessun allenamento registrato.<br>Chiudi le sedute e qui vedrai le tue presenze mese per mese.</p>` : `<div class="grafico">${barre}</div>`}
   </div>
 
-  ${notaInf}
-
-  <div class="griglia2">
-    <div class="num"><div class="k">Questo mese</div><div class="v">${a.presenzeMese[0]} / ${a.presenzeMese[1]}</div></div>
-    <div class="num"><div class="k">Stagione</div><div class="v">${a.presenzeStagione[0]} / ${a.presenzeStagione[1]}</div></div>
-  </div>`;
+  ${notaInf}`;
 }
 
 // ---------- Calendario: mese / mesociclo ----------
