@@ -558,7 +558,7 @@ function _presenzeMesiReali(a) {
   while ((y < now.getFullYear() || (y === now.getFullYear() && mo <= now.getMonth())) && guard++ < 14) {
     const startISO = iso(new Date(y, mo, 1)); let endISO = iso(new Date(y, mo + 1, 0));
     if (endISO > todayISO) endISO = todayISO; // non contare giorni futuri del mese corrente
-    const done = svolte.filter(s => s.data >= startISO && s.data <= endISO).length;
+    const done = svolte.filter(s => s.tipo !== "extra" && s.data >= startISO && s.data <= endISO).length;   // le corse extra non sono presenze
     const prog = (typeof contaProgrammate === "function") ? contaProgrammate(a, startISO, endISO) : 0;
     out.push([MESI[mo], prog, done]);
     mo++; if (mo > 11) { mo = 0; y++; }
@@ -659,7 +659,8 @@ function vistaMieiAllenamenti() {
   const lista = ((a && DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
   // ogni card è toccabile → riapre l'allenamento per correggere pesi / tempi
   const cards = (typeof _cardSvolta === "function") ? lista.map(sv =>
-    `<div style="cursor:pointer" onclick="apriSedutaSvolta('${sv.data}','${sv.tipo}',${sv.giorno != null ? sv.giorno : "null"})">${_cardSvolta(sv)}</div>`).join("") : "";
+    sv.tipo === "extra" ? _cardSvolta(sv)   // la corsa extra non si riapre come seduta
+      : `<div style="cursor:pointer" onclick="apriSedutaSvolta('${sv.data}','${sv.tipo}',${sv.giorno != null ? sv.giorno : "null"})">${_cardSvolta(sv)}</div>`).join("") : "";
   const pend = (typeof codaSvoltePendenti === "function") ? codaSvoltePendenti() : 0;
   const avviso = pend > 0 ? `<div class="card" style="border-color:rgba(240,168,60,.5)"><p class="et" style="margin:0;color:var(--giallo,#e6a83c)">📶 ${pend} allenament${pend === 1 ? "o" : "i"} in attesa di connessione: ${pend === 1 ? "è salvato" : "sono salvati"} sul telefono e si invia${pend === 1 ? "" : "no"} da solo appena torni online. Non perdi nulla.</p></div>` : "";
   return `<div class="card"><h3>I miei allenamenti svolti</h3>

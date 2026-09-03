@@ -245,9 +245,10 @@ async function caricaDati() {
     const _n = new Date();
     const stagStart = isoL(_n.getMonth() >= 8 ? new Date(_n.getFullYear(), 8, 1) : new Date(_n.getFullYear() - 1, 8, 1));
     let stagRows = [];
-    try { const { data } = await sb.from("seduta_svolta").select("atleta_id,data").eq("chiusa", true).gte("data", stagStart); stagRows = data || []; } catch (e) { /* ignora */ }
+    // le corse EXTRA non sono presenze programmate: le escludo dal conteggio (contano solo come km)
+    try { const { data } = await sb.from("seduta_svolta").select("atleta_id,data").eq("chiusa", true).neq("tipo", "extra").gte("data", stagStart); stagRows = data || []; } catch (e) { /* ignora */ }
     (DEMO.atleti || []).forEach(a => {
-      const doneM = (svolte || []).filter(s => s.atleta_id === a.id && s.data >= meseStart && s.data <= oggiStr).length;
+      const doneM = (svolte || []).filter(s => s.atleta_id === a.id && s.tipo !== "extra" && s.data >= meseStart && s.data <= oggiStr).length;
       const doneS = stagRows.filter(s => s.atleta_id === a.id && s.data <= oggiStr).length;
       const progM = (typeof contaProgrammate === "function") ? contaProgrammate(a, meseStart, oggiStr) : 0;
       const progS = (typeof contaProgrammate === "function") ? contaProgrammate(a, stagStart, oggiStr) : 0;
@@ -255,30 +256,33 @@ async function caricaDati() {
       a.presenzeStagione = [doneS, Math.max(progS, doneS)];
       if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progS > 0 ? Math.min(100, Math.round(doneS / progS * 100)) : (doneS > 0 ? 100 : 0);
       // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
-      if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; }
+      if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; }
     });
   } catch (e) { /* tabella seduta_svolta assente o offline */ }
 }
 // settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
-function _settimanaMonReale(a) {
-  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0];
+function _settimanaMonReale(a, off) {
+  off = off || 0;
+  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0];
   const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const now = new Date();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + off * 7);
   const svolte = (DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [];
   const gare = (typeof gareGruppo === "function" && typeof gruppoDi === "function") ? gareGruppo(gruppoDi(a)) : (DEMO.gareRaw || []);
   for (let i = 0; i < 7; i++) {
     const iso = isoL(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
     const svGiorno = svolte.filter(sv => sv.data === iso);
-    done[i] = svGiorno.length ? 1 : 0;
+    const reali = svGiorno.filter(sv => sv.tipo !== "extra");     // le extra non contano come "seduta fatta"
+    done[i] = reali.length ? 1 : 0;
+    extra[i] = svGiorno.filter(sv => sv.tipo === "extra").reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);
     let tipo = "";
     if (typeof seduteDelGiorno === "function") {
       try { const sd = seduteDelGiorno(iso, false, a); tipo = sd.some(x => x.tipo === "pista") ? "pista" : sd.some(x => x.tipo === "palestra") ? "palestra" : ""; } catch (e) { /* ignora */ }
     }
-    if (!tipo && svGiorno.length) tipo = svGiorno.some(x => x.tipo === "palestra") ? "palestra" : "pista";  // svolto ma non programmato
+    if (!tipo && reali.length) tipo = reali.some(x => x.tipo === "palestra") ? "palestra" : "pista";  // svolto ma non programmato
     sett[i] = (gare || []).some(g => g.data === iso) ? "gara" : tipo;
   }
-  return { settimana: sett, done };
+  return { settimana: sett, done, extra };
 }
 
 // ---------- scrittura: nuovo atleta ----------

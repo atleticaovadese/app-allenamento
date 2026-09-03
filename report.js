@@ -171,7 +171,7 @@ function _rMesoWin(mesocicli, i) {
 function _rGraficoMeso(atletaId, win) {
   if (!win) return "";
   const dd = ((DEMO.diariStorico || {})[atletaId] || []).filter(x => { const t = new Date((x.data || "") + "T00:00:00"); return t >= win.start && t < win.end; }).sort((x, y) => x.data < y.data ? -1 : 1);
-  const nSed = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(s => { const t = new Date((s.data || "") + "T00:00:00"); return t >= win.start && t < win.end; }).length;
+  const nSed = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(s => { if (s.tipo === "extra") return false; const t = new Date((s.data || "") + "T00:00:00"); return t >= win.start && t < win.end; }).length;
   if (!dd.length) return `<p class="sub muted" style="margin-top:4px">${nSed} allenamenti svolti · nessun diario in questo periodo</p>`;
   const media = (dd.reduce((s, v) => s + (v.prontezza || 0), 0) / dd.length).toFixed(1);
   const bars = dd.slice(-14).map(v => ({ v: v.prontezza != null ? Math.round(v.prontezza * 10) / 10 : 0, lab: (v.data || "").slice(8, 10) + "/" + (v.data || "").slice(5, 7) }));
@@ -617,8 +617,8 @@ function _reportBodyHTML(id) {
   const inf = (DEMO.infortuni || []).filter(i => (i.atleta === id) && i.stato !== "Risolto");
   if (inf.length) h += `<p class="sub" style="margin-top:8px"><b class="r">Infortuni/fastidi in corso</b></p><table><tr><th>Zona</th><th>Tipo</th><th>Stato</th><th>Dal</th></tr>${inf.map(i => `<tr><td>${i.zona}${i.lato ? " " + i.lato : ""}</td><td>${i.tipo || ""}</td><td>${i.stato || "Attivo"}</td><td>${_rDataL(i.dataInizio || i.dal || "")}</td></tr>`).join("")}</table>`;
 
-  // --- allenamenti svolti ---
-  const tutteSvolte = ((DEMO.seduteSvolte || {})[id] || []).filter(s => _rInPeriodo(s.data));
+  // --- allenamenti svolti (le corse EXTRA hanno una sezione a parte, sotto) ---
+  const tutteSvolte = ((DEMO.seduteSvolte || {})[id] || []).filter(s => s.tipo !== "extra" && _rInPeriodo(s.data));
   const nSvolte = tutteSvolte.length, nPista = tutteSvolte.filter(s => s.tipo === "pista").length;
   const svolte = tutteSvolte.slice().sort((x, y) => x.data < y.data ? 1 : -1).slice(0, 12);
   h += `<h2>Allenamenti svolti (${nSvolte})</h2>`;
@@ -636,6 +636,18 @@ function _reportBodyHTML(id) {
       return `<tr><td>${_rDataL(sv.data)}</td><td>${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.fastidi ? ' <span class="r">⚠</span>' : ""}</td><td>${sv.durata_min ? sv.durata_min + "′" : "—"}${sv.rpe ? " · RPE " + sv.rpe : ""}</td><td>${cont || "—"}</td></tr>`;
     }).join("")}</table>`;
   } else h += `<p class="muted">Nessun allenamento chiuso ancora dall'atleta.</p>`;
+
+  // --- corse in più (extra) segnate dall'atleta ---
+  const extraSv = ((DEMO.seduteSvolte || {})[id] || []).filter(s => s.tipo === "extra" && _rInPeriodo(s.data)).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  if (extraSv.length) {
+    const totKm = extraSv.reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);
+    h += `<h2>Corse in più (extra) · ${Math.round(totKm * 10) / 10} km</h2>`;
+    h += `<table><tr><th>Data</th><th>Km</th><th>Passo</th><th>RPE</th><th>Note</th></tr>${extraSv.map(sv => {
+      const d = sv.dati || {};
+      const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "—";
+      return `<tr><td>${_rDataL(sv.data)}</td><td><b>${d.km != null ? d.km : "—"}</b></td><td>${passo}</td><td>${sv.rpe != null ? sv.rpe : "—"}</td><td>${d.note || ""}</td></tr>`;
+    }).join("")}</table>`;
+  }
 
   // --- carico e forma nel tempo (sRPE + ACWR) ---
   h += _rCaricoTrend(id);

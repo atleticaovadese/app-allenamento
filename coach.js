@@ -345,13 +345,23 @@ function vistaAtletaDettaglio() {
       <span style="color:${c};font-size:13px">${t}</span></div>`;
   }).join("");
 
-  // settimana LIVE (riflette subito i programmi) e quadratini cliccabili → aprono l'allenamento del giorno
+  // settimana LIVE (riflette subito i programmi) e quadratini cliccabili → aprono l'allenamento del giorno.
+  // Giorni con CORSA EXTRA: anello verde intorno alla casella (+ 🏃 se non c'è una seduta programmata).
   const wk = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a) : s;
-  const sett = wk.settimana.map((tp, i) => `
-    <div class="mini-g">
-      <div class="mini-c ${tp ? TIPO_CELLA[tp] : 'vuoto'} ${wk.done[i] ? '' : 'nofatto'}"${tp ? ` style="cursor:pointer" onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}>${wk.done[i] ? '✓' : ''}</div>
+  const sett = wk.settimana.map((tp, i) => {
+    const ex = wk.extra && wk.extra[i] > 0;
+    const ring = ex ? "box-shadow:0 0 0 2px var(--verde);" : "";
+    const dim = wk.done[i] ? "" : (ex ? "" : "nofatto");
+    const glyph = wk.done[i] ? "✓" : (ex ? "🏃" : "");
+    return `<div class="mini-g">
+      <div class="mini-c ${tp ? TIPO_CELLA[tp] : 'vuoto'} ${dim}" style="${tp ? "cursor:pointer;" : ""}${ring}"${tp ? ` onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}${ex ? ` title="+${wk.extra[i]} km corsi in più"` : ""}>${glyph}</div>
       <div class="et" style="text-align:center;font-size:10px">${DEMO.giorniSettimana[i]}</div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
+  // riquadro Km settimana (solo mezzofondo/fondo)
+  const isMezzoA = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
+  const kmProgA = (isMezzoA && typeof kmSettAtleta === "function") ? kmSettAtleta(a) : 0;
+  const kmExA = (isMezzoA && typeof kmExtraSett === "function") ? kmExtraSett(a) : 0;
 
   return `
   <button class="indietro" onclick="chiudiAtleta()">‹ Squadra</button>
@@ -371,6 +381,7 @@ function vistaAtletaDettaglio() {
     <div class="q"><div class="k">ACWR</div><div class="v">${s.acwr}</div></div>
     <div class="q"><div class="k">Forma (TSB)</div><div class="v">${s.forma}</div></div>
     <div class="q"><div class="k">Prontezza</div><div class="v">${s.prontezza}</div></div>
+    ${isMezzoA ? `<div class="q"><div class="k">Km settimana</div><div class="v">${kmProgA + kmExA}</div>${kmExA > 0 ? `<div class="et" style="color:var(--verde);margin-top:1px">🏃 +${kmExA} extra</div>` : ""}</div>` : ""}
   </div>
   ${s.caricoInfo ? `<div class="card" style="border-color:rgba(77,154,255,.4);margin-bottom:11px"><p class="et" style="margin:0;color:var(--blu)">📊 ${s.caricoInfo}</p></div>` : ""}
 
@@ -436,24 +447,40 @@ async function cambiaEmailAtleta(id) {
 // ---------- calendario squadra ----------
 function vistaCalendarioSquadra() {
   const gg = DEMO.giorniSettimana;
+  const off = S.calSqOff || 0;
   const lista = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(S.gruppo) : DEMO.atleti;
   const righe = lista.map(a => {
     // calcolo LIVE della settimana (riflette subito le modifiche ai programmi, senza aspettare il reload)
-    const s = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a)
-      : (DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0] }));
-    const celle = s.settimana.map((tp, i) => tp
-      ? `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : 'nofatto'}" style="cursor:pointer" onclick="apriSedutaCal('${a.id}',${i},'${tp}')">${s.done[i] ? '✓' : ''}</div>`
-      : `<div class="cell off"></div>`).join("");
+    const s = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a, off)
+      : (DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0], extra: [0, 0, 0, 0, 0, 0, 0] }));
+    const celle = s.settimana.map((tp, i) => {
+      const ex = s.extra && s.extra[i] > 0;
+      const ring = ex ? "box-shadow:0 0 0 2px var(--verde);" : "";
+      const title = ex ? ` title="+${s.extra[i]} km corsi in più"` : "";
+      if (tp) return `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${s.done[i] ? '✓' : (ex ? '🏃' : '')}</div>`;
+      if (ex) return `<div class="cell off" style="${ring}"${title}>🏃</div>`;
+      return `<div class="cell off"></div>`;
+    }).join("");
     return `<div class="srow">
       <span class="srow-n">${nomeBreve(a.nome)}</span>${celle}</div>`;
   }).join("");
-  const settLbl = DEMO.report.settimana || (typeof _settimanaReport === "function" ? _settimanaReport() : "");
+  const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const now = new Date();
+  const lun = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + off * 7);
+  const dom = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + 6);
+  const rangeLbl = `${lun.getDate()} – ${dom.getDate()} ${(typeof MESI_FULL !== "undefined" ? MESI_FULL[dom.getMonth()] : "")}`;
+  const settTxt = off === 0 ? "Questa settimana" : (off === -1 ? "Settimana scorsa" : (off < 0 ? off + " settimane" : "+" + off + " settimane"));
 
   return `
   <div class="card">
     <h3>Calendario squadra</h3>
-    <p class="et" style="margin-top:2px">${settLbl} · chi si allena quando</p></div>
+    <p class="et" style="margin-top:2px">Chi si allena quando</p></div>
   ${typeof chipsGruppi === "function" ? chipsGruppi() : ""}
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px">
+    <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="calSqSett(-1)">‹</button>
+    <div style="text-align:center"><b>${settTxt}</b><div class="et">${rangeLbl}</div></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="calSqSett(1)">›</button>
+  </div>
   <div class="card">
     <p class="et" style="margin-top:0">${nomeGruppo(S.gruppo)} · ${lista.length} atlet${lista.length === 1 ? "a" : "i"}</p>
     <div class="shead"><span></span>${gg.map(g => `<span>${g}</span>`).join("")}</div>
@@ -463,16 +490,18 @@ function vistaCalendarioSquadra() {
       <span><span class="quad" style="background:#5148b0"></span> palestra</span>
       <span><span class="quad" style="background:#d85a30"></span> gara</span>
       <span>✓ fatto</span>
+      <span><span class="quad" style="background:transparent;box-shadow:0 0 0 2px var(--verde)"></span> 🏃 corsa in più</span>
     </div>
     <p class="et" style="margin-top:8px;color:var(--txt3)">Tocca una casella per aprire l'allenamento di quell'atleta in quel giorno.</p>
   </div>`;
 }
-// tocco su una casella del calendario squadra → apre la seduta di quell'atleta in quel giorno (settimana corrente)
-function apriSedutaCal(atletaId, off, tp) {
+function calSqSett(d) { S.calSqOff = (S.calSqOff || 0) + d; disegna(); window.scrollTo(0, 0); }
+// tocco su una casella del calendario squadra → apre la seduta di quell'atleta in quel giorno (settimana con offset)
+function apriSedutaCal(atletaId, off, tp, wkOff) {
   const a = DEMO.atleti.find(x => x.id === atletaId); if (!a) return;
   if (tp === "gara") { alert("🏁 Gara in programma per " + a.nome + " in questo giorno."); return; }
   const now = new Date();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + (Number(wkOff) || 0) * 7);
   const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + Number(off));
   const iso = (typeof isoDiData === "function") ? isoDiData(d) : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const sd = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(iso, false, a) : [];
@@ -1268,8 +1297,8 @@ function bloccoScreening(atletaId, giorni, titolo) {
   const vbtPrima = (DEMO.vbtLog || []).filter(l => l.atletaId === atletaId && l.vbtEseguita != null && l.data < dalISO);
   const gare = (DEMO.risultatiGara || []).filter(r => r.atletaId === atletaId && inWin(r.data));
 
-  // presenze REALI del periodo = sedute chiuse (seduta_svolta), non solo quelle con tempi/VBT segnati
-  const sedute = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(sv => inWin(sv.data)).length;
+  // presenze REALI del periodo = sedute chiuse (seduta_svolta), non solo quelle con tempi/VBT segnati (no corse extra)
+  const sedute = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(sv => sv.tipo !== "extra" && inWin(sv.data)).length;
   const volume = pista.reduce((s, x) => s + (x.volume || 0), 0);
   const dist = [...new Set(pista.map(x => x.distanza))].sort((a, b) => a - b);
   let mig = 0, peg = 0;

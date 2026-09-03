@@ -383,6 +383,7 @@ function vistaSeduta() {
       <p style="font-size:13px;margin-top:6px;opacity:.9">${s.focus}</p>
     </div>
     ${s.chiusa ? `<div class="card" style="border-color:var(--verde);background:var(--verde-bg)"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Allenamento già svolto${s.rpe ? " · RPE " + s.rpe : ""}${s.durata ? " · " + s.durata + "′" : ""}</p><p class="et" style="margin:4px 0 0">Lo stai <b>rivedendo</b>: i tuoi dati sono già salvati. Puoi correggere qualcosa se serve e richiudere.</p></div>` : ""}
+    ${_notaExtraGiorno(s)}
     ${bloccoObiettivi(s)}
     <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>
     ${_extraBtnSeduta()}
@@ -394,6 +395,23 @@ function _extraBtnSeduta() {
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
   if (!a || typeof gruppoDi !== "function" || gruppoDi(a) !== "mezzo" || typeof apriExtra !== "function") return "";
   return `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>`;
+}
+// nota "corsa in più" nel giorno della seduta (la vede il coach aprendo la giornata e l'atleta): km · passo · RPE
+function _extraDelGiorno(aid, dataISO) {
+  return ((DEMO.seduteSvolte && DEMO.seduteSvolte[aid]) || []).filter(sv => sv.tipo === "extra" && sv.data === dataISO);
+}
+function _notaExtraGiorno(s) {
+  if (!s || !s.atletaId) return "";
+  const ex = _extraDelGiorno(s.atletaId, s.dataISO);
+  if (!ex.length) return "";
+  const righe = ex.map(sv => {
+    const d = sv.dati || {};
+    const passo = (d.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(d.passoSec) + "/km" : "";
+    return `<b>${d.km} km</b>${passo}${sv.rpe != null ? " · RPE " + sv.rpe : ""}${d.note ? " · " + d.note : ""}`;
+  }).join("<br>");
+  return `<div class="card" style="border-color:rgba(124,194,67,.5);background:var(--verde-bg)">
+    <p style="margin:0;font-weight:600;color:var(--verde)">🏃 Corsa in più in questo giorno</p>
+    <p class="et" style="margin:4px 0 0">${righe}</p></div>`;
 }
 function segnalaInfortunioSeduta() {
   const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id) || "";
