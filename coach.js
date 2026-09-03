@@ -273,6 +273,12 @@ function notificheCoach(includiVisti) {
     const rpeLim = (sog.rpeAlto || 9);
     ((DEMO.seduteSvolte || {})[a.id] || []).forEach(sv => {
       if (gg(sv.data) > 21) return;                       // solo le ultime ~3 settimane
+      // allenamento EXTRA segnato dall'atleta (corsa in più) → notifica
+      if (sv.tipo === "extra") {
+        const km = sv.dati && sv.dati.km;
+        add(a, "extra", "y", sv.data, `Corsa in più: ${km} km${sv.rpe != null ? " · RPE " + sv.rpe : ""}${(sv.dati && sv.dati.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(sv.dati.passoSec) + "/km" : ""}`, "extra|" + sv.data + "|" + km);
+        return;
+      }
       const items = (sv.dati && (sv.dati.esercizi || sv.dati.elementi)) || [];
       // RPE più alto della seduta: quello dell'intera seduta (obbligatorio in chiusura) o di un singolo lavoro
       let maxRpe = Number(sv.rpe); if (isNaN(maxRpe)) maxRpe = 0;
@@ -303,7 +309,7 @@ function _notifNascoste() { return notificheCoach(true).filter(x => (DEMO.notifV
 function vistaNotifiche() {
   const list = notificheCoach();
   const crit = list.filter(x => x.lv === "r").length, warn = list.filter(x => x.lv === "y").length;
-  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔" })[t] || "•";
+  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔", extra: "🏃" })[t] || "•";
   const col = lv => lv === "r" ? "#c0392b" : lv === "y" ? "#d99000" : "#3a9a5a";
   const nascoste = (typeof _notifNascoste === "function") ? _notifNascoste() : 0;
   const intro = `<div class="card"><h3>🔔 Notifiche</h3>
@@ -1173,6 +1179,16 @@ function chiudiSeduteSvolte() { S.sedSvolte = null; disegna(); window.scrollTo(0
 function _cardSvolta(sv) {
   const dl = v => typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v;
   const d = sv.dati || {};
+  // allenamento EXTRA (corsa in più segnata dall'atleta mezzofondo)
+  if (sv.tipo === "extra") {
+    const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "";
+    return `<div class="card" style="border-color:rgba(77,154,255,.4)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3 style="font-size:16px">${dl(sv.data)} · 🏃 Corsa extra</h3>
+        <span class="et">${sv.rpe != null ? "RPE " + sv.rpe : ""}</span></div>
+      <p class="et" style="margin-top:6px"><b>${d.km} km</b>${passo ? " · " + passo : ""}${sv.durata_min ? " · ~" + sv.durata_min + "′" : ""}${d.note ? " · " + d.note : ""}</p>
+    </div>`;
+  }
   const esito = it => {
     const parts = [];
     if (it.rpe != null && it.rpe !== "") parts.push(`RPE ${it.rpe}`);

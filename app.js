@@ -231,12 +231,14 @@ function vistaOggi() {
   const isLanci = (typeof gruppoDi === "function") && gruppoDi(a) === "lanci";
   const rm = isMezzo && typeof ritmiHomeMezzo === "function" ? ritmiHomeMezzo(a) : null;
   const kmS = isMezzo && typeof kmSettAtleta === "function" ? kmSettAtleta(a) : null;
+  const kmEx = isMezzo && typeof kmExtraSett === "function" ? kmExtraSett(a) : 0;
+  const kmExM = isMezzo && typeof kmExtraMese === "function" ? kmExtraMese(a) : 0;
   const lanciN = isLanci && typeof lanciSettAtleta === "function" ? lanciSettAtleta(a) : null;
   const li = isLanci && typeof pbLanciInfo === "function" ? pbLanciInfo(a) : null;
   const obiL = isLanci && typeof obiettivoLanciScheda === "function" ? obiettivoLanciScheda(a) : null;
   const cardVolume = isMezzo ? `<div class="q" onclick="vai('calendario')"><div class="q-ic">🏃</div>
       <div class="k">Volume settimana</div>
-      <div><div class="v">${kmS != null ? kmS + " km" : "—"}</div><div class="d">${kmS != null ? "programmati" : "nessun lavoro"}</div></div>
+      <div><div class="v">${kmS != null ? kmS + " km" : "—"}</div><div class="d">${kmS != null ? "programmati" : "nessun lavoro"}${kmEx > 0 ? " · +" + kmEx + " km extra" : ""}</div></div>
     </div>`
     : isLanci ? `<div class="q" onclick="vai('calendario')"><div class="q-ic">🏋</div>
       <div class="k">Lanci settimana</div>
@@ -259,6 +261,7 @@ function vistaOggi() {
 
   return `
   ${cardOggi}
+  ${isMezzo ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>${kmExM > 0 ? `<p class="et" style="margin:-6px 2px 11px;color:var(--txt3)">Km corsi in più: <b>${kmEx}</b> questa settimana · <b>${kmExM}</b> questo mese</p>` : ""}` : ""}
 
   <div class="quadri">
     ${pos ? `<div class="q wide" onclick="vai('calendario')"><div class="q-ic">📊</div>

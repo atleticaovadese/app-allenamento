@@ -1528,6 +1528,62 @@ function kmSettAtleta(a) {
   }
   return trovato ? Math.round(m / 100) / 10 : null;        // km
 }
+// ---------- ALLENAMENTI EXTRA (corse in più) — solo mezzofondo/fondo ----------
+function _isoL2(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function kmExtra(a, dalISO, alISO) {
+  return ((DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [])
+    .filter(sv => sv.tipo === "extra" && sv.data >= dalISO && sv.data <= alISO)
+    .reduce((t, sv) => t + (Number(sv.dati && sv.dati.km) || 0), 0);
+}
+function kmExtraSett(a) {
+  const oggi = new Date((typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  const lun = new Date(oggi); lun.setDate(oggi.getDate() - ((oggi.getDay() + 6) % 7));
+  return Math.round(kmExtra(a, _isoL2(lun), _isoL2(oggi)) * 10) / 10;
+}
+function kmExtraMese(a) {
+  const oggi = new Date((typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  const primo = new Date(oggi.getFullYear(), oggi.getMonth(), 1);
+  return Math.round(kmExtra(a, _isoL2(primo), _isoL2(oggi)) * 10) / 10;
+}
+// form: l'atleta segna una corsa fatta in più (km, passo, rpe)
+function apriExtra() {
+  S._extra = S._extra || { km: "", passoMin: "", passoSec: "", rpe: "", note: "" };
+  const e = S._extra;
+  mostraFoglio(`
+    <div class="foglio-top"><h3>➕ Allenamento extra (corsa)</h3>
+      <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:10px">Una corsa fatta <b>in più</b> rispetto al programma. Si aggiunge ai tuoi km (settimana e mese) e l'allenatore riceve una notifica.</p>
+    <label class="lab">Km percorsi</label>
+    <input inputmode="decimal" value="${e.km}" placeholder="es. 10" oninput="S._extra.km=this.value" style="margin-top:6px;max-width:140px">
+    <label class="lab" style="display:block;margin-top:12px">Passo medio (min : sec / km)</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+      <input inputmode="numeric" value="${e.passoMin}" placeholder="min" oninput="S._extra.passoMin=this.value" style="width:76px">
+      <span style="font-weight:600">:</span>
+      <input inputmode="numeric" value="${e.passoSec}" placeholder="sec" oninput="S._extra.passoSec=this.value" style="width:76px">
+      <span class="et" style="margin:0">/km</span>
+    </div>
+    <label class="lab" style="display:block;margin-top:12px">RPE (1-10, anche mezzi)</label>
+    <input inputmode="decimal" value="${e.rpe}" placeholder="es. 6.5" oninput="S._extra.rpe=this.value" style="margin-top:6px;max-width:120px">
+    <label class="lab" style="display:block;margin-top:12px">Note (facoltative)</label>
+    <textarea rows="2" oninput="S._extra.note=this.value" style="margin-top:6px" placeholder="es. corsa lenta la mattina">${e.note}</textarea>
+    <button class="btn" style="margin-top:14px" onclick="salvaExtra()">Salva allenamento extra</button>`);
+}
+function salvaExtra() {
+  const e = S._extra || {};
+  const km = parseFloat(String(e.km).replace(",", "."));
+  if (!(km > 0)) { alert("Scrivi quanti km hai percorso."); return; }
+  const pm = parseInt(e.passoMin) || 0, ps = parseInt(e.passoSec) || 0;
+  const passoSec = (pm * 60 + ps) || null;
+  const rpe = (e.rpe !== "" && e.rpe != null) ? Number(String(e.rpe).replace(",", ".")) : null;
+  const durata = passoSec ? Math.round(km * passoSec / 60) : null;   // minuti stimati (per il carico)
+  const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
+  if (!aid) { alert("Atleta non trovato."); return; }
+  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { km, passoSec, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note });
+  S._extra = null;
+  if (typeof chiudiScheda === "function") chiudiScheda();
+  if (typeof alert === "function") alert("✓ Corsa aggiunta: " + km + " km. È nei tuoi km e l'allenatore riceve la notifica.");
+  disegna();
+}
 // card "Profilo mezzofondo" (per il dettaglio-atleta del coach): soglia · CS · D' · tipo
 function cardProfiloMezzo(a) {
   const R = ritmiHomeMezzo(a);

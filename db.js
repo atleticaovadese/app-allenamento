@@ -380,6 +380,24 @@ async function salvaSedutaSvoltaDB(s) {
     _codaFlush();   // salvataggio ok → tento di svuotare eventuale arretrato
   } catch (e) { _codaAggiungi(payload); }   // offline / errore rete: resta in coda, si reinvia da sola
 }
+// ALLENAMENTO EXTRA (corsa in più, solo mezzofondo): salvato come seduta_svolta tipo "extra" con km/passo/rpe.
+// Riusa la coda offline. In memoria subito (compare e conta i km all'istante).
+async function salvaExtraDB(atletaId, ex) {
+  if (!atletaId || !ex) return;
+  if (atletaBloccato(atletaId)) return;
+  const data = ex.data || (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10));
+  const payload = {
+    atleta_id: atletaId, chiave: "extra-" + Date.now(), tipo: "extra",
+    data: data, durata_min: ex.durata != null ? ex.durata : null, rpe: ex.rpe != null ? ex.rpe : null,
+    fastidi: false, giorno: null, chiusa: true,
+    dati: { extra: true, km: ex.km, passoSec: ex.passoSec != null ? ex.passoSec : null, note: ex.note || "" }
+  };
+  DEMO.seduteSvolte = DEMO.seduteSvolte || {};
+  (DEMO.seduteSvolte[atletaId] = DEMO.seduteSvolte[atletaId] || []).push({ atleta_id: atletaId, data: data, tipo: "extra", giorno: null, durata_min: payload.durata_min, rpe: payload.rpe, fastidi: false, dati: payload.dati });
+  if (!haDB()) { _codaAggiungi(payload); return; }
+  try { const { error } = await sb.from("seduta_svolta").upsert(payload, { onConflict: "atleta_id,chiave" }); if (error) _codaAggiungi(payload); else _codaFlush(); }
+  catch (e) { _codaAggiungi(payload); }
+}
 
 // carico reale dalle sedute svolte (sRPE = rpe × durata): ACWR + forma (TSB) per atleta
 function ricalcolaCarico(svolte) {

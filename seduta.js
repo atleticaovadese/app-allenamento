@@ -385,7 +385,15 @@ function vistaSeduta() {
     ${s.chiusa ? `<div class="card" style="border-color:var(--verde);background:var(--verde-bg)"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Allenamento già svolto${s.rpe ? " · RPE " + s.rpe : ""}${s.durata ? " · " + s.durata + "′" : ""}</p><p class="et" style="margin:4px 0 0">Lo stai <b>rivedendo</b>: i tuoi dati sono già salvati. Puoi correggere qualcosa se serve e richiudere.</p></div>` : ""}
     ${bloccoObiettivi(s)}
     <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>
+    ${_extraBtnSeduta()}
     ${corpo}`;
+}
+// pulsante "corsa in più" nella seduta — solo per l'ATLETA mezzofondo/fondo
+function _extraBtnSeduta() {
+  if (S.utente && S.utente.ruolo === "coach") return "";
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  if (!a || typeof gruppoDi !== "function" || gruppoDi(a) !== "mezzo" || typeof apriExtra !== "function") return "";
+  return `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>`;
 }
 function segnalaInfortunioSeduta() {
   const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id) || "";
