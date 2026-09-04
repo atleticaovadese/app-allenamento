@@ -1107,6 +1107,23 @@ function delAdattaRiga(i) {
   if (typeof salvaCustom === "function") salvaCustom();
   disegna();
 }
+// copia nel giorno/settimana corrente il contenuto dello STESSO giorno di un'altra settimana
+// (override di quella settimana se personalizzata, altrimenti il madre). Serve a ripetere una modifica fatta prima.
+function copiaAdattaDaSett(fromWk) {
+  const s = S.adatta; fromWk = Number(fromWk);
+  if (isNaN(fromWk) || fromWk === s.wk) return;
+  const a = DEMO.atleti.find(x => x.id === s.atletaId);
+  const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
+  if (!src.length) { alert("La Settimana " + (fromWk + 1) + " (Giorno " + (s.gi + 1) + ") non ha righe da copiare."); return; }
+  if (typeof confirm === "function" && !confirm(`Copiare il Giorno ${s.gi + 1} della Settimana ${fromWk + 1} qui, nella Settimana ${s.wk + 1}? Sostituisce il contenuto attuale di questo giorno.`)) return;
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
+  const o = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
+  const t = o[s.tipo] = o[s.tipo] || {};
+  const g = t[s.gi] = t[s.gi] || {};
+  g[s.wk] = JSON.parse(JSON.stringify(src));
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna(); window.scrollTo(0, 0);
+}
 function ripristinaAdatta() {
   const s = S.adatta, o = DEMO.overrideContenuto && DEMO.overrideContenuto[s.atletaId];
   if (o && o[s.tipo] && o[s.tipo][s.gi]) {
@@ -1185,6 +1202,18 @@ function vistaAdatta() {
   const tipoTab = `<div class="tabbar">
     <button class="${s.tipo === "pista" ? "on" : ""}" onclick="setAdattaSel('tipo','pista')">Pista</button>
     <button class="${s.tipo === "palestra" ? "on" : ""}" onclick="setAdattaSel('tipo','palestra')">Palestra</button></div>`;
+  const grA = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  // copia in questo giorno il contenuto dello STESSO giorno di un'altra settimana (per ripetere una modifica fatta prima)
+  const altreWk = Array.from({ length: nSett }, (_, w) => w).filter(w => w !== s.wk);
+  const canEditA = !(s.tipo === "pista" && grA === "lanci");
+  const copiaUI = (sch.length && canEditA && altreWk.length) ? `<div style="margin-top:10px;border-top:1px solid var(--line2);padding-top:10px">
+      <p class="et" style="margin:0 0 6px">Copia qui il <b>Giorno ${s.gi + 1}</b> da un'altra settimana (stesso giorno):</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="copiaWkSel" style="width:auto;padding:8px 10px">${altreWk.map(w => `<option value="${w}">Settimana ${w + 1}${overrideRighe(a, s.tipo, s.gi, w) ? " ✏️" : ""}</option>`).join("")}</select>
+        <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="copiaAdattaDaSett(document.getElementById('copiaWkSel').value)">📋 Copia qui</button>
+      </div>
+      <p class="et" style="margin-top:6px;color:var(--txt3)">✏️ = settimana già personalizzata per ${a.nome}. La copia sostituisce il contenuto attuale di questo giorno.</p>
+    </div>` : "";
   const selettori = !sch.length ? "" : `<div class="card"><div class="griglia2">
       <div><label class="lab">Giorno</label><select onchange="setAdattaSel('gi',this.value)" style="margin-top:6px">${sch.map(x => `<option value="${x.gi}" ${x.gi === s.gi ? "selected" : ""}>Giorno ${x.gi + 1} (${GG_LABEL[x.g.giornoSett] || x.g.giornoSett})</option>`).join("")}</select></div>
       <div><label class="lab">Settimana</label><select onchange="setAdattaSel('wk',this.value)" style="margin-top:6px">${Array.from({ length: nSett }, (_, w) => `<option value="${w}" ${w === s.wk ? "selected" : ""}>Settimana ${w + 1}</option>`).join("")}</select></div>
@@ -1192,8 +1221,7 @@ function vistaAdatta() {
     <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px">
       <span style="font-size:13px;margin:0;${hasOv ? "color:var(--blu);font-weight:600" : "color:var(--txt3)"}">${hasOv ? "✏️ Personalizzato per lui" : "Come il madre"}</span>
       ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:8px 12px" onclick="ripristinaAdatta()">↺ Ripristina il madre</button>` : ""}
-    </div></div>`;
-  const grA = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+    </div>${copiaUI}</div>`;
   const corpo = !sch.length
     ? `<div class="card"><p class="et">Nessun giorno programmato in ${s.tipo} nel madre. Imposta prima il programma.</p></div>`
     : s.tipo !== "pista" ? _tabellaAdattaPal(a, righe)
@@ -1310,6 +1338,16 @@ function _commentoScreening(atleta, giorni, ctx) {
     bits.push(`Presenza <b>${sedute}${prog ? "/" + Math.max(prog, sedute) : ""}</b> ${perido}${pct != null ? ` (${pct}%${pct >= 85 ? ", ottima costanza" : pct >= 70 ? ", buona" : ", sotto l'obiettivo"})` : ""}.`);
     if (isMezzo) { const km = (typeof kmFattiPeriodo === "function") ? kmFattiPeriodo(atleta, dalS, oggiS) : 0; if (km) bits.push(`Volume <b>${km} km</b> di corsa.`); }
     else if (ctx.volume) bits.push(`Volume pista <b>${ctx.volume >= 1000 ? (ctx.volume / 1000).toFixed(1) + " km" : ctx.volume + " m"}</b>.`);
+    // distanze percorse seduta per seduta e come stanno andando (dalle ripetute cronometrate)
+    const perSess = {};
+    (DEMO.pistaLog || []).filter(l => l.atletaId === id && l.data >= dalS && l.data <= oggiS && l.volume).forEach(l => { perSess[l.data] = (perSess[l.data] || 0) + l.volume; });
+    const vv = Object.keys(perSess).sort().map(k => perSess[k]);
+    if (vv.length >= 2) {
+      const fk = mt => mt >= 1000 ? (Math.round(mt / 100) / 10) + " km" : Math.round(mt) + " m";
+      const primo = vv[0], ultimo = vv[vv.length - 1], media = vv.reduce((s, x) => s + x, 0) / vv.length;
+      const tr = ultimo > primo * 1.05 ? "in aumento ⬆" : ultimo < primo * 0.95 ? "in calo ⬇" : "stabili";
+      bits.push(`Distanze per seduta ${tr} (dalla prima ${fk(primo)} all'ultima ${fk(ultimo)}, media ${fk(media)}).`);
+    }
     if (ctx.distLen > 0) bits.push(`Tempi ${ctx.mig > ctx.peg ? "in miglioramento 🟢" : ctx.peg > ctx.mig ? "in calo 🔴" : "stabili 🟡"}${isMezzo && typeof _notaTempiMezzo === "function" && _notaTempiMezzo(id) ? " (" + _notaTempiMezzo(id) + ")" : ""}.`);
     else if (isMezzo && typeof _notaTempiMezzo === "function" && _notaTempiMezzo(id)) bits.push(`Tempi: ${_notaTempiMezzo(id)}.`);
     if (ctx.avgRpe != null) bits.push(`RPE medio <b>${ctx.avgRpe.toFixed(1)}</b>${ctx.avgRpe >= 8 ? " (carico percepito alto 🥵)" : ctx.avgRpe <= 4 ? " (leggero)" : " (nella norma)"}.`);
