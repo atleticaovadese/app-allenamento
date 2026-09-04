@@ -637,6 +637,25 @@ function _reportBodyHTML(id) {
     }).join("")}</table>`;
   } else h += `<p class="muted">Nessun allenamento chiuso ancora dall'atleta.</p>`;
 
+  // --- volume corsa (km FATTI) per mesociclo — solo mezzofondo/fondo (differenza di km tra i blocchi) ---
+  if (typeof gruppoDi === "function" && gruppoDi(a) === "mezzo") {
+    const perMeso = (typeof kmPerMeso === "function") ? kmPerMeso(a).filter(x => x.km > 0) : [];
+    const kmSet = (typeof kmFattiSett === "function") ? kmFattiSett(a) : 0;
+    const kmMes = (typeof kmMesoFatti === "function") ? kmMesoFatti(a) : null;
+    if (perMeso.length || kmSet) {
+      h += `<h2>Volume corsa (km fatti)</h2>`;
+      h += `<p class="sub">Questa settimana <b>${kmSet} km</b>${kmMes != null ? ` · mesociclo in corso <b>${kmMes} km</b>` : ""}${(typeof _notaTempiMezzo === "function") ? " · " + _notaTempiMezzo(id) : ""}</p>`;
+      if (perMeso.length) {
+        const rows = perMeso.map((mm, i) => {
+          const prev = i > 0 ? perMeso[i - 1].km : null, delta = prev != null ? Math.round((mm.km - prev) * 10) / 10 : null;
+          const col = delta == null ? "" : (delta > 0 ? "g" : (delta < 0 ? "y" : ""));
+          return `<tr><td>${mm.nome}${mm.inCorso ? " (in corso)" : ""}</td><td><b>${mm.km} km</b></td><td class="${col}">${delta != null ? (delta > 0 ? "+" : "") + delta + " km" : "—"}</td></tr>`;
+        }).join("");
+        h += `<table><tr><th>Mesociclo</th><th>Km fatti</th><th>Δ vs precedente</th></tr>${rows}</table>`;
+      }
+    }
+  }
+
   // --- corse in più (extra) segnate dall'atleta ---
   const extraSv = ((DEMO.seduteSvolte || {})[id] || []).filter(s => s.tipo === "extra" && _rInPeriodo(s.data)).slice().sort((x, y) => x.data < y.data ? 1 : -1);
   if (extraSv.length) {

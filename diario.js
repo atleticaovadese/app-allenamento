@@ -148,7 +148,7 @@ function segnaDiario(campo, val) {
 }
 function cambiaOre(x) {
   const d = DEMO.diarioOggi;
-  d.oreSonno = Math.min(12, Math.max(3, d.oreSonno + x));
+  d.oreSonno = Math.min(12, Math.max(1, Math.round((d.oreSonno + x) * 2) / 2));   // da 1 h in su, a step di mezz'ora
   d.salvato = false; disegna();
 }
 async function salvaDiario() {

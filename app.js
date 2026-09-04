@@ -88,9 +88,9 @@ const MENU_COACH = [
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["test-lattato", "Test lattato"], ["critical-speed", "Velocità critica"], ["riepilogo-test", "Riepilogo test"], ["profilo-attrezzo", "Profilo attrezzo (lanci)"], ["traino", "Traino"],
-    ["vbt", "Monitoraggio VBT"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"], ["guida-test", "Guida test mezzofondo"]] },
+    ["vbt", "Monitoraggio VBT"], ["guida-test", "Guida test mezzofondo"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
-    ["screening", "Screening"], ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
+    ["screening", "Screening"], ["andamento-pista", "Andamento pista"], ["andamento-palestra", "Andamento palestra"], ["carico", "Carico e forma"], ["infortuni", "Infortuni"], ["prevenzione", "Prevenzione"], ["presenze", "Presenze"], ["diario-c", "Diario"]] },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"], ["esercizi-speciali", "Esercizi speciali"]] },
   { k: "gare", ic: "★", l: "Gare" },
   { k: "report", ic: "✉", l: "Report settimanale" },
@@ -230,15 +230,16 @@ function vistaOggi() {
   const isMezzo = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
   const isLanci = (typeof gruppoDi === "function") && gruppoDi(a) === "lanci";
   const rm = isMezzo && typeof ritmiHomeMezzo === "function" ? ritmiHomeMezzo(a) : null;
-  const kmS = isMezzo && typeof kmSettAtleta === "function" ? kmSettAtleta(a) : null;
+  const kmSettF = isMezzo && typeof kmFattiSett === "function" ? kmFattiSett(a) : null;   // km FATTI (svolti) settimana
+  const kmMesoF = isMezzo && typeof kmMesoFatti === "function" ? kmMesoFatti(a) : null;    // km FATTI nel mesociclo
   const kmEx = isMezzo && typeof kmExtraSett === "function" ? kmExtraSett(a) : 0;
   const kmExM = isMezzo && typeof kmExtraMese === "function" ? kmExtraMese(a) : 0;
   const lanciN = isLanci && typeof lanciSettAtleta === "function" ? lanciSettAtleta(a) : null;
   const li = isLanci && typeof pbLanciInfo === "function" ? pbLanciInfo(a) : null;
   const obiL = isLanci && typeof obiettivoLanciScheda === "function" ? obiettivoLanciScheda(a) : null;
   const cardVolume = isMezzo ? `<div class="q" onclick="vai('calendario')"><div class="q-ic">🏃</div>
-      <div class="k">Volume settimana</div>
-      <div><div class="v">${kmS != null ? kmS + " km" : "—"}</div><div class="d">${kmS != null ? "programmati" : "nessun lavoro"}${kmEx > 0 ? " · +" + kmEx + " km extra" : ""}</div></div>
+      <div class="k">Km fatti</div>
+      <div><div class="v">${kmSettF != null ? kmSettF : 0} km</div><div class="d">questa settimana${kmMesoF != null ? " · " + kmMesoF + " km nel mesociclo" : ""}</div></div>
     </div>`
     : isLanci ? `<div class="q" onclick="vai('calendario')"><div class="q-ic">🏋</div>
       <div class="k">Lanci settimana</div>

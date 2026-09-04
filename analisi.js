@@ -544,7 +544,7 @@ function andaMetriche(a, cat) {
   return set;
 }
 // --- stato e dati dei due andamenti (Pista per distanza, Palestra per esercizio) ---
-const DIST_ANDA = [10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 220, 250, 280, 300, 350, 400];
+const DIST_ANDA = [10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 220, 250, 280, 300, 350, 400, 500, 600, 800, 1000, 1200, 1500, 1600, 2000, 3000, 5000, 10000];
 const MET_PISTA = [["tempo", "Tempo (s)"], ["volume", "Volume (m)"], ["velocita", "Vel (m/s)"]];
 const MET_PAL = [["serie", "Serie"], ["rep", "Rep"], ["peso", "Peso (kg)"], ["volume", "Volume (kg)"], ["rpe", "RPE"], ["vbt", "VBT (m/s)"]];
 let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo" };

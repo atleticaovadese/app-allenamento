@@ -358,9 +358,10 @@ function vistaAtletaDettaglio() {
       <div class="et" style="text-align:center;font-size:10px">${DEMO.giorniSettimana[i]}</div>
     </div>`;
   }).join("");
-  // riquadro Km settimana (solo mezzofondo/fondo)
+  // riquadro Km FATTI settimana + mesociclo, extra a parte (solo mezzofondo/fondo)
   const isMezzoA = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
-  const kmProgA = (isMezzoA && typeof kmSettAtleta === "function") ? kmSettAtleta(a) : 0;
+  const kmSettFA = (isMezzoA && typeof kmFattiSett === "function") ? kmFattiSett(a) : 0;
+  const kmMesoFA = (isMezzoA && typeof kmMesoFatti === "function") ? kmMesoFatti(a) : null;
   const kmExA = (isMezzoA && typeof kmExtraSett === "function") ? kmExtraSett(a) : 0;
 
   return `
@@ -381,7 +382,7 @@ function vistaAtletaDettaglio() {
     <div class="q"><div class="k">ACWR</div><div class="v">${s.acwr}</div></div>
     <div class="q"><div class="k">Forma (TSB)</div><div class="v">${s.forma}</div></div>
     <div class="q"><div class="k">Prontezza</div><div class="v">${s.prontezza}</div></div>
-    ${isMezzoA ? `<div class="q"><div class="k">Km settimana</div><div class="v">${kmProgA + kmExA}</div>${kmExA > 0 ? `<div class="et" style="color:var(--verde);margin-top:1px">🏃 +${kmExA} extra</div>` : ""}</div>` : ""}
+    ${isMezzoA ? `<div class="q"><div class="k">Km fatti (sett.)</div><div class="v">${kmSettFA} km</div><div class="et" style="margin-top:1px">${kmMesoFA != null ? kmMesoFA + " km nel meso" : ""}${kmExA > 0 ? `${kmMesoFA != null ? " · " : ""}<span style="color:var(--verde)">🏃 +${kmExA} extra</span>` : ""}</div></div>` : ""}
   </div>
   ${s.caricoInfo ? `<div class="card" style="border-color:rgba(77,154,255,.4);margin-bottom:11px"><p class="et" style="margin:0;color:var(--blu)">📊 ${s.caricoInfo}</p></div>` : ""}
 
@@ -517,9 +518,15 @@ function vistaReport() {
   const ord = { r: 0, w: 1, v: 2 };
   const arr = [...lista].sort((a, b) => ord[DEMO.mon[a.id].stato] - ord[DEMO.mon[b.id].stato]);
 
+  // presenze REALI della settimana in corso (Lun→oggi): svolte non-extra / programmate — non dai quadratini
+  const oggiStr = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  const _n2 = new Date(oggiStr + "T00:00:00");
+  const lunISO = (typeof isoDiData === "function") ? isoDiData(new Date(_n2.getFullYear(), _n2.getMonth(), _n2.getDate() - ((_n2.getDay() + 6) % 7))) : oggiStr;
   const schede = arr.map(a => {
     const s = DEMO.mon[a.id];
-    const kpi = [["sedute", `${DEMO.mon[a.id].done.filter(Boolean).length}/${s.settimana.filter(Boolean).length}`],
+    const donW = ((DEMO.seduteSvolte || {})[a.id] || []).filter(sv => sv.tipo !== "extra" && sv.data >= lunISO && sv.data <= oggiStr).length;
+    const progW = (typeof contaProgrammate === "function") ? contaProgrammate(a, lunISO, oggiStr) : 0;
+    const kpi = [["sedute", `${donW}/${Math.max(progW, donW)}`],
       ["prontezza", s.prontezza], ["ACWR", s.acwr], ["aderenza", s.aderenza + "%"]];
     const avvisi = s.alert.map(([lv, tx]) => {
       const c = STATO[lv][2];
@@ -1286,6 +1293,36 @@ function apriSedutaSvoltaCoach(atletaId, dataISO, tipo, giorno) {
 let screeningState = { atletaRif: "" };
 function setScreeningAtleta(id) { screeningState.atletaRif = id; disegna(); window.scrollTo(0, 0); }
 
+// commento automatico dello screening: presenza, volume, tempi, RPE, prontezza, carico, VBT — con avviso "pochi dati"
+function _commentoScreening(atleta, giorni, ctx) {
+  if (!atleta) return "";
+  const id = atleta.id;
+  const oggiS = new Date().toISOString().slice(0, 10);
+  const dalS = new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
+  const prog = (typeof contaProgrammate === "function") ? contaProgrammate(atleta, dalS, oggiS) : 0;
+  const sedute = ctx.sedute, m = ctx.m || {};
+  const isMezzo = (typeof gruppoDi === "function") && gruppoDi(atleta) === "mezzo";
+  const pct = prog > 0 ? Math.round(sedute / prog * 100) : null;
+  const perido = giorni <= 7 ? "questa settimana" : "nel mesociclo";
+  const bits = [];
+  if (sedute === 0) bits.push(`Nessun allenamento svolto ${perido}${prog > 0 ? ` (ne erano previsti ${prog})` : ""}.`);
+  else {
+    bits.push(`Presenza <b>${sedute}${prog ? "/" + Math.max(prog, sedute) : ""}</b> ${perido}${pct != null ? ` (${pct}%${pct >= 85 ? ", ottima costanza" : pct >= 70 ? ", buona" : ", sotto l'obiettivo"})` : ""}.`);
+    if (isMezzo) { const km = (typeof kmFattiPeriodo === "function") ? kmFattiPeriodo(atleta, dalS, oggiS) : 0; if (km) bits.push(`Volume <b>${km} km</b> di corsa.`); }
+    else if (ctx.volume) bits.push(`Volume pista <b>${ctx.volume >= 1000 ? (ctx.volume / 1000).toFixed(1) + " km" : ctx.volume + " m"}</b>.`);
+    if (ctx.distLen > 0) bits.push(`Tempi ${ctx.mig > ctx.peg ? "in miglioramento 🟢" : ctx.peg > ctx.mig ? "in calo 🔴" : "stabili 🟡"}${isMezzo && typeof _notaTempiMezzo === "function" && _notaTempiMezzo(id) ? " (" + _notaTempiMezzo(id) + ")" : ""}.`);
+    else if (isMezzo && typeof _notaTempiMezzo === "function" && _notaTempiMezzo(id)) bits.push(`Tempi: ${_notaTempiMezzo(id)}.`);
+    if (ctx.avgRpe != null) bits.push(`RPE medio <b>${ctx.avgRpe.toFixed(1)}</b>${ctx.avgRpe >= 8 ? " (carico percepito alto 🥵)" : ctx.avgRpe <= 4 ? " (leggero)" : " (nella norma)"}.`);
+    if (m.prontezza && m.prontezza !== "—") { const p = parseFloat(m.prontezza); bits.push(`Prontezza <b>${m.prontezza}</b>${!isNaN(p) ? (p >= 3.5 ? " (buona)" : p >= 2.5 ? " (media)" : " (bassa ⚠)") : ""}.`); }
+    if (m.acwr && m.acwr !== "—") { const ac = parseFloat(m.acwr); bits.push(`Carico ACWR <b>${m.acwr}</b>${!isNaN(ac) ? (ac > 1.5 ? " (in salita rapida ⚠)" : ac >= 0.8 && ac <= 1.3 ? " (ottimale)" : ac < 0.8 ? " (in calo)" : "") : ""}${m.forma ? `, forma ${m.forma}` : ""}.`); }
+    if (ctx.dVbt != null) bits.push(`VBT ${ctx.dVbt >= 0 ? "in aumento" : "in calo"} (${ctx.dVbt >= 0 ? "+" : ""}${ctx.dVbt.toFixed(2)} m/s).`);
+  }
+  const pochiDati = sedute < 6;
+  const nota = pochiDati ? `<p class="et" style="margin:6px 0 0;color:var(--txt3)">⏳ Pochi dati: servono ~4 settimane (≥6 sedute) per un giudizio affidabile su tempi, RPE e carico.</p>` : "";
+  return `<div class="card" style="border-color:rgba(77,154,255,.4);background:var(--blu-bg)">
+    <p class="et" style="margin:0 0 4px;color:var(--blu);font-weight:600">🧭 Come sta andando (${giorni <= 7 ? "settimana" : "mesociclo"})</p>
+    <p style="margin:0;font-size:13px;line-height:1.55">${bits.join(" ")}</p>${nota}</div>`;
+}
 function bloccoScreening(atletaId, giorni, titolo) {
   const atleta = (DEMO.atleti || []).find(x => x.id === atletaId);
   const oggiISO = new Date().toISOString().slice(0, 10);
@@ -1315,13 +1352,17 @@ function bloccoScreening(atletaId, giorni, titolo) {
   const vPrima = vbtPrima.length ? vbtPrima.reduce((s, x) => s + x.vbtEseguita, 0) / vbtPrima.length : null;
   const dVbt = (vMedia != null && vPrima != null) ? vMedia - vPrima : null;
   const m = (DEMO.mon || {})[atletaId] || {};
+  // RPE medio del periodo (sedute chiuse, no extra) per il commento automatico
+  const svRpe = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(sv => sv.tipo !== "extra" && inWin(sv.data) && sv.rpe != null);
+  const avgRpe = svRpe.length ? svRpe.reduce((s, sv) => s + Number(sv.rpe), 0) / svRpe.length : null;
+  const commento = (typeof _commentoScreening === "function") ? _commentoScreening(atleta, giorni, { sedute, volume, mig, peg, distLen: dist.length, dVbt, m, avgRpe }) : "";
 
   const perf = sedute === 0 ? "🕓 nessun allenamento nel periodo"
     : dist.length === 0 ? `✅ ${sedute} allenament${sedute === 1 ? "o" : "i"} svolt${sedute === 1 ? "o" : "i"} (nessun tempo cronometrato)`
       : mig > peg ? "🟢 tempi in miglioramento" : peg > mig ? "🔴 tempi in calo" : "🟡 tempi stabili";
   const caricoTxt = m.acwr ? `ACWR ${m.acwr} · forma ${m.forma || "—"} · prontezza ${m.prontezza || "—"}` : "—";
 
-  return `<div class="card">
+  return `${commento}<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:baseline">
       <p class="et" style="margin:0">${titolo}</p><span class="et">ultimi ${giorni} giorni</span></div>
     <div style="display:flex;gap:8px;margin:12px 0 4px">

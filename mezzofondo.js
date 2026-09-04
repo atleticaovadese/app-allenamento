@@ -1528,8 +1528,67 @@ function kmSettAtleta(a) {
   }
   return trovato ? Math.round(m / 100) / 10 : null;        // km
 }
-// ---------- ALLENAMENTI EXTRA (corse in più) — solo mezzofondo/fondo ----------
+// km FATTI (sedute mezzo chiuse) in un periodo [dal,al] — non conta le corse extra (che si sommano a parte)
 function _isoL2(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function kmFattiPeriodo(a, dalISO, alISO) {
+  if (typeof seduteDelGiorno !== "function" || typeof isoDiData !== "function" || !dalISO || !alISO) return 0;
+  let km = 0, guard = 0;
+  const d = new Date(dalISO + "T00:00:00"), fine = new Date(alISO + "T00:00:00");
+  while (d.getTime() <= fine.getTime() && guard++ < 400) {
+    (seduteDelGiorno(isoDiData(d), false, a) || []).forEach(s => { if (s.mezzo && s.chiusa) km += (typeof volumePistaMezzo === "function" ? volumePistaMezzo(s) : 0); });
+    d.setDate(d.getDate() + 1);
+  }
+  return Math.round(km / 100) / 10;   // km, 1 decimale
+}
+function kmFattiSett(a) {
+  const oggi = new Date((typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  const lun = new Date(oggi); lun.setDate(oggi.getDate() - ((oggi.getDay() + 6) % 7));
+  return kmFattiPeriodo(a, _isoL2(lun), _isoL2(oggi));
+}
+// mesociclo attivo oggi per l'atleta (dal programma pista) → estremi + etichetta
+function kmMesoCorrente(a) {
+  if (typeof _progPista !== "function" || typeof mesoAttivo !== "function") return null;
+  const oggi = (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10));
+  const pa = mesoAttivo(_progPista(a), oggi, false);
+  if (!pa || !pa.m.inizio) return null;
+  const nS = (typeof nSettDi === "function") ? nSettDi(pa.m) : 4;
+  const inizio = new Date(pa.m.inizio + "T00:00:00");
+  const fine = new Date(inizio.getFullYear(), inizio.getMonth(), inizio.getDate() + nS * 7 - 1);
+  return { m: pa.m, dalISO: _isoL2(inizio), alISO: _isoL2(fine), nSett: nS, nome: pa.m.ciclo || pa.m.blocco || pa.m.focus || "Mesociclo" };
+}
+function kmMesoFatti(a) {
+  const mc = kmMesoCorrente(a); if (!mc) return null;
+  const oggi = (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10));
+  return kmFattiPeriodo(a, mc.dalISO, mc.alISO < oggi ? mc.alISO : oggi);
+}
+// km fatti per OGNI mesociclo del programma (per confrontare i volumi tra blocchi, es. giornata test)
+function kmPerMeso(a) {
+  if (typeof _progPista !== "function") return [];
+  const prog = _progPista(a), oggi = (typeof oggiISO === "function" ? oggiISO() : new Date().toISOString().slice(0, 10));
+  return ((prog && prog.mesocicli) || []).filter(m => m.inizio).map(m => {
+    const nS = (typeof nSettDi === "function") ? nSettDi(m) : 4;
+    const inizio = new Date(m.inizio + "T00:00:00");
+    const fine = new Date(inizio.getFullYear(), inizio.getMonth(), inizio.getDate() + nS * 7 - 1);
+    const fineISO = _isoL2(fine);
+    return { nome: m.ciclo || m.blocco || m.focus || "Mesociclo", dalISO: m.inizio, alISO: fineISO, km: kmFattiPeriodo(a, m.inizio, fineISO < oggi ? fineISO : oggi), inCorso: m.inizio <= oggi && fineISO >= oggi };
+  });
+}
+// nota automatica: variazione della velocità media in pista (ultime 4 sett vs 4 precedenti) — proxy dei tempi
+function _notaTempiMezzo(id) {
+  const log = (DEMO.pistaLog || []).filter(l => l.atletaId === id && l.velocita != null && l.data);
+  if (log.length < 4) return "";
+  const iso = d => d.toISOString().slice(0, 10);
+  const oggi = Date.now();
+  const c1 = iso(new Date(oggi - 28 * 86400000)), c2 = iso(new Date(oggi - 56 * 86400000));
+  const rec = log.filter(l => l.data >= c1).map(l => l.velocita);
+  const prev = log.filter(l => l.data < c1 && l.data >= c2).map(l => l.velocita);
+  if (rec.length < 2 || prev.length < 2) return "";
+  const media = a => a.reduce((s, x) => s + x, 0) / a.length;
+  const dp = (media(rec) / media(prev) - 1) * 100;
+  if (Math.abs(dp) < 0.3) return "velocità media in pista stabile nelle ultime 4 settimane";
+  return "velocità media in pista " + (dp > 0 ? "migliorata ⬆" : "peggiorata ⬇") + " del " + Math.abs(dp).toFixed(1) + "% nelle ultime 4 settimane";
+}
+// ---------- ALLENAMENTI EXTRA (corse in più) — solo mezzofondo/fondo ----------
 function kmExtra(a, dalISO, alISO) {
   return ((DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [])
     .filter(sv => sv.tipo === "extra" && sv.data >= dalISO && sv.data <= alISO)
