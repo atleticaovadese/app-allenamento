@@ -206,6 +206,82 @@ function listaAtleti(lista) {
 function apriAtleta(id) { S.atletaSel = id; S.mostraScheda = false; disegna(); window.scrollTo(0, 0); }
 function chiudiAtleta() { S.atletaSel = null; disegna(); }
 
+// ---------- Gestione ALLENATORI (coach): coach attivi + inviti (chi si registra con quell'email diventa coach) ----------
+async function caricaAllenatori() {
+  try { const { data, error } = await sb.rpc("coach_lista"); if (error) throw error; S.coachData = data || { coaches: [], inviti: [] }; }
+  catch (e) { S.coachData = { errore: (e && e.message) || "Errore nel caricamento." }; }
+  disegna();
+}
+async function invitaCoach() {
+  const em = ((document.getElementById("coEmail") || {}).value || "").trim();
+  const nm = ((document.getElementById("coNome") || {}).value || "").trim();
+  if (!em || !nm) { alert("Scrivi nome ed email dell'allenatore."); return; }
+  try {
+    const { data, error } = await sb.rpc("coach_invita", { p_email: em, p_nome: nm });
+    if (error) throw error;
+    S.coachData = data;
+    alert("✓ Invito creato per " + nm + ".\nOra deve registrarsi nell'app con questa email (o gli crei l'account tu): al primo accesso diventa allenatore.");
+    disegna(); window.scrollTo(0, 0);
+  } catch (e) { alert("Non riuscito: " + ((e && e.message) || "errore")); }
+}
+async function revocaInvito(email) {
+  if (typeof confirm === "function" && !confirm("Annullare l'invito per " + email + "?")) return;
+  try { const { data, error } = await sb.rpc("coach_revoca_invito", { p_email: email }); if (error) throw error; S.coachData = data; disegna(); }
+  catch (e) { alert("Non riuscito: " + ((e && e.message) || "errore")); }
+}
+async function rimuoviCoach(id, nome) {
+  if (typeof confirm === "function" && !confirm("Rimuovere l'allenatore " + nome + "? Perderà l'accesso da allenatore (l'account resta, ma senza ruolo).")) return;
+  try { const { data, error } = await sb.rpc("coach_rimuovi", { p_id: id }); if (error) throw error; S.coachData = data; disegna(); }
+  catch (e) { alert("Non riuscito: " + ((e && e.message) || "errore")); }
+}
+function vistaAllenatori() {
+  if (typeof haDB === "function" && !haDB()) return `<div class="card"><h3>Allenatori</h3>
+    <p class="et" style="margin-top:2px">Disponibile solo con l'accesso reale alla società (non nell'anteprima demo).</p></div>`;
+  const d = S.coachData;
+  if (!d) { if (typeof caricaAllenatori === "function") caricaAllenatori(); return `<div class="card"><h3>Allenatori</h3><p class="et" style="margin-top:2px">Caricamento…</p></div>`; }
+  if (d.errore) return `<div class="card"><h3>Allenatori</h3><p class="et" style="color:var(--rosso)">${d.errore}</p></div>`;
+  const mail = ((S.utente && S.utente.email) || "").toLowerCase();
+  const coaches = d.coaches || [], inviti = d.inviti || [];
+  const esc = s => String(s || "").replace(/'/g, "\\'");
+  const rowsCoach = coaches.map(c => {
+    const io = (c.email || "").toLowerCase() === mail;
+    return `<div class="lib-row" style="justify-content:space-between">
+      <div style="flex:1;min-width:0"><div style="font-weight:600">${c.nome}${io ? ` <span class="et" style="color:var(--blu)">· tu</span>` : ""}</div>
+        <div class="et" style="margin-top:1px">${c.email || ""}</div></div>
+      ${io ? "" : `<button class="btn btn-2" style="width:auto;padding:7px 11px;font-size:13px" onclick="rimuoviCoach('${c.id}','${esc(c.nome)}')">Rimuovi</button>`}
+    </div>`;
+  }).join("");
+  const rowsInv = inviti.map(v => `<div class="lib-row" style="justify-content:space-between">
+      <div style="flex:1;min-width:0"><div style="font-weight:600">${v.nome} <span class="et" style="color:var(--ambra,#e6a83c)">· in attesa</span></div>
+        <div class="et" style="margin-top:1px">${v.email}</div></div>
+      <button class="btn btn-2" style="width:auto;padding:7px 11px;font-size:13px" onclick="revocaInvito('${esc(v.email)}')">Annulla</button>
+    </div>`).join("");
+  return `
+  <div class="card"><h3>Allenatori</h3>
+    <p class="et" style="margin-top:2px">Aggiungi altri allenatori alla società. Chi inviti diventa allenatore <b>al primo accesso</b>, quando si registra nell'app con l'email che scrivi qui.</p></div>
+
+  <div class="card">
+    <h3 style="font-size:16px">➕ Invita un allenatore</h3>
+    <label class="lab" style="margin-top:8px">Nome</label>
+    <input id="coNome" placeholder="Nome e cognome" style="margin-top:6px">
+    <label class="lab" style="display:block;margin-top:10px">Email</label>
+    <input id="coEmail" inputmode="email" placeholder="email@esempio.it" style="margin-top:6px">
+    <button class="btn" style="margin-top:12px" onclick="invitaCoach()">Crea invito</button>
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Poi l'allenatore apre l'app → <b>Registrati</b> con questa email e una password sua → al primo accesso è già allenatore. In alternativa gli crei l'account tu in Supabase (Authentication → Users, con «Auto Confirm»).</p>
+  </div>
+
+  <div class="card">
+    <p class="et" style="margin:0 0 8px">Allenatori attivi · ${coaches.length}</p>
+    ${rowsCoach || `<p class="et">Nessuno.</p>`}
+  </div>
+
+  ${inviti.length ? `<div class="card">
+    <p class="et" style="margin:0 0 8px">Inviti in attesa · ${inviti.length}</p>
+    ${rowsInv}
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Diventano allenatori appena si registrano con la loro email.</p>
+  </div>` : ""}`;
+}
+
 // ---------- NOTIFICHE allenatore: casella avvisi (fastidi/infortuni, cali di condizione, ACWR) ----------
 const _NOTIF_LV = { r: "r", w: "y", v: "v" };
 function _notifPront(v) {
