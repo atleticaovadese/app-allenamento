@@ -30,7 +30,8 @@ function bundleCustom() {
     prevTestCustom: DEMO.prevTestCustom || [], prevEserciziCustom: DEMO.prevEserciziCustom || [],
     reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {},
-    pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {}
+    pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {},
+    modGiorno: DEMO.modGiorno || {}
   };
 }
 function applicaBundle(c) {
@@ -68,6 +69,7 @@ function applicaBundle(c) {
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
   if (c.pistaAtleta) DEMO.pistaAtleta = c.pistaAtleta;
   if (c.palAtleta) DEMO.palAtleta = c.palAtleta;
+  DEMO.modGiorno = c.modGiorno || {};   // modifiche "una tantum" per singola data (coach)
 }
 
 function caricaCustom() {

@@ -194,7 +194,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.libQuery = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.coachData = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.libQuery = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.coachData = null; S.notifApri = null; S.modEdit = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -770,6 +770,7 @@ function disegna() {
   else if (S.risultatoGara) corpo = vistaRisultatoGaraForm();
   else if (S.share && typeof vistaCondividi === "function") corpo = vistaCondividi();
   else if (S.seduta) corpo = vistaSeduta();
+  else if (S.modEdit && typeof vistaModSeduta === "function") corpo = vistaModSeduta();
   else if (coach && S.spostaGiorni) corpo = vistaSpostaGiorni();
   else if (coach && S.adatta) corpo = vistaAdatta();
   else if (coach && S.sedSvolte) corpo = vistaSeduteSvolte();

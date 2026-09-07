@@ -187,6 +187,9 @@ function contaProgrammate(atleta, fromISO, toISO) {
 // e sui giorni spostati per lui (Tappa 3b)
 function seduteDelGiorno(dataISO, clamp, atleta) {
   atleta = atleta || (typeof atletaCorrente === "function" ? atletaCorrente() : null);
+  // MODIFICA "una tantum" del coach per questo atleta e questa data → sostituisce la giornata
+  const modOk = atleta ? _modApprovataDi(atleta.id, dataISO) : null;
+  if (modOk) { const sm = _sedutaDaMod(atleta, dataISO, modOk); return sm ? [_applicaSvolta(sm)] : []; }
   const wd = GG_ISO[wdIdx(dataISO)], out = [];
   const progP = _progPista(atleta), progL = _progPal(atleta);
   const pa = mesoAttivo(progP, dataISO, clamp);
@@ -194,6 +197,49 @@ function seduteDelGiorno(dataISO, clamp, atleta) {
   const pl = mesoAttivo(progL, dataISO, clamp);
   if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(_applicaSvolta(s)); } });
   return out;
+}
+// ── Modifiche seduta "una tantum" (per singola data), fatte dal COACH — solo quel giorno ──
+// modGiorno[aid][data] = { tipo, giorno, righe, stato:"ok", orig } nel bundle (societa_dati).
+function _modGiornoDi(aid, dataISO) { return (aid && DEMO.modGiorno && DEMO.modGiorno[aid] && DEMO.modGiorno[aid][dataISO]) || null; }
+function _modApprovataDi(aid, dataISO) { const m = _modGiornoDi(aid, dataISO); return (m && m.stato === "ok") ? m : null; }
+// costruisce la seduta dalla modifica: riusa i generatori (target/tempi/carichi) con indice giorno "alto" (900+n)
+// così l'id è univoco, non c'è override e non collide con la seduta normale in cache.
+function _sedutaDaMod(atleta, dataISO, mod) {
+  if (!atleta || !mod || !mod.tipo) return null;
+  const gioReale = Number(mod.giorno) || 1, gioN = 900 + gioReale;
+  const g = { giornoSett: "", risc: {}, plio: [], settimane: [{ righe: (mod.righe || []), nota: "" }] };
+  const meso = { focus: "✏️ Allenamento modificato" };
+  let s = null;
+  if (mod.tipo === "palestra") s = (typeof generaSedutaPal === "function") ? generaSedutaPal(g, gioN, 0, dataISO, meso, atleta) : null;
+  else s = (typeof generaSedutaPista === "function") ? generaSedutaPista(g, gioN, 0, dataISO, meso, atleta, _progPista(atleta)) : null;
+  if (s) { s.giorno = gioReale; s.daMod = true; }
+  return s;
+}
+// righe grezze del programma (personale/madre + override) per un atleta, data e tipo — per pre-riempire la modifica
+function righeGiornoAtleta(atleta, dataISO, tipo) {
+  if (!atleta) return [];
+  const wd = GG_ISO[wdIdx(dataISO)];
+  const prog = tipo === "palestra" ? _progPal(atleta) : _progPista(atleta);
+  const pa = mesoAttivo(prog, dataISO, false);
+  if (!pa) return [];
+  let righe = [];
+  (pa.m.giorni || []).forEach((g, gi) => {
+    if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
+    const sett = g.settimane && g.settimane[pa.settIdx];
+    const r = overrideRighe(atleta, tipo, gi, pa.settIdx) || (sett && sett.righe) || [];
+    if (r.length) righe = r;
+  });
+  return JSON.parse(JSON.stringify(righe || []));
+}
+// numero del giorno (1-based) del programma che cade in quella data, per un tipo — per l'etichetta della modifica
+function giornoDataAtleta(atleta, dataISO, tipo) {
+  if (!atleta) return 1;
+  const wd = GG_ISO[wdIdx(dataISO)];
+  const prog = tipo === "palestra" ? _progPal(atleta) : _progPista(atleta);
+  const pa = mesoAttivo(prog, dataISO, false); if (!pa) return 1;
+  let gio = 1;
+  (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, tipo, gi, g) === wd) gio = gi + 1; });
+  return gio;
 }
 // se per quel giorno esiste già una seduta_svolta (chiusa dall'atleta), rimetti i dati e marcala chiusa:
 // così non risulta di nuovo "da compilare" dopo un reload e l'atleta rivede cosa aveva fatto.

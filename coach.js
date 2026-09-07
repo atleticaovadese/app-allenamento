@@ -390,6 +390,33 @@ async function riattivaNotifiche() {
   if (sb && uid) { try { await sb.from("notifica_vista").delete().eq("profilo_id", uid); } catch (e) { /* offline */ } }
 }
 function _notifNascoste() { return notificheCoach(true).filter(x => (DEMO.notifVisti || {})[x.key]).length; }
+// apre/chiude il dettaglio di un atleta nella lista notifiche
+function toggleNotifAtleta(id) { S.notifApri = S.notifApri || {}; S.notifApri[id] = !S.notifApri[id]; disegna(); }
+// "Letto": segna letti (solo per questo allenatore) TUTTI gli avvisi correnti di un atleta
+async function leggiNotifAtleta(atletaId) {
+  const keys = notificheCoach().filter(x => x.atletaId === atletaId).map(x => x.key);
+  if (!keys.length) return;
+  DEMO.notifVisti = DEMO.notifVisti || {}; keys.forEach(k => DEMO.notifVisti[k] = 1);
+  if (S.notifApri) delete S.notifApri[atletaId];
+  disegna();
+  const uid = S.utente && S.utente.id;
+  if (sb && uid) { try { await sb.from("notifica_vista").upsert(keys.map(k => ({ profilo_id: uid, chiave: k })), { onConflict: "profilo_id,chiave" }); } catch (e) { /* offline: resta in locale */ } }
+}
+// storico breve dell'atleta (mostrato aprendo la notifica): ultimo diario, infortuni aperti, ultime sedute
+function _storicoBreveAtleta(atletaId) {
+  const dl = v => v ? (typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v) : "";
+  const sv = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(s => s.tipo !== "extra").slice().sort((x, y) => x.data < y.data ? 1 : -1).slice(0, 6);
+  const extra = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(s => s.tipo === "extra").slice().sort((x, y) => x.data < y.data ? 1 : -1).slice(0, 3);
+  const inf = (DEMO.infortuni || []).filter(i => i.atleta === atletaId && (i.stato || "") !== "Risolto");
+  const diarioUlt = ((DEMO.diariStorico || {})[atletaId] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1)[0];
+  let h = `<p class="et" style="margin:12px 0 4px;font-weight:600">📚 Storico recente</p>`;
+  if (diarioUlt) { const p = (typeof _notifPront === "function") ? _notifPront(diarioUlt) : null; h += `<p class="et" style="margin:0 0 4px">Ultimo diario ${dl(diarioUlt.data)}: prontezza <b>${p != null ? p.toFixed(1) : "—"}</b>/5${diarioUlt.oreSonno != null ? " · sonno " + diarioUlt.oreSonno + " h" : ""}</p>`; }
+  if (inf.length) h += `<p class="et" style="margin:0 0 4px;color:var(--rosso)">🩹 ${inf.map(i => (i.zona || "") + (i.lato ? " " + i.lato : "") + (i.stato ? " · " + i.stato : "")).join(" · ")}</p>`;
+  if (extra.length) h += `<p class="et" style="margin:0 0 4px;color:var(--verde)">🏃 Corse extra: ${extra.map(s => (s.dati && s.dati.km) + " km").join(" · ")}</p>`;
+  if (sv.length) h += `<div class="p-scroll"><table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Tipo</th><th>Dur·RPE</th></tr></thead><tbody>${sv.map(s => `<tr><td>${dl(s.data)}</td><td>${s.tipo === "pista" ? "Pista" : "Palestra"}${s.fastidi ? " ⚠" : ""}</td><td>${s.durata_min ? s.durata_min + "′" : "—"}${s.rpe != null ? " · RPE " + s.rpe : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  else h += `<p class="et">Nessuna seduta chiusa di recente.</p>`;
+  return h;
+}
 function vistaNotifiche() {
   const list = notificheCoach();
   const crit = list.filter(x => x.lv === "r").length, warn = list.filter(x => x.lv === "y").length;
@@ -404,28 +431,40 @@ function vistaNotifiche() {
   if (!list.length) return intro;
   const esc = s => String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const dl = v => v ? (typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v) : "";
-  // RAGGRUPPATE PER ATLETA: una card per atleta con dentro i suoi avvisi, ordinate per gravità
+  // UNA RIGA PER ATLETA (compatta): nome + gravità + «Letto». Si apre col tocco → dettaglio (cosa) + storico.
   const rankLv = { r: 0, y: 1, v: 2 };
   const perAtl = {};
   list.forEach(x => { (perAtl[x.atletaId] = perAtl[x.atletaId] || { atletaId: x.atletaId, nome: x.nome, items: [] }).items.push(x); });
   const gruppi = Object.keys(perAtl).map(k => { const g = perAtl[k]; g.worst = g.items.reduce((w, it) => Math.min(w, rankLv[it.lv]), 2); return g; })
     .sort((a, b) => (a.worst - b.worst) || String(a.nome).localeCompare(String(b.nome), "it"));
+  const apri = S.notifApri || {};
   const rows = gruppi.map(g => {
     const nR = g.items.filter(i => i.lv === "r").length, nY = g.items.filter(i => i.lv === "y").length;
     const badge = `${nR ? `<span style="color:${col("r")};font-weight:600">● ${nR}</span>` : ""}${nR && nY ? " · " : ""}${nY ? `<span style="color:${col("y")};font-weight:600">● ${nY}</span>` : ""}`;
+    const icons = [...new Set(g.items.map(i => ico(i.tipo)))].join(" ");
+    const isOpen = !!apri[g.atletaId];
     const items = g.items.map(x => `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--line2)">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;line-height:1.4">${ico(x.tipo)} ${x.testo}</div>
           ${x.data ? `<div class="et" style="margin-top:2px">${dl(x.data)}</div>` : ""}
         </div>
-        <button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:13px;flex:none" onclick="segnaNotifVista('${esc(x.key)}')" title="Nascondi questo avviso (solo per te)">✓</button>
+        <button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:13px;flex:none" onclick="segnaNotifVista('${esc(x.key)}')" title="Nascondi solo questo avviso">✓</button>
       </div>`).join("");
-    return `<div class="card" style="border-left:4px solid ${col(["r", "y", "v"][g.worst])}">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;cursor:pointer" onclick="apriAtleta('${g.atletaId}')">
-          <b style="font-size:15px">${g.nome}</b>
-          <span class="et" style="margin:0">${badge}${badge ? " · " : ""}${g.items.length} avvis${g.items.length === 1 ? "o" : "i"}</span></div>
-        ${items}
-        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px;margin-top:9px" onclick="apriAtleta('${g.atletaId}')">apri atleta ›</button>
+    const storico = (typeof _storicoBreveAtleta === "function") ? _storicoBreveAtleta(g.atletaId) : "";
+    return `<div class="card" style="border-left:4px solid ${col(["r", "y", "v"][g.worst])};padding:0">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" onclick="toggleNotifAtleta('${g.atletaId}')">
+          <span style="font-size:15px;color:var(--txt3);flex:none;width:14px">${isOpen ? "▾" : "▸"}</span>
+          <div style="flex:1;min-width:0">
+            <b style="font-size:15px">${g.nome}</b>
+            <div class="et" style="margin-top:2px">${badge}${badge ? " · " : ""}${g.items.length} avvis${g.items.length === 1 ? "o" : "i"} · ${icons}</div>
+          </div>
+          <button class="btn btn-2" style="width:auto;padding:7px 14px;font-size:13px;flex:none" onclick="event.stopPropagation();leggiNotifAtleta('${g.atletaId}')" title="Segna letti tutti gli avvisi di ${g.nome}">Letto</button>
+        </div>
+        ${isOpen ? `<div style="padding:0 14px 12px">
+          ${items}
+          ${storico}
+          <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px;margin-top:10px" onclick="apriAtleta('${g.atletaId}')">apri scheda atleta ›</button>
+        </div>` : ""}
       </div>`;
   }).join("");
   return intro + rows;
@@ -1161,6 +1200,13 @@ function vistaAdattaScegli() {
     </div>`;
 }
 function chiudiAdatta() { S.adatta = null; disegna(); window.scrollTo(0, 0); }
+// da Adatta: apre la modifica LIVE (solo quel giorno, anche cambio pista↔palestra) per la data scelta
+function apriModDataAdatta() {
+  const s = S.adatta; if (!s) return;
+  const d = (document.getElementById("modDataAdatta") || {}).value;
+  if (!d) { alert("Scegli prima una data."); return; }
+  if (typeof apriModData === "function") apriModData(s.atletaId, d, s.tipo);
+}
 function setAdattaSel(campo, val) {
   if (campo === "tipo") { S.adatta.tipo = val; const sch = _giorniSched(val); S.adatta.gi = sch.length ? sch[0].gi : 0; S.adatta.wk = 0; }
   else S.adatta[campo] = Number(val);
@@ -1330,6 +1376,12 @@ function vistaAdatta() {
   return `<button class="indietro" onclick="chiudiAdatta()">‹ Torna all'atleta</button>
     <div class="card"><h3>Adatta contenuto · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Cambia ripetute, %, distanze o carichi solo per ${a.nome}, senza toccare il madre. Tempi e pesi restano calcolati sui suoi PB. Si salva da solo.</p></div>
+    <div class="card" style="border-color:rgba(77,154,255,.35)">
+      <p class="et" style="margin:0 0 6px"><b>Modifica un singolo giorno (live)</b> — cambia il lavoro o passa <b>pista↔palestra</b> solo per una data, senza toccare il programma.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="modDataAdatta" value="${typeof oggiISO === "function" ? oggiISO() : ""}" style="width:auto;padding:8px">
+        <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="apriModDataAdatta()">✏️ Modifica quel giorno →</button>
+      </div></div>
     ${tipoTab}
     ${selettori}
     ${corpo}`;

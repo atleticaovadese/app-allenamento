@@ -383,11 +383,21 @@ function vistaSeduta() {
       <p style="font-size:13px;margin-top:6px;opacity:.9">${s.focus}</p>
     </div>
     ${s.chiusa ? `<div class="card" style="border-color:var(--verde);background:var(--verde-bg)"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Allenamento già svolto${s.rpe ? " · RPE " + s.rpe : ""}${s.durata ? " · " + s.durata + "′" : ""}</p><p class="et" style="margin:4px 0 0">Lo stai <b>rivedendo</b>: i tuoi dati sono già salvati. Puoi correggere qualcosa se serve e richiudere.</p></div>` : ""}
+    ${s.daMod ? `<div class="card" style="border-color:var(--blu);background:var(--blu-bg)"><p style="margin:0;font-weight:600;color:var(--blu)">✏️ Allenamento modificato dall'allenatore per questo giorno</p></div>` : ""}
     ${_notaExtraGiorno(s)}
     ${bloccoObiettivi(s)}
     <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>
+    ${_modBtnSeduta(s)}
     ${_extraBtnSeduta()}
     ${corpo}`;
+}
+// pulsante "modifica live" — SOLO l'allenatore, sull'allenamento di un atleta (non su seduta già chiusa)
+function _modBtnSeduta(s) {
+  if (!s || s.chiusa) return "";
+  if (!(S.utente && S.utente.ruolo === "coach")) return "";
+  if (typeof atletaBloccato === "function" && atletaBloccato(s.atletaId)) return "";
+  if (typeof apriModSeduta !== "function") return "";
+  return `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriModSeduta('${s.id}')">✏️ Modifica questo allenamento (solo oggi)</button>`;
 }
 // pulsante "corsa in più" nella seduta — solo per l'ATLETA mezzofondo/fondo
 function _extraBtnSeduta() {
@@ -418,3 +428,178 @@ function segnalaInfortunioSeduta() {
   if (typeof apriInfortunio === "function") apriInfortunio(aid, "seduta");
 }
 function tornaIndietro() { fermaTimer(); T.id = null; S.seduta = null; disegna(); }
+
+// ============================================================================
+// MODIFICA LIVE (solo allenatore) — cambia l'allenamento di un atleta SOLO per quel giorno.
+// Si può cambiare il lavoro o passare pista↔palestra. Stato in S.modEdit; salvato in DEMO.modGiorno.
+// ============================================================================
+// apre l'editor partendo da una seduta già aperta (dal calendario squadra / scheda atleta)
+function apriModSeduta(sedutaId) {
+  const s = (typeof sedutaDaId === "function") ? sedutaDaId(sedutaId) : null;
+  if (!s) return;
+  const a = (DEMO.atleti || []).find(x => x.id === s.atletaId); if (!a) return;
+  const origTipo = s.tipo === "palestra" ? "palestra" : "pista";
+  const base = (typeof righeGiornoAtleta === "function") ? righeGiornoAtleta(a, s.dataISO, origTipo) : [];
+  const ex = (typeof _modGiornoDi === "function") ? _modGiornoDi(a.id, s.dataISO) : null;
+  S.modEdit = {
+    atletaId: a.id, nome: a.nome, dataISO: s.dataISO, giorno: s.giorno || 1,
+    tipo: ex ? ex.tipo : origTipo, origTipo, baseRighe: base,
+    righe: ex ? JSON.parse(JSON.stringify(ex.righe || [])) : JSON.parse(JSON.stringify(base)),
+    byTipo: {}, fromSeduta: sedutaId
+  };
+  S.seduta = null; disegna(); window.scrollTo(0, 0);
+}
+// apre l'editor da una DATA (usato da "Adatta contenuto")
+function apriModData(atletaId, dataISO, tipo) {
+  const a = (DEMO.atleti || []).find(x => x.id === atletaId); if (!a || !dataISO) return;
+  const ex = (typeof _modGiornoDi === "function") ? _modGiornoDi(atletaId, dataISO) : null;
+  const origTipo = tipo === "palestra" ? "palestra" : "pista";
+  const base = (typeof righeGiornoAtleta === "function") ? righeGiornoAtleta(a, dataISO, origTipo) : [];
+  const gio = (typeof giornoDataAtleta === "function") ? giornoDataAtleta(a, dataISO, origTipo) : 1;
+  S.modEdit = {
+    atletaId: a.id, nome: a.nome, dataISO, giorno: (ex && ex.giorno) || gio,
+    tipo: ex ? ex.tipo : origTipo, origTipo, baseRighe: base,
+    righe: ex ? JSON.parse(JSON.stringify(ex.righe || [])) : JSON.parse(JSON.stringify(base)),
+    byTipo: {}, fromAdatta: true
+  };
+  S.adatta = null; disegna(); window.scrollTo(0, 0);
+}
+function annullaMod() { const m = S.modEdit; S.modEdit = null; if (m && m.fromSeduta) S.seduta = m.fromSeduta; disegna(); window.scrollTo(0, 0); }
+// cambio Pista/Palestra: memorizza le righe del tipo corrente; per il tipo originale riparte dalla base, per l'altro da vuoto
+function setModTipo(t) {
+  const m = S.modEdit; if (!m || m.tipo === t) return;
+  m.byTipo = m.byTipo || {};
+  m.byTipo[m.tipo] = m.righe;
+  if (m.byTipo[t] == null) m.byTipo[t] = (t === m.origTipo) ? JSON.parse(JSON.stringify(m.baseRighe || [])) : [];
+  m.tipo = t; m.righe = m.byTipo[t];
+  disegna(); window.scrollTo(0, 0);
+}
+function setModRigaVal(campo, i, val) { const r = (S.modEdit && S.modEdit.righe) || []; if (r[i]) r[i][campo] = val; }
+function setModRiga(campo, i, val) { setModRigaVal(campo, i, val); disegna(); }
+function setModEsercizio(i, val) {
+  if (val === "__altro__") { const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio (scrivilo a mano):", "") : ""; if (t && t.trim()) setModRiga("esercizio", i, t.trim()); else disegna(); return; }
+  setModRiga("esercizio", i, val);
+}
+function addModRiga() {
+  const m = S.modEdit; if (!m) return; m.righe = m.righe || [];
+  const a = (DEMO.atleti || []).find(x => x.id === m.atletaId);
+  const gr = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  if (m.tipo !== "pista") m.righe.push({ esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" });
+  else if (gr === "mezzo") m.righe.push({ contenuto: "", mezzo: "", distanza: "", n: "", min: "", rec: "" });
+  else if (gr === "lanci") m.righe.push({ contenuto: "", mezzo: "", kg: "", tipo: "", n: "", rec: "" });
+  else m.righe.push({ contenuto: "", distanza: "", n: "", rec: "", perc: "" });
+  disegna();
+}
+function delModRiga(i) { const m = S.modEdit; if (m && m.righe) { m.righe.splice(i, 1); disegna(); } }
+function salvaMod() {
+  const m = S.modEdit; if (!m) return;
+  const righe = (m.righe || []).filter(r => r && (r.esercizio || r.distanza || r.min || r.mezzo || r.contenuto || r.n));
+  if (!righe.length) { alert("Aggiungi almeno una riga (o annulla)."); return; }
+  DEMO.modGiorno = DEMO.modGiorno || {};
+  const per = DEMO.modGiorno[m.atletaId] = DEMO.modGiorno[m.atletaId] || {};
+  per[m.dataISO] = { tipo: m.tipo, giorno: m.giorno || 1, righe: JSON.parse(JSON.stringify(righe)), stato: "ok", richiedente: "coach", quando: (typeof oggiISO === "function" ? oggiISO() : ""), orig: m.origTipo };
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  if (typeof salvaCustom === "function") salvaCustom();
+  S.modEdit = null;
+  alert("✓ Allenamento modificato per " + (m.nome || "l'atleta") + " · " + (typeof dataLunga === "function" ? dataLunga(m.dataISO) : m.dataISO) + " (solo questo giorno).");
+  disegna(); window.scrollTo(0, 0);
+}
+// rimuove la modifica del giorno → torna all'allenamento originale del programma
+function annullaModGiorno() {
+  const m = S.modEdit; if (!m) return;
+  const per = DEMO.modGiorno && DEMO.modGiorno[m.atletaId];
+  if (per && per[m.dataISO]) { delete per[m.dataISO]; if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen(); if (typeof salvaCustom === "function") salvaCustom(); }
+  S.modEdit = null; alert("↺ Ripristinato l'allenamento originale del programma.");
+  disegna(); window.scrollTo(0, 0);
+}
+function vistaModSeduta() {
+  const m = S.modEdit; if (!m) return "";
+  const a = (DEMO.atleti || []).find(x => x.id === m.atletaId);
+  const gr = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  const tab = `<div class="tabbar">
+    <button class="${m.tipo === "pista" ? "on" : ""}" onclick="setModTipo('pista')">Pista</button>
+    <button class="${m.tipo === "palestra" ? "on" : ""}" onclick="setModTipo('palestra')">Palestra</button></div>`;
+  const tabella = m.tipo === "palestra" ? _modTabPal(a, m.righe)
+    : gr === "mezzo" ? _modTabMezzo(a, m.righe)
+      : gr === "lanci" ? _modTabLanci(a, m.righe)
+        : _modTabVel(a, m.righe);
+  const esisteMod = !!(DEMO.modGiorno && DEMO.modGiorno[m.atletaId] && DEMO.modGiorno[m.atletaId][m.dataISO]);
+  return `<button class="indietro" onclick="annullaMod()">‹ Annulla</button>
+    <div class="card" style="background:var(--blu);color:#fff;border:0">
+      <p class="et" style="color:#fff;opacity:.85">${typeof dataLunga === "function" ? dataLunga(m.dataISO) : m.dataISO}</p>
+      <h3 style="color:#fff">✏️ Modifica allenamento · ${m.nome || ""}</h3>
+      <p style="font-size:13px;margin-top:6px;opacity:.9">Vale <b>solo per questo giorno</b>. Scegli Pista o Palestra, poi imposta il lavoro.</p></div>
+    ${tab}
+    ${m.tipo !== m.origTipo ? `<div class="card" style="border-color:var(--blu)"><p class="et" style="margin:0;color:var(--blu)">Hai cambiato tipo (era <b>${m.origTipo}</b>): componi il nuovo allenamento da zero.</p></div>` : ""}
+    ${tabella}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+      <button class="btn" style="flex:1;min-width:150px" onclick="salvaMod()">💾 Salva (solo oggi)</button>
+      ${esisteMod ? `<button class="btn btn-2" style="width:auto;padding:11px 14px" onclick="annullaModGiorno()">↺ Ripristina originale</button>` : ""}
+    </div>`;
+}
+// tabelle editor (scrivono su S.modEdit.righe) — stesse colonne di "Adatta contenuto"
+function _modTabVel(a, righe) {
+  const prof = (typeof pistaDi === "function" && typeof gruppoDi === "function") ? pistaDi(gruppoDi(a)).profilo : (DEMO.pista && DEMO.pista.profilo);
+  const rows = (righe || []).map((r, i) => {
+    const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
+    return `<tr>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setModRigaVal('contenuto',${i},this.value)" style="min-width:110px"></td>
+      <td><select onchange="setModRiga('distanza',${i},this.value)">${typeof optDistPista === "function" ? optDistPista(r.distanza, prof) : `<option value="">—</option>`}</select></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setModRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setModRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setModRigaVal('rec',${i},this.value)" style="min-width:60px"></td>
+      <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delModRiga(${i})" aria-label="Rimuovi">✕</button></td></tr>`;
+  }).join("");
+  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Contenuto</th><th>Dist.</th><th>n°</th><th>% vel</th><th>Rec</th><th>Tempo</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addModRiga()">＋ riga</button></div>`;
+}
+function _modTabMezzo(a, righe) {
+  const MZ = (typeof MZ_MEZZI !== "undefined") ? MZ_MEZZI : [];
+  const optMezzo = val => `<option value="">—</option>` + MZ.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  const rows = (righe || []).map((r, i) => `<tr>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setModRigaVal('contenuto',${i},this.value)" style="min-width:100px"></td>
+      <td><select onchange="setModRiga('mezzo',${i},this.value)">${optMezzo(r.mezzo)}</select></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setModRigaVal('distanza',${i},this.value)" onchange="disegna()" style="min-width:56px"></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setModRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:44px"></td>
+      <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setModRigaVal('min',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setModRigaVal('rec',${i},this.value)" style="min-width:56px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delModRiga(${i})" aria-label="Rimuovi">✕</button></td></tr>`).join("");
+  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Focus</th><th>Mezzo</th><th>Dist (m)</th><th>n°</th><th>Min</th><th>Rec</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addModRiga()">＋ riga</button></div>`;
+}
+function _modTabPal(a, righe) {
+  const rows = (righe || []).map((r, i) => {
+    const peso = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
+    return `<tr>
+      <td><select onchange="setModEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : `<option>${r.esercizio || ""}</option>`}</select></td>
+      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setModRigaVal('serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
+      <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setModRigaVal('rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
+      <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setModRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setModRigaVal('rec',${i},this.value)" style="min-width:56px"></td>
+      <td class="pauto">${peso != null ? peso + " kg" : "—"}</td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delModRiga(${i})" aria-label="Rimuovi">✕</button></td></tr>`;
+  }).join("");
+  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Rec</th><th>Peso</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addModRiga()">＋ esercizio</button></div>`;
+}
+function _modTabLanci(a, righe) {
+  const rows = (righe || []).map((r, i) => `<tr>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setModRigaVal('contenuto',${i},this.value)" style="min-width:90px"></td>
+      <td><input value="${(r.mezzo || "").replace(/"/g, "&quot;")}" placeholder="attrezzo" oninput="setModRigaVal('mezzo',${i},this.value)" style="min-width:90px"></td>
+      <td><input inputmode="decimal" value="${r.kg || ""}" placeholder="kg" oninput="setModRigaVal('kg',${i},this.value)" style="min-width:54px"></td>
+      <td><input value="${(r.tipo || "").replace(/"/g, "&quot;")}" placeholder="tipo" oninput="setModRigaVal('tipo',${i},this.value)" style="min-width:80px"></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setModRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:44px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setModRigaVal('rec',${i},this.value)" style="min-width:54px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delModRiga(${i})" aria-label="Rimuovi">✕</button></td></tr>`).join("");
+  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Focus</th><th>Attrezzo</th><th>Kg</th><th>Tipo</th><th>n°</th><th>Rec</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addModRiga()">＋ lancio</button></div>`;
+}
