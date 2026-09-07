@@ -378,9 +378,17 @@ function notificheCoach(includiVisti) {
   const rank = { r: 0, y: 1, v: 2 };
   return lista.sort((x, y) => (rank[x.lv] - rank[y.lv]) || (x.data < y.data ? 1 : -1));
 }
-// "✓ visto": nasconde la notifica finché la situazione resta identica (la sig non cambia)
-function segnaNotifVista(key) { DEMO.notifVisti = DEMO.notifVisti || {}; DEMO.notifVisti[key] = 1; if (typeof salvaCustom === "function") salvaCustom(); disegna(); }
-function riattivaNotifiche() { DEMO.notifVisti = {}; if (typeof salvaCustom === "function") salvaCustom(); disegna(); }
+// "✓ visto": nasconde la notifica SOLO per questo allenatore (tabella notifica_vista) finché la situazione non cambia
+async function segnaNotifVista(key) {
+  DEMO.notifVisti = DEMO.notifVisti || {}; DEMO.notifVisti[key] = 1; disegna();
+  const uid = S.utente && S.utente.id;
+  if (sb && uid) { try { await sb.from("notifica_vista").upsert({ profilo_id: uid, chiave: key }, { onConflict: "profilo_id,chiave" }); } catch (e) { /* offline: resta nascosta in locale in questa sessione */ } }
+}
+async function riattivaNotifiche() {
+  DEMO.notifVisti = {}; disegna();
+  const uid = S.utente && S.utente.id;
+  if (sb && uid) { try { await sb.from("notifica_vista").delete().eq("profilo_id", uid); } catch (e) { /* offline */ } }
+}
 function _notifNascoste() { return notificheCoach(true).filter(x => (DEMO.notifVisti || {})[x.key]).length; }
 function vistaNotifiche() {
   const list = notificheCoach();
@@ -395,16 +403,31 @@ function vistaNotifiche() {
     ${nascoste ? `<button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="riattivaNotifiche()">↺ Rivedi i ${nascoste} avvisi nascosti</button>` : ""}</div>`;
   if (!list.length) return intro;
   const esc = s => String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const rows = list.map(x => `<div class="card" style="border-left:4px solid ${col(x.lv)}">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;cursor:pointer" onclick="apriAtleta('${x.atletaId}')">
-        <b style="font-size:14px">${ico(x.tipo)} ${x.nome}</b>
-        <span class="et" style="margin:0">${x.data ? (typeof fmtDataAnno === "function" ? fmtDataAnno(x.data) : x.data) : ""}</span></div>
-      <p class="et" style="margin:4px 0 0;color:var(--txt2)">${x.testo}</p>
-      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px" onclick="apriAtleta('${x.atletaId}')">apri atleta ›</button>
-        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px" onclick="segnaNotifVista('${esc(x.key)}')">✓ Visto</button>
-      </div>
-    </div>`).join("");
+  const dl = v => v ? (typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v) : "";
+  // RAGGRUPPATE PER ATLETA: una card per atleta con dentro i suoi avvisi, ordinate per gravità
+  const rankLv = { r: 0, y: 1, v: 2 };
+  const perAtl = {};
+  list.forEach(x => { (perAtl[x.atletaId] = perAtl[x.atletaId] || { atletaId: x.atletaId, nome: x.nome, items: [] }).items.push(x); });
+  const gruppi = Object.keys(perAtl).map(k => { const g = perAtl[k]; g.worst = g.items.reduce((w, it) => Math.min(w, rankLv[it.lv]), 2); return g; })
+    .sort((a, b) => (a.worst - b.worst) || String(a.nome).localeCompare(String(b.nome), "it"));
+  const rows = gruppi.map(g => {
+    const nR = g.items.filter(i => i.lv === "r").length, nY = g.items.filter(i => i.lv === "y").length;
+    const badge = `${nR ? `<span style="color:${col("r")};font-weight:600">● ${nR}</span>` : ""}${nR && nY ? " · " : ""}${nY ? `<span style="color:${col("y")};font-weight:600">● ${nY}</span>` : ""}`;
+    const items = g.items.map(x => `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--line2)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;line-height:1.4">${ico(x.tipo)} ${x.testo}</div>
+          ${x.data ? `<div class="et" style="margin-top:2px">${dl(x.data)}</div>` : ""}
+        </div>
+        <button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:13px;flex:none" onclick="segnaNotifVista('${esc(x.key)}')" title="Nascondi questo avviso (solo per te)">✓</button>
+      </div>`).join("");
+    return `<div class="card" style="border-left:4px solid ${col(["r", "y", "v"][g.worst])}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;cursor:pointer" onclick="apriAtleta('${g.atletaId}')">
+          <b style="font-size:15px">${g.nome}</b>
+          <span class="et" style="margin:0">${badge}${badge ? " · " : ""}${g.items.length} avvis${g.items.length === 1 ? "o" : "i"}</span></div>
+        ${items}
+        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px;margin-top:9px" onclick="apriAtleta('${g.atletaId}')">apri atleta ›</button>
+      </div>`;
+  }).join("");
   return intro + rows;
 }
 

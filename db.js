@@ -81,7 +81,7 @@ async function caricaDati() {
   // profilo dell'utente
   const { data: prof } = await sb.from("profilo").select("ruolo,societa_id,nome").eq("id", user.id).single();
   if (!prof) return;
-  S.utente = { ruolo: prof.ruolo, nome: prof.nome, societaId: prof.societa_id, email: user.email };
+  S.utente = { id: user.id, ruolo: prof.ruolo, nome: prof.nome, societaId: prof.societa_id, email: user.email };
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
@@ -202,6 +202,12 @@ async function caricaDati() {
 
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
   await caricaDatiDB();
+
+  // stato "visto" delle notifiche: PER ALLENATORE (tabella dedicata, non condiviso tra coach)
+  DEMO.notifVisti = {};
+  if (prof.ruolo === "coach") {
+    try { const { data: nv } = await sb.from("notifica_vista").select("chiave").eq("profilo_id", user.id); (nv || []).forEach(r => DEMO.notifVisti[r.chiave] = 1); } catch (e) { /* tabella assente o offline */ }
+  }
 
   // TAPPA 4 — sedute svolte: pistaLog/vbtLog + carico + storico per la vista + presenze/aderenza reali
   try {

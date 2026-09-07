@@ -26,7 +26,7 @@ function bundleCustom() {
     lanci: DEMO.lanci || {}, lanciLog: DEMO.lanciLog || [],
     profiloAttrezzo: DEMO.profiloAttrezzo || {}, velRilascio: DEMO.velRilascio || {},
     eserciziSpec: DEMO.eserciziSpec || [], eserciziVideo: DEMO.eserciziVideo || {},
-    notifVisti: DEMO.notifVisti || {}, fastidiRisolti: DEMO.fastidiRisolti || {},
+    fastidiRisolti: DEMO.fastidiRisolti || {},
     prevTestCustom: DEMO.prevTestCustom || [], prevEserciziCustom: DEMO.prevEserciziCustom || [],
     reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {},
@@ -55,7 +55,7 @@ function applicaBundle(c) {
   if (c.velRilascio) DEMO.velRilascio = c.velRilascio;
   if (c.eserciziSpec) DEMO.eserciziSpec = c.eserciziSpec;
   if (c.eserciziVideo) DEMO.eserciziVideo = c.eserciziVideo;
-  if (c.notifVisti) DEMO.notifVisti = c.notifVisti;
+  // notifVisti NON è più nel bundle condiviso: lo stato "visto" è per-allenatore (tabella notifica_vista)
   if (c.fastidiRisolti) DEMO.fastidiRisolti = c.fastidiRisolti;
   if (c.prevTestCustom) DEMO.prevTestCustom = c.prevTestCustom;
   if (c.prevEserciziCustom) DEMO.prevEserciziCustom = c.prevEserciziCustom;
