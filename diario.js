@@ -17,6 +17,23 @@ function statoProntezza(p) {
 
 function diarioCompleto(d) { return prontezza(d) !== null; }
 
+// promemoria SERALE (dalle 18) per l'atleta: se non ha compilato il diario di oggi, resta finché non lo fa.
+// Mostrato in cima a tutte le sue schermate (tranne mentre lo sta compilando o è dentro una seduta).
+const _DIARIO_ORA_PROMEMORIA = 18;
+function _promemoriaDiario() {
+  if (S.utente && S.utente.ruolo === "coach") return "";
+  if (S.vista === "diario" || S.seduta) return "";              // sta già compilando / è in allenamento
+  const d = DEMO.diarioOggi;
+  const fatto = d && d.salvato && (typeof diarioCompleto === "function" ? diarioCompleto(d) : true);
+  if (fatto) return "";
+  if (new Date().getHours() < _DIARIO_ORA_PROMEMORIA) return "";  // solo "alla sera"
+  return `<div class="card" style="border-color:var(--ambra,#e6a83c);background:var(--giallo-bg);display:flex;align-items:center;gap:11px;cursor:pointer" onclick="vai('diario')">
+    <span style="font-size:22px;flex:none">📝</span>
+    <div style="flex:1;min-width:0"><b style="color:#8a6d00">Non hai ancora compilato il diario di oggi</b>
+      <div class="et" style="margin-top:2px">Bastano 30 secondi: sonno, stress, dolori, energia. Tocca qui per farlo →</div></div>
+  </div>`;
+}
+
 // storia diario dell'atleta loggato (recente → vecchio)
 function _diarioStoriaMia() {
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;

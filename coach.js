@@ -1062,17 +1062,22 @@ function vistaPresenzeCoach() {
 
 // ---------- monitoraggio: diario squadra ----------
 function vistaDiarioCoach() {
-  const righe = ordinaAtleti().map(a => {
+  const lista = ordinaAtleti();
+  const oggiV = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  const fattoOggiDi = a => ((DEMO.diariStorico || {})[a.id] || []).some(v => v.data === oggiV);
+  const nOggi = lista.filter(fattoOggiDi).length;
+  // prima chi NON ha compilato oggi (così vedi subito chi manca), poi per nome
+  const righe = lista.slice().sort((a, b) => (fattoOggiDi(a) ? 1 : 0) - (fattoOggiDi(b) ? 1 : 0)).map(a => {
     const d = DEMO.diariCoach[a.id] || {};
     const pr = d.prontezza || DEMO.mon[a.id].prontezza;
     const nGiorni = ((DEMO.diariStorico || {})[a.id] || []).length;
-    const stato = d.compilato
-      ? `compilato ${d.ultimo}`
-      : `<span style="color:var(--rosso)">non compilato da ${d.ultimo}</span>`;
-    return `<div class="card es" onclick="apriDiarioAtleta('${a.id}')">
+    const oggiOk = fattoOggiDi(a);
+    const chipOggi = oggiOk ? `<span style="color:var(--verde);font-weight:600">✓ oggi</span>` : `<span style="color:var(--ambra,#e6a83c);font-weight:600">● oggi da fare</span>`;
+    const stato = d.compilato ? `ultimo: ${d.ultimo}` : `<span style="color:var(--rosso)">mai compilato</span>`;
+    return `<div class="card es" onclick="apriDiarioAtleta('${a.id}')"${oggiOk ? "" : ' style="border-left:3px solid var(--ambra,#e6a83c)"'}>
       <div style="display:flex;align-items:center;gap:10px">
         <div style="flex:1;min-width:0"><h3>${a.nome}</h3>
-          <p class="et" style="margin-top:2px">${stato}${nGiorni ? ` · ${nGiorni} giorni registrati` : ""}</p></div>
+          <p class="et" style="margin-top:2px">${chipOggi} · ${stato}${nGiorni ? ` · ${nGiorni} gg` : ""}</p></div>
         <div style="text-align:right"><div class="et">prontezza</div>
           <b style="font-size:18px;color:${colProntezza(pr)}">${pr}</b></div>
         <span class="freccia">›</span></div>
@@ -1080,7 +1085,8 @@ function vistaDiarioCoach() {
     </div>`;
   }).join("");
   return `<div class="card"><h3>Diario squadra</h3>
-    <p class="et" style="margin-top:2px">Prontezza e ultimo diario di ogni atleta. Tocca un atleta per vederlo giorno per giorno.</p></div>
+    <p class="et" style="margin-top:2px">Prontezza e diario di ogni atleta. Tocca un atleta per vederlo giorno per giorno.</p>
+    <p class="et" style="margin-top:8px"><b style="color:${nOggi === lista.length ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${nOggi}/${lista.length}</b> hanno compilato il diario <b>oggi</b>.</p></div>
     ${righe}`;
 }
 function apriDiarioAtleta(id) { S.diarioAtleta = id; disegna(); window.scrollTo(0, 0); }
