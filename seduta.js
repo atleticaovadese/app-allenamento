@@ -573,15 +573,18 @@ function _modTabMezzo(a, righe) {
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addModRiga()">＋ riga</button></div>`;
 }
 function _modTabPal(a, righe) {
+  const dISO = (S.modEdit && S.modEdit.dataISO) || (typeof oggiISO === "function" ? oggiISO() : "");
   const rows = (righe || []).map((r, i) => {
-    const peso = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
+    const target = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
+    const peso = target != null ? target : (typeof pesoRifAtleta === "function" ? pesoRifAtleta(a, r, dISO) : null);
+    const pesoCell = target != null ? target + " kg" : (peso != null ? `<span title="peso usato nel blocco precedente" style="color:var(--txt3)">~${peso} kg</span>` : "—");
     return `<tr>
       <td><select onchange="setModEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : `<option>${r.esercizio || ""}</option>`}</select></td>
       <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setModRigaVal('serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setModRigaVal('rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setModRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setModRigaVal('rec',${i},this.value)" style="min-width:56px"></td>
-      <td class="pauto">${peso != null ? peso + " kg" : "—"}</td>
+      <td class="pauto">${pesoCell}</td>
       <td><button class="chiudi" style="font-size:14px" onclick="delModRiga(${i})" aria-label="Rimuovi">✕</button></td></tr>`;
   }).join("");
   return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">

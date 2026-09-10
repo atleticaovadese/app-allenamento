@@ -78,6 +78,43 @@ function _pesoFattoStorico(aid, esercizio, dataISO, winStartISO) {
   }
   return null;
 }
+// peso di riferimento dal MESOCICLO PRECEDENTE: l'ultimo peso davvero usato per quell'esercizio,
+// escludendo l'ULTIMA settimana del blocco (di solito scarico) → prende la penultima (carico pieno).
+// Serve quando non c'è % o l'atleta non ha il massimale: non devi ricercare a mano i carichi del blocco prima.
+function _pesoBloccoPrecedente(atleta, esercizio, dataISO) {
+  if (!atleta || !esercizio || !dataISO) return null;
+  const prog = (typeof _progPal === "function") ? _progPal(atleta) : null;
+  const mc = ((prog && prog.mesocicli) || []).filter(m => m.inizio).slice().sort((a, b) => a.inizio < b.inizio ? -1 : 1);
+  if (!mc.length) return null;
+  let curIdx = -1;
+  mc.forEach((m, i) => { if (m.inizio <= dataISO) curIdx = i; });   // blocco corrente = ultimo iniziato entro la data
+  const prev = curIdx > 0 ? mc[curIdx - 1] : null;
+  if (!prev) return null;
+  const nS = (typeof nSettDi === "function") ? nSettDi(prev) : ((prev.settimane && prev.settimane.length) || 4);
+  const cut = nS >= 2 ? nS - 1 : nS;   // tieni fino alla PENULTIMA settimana (escludi l'ultima = scarico)
+  const inizio = new Date(prev.inizio + "T00:00:00");
+  const dalISO = prev.inizio;
+  const alISO = isoDiData(new Date(inizio.getFullYear(), inizio.getMonth(), inizio.getDate() + cut * 7 - 1));
+  const arr = ((DEMO.seduteSvolte || {})[atleta.id] || [])
+    .filter(sv => sv.tipo === "palestra" && sv.data >= dalISO && sv.data <= alISO)
+    .sort((a, b) => a.data < b.data ? 1 : -1);   // più recente prima
+  for (const sv of arr) {
+    const e = ((sv.dati && sv.dati.esercizi) || []).find(x => (x.nome || "") === esercizio && x.pesoFatto != null && x.pesoFatto !== "");
+    if (e) return Number(e.pesoFatto);
+  }
+  return null;
+}
+// peso di RIFERIMENTO completo per un esercizio a una data: 1) % × massimale o peso manuale del coach;
+// 2) ultimo peso usato NEL mesociclo corrente; 3) peso della penultima settimana del mesociclo PRECEDENTE.
+function pesoRifAtleta(atleta, r, dataISO) {
+  let p = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r) : (typeof palPeso === "function" ? palPeso(r) : null);
+  if (p != null || !atleta || !dataISO) return p;
+  const pa = (typeof mesoAttivo === "function") ? mesoAttivo(_progPal(atleta), dataISO, false) : null;
+  const winStart = pa && pa.m && pa.m.inizio ? pa.m.inizio : null;
+  p = _pesoFattoStorico(atleta.id, r.esercizio, dataISO, winStart);
+  if (p == null) p = _pesoBloccoPrecedente(atleta, r.esercizio, dataISO);
+  return p;
+}
 function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
   const ovR = overrideRighe(atleta, "palestra", giornoNum - 1, settIdx);
@@ -89,9 +126,13 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     const serie = Number(r.serie) || 0;
     let peso = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r)
       : (typeof palPeso === "function" ? palPeso(r) : null);
-    // se il coach non ha impostato un peso (né massimale né manuale), riprendi l'ultimo peso che l'atleta
-    // ha davvero usato per QUESTO esercizio in una seduta precedente dello stesso mesociclo (copia-incolla carichi)
-    if (peso == null && atleta) { const p = _pesoFattoStorico(aid, r.esercizio, dataISO, winStart); if (p != null) peso = p; }
+    // se il coach non ha impostato un peso (né %/massimale né manuale): riprendi l'ultimo peso davvero usato —
+    // prima nel mesociclo corrente (copia-incolla carichi), poi nella penultima settimana del blocco precedente.
+    if (peso == null && atleta) {
+      let p = _pesoFattoStorico(aid, r.esercizio, dataISO, winStart);
+      if (p == null && typeof _pesoBloccoPrecedente === "function") p = _pesoBloccoPrecedente(atleta, r.esercizio, dataISO);
+      if (p != null) peso = p;
+    }
     const rec = String(r.rec || ""), recSec = rec.indexOf("'") >= 0 ? (parseFloat(rec) * 60) : (parseInt(rec) || null);
     return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, pesoFatto: null, vbt: Array(serie).fill(null) };
   });
