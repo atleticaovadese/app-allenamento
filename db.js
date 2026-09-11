@@ -71,6 +71,43 @@ async function registraAtleta(email, password) {
 
 async function disconnetti() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } }
 
+// ---------- recupero password (self-service, via email) ----------
+// L'utente riceve un link via email e sceglie da solo la nuova password: l'app non gestisce mai password altrui.
+async function recuperoPassword(email) {
+  if (!sb) { mostraErroreLogin("Collegamento al database non disponibile."); return; }
+  email = (email || "").trim().toLowerCase();
+  if (!email) { mostraErroreLogin("Scrivi prima la tua email nel campo qui sopra, poi tocca «Password dimenticata?»."); return; }
+  mostraErroreLogin("");
+  const redirectTo = location.origin + location.pathname;   // il link riporta all'app (va anche messo nei Redirect URLs di Supabase)
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) { mostraErroreLogin("Non riuscito: " + error.message); return; }
+    alert("📧 Ti abbiamo inviato un'email per reimpostare la password a " + email + ".\nApri il link nell'email (controlla anche lo spam), poi scegli la nuova password.\nSe non arriva, l'indirizzo potrebbe non essere registrato.");
+  } catch (e) { mostraErroreLogin("Non riuscito. Riprova."); }
+}
+// dopo aver aperto il link di reset: salva la nuova password (siamo in una sessione di recupero) ed entra
+async function impostaNuovaPassword(pwd) {
+  if (!sb) return;
+  if (!pwd || pwd.length < 6) { mostraErroreLogin("La password deve avere almeno 6 caratteri."); return; }
+  const btn = document.querySelector(".login .btn"); if (btn) { btn.textContent = "Salvataggio…"; btn.disabled = true; }
+  try {
+    const { error } = await sb.auth.updateUser({ password: pwd });
+    if (error) { if (btn) { btn.textContent = "Salva la nuova password"; btn.disabled = false; } mostraErroreLogin("Non riuscito: " + error.message + ". Il link potrebbe essere scaduto: richiedine un altro dal login."); return; }
+    S.recupero = false;
+    try { history.replaceState(null, "", location.origin + location.pathname); } catch (e) { }
+    await caricaDati();
+    disegna();
+    if (typeof alert === "function") alert("✓ Password aggiornata. Sei dentro.");
+  } catch (e) { if (btn) { btn.textContent = "Salva la nuova password"; btn.disabled = false; } mostraErroreLogin("Non riuscito. Riprova."); }
+}
+
+// quando l'utente apre il link di reset, Supabase emette l'evento PASSWORD_RECOVERY → mostra il form nuova password
+if (sb && sb.auth && typeof sb.auth.onAuthStateChange === "function") {
+  sb.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY" && typeof S !== "undefined") { S.recupero = true; if (typeof disegna === "function") disegna(); }
+  });
+}
+
 // ---------- caricamento dati veri nel DEMO ----------
 async function caricaDati() {
   if (!sb) return;
@@ -676,11 +713,15 @@ async function eliminaVoce(tabella, atletaId, id, arrKey, idx) {
 // ---------- avvio: riprende la sessione se già loggato ----------
 async function avvioApp() {
   try {
+    // link di reset password (#...type=recovery): mostra il form "nuova password", niente auto-login
+    if (typeof location !== "undefined" && /type=recovery/.test((location.hash || "") + (location.search || ""))) {
+      S.recupero = true; disegna(); return;
+    }
     if (sb) {
       const { data } = await sb.auth.getSession();
       if (data && data.session) { await caricaDati(); }
       else if (typeof ripristina === "function") ripristina();
     } else if (typeof ripristina === "function") ripristina();
   } catch (e) { console.warn("avvio:", e); if (typeof ripristina === "function") ripristina(); }
-  disegna();
+  if (!S.recupero) disegna();
 }

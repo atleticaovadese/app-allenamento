@@ -169,10 +169,46 @@ function vistaLogin() {
              <button type="button" class="link-indietro" onclick="toggleRegistra()">Hai già l'accesso? Entra ›</button></p>`
         : `<label class="check" style="margin:4px 2px 14px"><input type="checkbox" id="inRicorda" ${savedEmail ? "checked" : ""}><span>Ricorda la mia email</span></label>
            <button class="btn" type="submit">Entra</button>
-           <p class="et" style="text-align:center;margin-top:12px">
+           <p class="et" style="text-align:center;margin-top:10px">
+             <button type="button" class="link-indietro" onclick="recuperoUI()">Password dimenticata?</button></p>
+           <p class="et" style="text-align:center;margin-top:2px">
              <button type="button" class="link-indietro" onclick="toggleRegistra()">Sei un atleta? Registrati ›</button></p>`}
     </form>
   </div>`;
+}
+// "Password dimenticata?": invia l'email di reset all'indirizzo scritto nel campo Email
+function recuperoUI() {
+  const email = ($("inEmail") || {}).value || "";
+  if (typeof recuperoPassword === "function") recuperoPassword(email);
+}
+// schermata per scegliere la NUOVA password, aperta dal link ricevuto via email
+function vistaNuovaPassword() {
+  return `<div class="login">
+    <h1>${CONFIG.nome}</h1>
+    <p class="sub" style="font-style:italic">Scegli una nuova password</p>
+    <div id="loginErr" class="login-err" style="display:none"></div>
+    <form autocomplete="on" onsubmit="salvaNuovaPassword();return false">
+      <div class="campo"><label>Nuova password</label>
+        <input id="inPwd1" name="password" type="password" autocomplete="new-password" placeholder="almeno 6 caratteri"></div>
+      <div class="campo"><label>Ripeti la password</label>
+        <input id="inPwd2" name="password2" type="password" autocomplete="new-password" placeholder="ripeti"></div>
+      <button class="btn" type="submit">Salva la nuova password</button>
+      <p class="et" style="text-align:center;margin-top:12px">
+        <button type="button" class="link-indietro" onclick="annullaRecupero()">‹ Torna al login</button></p>
+    </form>
+  </div>`;
+}
+function salvaNuovaPassword() {
+  const p1 = ($("inPwd1") || {}).value || "", p2 = ($("inPwd2") || {}).value || "";
+  if (p1 !== p2) { if (typeof mostraErroreLogin === "function") mostraErroreLogin("Le due password non coincidono."); return; }
+  if (typeof impostaNuovaPassword === "function") impostaNuovaPassword(p1);
+}
+async function annullaRecupero() {
+  S.recupero = false;
+  try { if (sb) await sb.auth.signOut(); } catch (e) { }
+  try { history.replaceState(null, "", location.origin + location.pathname); } catch (e) { }
+  if (typeof ripristina === "function") ripristina();
+  disegna();
 }
 function toggleRegistra() { S.mostraRegistra = !S.mostraRegistra; disegna(); }
 function accediUI() {
@@ -759,6 +795,7 @@ function disegnaMenu(menu) {
 
 function disegna() {
   const r = $("radice");
+  if (S.recupero && typeof vistaNuovaPassword === "function") { r.innerHTML = vistaNuovaPassword(); return; }
   if (!S.utente) { r.innerHTML = vistaLogin(); return; }
 
   const coach = S.utente.ruolo === "coach";
