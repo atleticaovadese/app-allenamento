@@ -17,16 +17,17 @@ function statoProntezza(p) {
 
 function diarioCompleto(d) { return prontezza(d) !== null; }
 
-// promemoria SERALE (dalle 18) per l'atleta: se non ha compilato il diario di oggi, resta finché non lo fa.
-// Mostrato in cima a tutte le sue schermate (tranne mentre lo sta compilando o è dentro una seduta).
-const _DIARIO_ORA_PROMEMORIA = 18;
+// promemoria per l'atleta: se non ha compilato il diario di oggi entro mezzogiorno, compare e resta finché non lo fa.
+// (il diario è un check del mattino: così aprono l'app e lo compilano). Mostrato in cima a tutte le sue schermate
+// tranne mentre lo sta compilando o è dentro una seduta.
+const _DIARIO_ORA_PROMEMORIA = 12;
 function _promemoriaDiario() {
   if (S.utente && S.utente.ruolo === "coach") return "";
   if (S.vista === "diario" || S.seduta) return "";              // sta già compilando / è in allenamento
   const d = DEMO.diarioOggi;
   const fatto = d && d.salvato && (typeof diarioCompleto === "function" ? diarioCompleto(d) : true);
   if (fatto) return "";
-  if (new Date().getHours() < _DIARIO_ORA_PROMEMORIA) return "";  // solo "alla sera"
+  if (new Date().getHours() < _DIARIO_ORA_PROMEMORIA) return "";  // grazia fino a mezzogiorno, poi ricorda
   return `<div class="card" style="border-color:var(--ambra,#e6a83c);background:var(--giallo-bg);display:flex;align-items:center;gap:11px;cursor:pointer" onclick="vai('diario')">
     <span style="font-size:22px;flex:none">📝</span>
     <div style="flex:1;min-width:0"><b style="color:#8a6d00">Non hai ancora compilato il diario di oggi</b>

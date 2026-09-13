@@ -237,6 +237,15 @@ function atletaCorrente() {
   return DEMO.atleti.find(x => S.utente && x.id === S.utente.atletaId) || DEMO.atleti[0];
 }
 
+// pulsante "attiva notifiche push" — solo se il telefono le supporta (app installata) e non sono già attive
+function _bottoneNotifiche() {
+  if (typeof pushSupportato !== "function" || !pushSupportato()) return "";
+  if (typeof pushAttivo === "function" && pushAttivo()) return "";
+  let denied = false; try { denied = (typeof Notification !== "undefined") && Notification.permission === "denied"; } catch (e) { }
+  if (denied) return "";
+  return `<button class="btn btn-2" style="margin-bottom:11px" onclick="attivaNotifiche()">🔔 Attiva le notifiche sul telefono (promemoria diario)</button>`;
+}
+
 // ---------- atleta: cruscotto a quadranti ----------
 function vistaOggi() {
   const a = atletaCorrente();
@@ -299,6 +308,7 @@ function vistaOggi() {
 
   return `
   ${cardOggi}
+  ${typeof _bottoneNotifiche === "function" ? _bottoneNotifiche() : ""}
   ${isMezzo ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>${kmExM > 0 ? `<p class="et" style="margin:-6px 2px 11px;color:var(--txt3)">Km corsi in più: <b>${kmEx}</b> questa settimana · <b>${kmExM}</b> questo mese</p>` : ""}` : ""}
 
   <div class="quadri">

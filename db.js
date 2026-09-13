@@ -71,6 +71,50 @@ async function registraAtleta(email, password) {
 
 async function disconnetti() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } }
 
+// ---------- notifiche push (per chi ha l'app installata sulla Home) ----------
+const VAPID_PUBLIC = "BJgukqxPXOOHCJDNCAT9AxhQm-p91fMRBIihfclm968x5G7tunphB5-RVkJp656tPlDuBleV786YiW46i4YPhOg";
+function _urlB64ToUint8(base64) {
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64), arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function pushSupportato() { return ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window); }
+function pushAttivo() { try { return typeof Notification !== "undefined" && Notification.permission === "granted" && localStorage.getItem("metis_push") === "on"; } catch (e) { return false; } }
+async function attivaNotifiche() {
+  if (!pushSupportato()) {
+    alert("Per ricevere le notifiche apri l'app dall'icona che hai messo nella schermata Home del telefono (su iPhone è obbligatorio installarla). Dal browser normale non arrivano.");
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { alert("Permesso notifiche non concesso. Puoi attivarlo dalle impostazioni del telefono, sezione Metis."); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _urlB64ToUint8(VAPID_PUBLIC) });
+    const j = sub.toJSON();
+    const uid = S.utente && S.utente.id, aid = S.utente && S.utente.atletaId;
+    if (sb && uid && j && j.keys) {
+      const { error } = await sb.from("push_sub").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, atleta_id: aid || null, profilo_id: uid }, { onConflict: "endpoint" });
+      if (error) { alert("Attivazione non riuscita: " + error.message); return; }
+    }
+    try { localStorage.setItem("metis_push", "on"); } catch (e) { }
+    alert("✓ Notifiche attivate! Se salti il diario, te lo ricordiamo qui sul telefono.");
+    disegna();
+  } catch (e) { alert("Non riuscito: " + ((e && e.message) || e)); }
+}
+async function disattivaNotifiche() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) { const ep = sub.endpoint; try { await sub.unsubscribe(); } catch (e) { } if (sb) { try { await sb.from("push_sub").delete().eq("endpoint", ep); } catch (e) { } } }
+    try { localStorage.removeItem("metis_push"); } catch (e) { }
+    alert("Notifiche disattivate.");
+    disegna();
+  } catch (e) { alert("Non riuscito: " + ((e && e.message) || e)); }
+}
+
 // ---------- recupero password (self-service, via email) ----------
 // L'utente riceve un link via email e sceglie da solo la nuova password: l'app non gestisce mai password altrui.
 async function recuperoPassword(email) {

@@ -18,3 +18,29 @@ self.addEventListener("fetch", (e) => {
       .catch(() => caches.match(e.request))
   );
 });
+
+// ---- Notifiche push (promemoria diario) ----
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
+  const title = d.title || "Metis Performance";
+  const opts = {
+    body: d.body || "Hai un promemoria.",
+    icon: d.icon || "icon-192.png",
+    badge: d.badge || "icon-192.png",
+    tag: d.tag || "metis",
+    renotify: true,
+    data: { url: d.url || "./" }
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "./";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if ("focus" in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
