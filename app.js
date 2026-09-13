@@ -925,7 +925,7 @@ function disegna() {
       <div style="flex:1"><div class="nome">Ciao ${String((S.utente && S.utente.nome) || "").split(" ")[0]}</div><div class="data">${oggi}</div></div>
       ${!coach && typeof atletaCorrente === "function" && typeof avatarAtleta === "function" ? `<div class="top-av" onclick="vai('io')">${avatarAtleta(atletaCorrente(), 38)}</div>` : ""}
     </div>
-    <div class="main">${!coach && typeof _promemoriaDiario === "function" ? _promemoriaDiario() : ""}${corpo}</div>`;
+    <div class="main">${!coach ? ((typeof _promemoriaDiario === "function" ? _promemoriaDiario() : "") + (typeof _promemoriaAllenamento === "function" ? _promemoriaAllenamento() : "")) : ""}${corpo}</div>`;
   aggiornaMenu();
 }
 

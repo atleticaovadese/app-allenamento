@@ -35,6 +35,25 @@ function _promemoriaDiario() {
   </div>`;
 }
 
+// promemoria SERALE (dalle 19:45) per segnare l'allenamento di oggi come "fatto", se ne aveva uno e non l'ha chiuso.
+const _ALLEN_ORA_PROMEMORIA = 19, _ALLEN_MIN_PROMEMORIA = 45;
+function _promemoriaAllenamento() {
+  if (S.utente && S.utente.ruolo === "coach") return "";
+  if (S.seduta) return "";
+  const ora = new Date();
+  if (ora.getHours() < _ALLEN_ORA_PROMEMORIA || (ora.getHours() === _ALLEN_ORA_PROMEMORIA && ora.getMinutes() < _ALLEN_MIN_PROMEMORIA)) return "";
+  if (typeof seduteDelGiorno !== "function" || typeof oggiISO !== "function") return "";
+  let sed = [];
+  try { sed = seduteDelGiorno(oggiISO(), false) || []; } catch (e) { return ""; }
+  const daFare = sed.filter(s => !s.chiusa);
+  if (!sed.length || !daFare.length) return "";   // oggi riposo, oppure già tutto segnato
+  return `<div class="card" style="border-color:var(--ambra,#e6a83c);background:var(--giallo-bg);display:flex;align-items:center;gap:11px;cursor:pointer" onclick="apriSeduta('${daFare[0].id}')">
+    <span style="font-size:22px;flex:none">💪</span>
+    <div style="flex:1;min-width:0"><b style="color:#8a6d00">Hai fatto l'allenamento di oggi?</b>
+      <div class="et" style="margin-top:2px">Ricordati di segnarlo come «fatto» (durata e RPE). Tocca per aprirlo →</div></div>
+  </div>`;
+}
+
 // storia diario dell'atleta loggato (recente → vecchio)
 function _diarioStoriaMia() {
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
