@@ -74,6 +74,7 @@ const MENU_ATLETA = [
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
   { k: "io", ic: "◉", l: "I miei dati" },
   { k: "presenze", ic: "◍", l: "Presenze" },
+  { k: "impostazioni", ic: "⚙", l: "Impostazioni" },
   { k: "aiuto", ic: "?", l: "Guida e glossario" }
 ];
 
@@ -237,13 +238,36 @@ function atletaCorrente() {
   return DEMO.atleti.find(x => S.utente && x.id === S.utente.atletaId) || DEMO.atleti[0];
 }
 
-// pulsante "attiva notifiche push" — solo se il telefono le supporta (app installata) e non sono già attive
+// banner "attiva notifiche push" in Home — solo se il telefono le supporta (app installata) e non sono già attive
 function _bottoneNotifiche() {
   if (typeof pushSupportato !== "function" || !pushSupportato()) return "";
   if (typeof pushAttivo === "function" && pushAttivo()) return "";
   let denied = false; try { denied = (typeof Notification !== "undefined") && Notification.permission === "denied"; } catch (e) { }
   if (denied) return "";
-  return `<button class="btn btn-2" style="margin-bottom:11px" onclick="attivaNotifiche()">🔔 Attiva le notifiche sul telefono (promemoria diario)</button>`;
+  return `<div class="card" style="border-color:var(--blu);background:var(--blu-bg);display:flex;align-items:center;gap:11px;cursor:pointer" onclick="attivaNotifiche()">
+    <span style="font-size:22px;flex:none">🔔</span>
+    <div style="flex:1;min-width:0"><b style="color:var(--blu)">Attiva le notifiche sul telefono</b>
+      <div class="et" style="margin-top:2px">Così ti ricordiamo il diario anche ad app chiusa. Tocca qui →</div></div>
+  </div>`;
+}
+// Impostazioni atleta: on/off del promemoria diario (notifiche push)
+function vistaImpostazioni() {
+  const supp = (typeof pushSupportato === "function") && pushSupportato();
+  const attivo = (typeof pushAttivo === "function") && pushAttivo();
+  let perm = "default"; try { if (typeof Notification !== "undefined") perm = Notification.permission; } catch (e) { }
+  let blocco;
+  if (!supp) blocco = `<p class="et" style="margin:0">Per ricevere le notifiche sul telefono <b>aggiungi prima l'app alla schermata Home</b> (su iPhone è obbligatorio), poi aprila da quell'icona.</p>`;
+  else if (perm === "denied") blocco = `<p class="et" style="margin:0;color:var(--rosso)">Le notifiche sono <b>bloccate</b>. Riattivale dalle impostazioni del telefono (Metis → Notifiche), poi torna qui.</p>`;
+  else if (attivo) blocco = `<p style="margin:0;font-weight:600;color:var(--verde)">✓ Notifiche attive su questo telefono</p>
+      <button class="btn btn-2" style="margin-top:10px;width:auto;padding:9px 14px" onclick="disattivaNotifiche()">Disattiva</button>`;
+  else blocco = `<p class="et" style="margin:0 0 10px">Attivale per ricevere il promemoria sul telefono, anche ad app chiusa.</p>
+      <button class="btn" onclick="attivaNotifiche()">🔔 Attiva le notifiche</button>`;
+  return `<div class="card"><h3>⚙ Impostazioni</h3></div>
+    <div class="card">
+      <p class="et" style="margin:0 0 8px;font-weight:600">Notifiche</p>
+      <p class="et" style="margin:0 0 12px">📝 <b>Promemoria diario</b> — se entro <b>mezzogiorno</b> non hai compilato il diario di oggi, ti arriva un avviso sul telefono.</p>
+      ${blocco}
+    </div>`;
 }
 
 // ---------- atleta: cruscotto a quadranti ----------
@@ -875,6 +899,7 @@ function disegna() {
   else if (!coach && S.vista === "diario") corpo = vistaDiario();
   else if (!coach && S.vista === "io") corpo = vistaIo();
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();
+  else if (!coach && S.vista === "impostazioni") corpo = vistaImpostazioni();
   else if (LIB[S.vista]) corpo = vistaLibreria(LIB[S.vista][0], LIB[S.vista][1]);
   else if (S.vista === "lib-video") corpo = vistaLibreriaVideo();
   else if (S.vista === "gare") corpo = vistaGare();
