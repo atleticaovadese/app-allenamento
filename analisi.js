@@ -548,13 +548,14 @@ const DIST_ANDA = [10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 220, 250
 const MET_PISTA = [["tempo", "Tempo (s)"], ["volume", "Volume (m)"], ["velocita", "Vel (m/s)"]];
 const MET_PAL = [["serie", "Serie"], ["rep", "Rep"], ["peso", "Peso (kg)"], ["volume", "Volume (kg)"], ["rpe", "RPE"], ["vbt", "VBT (m/s)"]];
 let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo" };
-let andaPalState = { atletaRif: "", esercizio: "", metrica: "peso" };
+let andaPalState = { atletaRif: "", esercizio: "", metrica: "peso", kg: "" };
 function setAndaPiAtleta(id) { andaPistaState.atletaRif = id; disegna(); }
 function setAndaPiDist(d) { andaPistaState.distanza = Number(d); disegna(); }
 function setAndaPiMetrica(m) { andaPistaState.metrica = m; disegna(); }
-function setAndaPaAtleta(id) { andaPalState.atletaRif = id; andaPalState.esercizio = ""; disegna(); }
-function setAndaPaEs(e) { andaPalState.esercizio = e; disegna(); }
+function setAndaPaAtleta(id) { andaPalState.atletaRif = id; andaPalState.esercizio = ""; andaPalState.kg = ""; disegna(); }
+function setAndaPaEs(e) { andaPalState.esercizio = e; andaPalState.kg = ""; disegna(); }
 function setAndaPaMetrica(m) { andaPalState.metrica = m; disegna(); }
+function setAndaPaKg(v) { andaPalState.kg = v; disegna(); }
 
 // sedute in pista alla distanza scelta (da DEMO.pistaLog)
 function pistaLogVoci(atletaId, distanza) {
@@ -660,8 +661,14 @@ function vistaAndamentoPalestra() {
   const es = andaPalState.esercizio, met = andaPalState.metrica;
   const metLbl = (MET_PAL.find(m => m[0] === met) || MET_PAL[2])[1];
   const voci = atl && es ? palLogVoci(atl.id, es) : [];
+  // carico (kg) di ogni voce, e filtro kg — attivo SOLO per la metrica VBT (confronto m/s allo stesso peso)
+  const kgDi = v => (v.peso != null ? v.peso : (v.carico != null ? v.carico : null));
+  const kgList = [...new Set(voci.map(kgDi).filter(x => x != null))].sort((a, b) => a - b);
+  if (andaPalState.kg !== "" && !kgList.some(k => String(k) === String(andaPalState.kg))) andaPalState.kg = "";  // esercizio cambiato
+  const kgSel = met === "vbt" ? andaPalState.kg : "";
+  const vociF = (kgSel !== "" && kgSel != null) ? voci.filter(v => String(kgDi(v)) === String(kgSel)) : voci;
   const campo = met === "vbt" ? "vbtEseguita" : met;
-  const serie = voci.map(v => {
+  const serie = vociF.map(v => {
     let raw = v[campo]; if (raw == null && met === "peso") raw = v.carico;
     return { label: typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data, val: Number(raw) };
   }).filter(s => !isNaN(s.val));
@@ -679,17 +686,22 @@ function vistaAndamentoPalestra() {
         <select onchange="setAndaPaEs(this.value)" style="margin-top:6px">${esercizi.map(e => `<option ${es === e ? "selected" : ""}>${e}</option>`).join("")}</select></div>
       <div><label class="lab">Vedi nel grafico</label>
         <select onchange="setAndaPaMetrica(this.value)" style="margin-top:6px">${MET_PAL.map(([k, l]) => `<option value="${k}" ${met === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
-    </div>` : ""}
+    </div>
+    ${met === "vbt" ? (kgList.length ? `<div style="margin-top:12px"><label class="lab">Carico (kg) — confronta la velocità allo stesso peso</label>
+      <select onchange="setAndaPaKg(this.value)" style="margin-top:6px">
+        <option value="">Tutti i carichi</option>${kgList.map(k => `<option value="${k}" ${String(andaPalState.kg) === String(k) ? "selected" : ""}>${k} kg</option>`).join("")}</select></div>`
+      : `<p class="et" style="margin-top:10px;color:var(--txt3)">Per la VBT servono i pesi usati: compaiono quando l'atleta chiude le sedute segnando i kg.</p>`) : ""}` : ""}
   </div>
 
   ${!atl ? `<div class="card"><p class="et">Scegli un atleta.</p></div>`
     : !esercizi.length ? `<div class="card"><p class="et">Nessun esercizio registrato per ${atl.nome}. I dati compaiono man mano che chiudi le sedute di palestra.</p></div>`
     : `<div class="card">
-        <p class="et" style="margin-bottom:2px">${metLbl} · ${es} · ${atl.nome}</p>
+        <p class="et" style="margin-bottom:2px">${metLbl} · ${es} · ${atl.nome}${met === "vbt" && kgSel !== "" ? ` · <b>${kgSel} kg</b>` : ""}</p>
+        ${met === "vbt" && kgSel === "" && kgList.length > 1 ? `<p class="et" style="margin:0 0 6px;color:var(--txt3)">Scegli un carico qui sopra per vedere la velocità allo stesso peso nel tempo (a pesi diversi la m/s non è confrontabile).</p>` : ""}
         ${statBlocco(serie.map(s => s.val))}
         ${chartSerie(serie)}
         <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Ser</th><th>Rep</th><th>Peso</th><th>Vol</th><th>RPE</th><th>VBT</th></tr></thead>
-          <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td>${v.serie != null ? v.serie : "—"}</td><td>${v.rep != null ? v.rep : "—"}</td><td class="pauto">${v.peso != null ? v.peso : (v.carico != null ? v.carico : "—")}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.rpe != null ? v.rpe : "—"}</td><td>${v.vbtEseguita != null ? Number(v.vbtEseguita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
+          <tbody>${vociF.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td>${v.serie != null ? v.serie : "—"}</td><td>${v.rep != null ? v.rep : "—"}</td><td class="pauto">${v.peso != null ? v.peso : (v.carico != null ? v.carico : "—")}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.rpe != null ? v.rpe : "—"}</td><td>${v.vbtEseguita != null ? Number(v.vbtEseguita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
       </div>`}`;
 }
 
