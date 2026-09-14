@@ -115,6 +115,21 @@ function pesoRifAtleta(atleta, r, dataISO) {
   if (p == null) p = _pesoBloccoPrecedente(atleta, r.esercizio, dataISO);
   return p;
 }
+// interpreta il recupero scritto dal coach in SECONDI (per il timer di palestra).
+// "1'30"/"1:30" = 1 min 30 s · "2'"/"2 min"/"2m" = minuti · 90"/90s/45 sec = secondi ·
+// numero secco: ≤10 = minuti (es. 1 → 60 s), >10 = secondi (es. 90 → 90 s).
+function _parseRecSec(rec) {
+  if (rec == null) return null;
+  const s = String(rec).trim().toLowerCase().replace(",", ".");
+  if (!s) return null;
+  const mm = s.match(/^(\d+(?:\.\d+)?)\s*['′:]\s*(\d{1,2})?/);   // 2'  1'30  1:30
+  if (mm) return Math.round((parseFloat(mm[1]) || 0) * 60 + (mm[2] ? parseInt(mm[2], 10) : 0));
+  const n = parseFloat(s);
+  if (isNaN(n)) return null;
+  if (s.indexOf("m") >= 0) return Math.round(n * 60);                                   // 2 min / 2m
+  if (s.indexOf('"') >= 0 || s.indexOf("″") >= 0 || s.indexOf("s") >= 0) return Math.round(n);  // 90" / 90s / 45 sec
+  return Math.round(n <= 10 ? n * 60 : n);                                              // numero secco
+}
 function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
   const ovR = overrideRighe(atleta, "palestra", giornoNum - 1, settIdx);
@@ -133,7 +148,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
       if (p == null && typeof _pesoBloccoPrecedente === "function") p = _pesoBloccoPrecedente(atleta, r.esercizio, dataISO);
       if (p != null) peso = p;
     }
-    const rec = String(r.rec || ""), recSec = rec.indexOf("'") >= 0 ? (parseFloat(rec) * 60) : (parseInt(rec) || null);
+    const recSec = _parseRecSec(r.rec);
     return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, pesoFatto: null, vbt: Array(serie).fill(null) };
   });
   return _cacheSeduta({

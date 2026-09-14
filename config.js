@@ -3,7 +3,7 @@
 const CONFIG = {
   nome: "Metis Performance",
   nomeBreve: "Metis",
-  versione: "1.79 · 13 set",
+  versione: "1.80 · 14 set",
 
   // Soglie per gli avvisi all'allenatore (decise con l'utente)
   soglie: {
