@@ -549,7 +549,17 @@ const MET_PISTA = [["tempo", "Tempo (s)"], ["volume", "Volume (m)"], ["velocita"
 const MET_PAL = [["serie", "Serie"], ["rep", "Rep"], ["peso", "Peso (kg)"], ["volume", "Volume (kg)"], ["rpe", "RPE"], ["vbt", "VBT (m/s)"]];
 let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo" };
 let andaPalState = { atletaRif: "", esercizio: "", metrica: "peso", kg: "" };
-function setAndaPiAtleta(id) { andaPistaState.atletaRif = id; disegna(); }
+function _distPiuDati(id) {
+  const c = {}; (DEMO.pistaLog || []).filter(l => l.atletaId === id).forEach(l => { const d = Number(l.distanza); c[d] = (c[d] || 0) + 1; });
+  let best = null, bn = 0; Object.keys(c).forEach(d => { if (c[d] > bn) { bn = c[d]; best = Number(d); } });
+  return best;
+}
+function setAndaPiAtleta(id) {
+  andaPistaState.atletaRif = id;
+  const dd = id ? pistaLogDistanze(id) : [];   // se la distanza scelta non ha dati per lui, vai su quella più ricca
+  if (dd.length && !dd.includes(andaPistaState.distanza)) andaPistaState.distanza = _distPiuDati(id) || dd[0];
+  disegna();
+}
 function setAndaPiDist(d) { andaPistaState.distanza = Number(d); disegna(); }
 function setAndaPiMetrica(m) { andaPistaState.metrica = m; disegna(); }
 function setAndaPaAtleta(id) { andaPalState.atletaRif = id; andaPalState.esercizio = ""; andaPalState.kg = ""; disegna(); }
@@ -618,39 +628,82 @@ function fmtTempoPista(sec, atleta) {
   const isMezzo = (typeof gruppoDi === "function" && atleta) ? gruppoDi(atleta) === "mezzo" : false;
   return (isMezzo || sec >= 60) && typeof _mzMMSSc === "function" ? _mzMMSSc(sec) : sec.toFixed(2);
 }
+// indicatore di VARIAZIONE nel periodo: dal primo all'ultimo valore, delta + %, con colore (verde = meglio)
+function _variazionePeriodo(serie, met, atl) {
+  const v = serie.filter(s => s.val != null && !isNaN(s.val));
+  if (v.length < 2) return `<p class="et" style="margin:2px 0 8px;color:var(--txt3)">Serve almeno una <b>seconda</b> seduta a questa distanza per vedere la variazione.</p>`;
+  const primo = v[0].val, ultimo = v[v.length - 1].val, delta = ultimo - primo;
+  const bassaMeglio = (met === "tempo");
+  const uguale = Math.abs(delta) < (met === "tempo" ? 0.005 : 0.01);
+  const migliorato = uguale ? false : (bassaMeglio ? delta < 0 : delta > 0);
+  const pct = primo ? Math.abs(delta / primo * 100) : 0;
+  const fmtV = x => met === "tempo" ? (typeof fmtTempoPista === "function" ? fmtTempoPista(x, atl) : x) : (Math.round(x * 100) / 100);
+  const dstr = met === "tempo" ? Math.abs(delta).toFixed(2) + " s" : String(Math.round(Math.abs(delta) * 100) / 100);
+  const col = uguale ? "var(--txt2)" : migliorato ? "var(--verde)" : "var(--rosso)";
+  const etichetta = uguale ? "stabile" : (migliorato ? "▼ migliorato " : "▲ peggiorato ") + dstr + " (" + pct.toFixed(1) + "%)";
+  return `<div style="background:var(--card2);border-radius:12px;padding:10px 12px;margin:2px 0 10px">
+    <p class="et" style="margin:0 0 2px">Variazione nel periodo · ${v.length} sedute</p>
+    <p style="margin:0;font-size:15px"><b>${fmtV(primo)}</b> → <b>${fmtV(ultimo)}</b> &nbsp; <b style="color:${col}">${etichetta}</b></p>
+  </div>`;
+}
+// corpo comune (usato da coach e atleta): variazione + statistiche + grafico + tabella per una distanza
+function _andaPistaCorpo(atl, dist, met) {
+  const voci = pistaLogVoci(atl.id, dist);
+  const metLbl = (MET_PISTA.find(m => m[0] === met) || MET_PISTA[0])[1];
+  const disp = pistaLogDistanze(atl.id);
+  const serie = voci.map(v => ({ label: typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data, val: Number(v[met]) }));
+  if (!voci.length) return `<div class="card"><p class="et">Nessuna seduta sui <b>${dist} m</b>${disp.length ? ` · distanze con i tuoi dati: <b>${disp.join(", ")} m</b> (scegli una di quelle)` : " — i dati compaiono quando chiudi le sedute di pista segnando i tempi delle ripetute"}.</p></div>`;
+  return `<div class="card">
+      <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m${met === "tempo" ? " · più in basso = meglio" : ""}</p>
+      ${_variazionePeriodo(serie, met, atl)}
+      ${statBlocco(serie.map(s => s.val))}
+      ${chartSerie(serie)}
+      <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
+        <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${fmtTempoPista(v.tempo, atl)}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
+    </div>`;
+}
+// selettori distanza/metrica (condivisi). soloConDati=true → mostra solo le distanze con dati (per l'atleta)
+function _andaPistaSelettori(atl, dist, met, soloConDati) {
+  const disp = pistaLogDistanze(atl.id);
+  const distanze = soloConDati ? DIST_ANDA.filter(d => disp.includes(d)) : DIST_ANDA;
+  return `<div class="card"><div class="griglia2">
+      <div><label class="lab">Distanza (m)</label>
+        <select onchange="setAndaPiDist(this.value)" style="margin-top:6px">${distanze.length ? distanze.map(d => `<option value="${d}" ${dist === d ? "selected" : ""}>${d}${disp.includes(d) ? " ●" : ""}</option>`).join("") : `<option value="">—</option>`}</select></div>
+      <div><label class="lab">Vedi nel grafico</label>
+        <select onchange="setAndaPiMetrica(this.value)" style="margin-top:6px">${MET_PISTA.map(([k, l]) => `<option value="${k}" ${met === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    </div></div>`;
+}
 function vistaAndamentoPista() {
   const atl = DEMO.atleti.find(x => x.id === andaPistaState.atletaRif);
   const dist = andaPistaState.distanza, met = andaPistaState.metrica;
-  const voci = atl ? pistaLogVoci(atl.id, dist) : [];
-  const metLbl = (MET_PISTA.find(m => m[0] === met) || MET_PISTA[0])[1];
-  const disp = atl ? pistaLogDistanze(atl.id) : [];
-  const serie = voci.map(v => ({ label: typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data, val: Number(v[met]) }));
-
   return `
   <div class="card"><h3>Andamento Pista</h3>
-    <p class="et" style="margin-top:2px">Scegli una distanza: seduta per seduta il Tempo, il Volume (metri) e la velocità (m/s), col grafico della metrica che scegli. Si compila da solo dalla Pista.</p></div>
-
+    <p class="et" style="margin-top:2px">Scegli atleta e distanza: vedi la <b>variazione dei tempi nel periodo</b>, con grafico e tabella seduta per seduta. Si compila da solo dalla Pista.</p></div>
   <div class="card">
     <label class="lab">Atleta</label>
     <select onchange="setAndaPiAtleta(this.value)" style="margin-top:6px">
       <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${andaPistaState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
-    ${atl ? `<div class="griglia2" style="margin-top:12px">
-      <div><label class="lab">Distanza (m)</label>
-        <select onchange="setAndaPiDist(this.value)" style="margin-top:6px">${DIST_ANDA.map(d => `<option value="${d}" ${dist === d ? "selected" : ""}>${d}${disp.includes(d) ? " ●" : ""}</option>`).join("")}</select></div>
-      <div><label class="lab">Vedi nel grafico</label>
-        <select onchange="setAndaPiMetrica(this.value)" style="margin-top:6px">${MET_PISTA.map(([k, l]) => `<option value="${k}" ${met === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
-    </div>` : ""}
   </div>
-
   ${!atl ? `<div class="card"><p class="et">Scegli un atleta.</p></div>`
-    : !voci.length ? `<div class="card"><p class="et">Nessuna seduta sui ${dist} m per ${atl.nome}. I dati compaiono man mano che chiudi le sedute di pista${disp.length ? ` · distanze con dati: ${disp.join(", ")} m` : ""}.</p></div>`
-    : `<div class="card">
-        <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m · ${atl.nome}${met === "tempo" ? " · più in basso = meglio" : ""}</p>
-        ${statBlocco(serie.map(s => s.val))}
-        ${chartSerie(serie)}
-        <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
-          <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${fmtTempoPista(v.tempo, atl)}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
-      </div>`}`;
+    : _andaPistaSelettori(atl, dist, met, false) + _andaPistaCorpo(atl, dist, met)}`;
+}
+// vista per l'ATLETA: il suo andamento (nessun selettore atleta, solo distanze con i suoi dati)
+function vistaAndamentoAtleta() {
+  const atl = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  if (!atl) return `<div class="card"><p class="et">Nessun dato disponibile.</p></div>`;
+  if (andaPistaState.atletaRif !== atl.id) {   // aggancia a sé + scegli una distanza con dati
+    andaPistaState.atletaRif = atl.id;
+    const dd = pistaLogDistanze(atl.id);
+    if (dd.length && !dd.includes(andaPistaState.distanza)) andaPistaState.distanza = _distPiuDati(atl.id) || dd[0];
+  }
+  const dist = andaPistaState.distanza, met = andaPistaState.metrica;
+  const disp = pistaLogDistanze(atl.id);
+  return `
+  <div class="card"><h3>📈 Il mio andamento</h3>
+    <p class="et" style="margin-top:2px">Come cambiano i tuoi tempi in pista, seduta per seduta. Scegli la distanza e cosa vedere nel grafico.</p></div>
+  ${!disp.length
+    ? `<div class="card"><p class="et">Ancora nessun tempo registrato. Compaiono qui quando chiudi le sedute di pista segnando i tempi delle ripetute.</p></div>`
+    : _andaPistaSelettori(atl, dist, met, true) + _andaPistaCorpo(atl, dist, met)}`;
 }
 
 // ANDAMENTO PALESTRA — per esercizio (Serie/Rep/Peso/Volume/RPE/VBT), si compila dalle sedute di palestra

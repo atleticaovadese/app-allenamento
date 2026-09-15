@@ -69,6 +69,7 @@ const MENU_ATLETA = [
   { k: "oggi", ic: "◧", l: "Oggi" },
   { k: "calendario", ic: "▦", l: "Calendario" },
   { k: "svolti", ic: "✓", l: "Allenamenti svolti" },
+  { k: "andamento", ic: "📈", l: "Il mio andamento" },
   { k: "diario", ic: "✎", l: "Diario" },
   { k: "gare", ic: "★", l: "Gare" },
   { g: "Librerie", ic: "▤", subs: [["lib-sala", "Sala"], ["lib-mobilita", "Mobilità"], ["lib-video", "Video"], ["lib-plio", "Pliometria"]] },
@@ -900,6 +901,7 @@ function disegna() {
   else if (!coach && S.vista === "io") corpo = vistaIo();
   else if (!coach && S.vista === "presenze") corpo = vistaPresenze();
   else if (!coach && S.vista === "impostazioni") corpo = vistaImpostazioni();
+  else if (!coach && S.vista === "andamento") corpo = vistaAndamentoAtleta();
   else if (LIB[S.vista]) corpo = vistaLibreria(LIB[S.vista][0], LIB[S.vista][1]);
   else if (S.vista === "lib-video") corpo = vistaLibreriaVideo();
   else if (S.vista === "gare") corpo = vistaGare();
