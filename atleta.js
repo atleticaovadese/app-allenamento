@@ -661,12 +661,19 @@ function vistaMieiAllenamenti() {
   const cards = (typeof _cardSvolta === "function") ? lista.map(sv =>
     sv.tipo === "extra" ? _cardSvolta(sv)   // la corsa extra non si riapre come seduta
       : `<div style="cursor:pointer" onclick="apriSedutaSvolta('${sv.data}','${sv.tipo}',${sv.giorno != null ? sv.giorno : "null"})">${_cardSvolta(sv)}</div>`).join("") : "";
-  const pend = (typeof codaSvoltePendenti === "function") ? codaSvoltePendenti() : 0;
-  const avviso = pend > 0 ? `<div class="card" style="border-color:rgba(240,168,60,.5)"><p class="et" style="margin:0;color:var(--giallo,#e6a83c)">📶 ${pend} allenament${pend === 1 ? "o" : "i"} in attesa di connessione: ${pend === 1 ? "è salvato" : "sono salvati"} sul telefono e si invia${pend === 1 ? "" : "no"} da solo appena torni online. Non perdi nulla.</p></div>` : "";
   return `<div class="card"><h3>I miei allenamenti svolti</h3>
       <p class="et" style="margin-top:2px">Tutto quello che hai chiuso, dal più recente${lista.length ? ` · ${lista.length} allenamenti` : ""}. <b>Tocca un allenamento</b> per rivederlo o correggere pesi e tempi.</p></div>
-    ${avviso}
+    ${typeof _bannerCoda === "function" ? _bannerCoda() : ""}
     ${cards || `<div class="card"><p class="et">Ancora nessun allenamento chiuso. Quando chiudi una seduta (con durata e RPE) compare qui e la puoi rivedere.</p></div>`}`;
+}
+// banner "allenamenti da inviare" (coda offline) + pulsante "Invia ora" — mostrato in Home e negli allenamenti svolti
+function _bannerCoda() {
+  const pend = (typeof codaSvoltePendenti === "function") ? codaSvoltePendenti() : 0;
+  if (!pend) return "";
+  return `<div class="card" style="border-color:rgba(240,168,60,.6);background:var(--giallo-bg)">
+    <p class="et" style="margin:0;color:#8a6d00">📶 <b>${pend} allenament${pend === 1 ? "o" : "i"} da inviare</b>: ${pend === 1 ? "è salvato" : "sono salvati"} sul telefono ma non ${pend === 1 ? "è" : "sono"} ancora arrivat${pend === 1 ? "o" : "i"} all'allenatore. Con una connessione attiva tocca «Invia ora».</p>
+    <button class="btn" style="margin-top:10px" onclick="inviaCodaOra()">🔄 Invia ora</button>
+  </div>`;
 }
 // riapre l'allenamento svolto (rigenerandolo dal programma, con i dati già inseriti) per poterlo correggere
 function apriSedutaSvolta(dataISO, tipo, giorno) {

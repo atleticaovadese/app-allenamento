@@ -550,7 +550,7 @@ const MET_PAL = [["serie", "Serie"], ["rep", "Rep"], ["peso", "Peso (kg)"], ["vo
 let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo" };
 let andaPalState = { atletaRif: "", esercizio: "", metrica: "peso", kg: "" };
 function _distPiuDati(id) {
-  const c = {}; (DEMO.pistaLog || []).filter(l => l.atletaId === id).forEach(l => { const d = Number(l.distanza); c[d] = (c[d] || 0) + 1; });
+  const c = _distConteggio(id);   // per numero di SEDUTE (date distinte): meglio per vedere l'andamento
   let best = null, bn = 0; Object.keys(c).forEach(d => { if (c[d] > bn) { bn = c[d]; best = Number(d); } });
   return best;
 }
@@ -567,10 +567,25 @@ function setAndaPaEs(e) { andaPalState.esercizio = e; andaPalState.kg = ""; dise
 function setAndaPaMetrica(m) { andaPalState.metrica = m; disegna(); }
 function setAndaPaKg(v) { andaPalState.kg = v; disegna(); }
 
-// sedute in pista alla distanza scelta (da DEMO.pistaLog)
+// sedute in pista alla distanza scelta (da DEMO.pistaLog) — UNA riga per DATA (stessa seduta):
+// se in un giorno ci sono più blocchi alla stessa distanza, media dei tempi/velocità e volume sommato.
 function pistaLogVoci(atletaId, distanza) {
-  return (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && Number(l.distanza) === Number(distanza))
-    .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+  const rows = (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && Number(l.distanza) === Number(distanza));
+  const byDate = {};
+  rows.forEach(r => {
+    const g = byDate[r.data] = byDate[r.data] || { data: r.data, distanza: Number(distanza), _t: [], _v: [], vol: 0 };
+    if (r.tempo != null) g._t.push(Number(r.tempo));
+    if (r.velocita != null) g._v.push(Number(r.velocita));
+    g.vol += (r.volume || 0);
+  });
+  const media = a => a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length * 100) / 100 : null;
+  return Object.keys(byDate).map(k => { const g = byDate[k]; return { data: g.data, distanza: g.distanza, tempo: media(g._t), velocita: media(g._v), volume: g.vol || null }; })
+    .sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+}
+// quante SEDUTE distinte (date) hanno dati per ogni distanza, per un atleta
+function _distConteggio(id) {
+  const m = {}; (DEMO.pistaLog || []).filter(l => l.atletaId === id).forEach(l => { const d = Number(l.distanza); (m[d] = m[d] || new Set()).add(l.data); });
+  const out = {}; Object.keys(m).forEach(d => out[d] = m[d].size); return out;
 }
 // distanze che hanno almeno un dato (per marcare il menu a tendina)
 function pistaLogDistanze(atletaId) {
@@ -657,18 +672,19 @@ function _andaPistaCorpo(atl, dist, met) {
       <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m${met === "tempo" ? " · più in basso = meglio" : ""}</p>
       ${_variazionePeriodo(serie, met, atl)}
       ${statBlocco(serie.map(s => s.val))}
-      ${chartSerie(serie)}
+      ${voci.length >= 2 ? chartSerie(serie) : ""}
       <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
         <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${fmtTempoPista(v.tempo, atl)}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
     </div>`;
 }
 // selettori distanza/metrica (condivisi). soloConDati=true → mostra solo le distanze con dati (per l'atleta)
 function _andaPistaSelettori(atl, dist, met, soloConDati) {
-  const disp = pistaLogDistanze(atl.id);
-  const distanze = soloConDati ? DIST_ANDA.filter(d => disp.includes(d)) : DIST_ANDA;
+  const cnt = _distConteggio(atl.id);
+  const distanze = soloConDati ? DIST_ANDA.filter(d => cnt[d]) : DIST_ANDA;
+  const opt = d => `<option value="${d}" ${dist === d ? "selected" : ""}>${d}${cnt[d] ? " · " + cnt[d] + (cnt[d] === 1 ? " seduta" : " sedute") : ""}</option>`;
   return `<div class="card"><div class="griglia2">
       <div><label class="lab">Distanza (m)</label>
-        <select onchange="setAndaPiDist(this.value)" style="margin-top:6px">${distanze.length ? distanze.map(d => `<option value="${d}" ${dist === d ? "selected" : ""}>${d}${disp.includes(d) ? " ●" : ""}</option>`).join("") : `<option value="">—</option>`}</select></div>
+        <select onchange="setAndaPiDist(this.value)" style="margin-top:6px">${distanze.length ? distanze.map(opt).join("") : `<option value="">—</option>`}</select></div>
       <div><label class="lab">Vedi nel grafico</label>
         <select onchange="setAndaPiMetrica(this.value)" style="margin-top:6px">${MET_PISTA.map(([k, l]) => `<option value="${k}" ${met === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     </div></div>`;

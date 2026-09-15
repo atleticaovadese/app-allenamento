@@ -441,6 +441,19 @@ async function _codaFlush() {
   }
   _codaScrivi(rimasti);
 }
+// invio MANUALE della coda (pulsante "Invia ora"): forza la sincronizzazione delle sedute rimaste sul telefono
+async function inviaCodaOra() {
+  const prima = codaSvoltePendenti();
+  if (!prima) { alert("Non c'è nulla in attesa: è tutto già inviato. ✓"); return; }
+  if (!haDB()) { alert("Sembra che tu sia offline: appena torni online si inviano da soli. Riprova con una connessione attiva."); return; }
+  const btn = document.querySelector('button[onclick="inviaCodaOra()"]'); if (btn) { btn.textContent = "Invio in corso…"; btn.disabled = true; }
+  await _codaFlush();
+  await caricaDati();   // ricarica dal DB così compaiono in calendario/andamento/allenatore
+  const dopo = codaSvoltePendenti(), inviati = prima - dopo;
+  if (dopo === 0) alert("✓ Inviati " + inviati + " allenament" + (inviati === 1 ? "o" : "i") + ". Ora si vedono nel calendario e l'allenatore li riceve.");
+  else alert("Inviati " + inviati + ", ancora " + dopo + " in attesa (connessione instabile). Riprova tra poco con una buona connessione.");
+  disegna();
+}
 
 // TAPPA 4 — seduta svolta dall'atleta → DB (upsert per atleta+chiave). Solo l'atleta scrive la propria (RLS).
 async function salvaSedutaSvoltaDB(s) {

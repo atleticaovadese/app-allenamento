@@ -333,6 +333,7 @@ function vistaOggi() {
 
   return `
   ${cardOggi}
+  ${typeof _bannerCoda === "function" ? _bannerCoda() : ""}
   ${typeof _bottoneNotifiche === "function" ? _bottoneNotifiche() : ""}
   ${isMezzo ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>${kmExM > 0 ? `<p class="et" style="margin:-6px 2px 11px;color:var(--txt3)">Km corsi in più: <b>${kmEx}</b> questa settimana · <b>${kmExM}</b> questo mese</p>` : ""}` : ""}
 
