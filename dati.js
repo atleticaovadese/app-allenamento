@@ -82,7 +82,10 @@ function caricaCustom() {
 function salvaCustom() {
   try { localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify(bundleCustom())); }
   catch (e) { /* localStorage non disponibile */ }
-  if (typeof salvaDatiDB === "function") salvaDatiDB(); // write-through al database (se collegato)
+  // il bundle condiviso (programmi, ecc.) lo scrive SOLO l'allenatore: gli atleti non hanno i permessi
+  // (RLS) e il tentativo fallirebbe. L'atleta tiene le sue preferenze solo in locale.
+  const coach = (typeof S !== "undefined" && S.utente && S.utente.ruolo === "coach");
+  if (coach && typeof salvaDatiDB === "function") salvaDatiDB(); // write-through al database (solo coach)
 }
 
 // --- sessioni di test complete (snapshot per data): si rivedono per intero ---
