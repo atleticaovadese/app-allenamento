@@ -301,6 +301,8 @@ async function caricaDati() {
     const svolte = (svolteDb || []).concat(pend.filter(p => !(svolteDb || []).some(x => x.atleta_id === p.atleta_id && x.data === p.data && x.tipo === p.tipo && (x.giorno == null || x.giorno === p.giorno))));
     DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.lanciLog = []; DEMO.seduteSvolte = {};
     (svolte || []).forEach(sv => {
+      if (sv.rpe != null) sv.rpe = Number(sv.rpe);              // numeric dal DB torna come stringa → riporto a numero
+      if (sv.durata_min != null) sv.durata_min = Number(sv.durata_min);
       (DEMO.seduteSvolte[sv.atleta_id] = DEMO.seduteSvolte[sv.atleta_id] || []).push(sv);
       const d = sv.dati || {};
       if (sv.tipo === "pista") {
@@ -431,15 +433,16 @@ if (typeof window !== "undefined" && window.addEventListener) {
 }
 // prova a reinviare tutte le sedute in coda; toglie dalla coda solo quelle andate a buon fine
 async function _codaFlush() {
-  if (!haDB()) return;
+  if (!haDB()) return { rimasti: codaSvoltePendenti(), errore: null };
   const arr = _codaLeggi();
-  if (!arr.length) return;
-  const rimasti = [];
+  if (!arr.length) return { rimasti: 0, errore: null };
+  const rimasti = []; let ultimo = null;
   for (const p of arr) {
-    try { const { error } = await sb.from("seduta_svolta").upsert(p, { onConflict: "atleta_id,chiave" }); if (error) rimasti.push(p); }
-    catch (e) { rimasti.push(p); }
+    try { const { error } = await sb.from("seduta_svolta").upsert(p, { onConflict: "atleta_id,chiave" }); if (error) { rimasti.push(p); ultimo = error.message || String(error); } }
+    catch (e) { rimasti.push(p); ultimo = (e && e.message) || String(e); }
   }
   _codaScrivi(rimasti);
+  return { rimasti: rimasti.length, errore: ultimo };
 }
 // invio MANUALE della coda (pulsante "Invia ora"): forza la sincronizzazione delle sedute rimaste sul telefono
 async function inviaCodaOra() {
@@ -447,11 +450,11 @@ async function inviaCodaOra() {
   if (!prima) { alert("Non c'è nulla in attesa: è tutto già inviato. ✓"); return; }
   if (!haDB()) { alert("Sembra che tu sia offline: appena torni online si inviano da soli. Riprova con una connessione attiva."); return; }
   const btn = document.querySelector('button[onclick="inviaCodaOra()"]'); if (btn) { btn.textContent = "Invio in corso…"; btn.disabled = true; }
-  await _codaFlush();
+  const r = await _codaFlush();
   await caricaDati();   // ricarica dal DB così compaiono in calendario/andamento/allenatore
   const dopo = codaSvoltePendenti(), inviati = prima - dopo;
   if (dopo === 0) alert("✓ Inviati " + inviati + " allenament" + (inviati === 1 ? "o" : "i") + ". Ora si vedono nel calendario e l'allenatore li riceve.");
-  else alert("Inviati " + inviati + ", ancora " + dopo + " in attesa (connessione instabile). Riprova tra poco con una buona connessione.");
+  else alert("Inviati " + inviati + ", " + dopo + " non riuscit" + (dopo === 1 ? "o" : "i") + ".\nMotivo: " + ((r && r.errore) || "connessione") + "\nRiprova con una buona connessione o avvisa l'allenatore.");
   disegna();
 }
 
