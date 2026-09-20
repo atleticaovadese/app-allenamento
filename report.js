@@ -717,6 +717,65 @@ function _reportStandalone(id) {
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Report ${(DEMO.atleti.find(x => x.id === id) || {}).nome || ""}</title><style>body{margin:0;background:#e9edf2;padding:16px}${_REPORT_CSS}</style></head><body><div id="app-report">${_reportBodyHTML(id)}</div></body></html>`;
 }
 
+// righe effettive dell'atleta per (tipo, mesociclo, giorno, settimana): override «Adatta», poi programma personale/madre
+function _rDiffRigheAtl(a, tipo, prog, madre, mi, gi, si) {
+  const ov = (typeof overrideRighe === "function") ? overrideRighe(a, tipo, gi, si) : null;
+  if (ov) return ov;
+  const src = (prog && prog !== madre) ? prog : madre;
+  const m = src && src.mesocicli && src.mesocicli[mi];
+  const g2 = m && m.giorni && m.giorni[gi];
+  const s2 = g2 && g2.settimane && g2.settimane[si];
+  return (s2 && s2.righe) || [];
+}
+// per la stampa di gruppo: le DIFFERENZE per atleta rispetto al programma madre (programmi personali + adattamenti)
+function _rProgrammaDifferenze(g) {
+  const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(g).filter(a => !a.bloccato) : [];
+  if (!atl.length) return "";
+  const esc = t => String(t == null ? "" : t).replace(/</g, "&lt;");
+  const rPista = (typeof _riepRigaPista === "function") ? (r => _riepRigaPista(r, g)) : (r => esc((r.contenuto || r.mezzo || "") + (Number(r.distanza) > 0 ? " " + (Number(r.n) > 0 ? r.n + "×" : "") + r.distanza + "m" : "")));
+  const rPal = (typeof _riepRigaPal === "function") ? (r => _riepRigaPal(r)) : (r => esc((r.esercizio || "") + (r.serie && r.rep ? " " + r.serie + "×" + r.rep : "")));
+  const nS = m => (typeof nSettDi === "function") ? nSettDi(m) : ((m.giorni && m.giorni[0] && m.giorni[0].settimane && m.giorni[0].settimane.length) || 4);
+  const madreP = (typeof pistaDi === "function") ? pistaDi(g) : null;
+  const madreL = (typeof palDi === "function") ? palDi(g) : null;
+  const invariati = [];
+  let blocchi = "";
+  atl.forEach(a => {
+    const haPers = !!((DEMO.pistaAtleta && DEMO.pistaAtleta[a.id]) || (DEMO.palAtleta && DEMO.palAtleta[a.id]));
+    const nonSegue = (typeof programmaAssegnatoA === "function") && !programmaAssegnatoA(a.id) && !haPers;
+    if (nonSegue) { blocchi += `<div class="gmeso"><h3 class="gtit" style="color:#2B4C7E">${esc(a.nome)}</h3><p class="sub muted">Non segue il programma di gruppo (nessun programma assegnato).</p></div>`; return; }
+    let corpo = "";
+    [["pista", madreP, (typeof _progPista === "function") ? _progPista(a) : madreP, rPista, (g === "lanci" ? "Campo" : "Pista")],
+     ["palestra", madreL, (typeof _progPal === "function") ? _progPal(a) : madreL, rPal, "Palestra"]].forEach(function (row) {
+      const tipo = row[0], madre = row[1], prog = row[2], rf = row[3], lab = row[4];
+      if (!madre || !madre.mesocicli || !madre.mesocicli.length) return;
+      let sez = "";
+      madre.mesocicli.forEach((m, mi) => {
+        const n = nS(m); let meso = "";
+        (m.giorni || []).forEach((gio, gi) => {
+          let righe = "";
+          for (let si = 0; si < n; si++) {
+            const madreR = (gio.settimane && gio.settimane[si] && gio.settimane[si].righe) || [];
+            const atlR = _rDiffRigheAtl(a, tipo, prog, madre, mi, gi, si);
+            if (JSON.stringify(atlR || []) === JSON.stringify(madreR || [])) continue;
+            const atlTxt = (atlR || []).map(rf).filter(Boolean).join(" · ") || "—";
+            const madreTxt = (madreR || []).map(rf).filter(Boolean).join(" · ") || "—";
+            righe += `<tr><td class="wk">Sett ${si + 1}</td><td><b>${atlTxt}</b><div class="muted" style="font-size:11px">madre: ${madreTxt}</div></td></tr>`;
+          }
+          if (righe) meso += `<div class="gsec"><span class="gk">Giorno ${gi + 1}${gio.giornoSett ? " · " + esc(gio.giornoSett) : ""}</span><table class="lavtab"><tbody>${righe}</tbody></table></div>`;
+        });
+        if (meso) sez += `<p class="sub" style="margin:8px 0 2px"><b>Mesociclo ${mi + 1}${m.blocco ? " · " + esc(m.blocco) : ""}</b></p>${meso}`;
+      });
+      if (sez) corpo += `<p class="sub" style="margin:8px 0 2px;text-transform:uppercase;font-size:11px;color:#7a8496">${lab}</p>${sez}`;
+    });
+    if (corpo) blocchi += `<div class="gmeso"><h3 class="gtit" style="color:#2B4C7E">${esc(a.nome)} — differenze dal madre</h3>${corpo}</div>`;
+    else invariati.push(a.nome);
+  });
+  if (!blocchi && !invariati.length) return "";
+  const cssDiff = `<style>#app-report .gmeso{page-break-inside:avoid;margin-bottom:12px}#app-report .gsec{margin:6px 0}#app-report .gk{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#7a8496;margin-bottom:2px}#app-report .lavtab{width:100%;border-collapse:collapse}#app-report .lavtab td{border:1px solid #d7dde7;padding:3px 6px;font-size:12px;vertical-align:top}#app-report .lavtab td.wk{white-space:nowrap;font-weight:600;color:#2B4C7E;width:64px}</style>`;
+  const invTxt = invariati.length ? `<p class="sub" style="margin-top:8px">Seguono il programma madre invariato: <b>${invariati.map(esc).join(", ")}</b>.</p>` : "";
+  return `<div style="page-break-before:always"></div>${cssDiff}<h2>Differenze per atleta</h2>${blocchi || ""}${invTxt}`;
+}
+
 // ---------- Stampa del programma MADRE di un gruppo (PDF, stesso stile del report) ----------
 function apriStampaProgramma(g) { S.stampaProg = g || (S.progGruppo || "vel"); disegna(); window.scrollTo(0, 0); }
 function chiudiStampaProgramma() { S.stampaProg = null; disegna(); window.scrollTo(0, 0); }
@@ -729,8 +788,9 @@ function vistaStampaProgramma() {
   const body = `<h1>Programma madre — ${nomeG}</h1>
     <p class="sub muted">${brand} · settimana-tipo per giorno di ogni mesociclo · stampato il ${oggi}</p>
     ${(typeof _rProgrammaMesocicli === "function") ? _rProgrammaMesocicli(null, g) : ""}
+    ${(typeof _rProgrammaDifferenze === "function") ? _rProgrammaDifferenze(g) : ""}
     <div class="foot">${brand} · «Chi non pianifica è destinato a fallire.»</div>
-    <div class="print-footer">${brand} · programma madre ${nomeG} · ${oggi}</div>`;
+    <div class="print-footer">${brand} · programma ${nomeG} · ${oggi}</div>`;
   return `<style>${_REPORT_CSS}</style>
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-2" style="width:auto;padding:9px 14px" onclick="chiudiStampaProgramma()">‹ Indietro</button>
@@ -740,6 +800,6 @@ function vistaStampaProgramma() {
       <span class="et" style="margin:0 4px 0 0">Disciplina:</span>
       ${grp.map(([k, l]) => `<button class="btn ${g === k ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="apriStampaProgramma('${k}')">${l}</button>`).join("")}
     </div>
-    <p class="no-print et" style="margin-bottom:12px">Anteprima del programma madre. Premi <b>Stampa</b> → <b>«Salva come PDF»</b>. Ogni mesociclo sta in un blocco che non si spezza tra le pagine.</p>
+    <p class="no-print et" style="margin-bottom:12px">Anteprima del programma madre <b>+ le differenze di ogni atleta</b> (programmi personali e adattamenti). Premi <b>Stampa</b> → <b>«Salva come PDF»</b>.</p>
     <div id="app-report">${body}</div>`;
 }
