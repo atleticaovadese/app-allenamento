@@ -352,7 +352,7 @@ async function caricaDati() {
 // settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
 function _settimanaMonReale(a, off) {
   off = off || 0;
-  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0];
+  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0], doppio = [false, false, false, false, false, false, false];
   const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + off * 7);
@@ -364,14 +364,17 @@ function _settimanaMonReale(a, off) {
     const reali = svGiorno.filter(sv => sv.tipo !== "extra");     // le extra non contano come "seduta fatta"
     done[i] = reali.length ? 1 : 0;
     extra[i] = svGiorno.filter(sv => sv.tipo === "extra").reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);
-    let tipo = "";
+    // tipi presenti quel giorno: dal programma E dalle sedute svolte (anche se non programmate)
+    const tipi = new Set();
     if (typeof seduteDelGiorno === "function") {
-      try { const sd = seduteDelGiorno(iso, false, a); tipo = sd.some(x => x.tipo === "pista") ? "pista" : sd.some(x => x.tipo === "palestra") ? "palestra" : ""; } catch (e) { /* ignora */ }
+      try { seduteDelGiorno(iso, false, a).forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); }); } catch (e) { /* ignora */ }
     }
-    if (!tipo && reali.length) tipo = reali.some(x => x.tipo === "palestra") ? "palestra" : "pista";  // svolto ma non programmato
+    reali.forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); });
+    doppio[i] = tipi.has("pista") && tipi.has("palestra");   // doppio allenamento: pista + palestra lo stesso giorno
+    const tipo = tipi.has("pista") ? "pista" : (tipi.has("palestra") ? "palestra" : "");
     sett[i] = (gare || []).some(g => g.data === iso) ? "gara" : tipo;
   }
-  return { settimana: sett, done, extra };
+  return { settimana: sett, done, extra, doppio };
 }
 
 // ---------- scrittura: nuovo atleta ----------

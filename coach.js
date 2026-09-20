@@ -489,11 +489,14 @@ function vistaAtletaDettaglio() {
   const wk = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a) : s;
   const sett = wk.settimana.map((tp, i) => {
     const ex = wk.extra && wk.extra[i] > 0;
-    const ring = ex ? "box-shadow:0 0 0 2px var(--verde);" : "";
+    const dop = wk.doppio && wk.doppio[i];   // doppio allenamento (pista + palestra)
+    const ring = dop ? "box-shadow:0 0 0 2px #e6a83c, 0 0 5px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
+    const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
     const dim = wk.done[i] ? "" : (ex ? "" : "nofatto");
     const glyph = wk.done[i] ? "✓" : (ex ? "🏃" : "");
+    const cls = dop ? "" : (tp ? TIPO_CELLA[tp] : "vuoto");
     return `<div class="mini-g">
-      <div class="mini-c ${tp ? TIPO_CELLA[tp] : 'vuoto'} ${dim}" style="${tp ? "cursor:pointer;" : ""}${ring}"${tp ? ` onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}${ex ? ` title="+${wk.extra[i]} km corsi in più"` : ""}>${glyph}</div>
+      <div class="mini-c ${cls} ${dim}" style="${tp ? "cursor:pointer;" : ""}${bg}${ring}"${tp ? ` onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}${dop ? ` title="Doppio allenamento: pista + palestra"` : (ex ? ` title="+${wk.extra[i]} km corsi in più"` : "")}>${glyph}</div>
       <div class="et" style="text-align:center;font-size:10px">${DEMO.giorniSettimana[i]}</div>
     </div>`;
   }).join("");
@@ -595,9 +598,11 @@ function vistaCalendarioSquadra() {
       : (DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0], extra: [0, 0, 0, 0, 0, 0, 0] }));
     const celle = s.settimana.map((tp, i) => {
       const ex = s.extra && s.extra[i] > 0;
-      const ring = ex ? "box-shadow:0 0 0 2px var(--verde);" : "";
-      const title = ex ? ` title="+${s.extra[i]} km corsi in più"` : "";
-      if (tp) return `<div class="cell ${TIPO_CELLA[tp] || ''} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${s.done[i] ? '✓' : (ex ? '🏃' : '')}</div>`;
+      const dop = s.doppio && s.doppio[i];   // doppio allenamento (pista + palestra)
+      const ring = dop ? "box-shadow:0 0 0 2px #e6a83c, 0 0 6px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
+      const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
+      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (ex ? ` title="+${s.extra[i]} km corsi in più"` : "");
+      if (tp) return `<div class="cell ${dop ? '' : (TIPO_CELLA[tp] || '')} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${bg}${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${s.done[i] ? '✓' : (ex ? '🏃' : '')}</div>`;
       if (ex) return `<div class="cell off" style="${ring}"${title}>🏃</div>`;
       return `<div class="cell off"></div>`;
     }).join("");
@@ -631,6 +636,7 @@ function vistaCalendarioSquadra() {
       <span><span class="quad" style="background:#d85a30"></span> gara</span>
       <span>✓ fatto</span>
       <span><span class="quad" style="background:transparent;box-shadow:0 0 0 2px var(--verde)"></span> 🏃 corsa in più</span>
+      <span><span class="quad" style="background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);box-shadow:0 0 0 2px #e6a83c"></span> doppio (pista+palestra)</span>
     </div>
     <p class="et" style="margin-top:8px;color:var(--txt3)">Tocca una casella per aprire l'allenamento di quell'atleta in quel giorno.</p>
   </div>`;
@@ -645,6 +651,17 @@ function apriSedutaCal(atletaId, off, tp, wkOff) {
   const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + Number(off));
   const iso = (typeof isoDiData === "function") ? isoDiData(d) : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const sd = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(iso, false, a) : [];
+  const pistaS = sd.find(x => x.tipo === "pista"), palS = sd.find(x => x.tipo === "palestra");
+  // DOPPIO allenamento: pista + palestra lo stesso giorno → chiedi quale aprire
+  if (pistaS && palS && typeof mostraFoglio === "function") {
+    const apri = id => `chiudiScheda();apriSeduta('${id}')`;
+    mostraFoglio(`<div class="foglio-top"><h3>${a.nome} · doppio allenamento</h3>
+        <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+      <p class="et" style="margin-bottom:10px">Questo giorno ha <b>due sedute</b>. Quale vuoi aprire?</p>
+      <button class="btn" onclick="${apri(pistaS.id)}">🏃 Pista</button>
+      <button class="btn btn-2" style="margin-top:8px" onclick="${apri(palS.id)}">🏋 Palestra</button>`);
+    return;
+  }
   const s = sd.find(x => x.tipo === tp) || sd[0];
   if (!s) { alert("Nessun allenamento programmato per " + a.nome + " in questo giorno."); return; }
   if (typeof apriSeduta === "function") apriSeduta(s.id); else { S.seduta = s.id; disegna(); window.scrollTo(0, 0); }
