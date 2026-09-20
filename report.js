@@ -121,29 +121,50 @@ function _rProgrammaMesocicli(a, gOverride) {
     const txt = ss.map(r => (typeof specialiTxt === "function" ? specialiTxt(r) : r.es)).map(esc).join(" · ");
     return `<div class="gsec"><span class="gk">Esercizi speciali</span><div class="rz">${txt}</div></div>`;
   };
-  // lavoro (ripetute) settimana per settimana — così si legge tutto il mesociclo
-  const lavoroDett = (gi, rigaFn, colLabel, m) => {
+  // differenze dei singoli atleti su una cella (settimana) — SOLO nella stampa di GRUPPO (madre): ✳ Nome: cosa fa
+  const diffCella = (tipo, mi, giIdx, si, madreRighe) => {
+    if (a) return "";   // nel report del singolo atleta non servono le differenze di gruppo
+    const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(g).filter(x => !x.bloccato) : [];
+    if (!atl.length) return "";
+    const rf = tipo === "palestra" ? rigaPal : rigaPista;
+    const madreProg = tipo === "palestra" ? pal : pista;
+    const linee = [];
+    atl.forEach(x => {
+      const prog = tipo === "palestra"
+        ? ((typeof _progPal === "function") ? _progPal(x) : madreProg)
+        : ((typeof _progPista === "function") ? _progPista(x) : madreProg);
+      const eff = (typeof _rDiffRigheAtl === "function") ? _rDiffRigheAtl(x, tipo, prog, madreProg, mi, giIdx, si) : madreRighe;
+      if (JSON.stringify(eff || []) === JSON.stringify(madreRighe || [])) return;
+      const txt = (eff || []).map(rf).filter(Boolean).map(esc).join(" · ") || "riposo";
+      linee.push(`<div class="diff-atl">✳ <b>${esc(x.nome)}:</b> ${txt}</div>`);
+    });
+    return linee.join("");
+  };
+  // lavoro (ripetute) settimana per settimana — così si legge tutto il mesociclo (+ ✳ differenze per atleta nella stampa di gruppo)
+  const lavoroDett = (gi, rigaFn, colLabel, m, tipo, mi, giIdx) => {
     const nSett = (typeof nSettimaneMeso === "function" && m) ? nSettimaneMeso(m) : (gi.settimane || []).length;
     const setts = (gi.settimane || []).slice(0, nSett);
     const rows = setts.map((sett, si) => {
       const righe = (sett.righe || []).map(rigaFn).filter(Boolean);
-      if (!righe.length) return "";
+      const diff = diffCella(tipo, mi, giIdx, si, sett.righe || []);
+      if (!righe.length && !diff) return "";
       const scar = (typeof isScaricoIdx === "function" && m) ? isScaricoIdx(m, si) : false;
-      return `<tr><td class="wk">Sett ${si + 1}${scar ? " ⬇" : ""}</td><td>${righe.map(r => `<div>${esc(r)}</div>`).join("")}</td></tr>`;
+      const cella = (righe.length ? righe.map(r => `<div>${esc(r)}</div>`).join("") : `<span class="muted">— riposo/vuoto</span>`) + diff;
+      return `<tr><td class="wk">Sett ${si + 1}${scar ? " ⬇" : ""}</td><td>${cella}</td></tr>`;
     }).filter(Boolean).join("");
     return rows ? `<div class="gsec"><span class="gk">${esc(colLabel)}</span><table class="lavtab"><tbody>${rows}</tbody></table></div>` : "";
   };
-  const giornoCard = (gi, idx, rigaFn, colLabel, m) => {
-    const risc = riscDett(gi), plio = plioDett(gi), core = coreDett(gi), spec = specialiDett(gi), lav = lavoroDett(gi, rigaFn, colLabel, m);
+  const giornoCard = (gi, idx, rigaFn, colLabel, m, tipo, mi) => {
+    const risc = riscDett(gi), plio = plioDett(gi), core = coreDett(gi), spec = specialiDett(gi), lav = lavoroDett(gi, rigaFn, colLabel, m, tipo, mi, idx);
     if (!risc && !plio && !core && !spec && !lav) return "";
     return `<div class="gday"><h3 class="gtit">Giorno ${idx + 1}${gi.giornoSett ? " · " + esc(gi.giornoSett) : ""}</h3>${risc}${plio}${core}${spec}${lav}</div>`;
   };
-  const sezione = (titolo, prog, rigaFn, colLavoro, atletaIdGraf) => {
+  const sezione = (titolo, prog, rigaFn, colLavoro, atletaIdGraf, tipo) => {
     if (!prog || !prog.mesocicli || !prog.mesocicli.length) return "";
     let s = "";
     prog.mesocicli.forEach((m, mi) => {
       const testa = ["Mesociclo " + (mi + 1), m.blocco || m.ciclo || "", m.inizio ? "dal " + _rDataL(m.inizio) : "", m.focus ? "focus: " + m.focus : ""].filter(Boolean).join(" · ");
-      const giorni = (m.giorni || []).map((gi, idx) => giornoCard(gi, idx, rigaFn, colLavoro, m)).filter(Boolean).join("");
+      const giorni = (m.giorni || []).map((gi, idx) => giornoCard(gi, idx, rigaFn, colLavoro, m, tipo, mi)).filter(Boolean).join("");
       if (!giorni) return;
       s += `<div class="gmeso"><p class="sub gmt"><b>${testa}</b></p>${giorni}`;
       s += (atletaIdGraf ? _rGraficoMeso(atletaIdGraf, _rMesoWin(prog.mesocicli, mi)) : "") + `</div>`;
@@ -162,9 +183,10 @@ function _rProgrammaMesocicli(a, gOverride) {
     .lavtab{width:100%;border-collapse:collapse;margin-top:2px}
     .lavtab td{border:1px solid #e3e7ee;padding:3px 6px;font-size:12px;vertical-align:top}
     .lavtab td.wk{white-space:nowrap;font-weight:600;color:#2B4C7E;width:64px}
+    .diff-atl{font-size:11px;color:#b45309;margin-top:3px;padding-left:2px}
   </style>`;
-  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto / lanci" : "Ripetute in pista", a ? a.id : null)
-    + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi", null);
+  const html = sezione(g === "lanci" ? "Programma Campo per mesociclo" : "Programma Pista per mesociclo", pista, rigaPista, g === "lanci" ? "Contenuto / lanci" : "Ripetute in pista", a ? a.id : null, "pista")
+    + sezione("Programma Palestra per mesociclo", pal, rigaPal, "Esercizi", null, "palestra");
   return html ? css + html : `<h2>Programma</h2><p class="muted">Nessun programma impostato per questo gruppo.</p>`;
 }
 
@@ -727,55 +749,6 @@ function _rDiffRigheAtl(a, tipo, prog, madre, mi, gi, si) {
   const s2 = g2 && g2.settimane && g2.settimane[si];
   return (s2 && s2.righe) || [];
 }
-// per la stampa di gruppo: le DIFFERENZE per atleta rispetto al programma madre (programmi personali + adattamenti)
-function _rProgrammaDifferenze(g) {
-  const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(g).filter(a => !a.bloccato) : [];
-  if (!atl.length) return "";
-  const esc = t => String(t == null ? "" : t).replace(/</g, "&lt;");
-  const rPista = (typeof _riepRigaPista === "function") ? (r => _riepRigaPista(r, g)) : (r => esc((r.contenuto || r.mezzo || "") + (Number(r.distanza) > 0 ? " " + (Number(r.n) > 0 ? r.n + "×" : "") + r.distanza + "m" : "")));
-  const rPal = (typeof _riepRigaPal === "function") ? (r => _riepRigaPal(r)) : (r => esc((r.esercizio || "") + (r.serie && r.rep ? " " + r.serie + "×" + r.rep : "")));
-  const nS = m => (typeof nSettDi === "function") ? nSettDi(m) : ((m.giorni && m.giorni[0] && m.giorni[0].settimane && m.giorni[0].settimane.length) || 4);
-  const madreP = (typeof pistaDi === "function") ? pistaDi(g) : null;
-  const madreL = (typeof palDi === "function") ? palDi(g) : null;
-  const invariati = [];
-  let blocchi = "";
-  atl.forEach(a => {
-    const haPers = !!((DEMO.pistaAtleta && DEMO.pistaAtleta[a.id]) || (DEMO.palAtleta && DEMO.palAtleta[a.id]));
-    const nonSegue = (typeof programmaAssegnatoA === "function") && !programmaAssegnatoA(a.id) && !haPers;
-    if (nonSegue) { blocchi += `<div class="gmeso"><h3 class="gtit" style="color:#2B4C7E">${esc(a.nome)}</h3><p class="sub muted">Non segue il programma di gruppo (nessun programma assegnato).</p></div>`; return; }
-    let corpo = "";
-    [["pista", madreP, (typeof _progPista === "function") ? _progPista(a) : madreP, rPista, (g === "lanci" ? "Campo" : "Pista")],
-     ["palestra", madreL, (typeof _progPal === "function") ? _progPal(a) : madreL, rPal, "Palestra"]].forEach(function (row) {
-      const tipo = row[0], madre = row[1], prog = row[2], rf = row[3], lab = row[4];
-      if (!madre || !madre.mesocicli || !madre.mesocicli.length) return;
-      let sez = "";
-      madre.mesocicli.forEach((m, mi) => {
-        const n = nS(m); let meso = "";
-        (m.giorni || []).forEach((gio, gi) => {
-          let righe = "";
-          for (let si = 0; si < n; si++) {
-            const madreR = (gio.settimane && gio.settimane[si] && gio.settimane[si].righe) || [];
-            const atlR = _rDiffRigheAtl(a, tipo, prog, madre, mi, gi, si);
-            if (JSON.stringify(atlR || []) === JSON.stringify(madreR || [])) continue;
-            const atlTxt = (atlR || []).map(rf).filter(Boolean).join(" · ") || "—";
-            const madreTxt = (madreR || []).map(rf).filter(Boolean).join(" · ") || "—";
-            righe += `<tr><td class="wk">Sett ${si + 1}</td><td><b>${atlTxt}</b><div class="muted" style="font-size:11px">madre: ${madreTxt}</div></td></tr>`;
-          }
-          if (righe) meso += `<div class="gsec"><span class="gk">Giorno ${gi + 1}${gio.giornoSett ? " · " + esc(gio.giornoSett) : ""}</span><table class="lavtab"><tbody>${righe}</tbody></table></div>`;
-        });
-        if (meso) sez += `<p class="sub" style="margin:8px 0 2px"><b>Mesociclo ${mi + 1}${m.blocco ? " · " + esc(m.blocco) : ""}</b></p>${meso}`;
-      });
-      if (sez) corpo += `<p class="sub" style="margin:8px 0 2px;text-transform:uppercase;font-size:11px;color:#7a8496">${lab}</p>${sez}`;
-    });
-    if (corpo) blocchi += `<div class="gmeso"><h3 class="gtit" style="color:#2B4C7E">${esc(a.nome)} — differenze dal madre</h3>${corpo}</div>`;
-    else invariati.push(a.nome);
-  });
-  if (!blocchi && !invariati.length) return "";
-  const cssDiff = `<style>#app-report .gmeso{page-break-inside:avoid;margin-bottom:12px}#app-report .gsec{margin:6px 0}#app-report .gk{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#7a8496;margin-bottom:2px}#app-report .lavtab{width:100%;border-collapse:collapse}#app-report .lavtab td{border:1px solid #d7dde7;padding:3px 6px;font-size:12px;vertical-align:top}#app-report .lavtab td.wk{white-space:nowrap;font-weight:600;color:#2B4C7E;width:64px}</style>`;
-  const invTxt = invariati.length ? `<p class="sub" style="margin-top:8px">Seguono il programma madre invariato: <b>${invariati.map(esc).join(", ")}</b>.</p>` : "";
-  return `<div style="page-break-before:always"></div>${cssDiff}<h2>Differenze per atleta</h2>${blocchi || ""}${invTxt}`;
-}
-
 // ---------- Stampa del programma MADRE di un gruppo (PDF, stesso stile del report) ----------
 function apriStampaProgramma(g) { S.stampaProg = g || (S.progGruppo || "vel"); disegna(); window.scrollTo(0, 0); }
 function chiudiStampaProgramma() { S.stampaProg = null; disegna(); window.scrollTo(0, 0); }
@@ -788,7 +761,6 @@ function vistaStampaProgramma() {
   const body = `<h1>Programma madre — ${nomeG}</h1>
     <p class="sub muted">${brand} · settimana-tipo per giorno di ogni mesociclo · stampato il ${oggi}</p>
     ${(typeof _rProgrammaMesocicli === "function") ? _rProgrammaMesocicli(null, g) : ""}
-    ${(typeof _rProgrammaDifferenze === "function") ? _rProgrammaDifferenze(g) : ""}
     <div class="foot">${brand} · «Chi non pianifica è destinato a fallire.»</div>
     <div class="print-footer">${brand} · programma ${nomeG} · ${oggi}</div>`;
   return `<style>${_REPORT_CSS}</style>
