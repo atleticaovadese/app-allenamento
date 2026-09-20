@@ -143,7 +143,7 @@ function entra(ruolo) {
 }
 function esci() {
   if (typeof disconnetti === "function") disconnetti();
-  S.utente = null; S.seduta = null; S.vista = "oggi"; S.menu = false; S.atletaSel = null;
+  S.utente = null; S.seduta = null; S.vista = "oggi"; S.menu = false; S.atletaSel = null; S.curiosando = null;
   localStorage.removeItem("utente"); disegna();
 }
 function ripristina() {
@@ -232,7 +232,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.libQuery = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.coachData = null; S.notifApri = null; S.modEdit = null; S.riepMeso = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.libQuery = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.coachData = null; S.notifApri = null; S.modEdit = null; S.riepMeso = null; S._metisInviato = null; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -838,6 +838,9 @@ function disegna() {
   const menu = coach ? MENU_COACH : MENU_ATLETA;
   let corpo;
   if (S.onboarding === "tour") corpo = vistaTutorial();
+  else if (S.vista === "scrivi-metis" && typeof vistaScriviMetis === "function") corpo = vistaScriviMetis();
+  else if (S.utente.superAdmin && S.vista === "admin-societa" && typeof vistaSocietaAdmin === "function") corpo = vistaSocietaAdmin();
+  else if (S.utente.superAdmin && S.vista === "admin-messaggi" && typeof vistaMessaggiMetis === "function") corpo = vistaMessaggiMetis();
   else if (S.modificaDati) corpo = vistaModificaDati();
   else if (S.infortunio) corpo = vistaInfortunioForm();
   else if (S.risultatoGara) corpo = vistaRisultatoGaraForm();
@@ -919,7 +922,11 @@ function disegna() {
         <div style="font-size:12px;color:var(--txt3)">${S.utente.nome}</div></div>
       <div class="tit">${coach ? "Allenatore" : "Atleta"}</div>
       ${disegnaMenu(menu)}
+      ${S.utente.superAdmin ? `<div class="tit">Metis · gestione</div>
+        <a class="${S.vista === 'admin-societa' ? 'on' : ''}" onclick="vai('admin-societa')"><span class="ic">🏛</span>Società (curiosa)</a>
+        <a class="${S.vista === 'admin-messaggi' ? 'on' : ''}" onclick="vai('admin-messaggi')"><span class="ic">📬</span>Messaggi a Metis${(typeof _nMsgMetisNonLetti === 'function' && _nMsgMetisNonLetti()) ? ` <span style="background:var(--rosso);color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px">${_nMsgMetisNonLetti()}</span>` : ''}</a>` : ""}
       <div class="tit">Account</div>
+      ${S.utente.superAdmin ? "" : `<a class="${S.vista === 'scrivi-metis' ? 'on' : ''}" onclick="vai('scrivi-metis')"><span class="ic">✉️</span>Scrivi a Metis</a>`}
       <a onclick="esci()"><span class="ic">⏻</span>Esci</a>
       <div style="padding:14px 12px 4px;font-size:11px;color:var(--txt3)">${CONFIG.nome} · versione ${CONFIG.versione}</div>
     </aside>
@@ -929,7 +936,7 @@ function disegna() {
       <div style="flex:1"><div class="nome">Ciao ${String((S.utente && S.utente.nome) || "").split(" ")[0]}</div><div class="data">${oggi}</div></div>
       ${!coach && typeof atletaCorrente === "function" && typeof avatarAtleta === "function" ? `<div class="top-av" onclick="vai('io')">${avatarAtleta(atletaCorrente(), 38)}</div>` : ""}
     </div>
-    <div class="main">${!coach ? ((typeof _promemoriaDiario === "function" ? _promemoriaDiario() : "") + (typeof _promemoriaAllenamento === "function" ? _promemoriaAllenamento() : "")) : ""}${corpo}</div>`;
+    <div class="main">${S.curiosando && typeof _bannerCuriosa === "function" ? _bannerCuriosa() : ""}${!coach ? ((typeof _promemoriaDiario === "function" ? _promemoriaDiario() : "") + (typeof _promemoriaAllenamento === "function" ? _promemoriaAllenamento() : "")) : ""}${corpo}</div>`;
   aggiornaMenu();
 }
 

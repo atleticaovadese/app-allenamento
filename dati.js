@@ -80,6 +80,7 @@ function caricaCustom() {
 }
 
 function salvaCustom() {
+  if (typeof S !== "undefined" && S.curiosando) return;   // super-admin che curiosa un'altra società: sola lettura, non salvare
   try { localStorage.setItem(CHIAVE_SALVATAGGIO, JSON.stringify(bundleCustom())); }
   catch (e) { /* localStorage non disponibile */ }
   // il bundle condiviso (programmi, ecc.) lo scrive SOLO l'allenatore: gli atleti non hanno i permessi

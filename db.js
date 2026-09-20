@@ -160,9 +160,10 @@ async function caricaDati() {
   if (!user) return;
 
   // profilo dell'utente
-  const { data: prof } = await sb.from("profilo").select("ruolo,societa_id,nome").eq("id", user.id).single();
+  const { data: prof } = await sb.from("profilo").select("ruolo,societa_id,nome,super_admin").eq("id", user.id).single();
   if (!prof) return;
-  S.utente = { id: user.id, ruolo: prof.ruolo, nome: prof.nome, societaId: prof.societa_id, email: user.email };
+  S.utente = { id: user.id, ruolo: prof.ruolo, nome: prof.nome, societaId: prof.societa_id, societaMadre: prof.societa_id, email: user.email, superAdmin: !!prof.super_admin };
+  S.curiosando = null;   // all'avvio non sto curiosando nessun'altra società
 
   // atleti + schede
   const { data: atl } = await sb.from("atleta")
@@ -348,6 +349,9 @@ async function caricaDati() {
       if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; }
     });
   } catch (e) { /* tabella seduta_svolta assente o offline */ }
+
+  // super-admin (Alessandro): carica l'elenco società e i messaggi "Scrivi a Metis"
+  if (S.utente.superAdmin && typeof caricaExtraAdmin === "function") { try { await caricaExtraAdmin(); } catch (e) { /* ignora */ } }
 }
 // settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
 function _settimanaMonReale(a, off) {
@@ -389,6 +393,7 @@ function profiloIncompleto(a) {
 // ---------- programmi & dati custom nel DB (JSON per società) ----------
 let _datiDBTimer = null;
 function salvaDatiDB() {
+  if (S.curiosando) return;   // super-admin in sola lettura su un'altra società: non salvare mai
   if (!haDB() || typeof bundleCustom !== "function") return;
   clearTimeout(_datiDBTimer);
   _datiDBTimer = setTimeout(async () => {
