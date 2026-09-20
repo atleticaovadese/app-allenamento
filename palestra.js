@@ -98,7 +98,17 @@ function palSettimaneDelGiorno(m, g) {
 
 // ---------- handlers ----------
 function setPalTop(campo, val) { const p = palestraInit(); p[campo] = val; savePalestra(); disegna(); }
-function setPalMeso(campo, val) { palestraInit().mesocicli[S.palMeso][campo] = val; savePalestra(); disegna(); }
+function setPalMeso(campo, val) {
+  const m = palestraInit().mesocicli[S.palMeso];
+  if (campo === "inizio" && m.inizio && val && val !== m.inizio && typeof _mesoSvolteCount === "function") {
+    const n = _mesoSvolteCount(m, "palestra");
+    if (n > 0 && typeof confirm === "function" &&
+      !confirm(`⚠️ In questo mesociclo ci sono già ${n} allenament${n === 1 ? "o" : "i"} SVOLT${n === 1 ? "O" : "I"} (blocco dal ${m.inizio}).\n\nSe sposti la data d'inizio, questo blocco “passato” non si vedrà più sul calendario come programma.\nPer un blocco NUOVO usa il pulsante ＋ (crea un nuovo mesociclo) invece di riscrivere questo.\n\nCambiare comunque la data?`)) {
+      disegna(); return;
+    }
+  }
+  m[campo] = val; savePalestra(); disegna();
+}
 function setPalMesoVal(campo, val) { palestraInit().mesocicli[S.palMeso][campo] = val; savePalestra(); }
 function setPalGiorno(campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno][campo] = val; savePalestra(); disegna(); }
 function setPalRiga(s, i, campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe[i][campo] = val; savePalestra(); disegna(); }

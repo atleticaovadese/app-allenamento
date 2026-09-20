@@ -292,17 +292,39 @@ function savePista() {
 function _bozzaProg(tipo, g) { return tipo === "palestra" ? (DEMO.draftPal && DEMO.draftPal[g]) : (DEMO.draftPista && DEMO.draftPista[g]); }
 function _liveProg(tipo, g) { return tipo === "palestra" ? (typeof palDi === "function" ? palDi(g) : null) : (typeof pistaDi === "function" ? pistaDi(g) : null); }
 function _bozzaModificata(tipo, g) { const d = _bozzaProg(tipo, g), l = _liveProg(tipo, g); return !!(d && l && JSON.stringify(d) !== JSON.stringify(l)); }
+// ---------- UNDO: salva la versione precedente ad ogni salvataggio (per «Annulla») ----------
+function _progUndoLeggi() { try { return JSON.parse(localStorage.getItem("metis_progundo") || "{}"); } catch (e) { return {}; } }
+function _progUndoScrivi(o) { try { localStorage.setItem("metis_progundo", JSON.stringify(o)); } catch (e) { /* localStorage pieno/non disp. */ } }
+function _progUndoKey(tipo, g) { return tipo + ":" + g; }
+function _haUndo(tipo, g) { const e = _progUndoLeggi()[_progUndoKey(tipo, g)]; return !!(e && e.prev); }
 function salvaProgMadre(tipo) {
   const g = S.progGruppo || "vel";
   const d = _bozzaProg(tipo, g);
   if (d) {
+    // fotografo la versione ATTUALE (prima di questo salvataggio) così si può annullare
+    try { const live = _liveProg(tipo, g); const u = _progUndoLeggi(); u[_progUndoKey(tipo, g)] = { prev: JSON.parse(JSON.stringify(live || { mesocicli: [] })), quando: Date.now() }; _progUndoScrivi(u); } catch (e) { }
     if (tipo === "palestra") { DEMO.palestra[g] = d; delete DEMO.draftPal[g]; }
     else { DEMO.pista[g] = d; delete DEMO.draftPista[g]; }
     if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
     if (typeof salvaCustom === "function") salvaCustom();
   }
   disegna(); window.scrollTo(0, 0);
-  if (typeof alert === "function") alert("✓ Programma salvato: ora è attivo per gli atleti del gruppo che lo seguono.");
+  if (typeof alert === "function") alert("✓ Programma salvato: ora è attivo per gli atleti del gruppo che lo seguono.\nPuoi tornare indietro con «↩️ Annulla l'ultimo salvataggio».");
+}
+// ripristina la versione salvata PRIMA dell'ultimo salvataggio di questo programma
+function annullaUltimoSalvataggio(tipo) {
+  const g = S.progGruppo || "vel";
+  const u = _progUndoLeggi(), e = u[_progUndoKey(tipo, g)];
+  if (!e || !e.prev) { if (typeof alert === "function") alert("Nessuna modifica da annullare."); return; }
+  if (typeof confirm === "function" && !confirm(`Ripristinare il programma ${tipo === "palestra" ? "palestra" : "pista"} com'era PRIMA dell'ultimo salvataggio?\nLe modifiche salvate dopo verranno sostituite.`)) return;
+  const prev = JSON.parse(JSON.stringify(e.prev));
+  if (tipo === "palestra") { DEMO.palestra[g] = prev; if (DEMO.draftPal) delete DEMO.draftPal[g]; }
+  else { DEMO.pista[g] = prev; if (DEMO.draftPista) delete DEMO.draftPista[g]; }
+  delete u[_progUndoKey(tipo, g)]; _progUndoScrivi(u);   // undo singolo: consumato
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna(); window.scrollTo(0, 0);
+  if (typeof alert === "function") alert("✓ Ripristinata la versione precedente.");
 }
 function annullaProgMadre(tipo) {
   const g = S.progGruppo || "vel";
@@ -315,12 +337,15 @@ function _barraSalvaMadre(tipo) {
   if (S.progAtleta) return "";
   const g = S.progGruppo || "vel";
   const mod = _bozzaModificata(tipo, g);
+  const undo = (typeof _haUndo === "function") && _haUndo(tipo, g);
   return `<div class="card" style="position:sticky;bottom:8px;${mod ? "border-color:var(--verde)" : ""};box-shadow:0 -2px 10px rgba(0,0,0,.15)">
     <p class="et" style="margin:0 0 8px;${mod ? "color:var(--ambra,#e6a83c)" : "color:var(--txt3)"}">${mod ? "✏️ Hai <b>modifiche non salvate</b>: valgono per il gruppo solo dopo «Salva»." : "Le modifiche al programma madre si applicano solo quando premi «Salva»."}</p>
     <div style="display:flex;gap:8px">
       <button class="btn" style="flex:1${mod ? "" : ";opacity:.55"}" onclick="salvaProgMadre('${tipo}')">💾 Salva programma</button>
       ${mod ? `<button class="btn btn-2" style="width:auto;padding:10px 14px" onclick="annullaProgMadre('${tipo}')">Annulla</button>` : ""}
-    </div></div>`;
+    </div>
+    ${undo ? `<button class="btn btn-2" style="width:100%;margin-top:8px" onclick="annullaUltimoSalvataggio('${tipo}')">↩️ Annulla l'ultimo salvataggio (torna a prima)</button>` : ""}
+  </div>`;
 }
 
 // PB di riferimento: dall'atleta scelto (in base al profilo) oppure scritto a mano.
@@ -416,7 +441,35 @@ function setPistaTop(campo, val) {
   if (campo === "atletaRif" && val) p.pbManuale = "";
   savePista(); disegna();
 }
-function setPistaMeso(campo, val) { pistaInit().mesocicli[S.pistaMeso][campo] = val; savePista(); disegna(); }
+// quanti allenamenti risultano GIÀ SVOLTI nel periodo attuale di un mesociclo (per avvisare prima di spostarlo)
+function _mesoSvolteCount(m, tipo) {
+  if (!m || !m.inizio) return 0;
+  const nS = (typeof nSettDi === "function") ? nSettDi(m) : 4;
+  const start = new Date(m.inizio + "T00:00:00");
+  const fine = new Date(start.getFullYear(), start.getMonth(), start.getDate() + nS * 7 - 1);
+  const _iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const dal = m.inizio, al = _iso(fine);
+  const atleti = S.progAtleta ? [DEMO.atleti.find(a => a.id === S.progAtleta)].filter(Boolean)
+    : (typeof atletiDelGruppo === "function" ? atletiDelGruppo(S.progGruppo || "vel") : (DEMO.atleti || []));
+  let n = 0;
+  atleti.forEach(a => ((DEMO.seduteSvolte || {})[a.id] || []).forEach(sv => {
+    if (sv.tipo === "extra") return;
+    if (tipo && sv.tipo !== tipo) return;
+    if (sv.data >= dal && sv.data <= al) n++;
+  }));
+  return n;
+}
+function setPistaMeso(campo, val) {
+  const m = pistaInit().mesocicli[S.pistaMeso];
+  if (campo === "inizio" && m.inizio && val && val !== m.inizio) {
+    const n = _mesoSvolteCount(m, "pista");
+    if (n > 0 && typeof confirm === "function" &&
+      !confirm(`⚠️ In questo mesociclo ci sono già ${n} allenament${n === 1 ? "o" : "i"} SVOLT${n === 1 ? "O" : "I"} (blocco dal ${m.inizio}).\n\nSe sposti la data d'inizio, questo blocco “passato” non si vedrà più sul calendario come programma.\nPer un blocco NUOVO usa il pulsante ＋ (crea un nuovo mesociclo) invece di riscrivere questo.\n\nCambiare comunque la data?`)) {
+      disegna(); return;   // annullato: l'input torna al valore precedente
+    }
+  }
+  m[campo] = val; savePista(); disegna();
+}
 function setPistaGiorno(campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno][campo] = val; savePista(); disegna(); }
 function setPistaRiga(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i][campo] = val; savePista(); disegna(); }
 // versioni "solo stato" (niente disegna): per gli <input> di testo, così non si perde il focus mentre si scrive
