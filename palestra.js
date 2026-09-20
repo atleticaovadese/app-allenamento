@@ -117,6 +117,29 @@ function palDelRiga(s, i) { const r = palestraInit().mesocicli[S.palMeso].giorni
 function palAddMeso() { palestraInit().mesocicli.push(palMesoVuoto()); S.palMeso = palestraInit().mesocicli.length - 1; S.palGiorno = 0; savePalestra(); disegna(); window.scrollTo(0, 0); }
 function selPalMeso(i) { S.palMeso = i; S.palGiorno = 0; disegna(); window.scrollTo(0, 0); }
 function selPalGiorno(i) { S.palGiorno = i; disegna(); window.scrollTo(0, 0); }
+function palAddGiorno() {
+  const m = palestraInit().mesocicli[S.palMeso];
+  if ((m.giorni || []).length >= 5) return;              // massimo 5 giorni a settimana
+  m.giorni.push(palGiornoVuoto());
+  S.palGiorno = m.giorni.length - 1;
+  savePalestra(); disegna(); window.scrollTo(0, 0);
+}
+function palDelGiorno(i) {
+  const m = palestraInit().mesocicli[S.palMeso];
+  if ((m.giorni || []).length <= 1) return;              // ne resta almeno uno
+  if (typeof confirm === "function" && !confirm(`Rimuovere il Giorno ${i + 1} e tutto il suo contenuto?`)) return;
+  m.giorni.splice(i, 1);
+  if (S.palGiorno >= m.giorni.length) S.palGiorno = m.giorni.length - 1;
+  savePalestra(); disegna(); window.scrollTo(0, 0);
+}
+// tab dei giorni palestra: pulsanti + «＋» (fino a 5) + rimuovi il giorno corrente
+function tabGiorniPal(m) {
+  const n = (m.giorni || []).length;
+  const tabs = m.giorni.map((_, i) => `<button class="${i === S.palGiorno ? "on" : ""}" onclick="selPalGiorno(${i})">Giorno ${i + 1}</button>`).join("");
+  const add = n < 5 ? `<button onclick="palAddGiorno()" title="Aggiungi un giorno">＋</button>` : "";
+  const del = n > 1 ? `<div style="margin:6px 0 11px"><button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px" onclick="palDelGiorno(${S.palGiorno})">🗑 Rimuovi Giorno ${S.palGiorno + 1}</button></div>` : "";
+  return `<div class="tabbar">${tabs}${add}</div>${del}`;
+}
 
 function setPalMesoDaPiano(idx) {
   if (idx === "") return;
@@ -189,6 +212,7 @@ function vistaProgrammaPalestra() {
   const p = palestraInit();
   if (S.palMeso >= p.mesocicli.length) S.palMeso = 0;
   const m = p.mesocicli[S.palMeso];
+  if (S.palGiorno >= m.giorni.length) S.palGiorno = 0;   // giorno fuori range (es. dopo aver ridotto i giorni)
   const g = m.giorni[S.palGiorno];
   const esercizi = ((typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala.map(x => x.n) : [])
     .slice().sort((a, b) => String(a).localeCompare(String(b), "it", { sensitivity: "base" }));   // ordine alfabetico
@@ -244,8 +268,7 @@ function vistaProgrammaPalestra() {
       <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico` : "Scegli un ciclo (o prendilo dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
     </div>`;
 
-  const tabGiorno = `<div class="tabbar">${m.giorni.map((_, i) =>
-    `<button class="${i === S.palGiorno ? "on" : ""}" onclick="selPalGiorno(${i})">Giorno ${i + 1}</button>`).join("")}</div>`;
+  const tabGiorno = tabGiorniPal(m);
 
   const testaGiorno = `<div class="card">
       <label class="lab">Giorno della settimana</label>

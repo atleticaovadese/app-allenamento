@@ -275,6 +275,7 @@ function vistaProgrammaPistaLanci() {
   const p = pistaInit();
   if (S.pistaMeso >= p.mesocicli.length) S.pistaMeso = 0;
   const m = p.mesocicli[S.pistaMeso];
+  if (S.pistaGiorno >= m.giorni.length) S.pistaGiorno = 0;   // giorno fuori range (es. dopo aver ridotto i giorni)
   const g = m.giorni[S.pistaGiorno];
   const spec = _lanciRefSpec(p);
   const kgGara = _lanciKgGara(p);
@@ -318,8 +319,7 @@ function vistaProgrammaPistaLanci() {
       <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico` : "Scegli un ciclo (o dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
     </div>`;
 
-  const tabGiorno = `<div class="tabbar">${m.giorni.map((_, i) =>
-    `<button class="${i === S.pistaGiorno ? "on" : ""}" onclick="selGiorno(${i})">Giorno ${i + 1}</button>`).join("")}</div>`;
+  const tabGiorno = tabGiorniPista(m);
   const testaGiorno = `<div class="card">
       <label class="lab">Giorno della settimana</label>
       <select onchange="setPistaGiorno('giornoSett',this.value)" style="margin-top:6px"><option value="">—</option>${optSel(g.giornoSett, ["lun", "mar", "mer", "gio", "ven", "sab", "dom"])}</select>

@@ -428,6 +428,29 @@ function pistaDelRiga(s, i) { const r = pistaInit().mesocicli[S.pistaMeso].giorn
 function pistaAddMeso() { pistaInit().mesocicli.push(mesoVuoto()); S.pistaMeso = pistaInit().mesocicli.length - 1; S.pistaGiorno = 0; savePista(); disegna(); window.scrollTo(0, 0); }
 function selMeso(i) { S.pistaMeso = i; S.pistaGiorno = 0; disegna(); window.scrollTo(0, 0); }
 function selGiorno(i) { S.pistaGiorno = i; disegna(); window.scrollTo(0, 0); }
+function pistaAddGiorno() {
+  const m = pistaInit().mesocicli[S.pistaMeso];
+  if ((m.giorni || []).length >= 5) return;              // massimo 5 giorni a settimana
+  m.giorni.push(giornoVuoto());
+  S.pistaGiorno = m.giorni.length - 1;
+  savePista(); disegna(); window.scrollTo(0, 0);
+}
+function pistaDelGiorno(i) {
+  const m = pistaInit().mesocicli[S.pistaMeso];
+  if ((m.giorni || []).length <= 1) return;              // ne resta almeno uno
+  if (typeof confirm === "function" && !confirm(`Rimuovere il Giorno ${i + 1} e tutto il suo contenuto?`)) return;
+  m.giorni.splice(i, 1);
+  if (S.pistaGiorno >= m.giorni.length) S.pistaGiorno = m.giorni.length - 1;
+  savePista(); disegna(); window.scrollTo(0, 0);
+}
+// tab dei giorni (condivisa da pista velocità/lanci/mezzo): pulsanti + «＋» (fino a 5) + rimuovi il giorno corrente
+function tabGiorniPista(m) {
+  const n = (m.giorni || []).length;
+  const tabs = m.giorni.map((_, i) => `<button class="${i === S.pistaGiorno ? "on" : ""}" onclick="selGiorno(${i})">Giorno ${i + 1}</button>`).join("");
+  const add = n < 5 ? `<button onclick="pistaAddGiorno()" title="Aggiungi un giorno">＋</button>` : "";
+  const del = n > 1 ? `<div style="margin:6px 0 11px"><button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px" onclick="pistaDelGiorno(${S.pistaGiorno})">🗑 Rimuovi Giorno ${S.pistaGiorno + 1}</button></div>` : "";
+  return `<div class="tabbar">${tabs}${add}</div>${del}`;
+}
 
 // ---------- vista ----------
 function vistaProgrammaPista() {
@@ -439,6 +462,7 @@ function vistaProgrammaPista() {
   const p = pistaInit();
   if (S.pistaMeso >= p.mesocicli.length) S.pistaMeso = 0;
   const m = p.mesocicli[S.pistaMeso];
+  if (S.pistaGiorno >= m.giorni.length) S.pistaGiorno = 0;   // giorno fuori range (es. dopo aver ridotto i giorni)
   const g = m.giorni[S.pistaGiorno];
   const pb = pistaPB();
   // la distanza si scrive a mano (come per il mezzofondo): il tempo target si calcola su QUALSIASI distanza
@@ -499,8 +523,7 @@ function vistaProgrammaPista() {
     </div>`;
 
   // selettore giorno
-  const tabGiorno = `<div class="tabbar">${m.giorni.map((_, i) =>
-    `<button class="${i === S.pistaGiorno ? "on" : ""}" onclick="selGiorno(${i})">Giorno ${i + 1}</button>`).join("")}</div>`;
+  const tabGiorno = tabGiorniPista(m);
 
   const testaGiorno = `<div class="card">
       <label class="lab">Giorno della settimana</label>
