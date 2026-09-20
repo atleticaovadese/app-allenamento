@@ -186,6 +186,73 @@ function bloccoCore(s) {
     ${p.map(r => `<div style="padding:5px 0${r === p[p.length - 1] ? "" : ";border-bottom:1px solid var(--line)"}"><b>${r.es}</b>${(r.q || r.serie) ? ` <span class="et">${(r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _coreModoLab(r.modo || "rip")}${r.rec ? " · rec " + r.rec : ""}</span>` : ""}</div>`).join("")}</div>`;
 }
 
+// ---------- ESERCIZI SPECIALI (velocità, salti, ostacoli) — finestra come la pliometria; pesca dalla libreria «Esercizi speciali» ----------
+const _SPEC_CATS = ["Velocità", "Lungo", "Triplo", "Alto", "Asta", "Ostacoli"];
+const SPEC_MODI = [["m", "metri"], ["rip", "× rip"]];
+function _specModoLab(m) { const x = SPEC_MODI.find(p => p[0] === m); return x ? x[1] : (m || ""); }
+function _specVoci() {
+  const out = [];
+  _SPEC_CATS.forEach(cat => {
+    if (typeof esBuiltinCat === "function") esBuiltinCat(cat).forEach(e => out.push({ g: cat, n: e[1] }));
+    (DEMO.eserciziSpec || []).filter(x => x.cat === cat).forEach(x => out.push({ g: cat, n: x.nome }));
+  });
+  return out;
+}
+function specialiInit(g) { if (!g.speciali) g.speciali = []; return g.speciali; }
+function specialiRiassunto(g) { const p = (g.speciali || []).filter(r => r.es); return p.length ? p.map(r => r.es).join(" · ") : "non impostata"; }
+function specialiTxt(r) {
+  const q = (r.q || r.serie) ? (r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _specModoLab(r.modo || "m") : "";
+  return r.es + (q ? " — " + q.trim() : "") + (r.rec ? " · rec " + r.rec : "");
+}
+function _optSpecEs(val) {
+  const esc = x => String(x).replace(/"/g, "&quot;");
+  const voci = _specVoci(), nomi = voci.map(v => v.n);
+  let h = `<option value="">— scegli —</option>`;
+  if (val && nomi.indexOf(val) < 0) h += `<option value="${esc(val)}" selected>${esc(val)}</option>`;
+  let curG = null;
+  voci.forEach(v => {
+    if (v.g !== curG) { if (curG !== null) h += `</optgroup>`; h += `<optgroup label="${esc(v.g)}">`; curG = v.g; }
+    h += `<option value="${esc(v.n)}" ${val === v.n ? "selected" : ""}>${esc(v.n)}</option>`;
+  });
+  if (curG !== null) h += `</optgroup>`;
+  return h + `<option value="__altro__">✎ Altro (scrivi a mano)…</option>`;
+}
+function apriSpeciali() {
+  const g = riscGiorno(), spec = specialiInit(g);
+  const optModo = sel => SPEC_MODI.map(([k, l]) => `<option value="${k}" ${sel === k ? "selected" : ""}>${l}</option>`).join("");
+  const rows = spec.map((r, i) => `<tr>
+      <td><select onchange="setSpecialiEsercizio(${i},this.value)">${_optSpecEs(r.es || "")}</select></td>
+      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="serie" oninput="setSpecialiRigaVal(${i},'serie',this.value)" style="min-width:52px"></td>
+      <td><input inputmode="numeric" value="${r.q || ""}" placeholder="quant." oninput="setSpecialiRigaVal(${i},'q',this.value)" style="min-width:58px"></td>
+      <td><select onchange="setSpecialiRiga(${i},'modo',this.value)">${optModo(r.modo || "m")}</select></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setSpecialiRigaVal(${i},'rec',this.value)" style="min-width:56px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="specialiDelRiga(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`).join("");
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Esercizi speciali</h3>
+      <button class="chiudi" onclick="chiudiSpeciali()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:8px">Andature, balzi, tecnica di salto e ostacoli. Scegli l'esercizio dalla tendina (velocità, lungo, triplo, alto, asta, ostacoli), poi <b>serie</b> e <b>quantità</b> in <b>metri</b> o <b>ripetizioni</b>.<br>Es: <i>Corsa balzata 4 × 30 m · Skip A 4 × 20 m · Gamba di attacco 3 × 8 rip</i>. Aggiungine di tuoi in <b>Programma → Esercizi speciali</b>.</p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Esercizio</th><th>Serie</th><th>Quantità</th><th>Unità</th><th>Rec</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="specialiAddRiga()">＋ esercizio</button>`);
+}
+function specialiAddRiga() { specialiInit(riscGiorno()).push({ es: "", serie: "", q: "", modo: "m", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriSpeciali(); }
+function specialiDelRiga(i) { const p = specialiInit(riscGiorno()); if (i >= 0 && i < p.length) p.splice(i, 1); if (typeof salvaCustom === "function") salvaCustom(); apriSpeciali(); }
+function setSpecialiRiga(i, campo, v) { specialiInit(riscGiorno())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); apriSpeciali(); }
+function setSpecialiRigaVal(i, campo, v) { specialiInit(riscGiorno())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); }
+function setSpecialiEsercizio(i, val) {
+  if (val === "__altro__") { const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio speciale (scrivilo a mano):", "") : ""; if (t && t.trim()) { specialiInit(riscGiorno())[i].es = t.trim(); if (typeof salvaCustom === "function") salvaCustom(); } apriSpeciali(); return; }
+  specialiInit(riscGiorno())[i].es = val; if (typeof salvaCustom === "function") salvaCustom(); apriSpeciali();
+}
+function chiudiSpeciali() { chiudiScheda(); disegna(); }
+function bloccoSpeciali(s) {
+  const p = (s.speciali || []).filter(r => r.es);
+  if (!p.length) return "";
+  return `<div class="card"><p class="et" style="margin-bottom:6px">Esercizi speciali</p>
+    ${p.map(r => `<div style="padding:5px 0${r === p[p.length - 1] ? "" : ";border-bottom:1px solid var(--line)"}"><b>${r.es}</b>${(r.q || r.serie) ? ` <span class="et">${(r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _specModoLab(r.modo || "m")}${r.rec ? " · rec " + r.rec : ""}</span>` : ""}</div>`).join("")}</div>`;
+}
+
 // ---------- collegamento al Piano & Picco ----------
 function cicloDaLen(len) { return ({ 1: "1", 2: "1+1", 3: "2+1", 4: "3+1", 5: "4+1" })[len] || ""; }
 function isoLocale(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
@@ -676,6 +743,8 @@ function vistaProgrammaPista() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Core stability</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
     </div>`;
 
   // le settimane del giorno (numero dal ciclo del mesociclo)

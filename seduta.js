@@ -93,6 +93,7 @@ function vistaPista(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
+  ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   ${s.elementi.map(e => {
     const caselle = e.tempi.map((t, i) => {
       const v = t === null ? "" : t;
@@ -186,6 +187,7 @@ function vistaPalestra(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
+  ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   <p class="et" style="margin:0 2px 8px">Tocca l'esercizio da cui parti</p>
   ${s.esercizi.map(x => x.id === T.id ? esercizioAperto(s, x) : esercizioChiuso(s, x)).join("")}
   ${bloccoChiusura(s)}`;

@@ -348,6 +348,8 @@ function vistaProgrammaPistaMezzo() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Core stability</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
@@ -433,6 +435,7 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
+    speciali: (g.speciali || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -451,6 +454,7 @@ function vistaPistaMezzo(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
+  ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   ${s.elementi.map(e => {
     const cont = e.min != null;
     const prescr = cont ? `${e.min}′ in continuo` : `${e.ripetute} × ${e.distanza} m`;

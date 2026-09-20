@@ -63,6 +63,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
+    speciali: (g.speciali || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -157,6 +158,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
+    speciali: (g.speciali || []).filter(r => r.es),
     esercizi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }

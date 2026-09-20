@@ -329,6 +329,8 @@ function vistaProgrammaPistaLanci() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Core stability</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
@@ -404,6 +406,7 @@ function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, p
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
+    speciali: (g.speciali || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -420,6 +423,7 @@ function vistaPistaLanci(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
+  ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   ${s.elementi.map(e => {
     const fatte = (e.misure || []).filter(v => v !== null);
     const best = fatte.length ? Math.max(...fatte) : null;
@@ -469,8 +473,42 @@ function registraLancio(atletaId, mezzo, kg, tipo, lanci, migliore) {
 
 // ---------- LIBRERIA Esercizi speciali (per disciplina, con video, espandibile) ----------
 // Categorie: lanci (seed USATF) + sprint/salti (vuote, da riempire nel tempo).
-const ES_SPEC_CAT = ["Peso", "Giavellotto", "Disco", "Martello", "Velocità", "Lungo", "Triplo", "Alto", "Asta", "Multilanci comuni"];
-const ES_SPEC_SEED = ["Peso", "Giavellotto", "Disco", "Martello", "Multilanci comuni"]; // categorie con contenuti di serie
+const ES_SPEC_CAT = ["Peso", "Giavellotto", "Disco", "Martello", "Velocità", "Lungo", "Triplo", "Alto", "Asta", "Ostacoli", "Multilanci comuni"];
+const ES_SPEC_SEED = ["Peso", "Giavellotto", "Disco", "Martello", "Velocità", "Lungo", "Triplo", "Alto", "Asta", "Ostacoli", "Multilanci comuni"]; // categorie con contenuti di serie
+// Esercizi speciali di PISTA (velocità, salti, ostacoli) — standard. Separati da LANCI_ESERCIZI così NON entrano nella tendina del Campo lanci.
+// Formato come LANCI_ESERCIZI: [categoria, nome, tipo, scopo, come, quando, dose]
+const SPECIALI_PISTA_BUILTIN = [
+  ["Velocità", "Skip A (ginocchia alte)", "tecnica", "Meccanica dell'appoggio e recupero alto del ginocchio", "Ginocchio alto, piede a martello, appoggio attivo sotto il bacino; bacino alto, non sedersi.", "Riscaldamento / tecnica", "4 × 20 m"],
+  ["Velocità", "Skip B (estensione avanti)", "tecnica", "Estensione della gamba e presa d'appoggio attiva", "Dallo skip A estendi la gamba avanti e 'gratta' indietro al contatto (azione ad artiglio).", "Tecnica", "4 × 20 m"],
+  ["Velocità", "Calciata (butt kicks)", "tecnica", "Recupero rapido del piede sotto il gluteo", "Talloni ai glutei, coscia poco avanti, frequenza alta, tronco eretto.", "Riscaldamento", "4 × 20 m"],
+  ["Velocità", "Corsa balzata (bounding)", "forza", "Spinta, ampiezza e forza elastica", "Balzi ampi alternati con spinta completa di caviglia-ginocchio-anca; braccia coordinate.", "Forza / speciale", "4 × 30 m"],
+  ["Velocità", "Allunghi (strides)", "ritmo", "Ritmo e velocità sub-massimale controllata", "Accelerazione progressiva fino a ~90%, rilassato; recupero completo.", "Tutto l'anno", "4-6 × 60-80 m"],
+  ["Velocità", "Partenze dai blocchi", "tecnica", "Uscita e spinta iniziale", "Angoli di spinta, primi appoggi sotto il corpo, risalita graduale del busto.", "Speciale / pre-gara", "5-8 × 20-30 m"],
+  ["Velocità", "Sprint su mini-ostacoli (wickets)", "tecnica", "Frequenza e meccanica d'appoggio", "Distanze regolari, appoggio attivo e ciclo alto; non allungare il passo.", "Tecnica", "4-6 volte"],
+  ["Lungo", "Stacchi in corsa (ogni 5 passi)", "tecnica", "Ritmo dello stacco e penultimo appoggio", "Corsa in progressione con stacco ogni 5 passi; abbassamento sul penultimo, stacco verticale.", "Speciale", "6-8 stacchi"],
+  ["Lungo", "Ultimi 6 appoggi + stacco", "tecnica", "Ritmo finale della rincorsa", "Cura penultimo-ultimo appoggio e risalita del bacino allo stacco.", "Speciale", "4-6 volte"],
+  ["Lungo", "Multibalzi (bounding)", "forza", "Forza elastica e spinta di stacco", "Balzi ampi alternati con spinta completa.", "Forza", "4 × 30 m"],
+  ["Lungo", "Stacchi da breve rincorsa (6-8 passi)", "tecnica", "Tecnica di stacco e volo", "Rincorsa corta, stacco attivo, azione di volo e arrivo.", "Speciale", "6-8 salti"],
+  ["Triplo", "Hop consecutivi (dx-dx / sx-sx)", "forza", "Forza e controllo della fase di hop", "Balzi sullo stesso piede, contatto attivo, bacino alto.", "Speciale", "4 × 5"],
+  ["Triplo", "Step consecutivi", "forza", "Fase di step e trasferimento", "Passi balzati alternati con ampiezza e controllo.", "Speciale", "4 × 5"],
+  ["Triplo", "Sequenza hop-step-jump (breve rincorsa)", "tecnica", "Ritmo delle tre fasi", "Da 6-8 passi: ritmo uniforme delle fasi, senza perdere velocità.", "Speciale", "6-8 volte"],
+  ["Triplo", "Balzi alternati", "forza", "Elasticità e ampiezza", "Balzi ampi alternati su distanza.", "Forza", "4 × 20 m"],
+  ["Alto", "Curva + stacco (imperiali)", "tecnica", "Inclinazione in curva e stacco", "Corsa in curva con inclinazione, stacco verticale completo.", "Speciale", "6-8"],
+  ["Alto", "Archetto / ponte a terra", "mobilità", "Estensione dorsale per il valico", "Mobilità di estensione della schiena, controllata.", "Prep. / mobilità", "3 × 8"],
+  ["Alto", "Stacco da 3-5 passi", "tecnica", "Tecnica di stacco", "Rincorsa breve, stacco attivo e risalita.", "Speciale", "6-8"],
+  ["Alto", "Andatura in curva", "tecnica", "Postura e ritmo in curva", "Skip/andature lungo la curva mantenendo l'inclinazione.", "Riscaldamento", "4 volte"],
+  ["Asta", "Plant drill (imbucata) da fermo", "tecnica", "Imbucata e posizione di stacco", "Movimento di imbucata dell'asta e posizionamento allo stacco, da fermo.", "Speciale", "8-10"],
+  ["Asta", "Swing / rock-back alla sbarra", "forza", "Oscillazione e rovesciata", "Alla sbarra: swing e rock-back con controllo del core.", "Forza / tecnica", "6-8"],
+  ["Asta", "Corsa con asta (carry + abbassamento)", "tecnica", "Rincorsa e abbassamento", "Corsa con asta mantenendo ritmo; abbassamento negli ultimi passi.", "Speciale", "4-6 × 30 m"],
+  ["Asta", "Salti da breve rincorsa", "tecnica", "Tecnica completa a bassa intensità", "Da 4-6 passi: stacco, swing, estensione.", "Speciale", "6-8"],
+  ["Ostacoli", "Mobilità anca: passaggi laterali", "mobilità", "Mobilità e apertura d'anca", "Cammino laterale passando la gamba sopra l'ostacolo (avanti e indietro).", "Riscaldamento", "2 × 6 per lato"],
+  ["Ostacoli", "Gamba di attacco (lead leg)", "tecnica", "Azione della gamba di attacco", "Di lato o al muro: attacco diretto e richiamo del piede a martello.", "Tecnica", "3 × 8 per lato"],
+  ["Ostacoli", "Gamba di richiamo (trail leg)", "tecnica", "Azione della gamba di richiamo", "Ginocchio alto e avanti, caviglia flessa; passaggio radente sopra l'ostacolo.", "Tecnica", "3 × 8 per lato"],
+  ["Ostacoli", "Ritmica 3 appoggi", "ritmo", "Ritmo tra gli ostacoli", "Ostacoli ravvicinati/bassi, 3 appoggi costanti tra uno e l'altro.", "Speciale", "4-6 volte"],
+  ["Ostacoli", "Ritmica 5 appoggi", "ritmo", "Ritmo e frequenza", "Ostacoli bassi, 5 appoggi tra gli ostacoli mantenendo la frequenza.", "Speciale", "4-6 volte"],
+  ["Ostacoli", "Sprint su mini-ostacoli", "tecnica", "Frequenza e ciclo di gamba", "Mini-ostacoli ravvicinati: appoggio attivo, ciclo alto.", "Riscaldamento / tecnica", "4-6 volte"],
+  ["Ostacoli", "Passaggio completo (3-5 ostacoli)", "tecnica", "Ritmo di gara", "Passaggio tecnico su 3-5 ostacoli a distanza/altezza di lavoro.", "Speciale", "4-6 volte"]
+];
 // Video di DEFAULT per i drill dei lanci — link YouTube REALI trovati per titolo (verificati esistenti, non inventati).
 // Chiave = valore della tendina Campo ("PESO · <nome>"). L'utente può sovrascriverli con ✏.
 const LANCI_VIDEO_DEFAULT = {
@@ -493,7 +531,7 @@ const LANCI_VIDEO_DEFAULT = {
 };
 // mappa l'attrezzo di un esercizio built-in → categoria della libreria
 function _esCatDi(att) { const t = _lanciTag(att); return t === "COMUNI" ? "Multilanci comuni" : t.charAt(0) + t.slice(1).toLowerCase(); }
-function esBuiltinCat(cat) { return LANCI_ESERCIZI.filter(e => _esCatDi(e[0]) === cat); }
+function esBuiltinCat(cat) { return LANCI_ESERCIZI.concat(typeof SPECIALI_PISTA_BUILTIN !== "undefined" ? SPECIALI_PISTA_BUILTIN : []).filter(e => _esCatDi(e[0]) === cat); }
 function esCustomCat(cat) { return (DEMO.eserciziSpec || []).filter(x => x.cat === cat); }
 function _esKeyBuiltin(e) { return _lanciTag(e[0]) + " · " + e[1]; }   // = valore tendina Campo (i video si riflettono nella seduta)
 // video di un esercizio: prima quello impostato dall'utente (anche "" = nascosto), poi il default reale

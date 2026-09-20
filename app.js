@@ -141,6 +141,20 @@ function entra(ruolo) {
   if (typeof allineaDemoProgramma === "function") allineaDemoProgramma();
   disegna();
 }
+// 🔄 Aggiorna: ricarica i dati dal server (modifiche mie/di altri coach, tempi messi dagli atleti…) senza chiudere l'app
+async function aggiornaDati() {
+  if (S._aggiornando) return;
+  S._aggiornando = true; disegna();
+  try {
+    if (S.curiosando && typeof sb !== "undefined" && sb && typeof _popolaSnapshot === "function") {
+      const r = await sb.rpc("admin_snapshot", { target: S.curiosando.id });   // super-admin: rinfresca la società curiosata
+      if (r && r.data) _popolaSnapshot(r.data);
+    } else if (typeof caricaDati === "function") {
+      await caricaDati();
+    }
+  } catch (e) { /* offline o errore: si resta com'era */ }
+  S._aggiornando = false; disegna();
+}
 function esci() {
   if (typeof disconnetti === "function") disconnetti();
   S.utente = null; S.seduta = null; S.vista = "oggi"; S.menu = false; S.atletaSel = null; S.curiosando = null;
@@ -934,6 +948,7 @@ function disegna() {
     <div class="top">
       <button class="hamb" onclick="apriMenu()" aria-label="Menù"><i></i><i></i><i></i></button>
       <div style="flex:1"><div class="nome">Ciao ${String((S.utente && S.utente.nome) || "").split(" ")[0]}</div><div class="data">${oggi}</div></div>
+      <button onclick="aggiornaDati()" title="Aggiorna i dati" aria-label="Aggiorna i dati" style="flex:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);font-size:18px;cursor:pointer;margin-left:8px${S._aggiornando ? ";opacity:.5;pointer-events:none" : ""}">${S._aggiornando ? "⏳" : "🔄"}</button>
       ${!coach && typeof atletaCorrente === "function" && typeof avatarAtleta === "function" ? `<div class="top-av" onclick="vai('io')">${avatarAtleta(atletaCorrente(), 38)}</div>` : ""}
     </div>
     <div class="main">${S.curiosando && typeof _bannerCuriosa === "function" ? _bannerCuriosa() : ""}${!coach ? ((typeof _promemoriaDiario === "function" ? _promemoriaDiario() : "") + (typeof _promemoriaAllenamento === "function" ? _promemoriaAllenamento() : "")) : ""}${corpo}</div>`;
