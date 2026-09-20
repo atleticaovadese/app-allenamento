@@ -26,8 +26,11 @@ function apriVideo(nome, url, muscoli, cue, fonte) {
            allowfullscreen loading="lazy"></iframe></div>
          <a class="et" style="display:block;text-align:center;margin-top:8px;color:var(--blu)"
             href="${url}" target="_blank" rel="noopener">apri su YouTube ↗</a>`
-      : `<div class="video-vuoto"><span>▶</span></div>
-         <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio.</p>`}`);
+      : (url
+        ? `<div class="video-vuoto"><span>🔎</span></div>
+           <a class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:12px;display:inline-block" href="${url}" target="_blank" rel="noopener">${/results\?search|\/results\b/.test(url) ? "Cerca un tutorial su YouTube ↗" : "Apri su YouTube ↗"}</a>`
+        : `<div class="video-vuoto"><span>▶</span></div>
+           <p class="et" style="margin-top:12px">Video non ancora disponibile per questo esercizio.</p>`)}`);
 }
 
 // Libreria a lista raggruppata per distretto/zona (Sala, Mobilità, Pliometria).
