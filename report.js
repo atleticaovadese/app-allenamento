@@ -121,7 +121,20 @@ function _rProgrammaMesocicli(a, gOverride) {
     const txt = ss.map(r => (typeof specialiTxt === "function" ? specialiTxt(r) : r.es)).map(esc).join(" · ");
     return `<div class="gsec"><span class="gk">Esercizi speciali</span><div class="rz">${txt}</div></div>`;
   };
-  // differenze dei singoli atleti su una cella (settimana) — SOLO nella stampa di GRUPPO (madre): ✳ Nome: cosa fa
+  const _progDi = (x, tipo) => tipo === "palestra" ? ((typeof _progPal === "function") ? _progPal(x) : pal) : ((typeof _progPista === "function") ? _progPista(x) : pista);
+  // un atleta è "allineato" al madre per un tipo/mesociclo se ha gli STESSI giorni-settimana e nello stesso ordine
+  // (giorni spostati inclusi): se sì → differenze inline nella cella; se no → programma su misura in un blocco a parte.
+  const _allineato = (x, tipo, mi, madre) => {
+    const prog = _progDi(x, tipo);
+    const mm = madre && madre.mesocicli && madre.mesocicli[mi];
+    const xm = prog && prog.mesocicli && prog.mesocicli[mi];
+    if (!mm) return true;
+    if (!xm) return false;
+    const wM = (mm.giorni || []).map(gio => gio.giornoSett || "");
+    const wX = (xm.giorni || []).map((gio, j) => (typeof giornoSettEff === "function" ? giornoSettEff(x, tipo, j, gio) : gio.giornoSett) || "");
+    return JSON.stringify(wM) === JSON.stringify(wX);
+  };
+  // differenze inline (stessa struttura di giorni): ✳ Nome: cosa fa — SOLO nella stampa di GRUPPO (madre)
   const diffCella = (tipo, mi, giIdx, si, madreRighe) => {
     if (a) return "";   // nel report del singolo atleta non servono le differenze di gruppo
     const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(g).filter(x => !x.bloccato) : [];
@@ -130,15 +143,33 @@ function _rProgrammaMesocicli(a, gOverride) {
     const madreProg = tipo === "palestra" ? pal : pista;
     const linee = [];
     atl.forEach(x => {
-      const prog = tipo === "palestra"
-        ? ((typeof _progPal === "function") ? _progPal(x) : madreProg)
-        : ((typeof _progPista === "function") ? _progPista(x) : madreProg);
-      const eff = (typeof _rDiffRigheAtl === "function") ? _rDiffRigheAtl(x, tipo, prog, madreProg, mi, giIdx, si) : madreRighe;
+      if (!_allineato(x, tipo, mi, madreProg)) return;   // giorni diversi → va nel blocco «su misura», non qui
+      const eff = (typeof _rDiffRigheAtl === "function") ? _rDiffRigheAtl(x, tipo, _progDi(x, tipo), madreProg, mi, giIdx, si) : madreRighe;
       if (JSON.stringify(eff || []) === JSON.stringify(madreRighe || [])) return;
       const txt = (eff || []).map(rf).filter(Boolean).map(esc).join(" · ") || "riposo";
       linee.push(`<div class="diff-atl">✳ <b>${esc(x.nome)}:</b> ${txt}</div>`);
     });
     return linee.join("");
+  };
+  // blocco «programma su misura» per un atleta con giorni diversi dal madre (mesociclo mi, un tipo): giorno vero → righe per settimana
+  const _blkSuMisura = (x, tipo, mi, rf, madre) => {
+    const prog = _progDi(x, tipo);
+    const xm = prog && prog.mesocicli && prog.mesocicli[mi];
+    if (!xm || !(xm.giorni || []).length) return "";
+    const nSett = (typeof nSettimaneMeso === "function") ? nSettimaneMeso(xm) : ((xm.giorni[0].settimane || []).length || 4);
+    let giorni = "";
+    (xm.giorni || []).forEach((gio, gj) => {
+      const wd = (typeof giornoSettEff === "function") ? giornoSettEff(x, tipo, gj, gio) : gio.giornoSett;
+      let rows = "";
+      for (let si = 0; si < nSett; si++) {
+        const ov = (typeof overrideRighe === "function") ? overrideRighe(x, tipo, gj, si) : null;
+        const righe = (ov || (gio.settimane && gio.settimane[si] && gio.settimane[si].righe) || []);
+        const txt = righe.map(rf).filter(Boolean).map(esc).join(" · ");
+        if (txt) rows += `<tr><td class="wk">Sett ${si + 1}</td><td>${txt}</td></tr>`;
+      }
+      if (rows) giorni += `<div class="gsec"><span class="gk">${esc(wd || ("Giorno " + (gj + 1)))}</span><table class="lavtab"><tbody>${rows}</tbody></table></div>`;
+    });
+    return giorni ? `<div class="gday" style="border-style:dashed"><h3 class="gtit" style="color:#b45309">✳ ${esc(x.nome)} — programma su misura</h3>${giorni}</div>` : "";
   };
   // lavoro (ripetute) settimana per settimana — così si legge tutto il mesociclo (+ ✳ differenze per atleta nella stampa di gruppo)
   const lavoroDett = (gi, rigaFn, colLabel, m, tipo, mi, giIdx) => {
@@ -165,8 +196,14 @@ function _rProgrammaMesocicli(a, gOverride) {
     prog.mesocicli.forEach((m, mi) => {
       const testa = ["Mesociclo " + (mi + 1), m.blocco || m.ciclo || "", m.inizio ? "dal " + _rDataL(m.inizio) : "", m.focus ? "focus: " + m.focus : ""].filter(Boolean).join(" · ");
       const giorni = (m.giorni || []).map((gi, idx) => giornoCard(gi, idx, rigaFn, colLavoro, m, tipo, mi)).filter(Boolean).join("");
-      if (!giorni) return;
-      s += `<div class="gmeso"><p class="sub gmt"><b>${testa}</b></p>${giorni}`;
+      // atleti con giorni DIVERSI dal madre (es. chi fa pista in altri giorni): blocco «su misura» a parte, col giorno vero
+      let suM = "";
+      if (!a && typeof atletiDelGruppo === "function") {
+        suM = atletiDelGruppo(g).filter(x => !x.bloccato && !_allineato(x, tipo, mi, prog))
+          .map(x => _blkSuMisura(x, tipo, mi, rigaFn, prog)).filter(Boolean).join("");
+      }
+      if (!giorni && !suM) return;
+      s += `<div class="gmeso"><p class="sub gmt"><b>${testa}</b></p>${giorni}${suM}`;
       s += (atletaIdGraf ? _rGraficoMeso(atletaIdGraf, _rMesoWin(prog.mesocicli, mi)) : "") + `</div>`;
     });
     return s ? `<h2>${titolo}</h2>${s}` : "";
