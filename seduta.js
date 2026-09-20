@@ -544,7 +544,7 @@ function _modTabVel(a, righe) {
     const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
     return `<tr>
       <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setModRigaVal('contenuto',${i},this.value)" style="min-width:110px"></td>
-      <td><select onchange="setModRiga('distanza',${i},this.value)">${typeof optDistPista === "function" ? optDistPista(r.distanza, prof) : `<option value="">—</option>`}</select></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setModRigaVal('distanza',${i},this.value)" onchange="disegna()" style="min-width:58px"></td>
       <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setModRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setModRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setModRigaVal('rec',${i},this.value)" style="min-width:60px"></td>

@@ -1293,7 +1293,7 @@ function _tabellaAdattaPista(a, righe) {
     const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
     return `<tr>
       <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setAdattaRigaVal('contenuto',${i},this.value)" style="min-width:110px"></td>
-      <td><select onchange="setAdattaRiga('distanza',${i},this.value)">${typeof optDistPista === "function" ? optDistPista(r.distanza, prof) : `<option value="">—</option>`}</select></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal('distanza',${i},this.value)" onchange="disegna()" style="min-width:58px"></td>
       <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal('rec',${i},this.value)" style="min-width:60px"></td>

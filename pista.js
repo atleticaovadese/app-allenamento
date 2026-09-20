@@ -441,17 +441,8 @@ function vistaProgrammaPista() {
   const m = p.mesocicli[S.pistaMeso];
   const g = m.giorni[S.pistaGiorno];
   const pb = pistaPB();
-  // distanze selezionabili: lista sprint completa fino a 400 (+ eventuali chiavi extra del profilo, es. 300 per "100m F").
-  // Il tempo obiettivo si calcola su QUALSIASI distanza (interpolazione/estrapolazione), non solo sulle chiavi della tabella.
-  const SPRINT_DIST = [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150, 180, 200, 250, 300, 350, 400];
-  const coeffKeys = (p.profilo && PISTA_COEFF[p.profilo]) ? Object.keys(PISTA_COEFF[p.profilo]).map(Number) : [];
-  const distOpt = Array.from(new Set(SPRINT_DIST.concat(coeffKeys))).sort((a, b) => a - b);
-  const optDist = (val) => {
-    const arr = distOpt.slice(); const v = Number(val);
-    if (val !== "" && val != null && !isNaN(v) && arr.indexOf(v) < 0) arr.push(v);   // preserva un valore personalizzato
-    arr.sort((a, b) => a - b);
-    return `<option value="">—</option>` + arr.map(x => `<option value="${x}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
-  };
+  // la distanza si scrive a mano (come per il mezzofondo): il tempo target si calcola su QUALSIASI distanza
+  // (interpolazione/estrapolazione della curva), non solo sulle distanze "classiche".
   const routineOpt = Object.keys(DEMO.schede || {});
   const optSel = (val, arr, mostraVuoto) => `${mostraVuoto ? '<option value="">—</option>' : ""}${arr.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("")}`;
 
@@ -533,7 +524,7 @@ function vistaProgrammaPista() {
       const ms = t && r.distanza ? (Number(r.distanza) / t) : null;
       return `<tr>
         <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
-        <td><select onchange="setPistaRiga(${s},${i},'distanza',this.value)">${optDist(r.distanza)}</select></td>
+        <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px"></td>
         <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
         <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:52px"></td>
