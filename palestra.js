@@ -231,7 +231,7 @@ function vistaProgrammaPalestra() {
   const testa = `
     <div class="card"><h3>Programma Palestra</h3>
       <p class="et" style="margin-top:2px">Scrivi esercizio, serie, rep, %1RM, TUT e velocità target: il <b>peso</b> esce da solo dai massimali dell'atleta (%1RM × 1RM). Il volume in kg è automatico.</p>
-      <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo, non serve confermare. Gli atleti lo vedono subito sul loro calendario.</p></div>
+      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo, l'atleta lo vede subito." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» qui in fondo."}</p></div>
     ${S.progAtleta ? "" : `<div class="card" style="border-color:rgba(240,168,60,.55)">
       <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> scegli il suo nome qui sopra in «Programma per», oppure dal suo dettaglio «Adatta contenuto».</p></div>`}
     <div class="card">

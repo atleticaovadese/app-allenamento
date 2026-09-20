@@ -284,7 +284,7 @@ function vistaProgrammaPistaLanci() {
   const testa = `
     <div class="card"><h3>Programma Campo — lanci</h3>
       <p class="et" style="margin-top:2px">Scegli il <b>mezzo / contenuto</b> (mezzi allenanti o esercizi speciali in pedana), i <b>kg</b> dell'attrezzo, il <b>n° lanci</b>, recupero, % intensità e il <b>tipo</b> (gara / over / under). Lo scostamento % dal peso di gara e i totali escono da soli.</p>
-      <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo. La tendina «Mezzo/contenuto» segue la <b>Guida mezzi</b> e gli <b>Esercizi speciali</b>.</p></div>
+      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» in fondo."} La tendina «Mezzo/contenuto» segue la <b>Guida mezzi</b> e gli <b>Esercizi speciali</b>.</p></div>
     <div class="card">
       <label class="lab">Riferimento atleta (specialità → esercizi in tendina)</label>
       <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">${_optAtletiLanci(p.atletaRif, "🎯 Programma madre (tutti gli attrezzi)")}</select>

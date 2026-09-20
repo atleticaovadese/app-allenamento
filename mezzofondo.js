@@ -299,7 +299,7 @@ function vistaProgrammaPistaMezzo() {
   const testa = `
     <div class="card"><h3>Programma Pista — mezzofondo / fondo</h3>
       <p class="et" style="margin-top:2px">Scegli il <b>mezzo</b> e metti <b>distanza + n°</b> (ripetute) <b>oppure i minuti</b> (corsa continua). Ritmo/km, tempo per ripetuta e volume escono da soli dal PB (motore <b>Ritmi target</b>).</p>
-      <p class="et" style="margin-top:8px;color:var(--verde)">✓ Si salva da solo. Ogni atleta vedrà i ritmi calcolati sul <b>suo</b> PB.</p></div>
+      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» in fondo."} Ogni atleta vedrà i ritmi calcolati sul <b>suo</b> PB.</p></div>
     <div class="card">
       <label class="lab">Riferimento ritmi (solo anteprima)</label>
       <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">${_optAtletiMezzo(p.atletaRif, "🎯 Programma madre (PB a mano)")}</select>
