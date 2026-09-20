@@ -59,6 +59,7 @@ function vistaSquadra() {
     <div class="q" onclick="vai('report')"><div class="k">In regola</div>
       <div class="v" style="color:var(--verde)">${t.v}</div></div>
   </div>
+  <button class="btn btn-2" style="width:auto;padding:9px 14px;margin-bottom:11px" onclick="apriRiepilogoMeso()">📊 Riepilogo mesociclo (PDF)</button>
   ${listaAtleti(lista)}`;
 }
 
