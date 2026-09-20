@@ -284,7 +284,7 @@ function vistaProgrammaPistaLanci() {
   const testa = `
     <div class="card"><h3>Programma Campo — lanci</h3>
       <p class="et" style="margin-top:2px">Scegli il <b>mezzo / contenuto</b> (mezzi allenanti o esercizi speciali in pedana), i <b>kg</b> dell'attrezzo, il <b>n° lanci</b>, recupero, % intensità e il <b>tipo</b> (gara / over / under). Lo scostamento % dal peso di gara e i totali escono da soli.</p>
-      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» in fondo."} La tendina «Mezzo/contenuto» segue la <b>Guida mezzi</b> e gli <b>Esercizi speciali</b>.</p></div>
+      <p class="et" style="margin-top:8px;color:var(--ambra,#e6a83c)">${S.progAtleta ? "⚠️ Programma <b>personale</b>: le modifiche valgono per l'atleta <b>solo dopo</b> «💾 Salva programma» in fondo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» in fondo."} La tendina «Mezzo/contenuto» segue la <b>Guida mezzi</b> e gli <b>Esercizi speciali</b>.</p></div>
     <div class="card">
       <label class="lab">Riferimento atleta (specialità → esercizi in tendina)</label>
       <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">${_optAtletiLanci(p.atletaRif, "🎯 Programma madre (tutti gli attrezzi)")}</select>
@@ -327,6 +327,8 @@ function vistaProgrammaPistaLanci() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Core stability</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
@@ -401,6 +403,7 @@ function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, p
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
+    core: (g.core || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -416,6 +419,7 @@ function volumeLanciSeduta(s) { return (s.elementi || []).reduce((t, e) => t + (
 function vistaPistaLanci(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
+  ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   ${s.elementi.map(e => {
     const fatte = (e.misure || []).filter(v => v !== null);
     const best = fatte.length ? Math.max(...fatte) : null;

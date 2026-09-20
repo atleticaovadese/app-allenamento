@@ -121,6 +121,59 @@ function bloccoPliometria(s) {
     ${p.map(r => `<div style="padding:5px 0${r === p[p.length - 1] ? "" : ";border-bottom:1px solid var(--line)"}"><b>${r.es}</b>${(r.q || r.serie) ? ` <span class="et">${(r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _plioModoLab(r.modo)}${r.rec ? " · rec " + r.rec : ""}</span>` : ""}</div>`).join("")}</div>`;
 }
 
+// ---------- CORE STABILITY (addominali, isometrie, anti-rotazioni…) — come la pliometria, con tendina esercizi ----------
+const CORE_ESERCIZI = ["Plank frontale", "Plank laterale", "Side plank con rotazione", "Plank con sollevamento arti", "Hollow hold", "Hollow rock", "Dead bug", "Bird dog", "Crunch", "Crunch inverso", "Sit-up", "V-up", "Bicycle crunch", "Sollevamento gambe (leg raise)", "Toes to bar", "Russian twist", "Pallof press (anti-rotazione)", "Anti-rotazione con elastico", "Woodchopper (spinta diagonale)", "Rotazione ai cavi", "Ab wheel (rullo)", "Mountain climber", "Ponte glutei", "Superman (estensioni)", "Back extension (estensioni lombari)", "Farmer walk", "Suitcase carry (anti-flessione lat.)"];
+const CORE_MODI = [["rip", "× rip"], ["sec", "sec (isometria)"], ["lato", "× per lato"]];
+function _coreModoLab(m) { const x = CORE_MODI.find(p => p[0] === m); return x ? x[1] : (m || ""); }
+function coreInit(g) { if (!g.core) g.core = []; return g.core; }
+function coreRiassunto(g) { const p = (g.core || []).filter(r => r.es); return p.length ? p.map(r => r.es).join(" · ") : "non impostata"; }
+function coreTxt(r) {
+  const q = (r.q || r.serie) ? (r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _coreModoLab(r.modo || "rip") : "";
+  return r.es + (q ? " — " + q.trim() : "") + (r.rec ? " · rec " + r.rec : "");
+}
+function _optCoreEs(val) {
+  const esc = x => String(x).replace(/"/g, "&quot;");
+  let h = `<option value="">— scegli —</option>`;
+  if (val && CORE_ESERCIZI.indexOf(val) < 0) h += `<option value="${esc(val)}" selected>${val}</option>`;
+  h += CORE_ESERCIZI.map(x => `<option value="${esc(x)}" ${val === x ? "selected" : ""}>${x}</option>`).join("");
+  return h + `<option value="__altro__">✎ Altro (scrivi a mano)…</option>`;
+}
+function apriCore() {
+  const g = riscGiorno(), core = coreInit(g);
+  const optModo = sel => CORE_MODI.map(([k, l]) => `<option value="${k}" ${sel === k ? "selected" : ""}>${l}</option>`).join("");
+  const rows = core.map((r, i) => `<tr>
+      <td><select onchange="setCoreEsercizio(${i},this.value)">${_optCoreEs(r.es || "")}</select></td>
+      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="serie" oninput="setCoreRigaVal(${i},'serie',this.value)" style="min-width:52px"></td>
+      <td><input inputmode="numeric" value="${r.q || ""}" placeholder="quant." oninput="setCoreRigaVal(${i},'q',this.value)" style="min-width:58px"></td>
+      <td><select onchange="setCoreRiga(${i},'modo',this.value)">${optModo(r.modo || "rip")}</select></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setCoreRigaVal(${i},'rec',this.value)" style="min-width:56px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="coreDelRiga(${i})" aria-label="Rimuovi">✕</button></td>
+    </tr>`).join("");
+  mostraFoglio(`
+    <div class="foglio-top"><h3>Core stability</h3>
+      <button class="chiudi" onclick="chiudiCore()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:8px">Addominali, isometrie, anti-rotazioni… Scegli l'esercizio dalla tendina, poi <b>serie</b> e <b>quantità</b> (ripetizioni, <b>secondi</b> di tenuta per le isometrie, o <b>per lato</b>).<br>Es: <i>Plank 3 × 40 sec · Pallof press 3 × 12 per lato · Crunch 4 × 15 rip</i></p>
+    <div class="p-scroll"><table class="ptab pista-w">
+      <thead><tr><th>Esercizio</th><th>Serie</th><th>Quantità</th><th>Tipo</th><th>Rec</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="coreAddRiga()">＋ esercizio</button>`);
+}
+function coreAddRiga() { coreInit(riscGiorno()).push({ es: "", serie: "", q: "", modo: "rip", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriCore(); }
+function coreDelRiga(i) { const p = coreInit(riscGiorno()); if (i >= 0 && i < p.length) p.splice(i, 1); if (typeof salvaCustom === "function") salvaCustom(); apriCore(); }
+function setCoreRiga(i, campo, v) { coreInit(riscGiorno())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); apriCore(); }
+function setCoreRigaVal(i, campo, v) { coreInit(riscGiorno())[i][campo] = v; if (typeof salvaCustom === "function") salvaCustom(); }
+function setCoreEsercizio(i, val) {
+  if (val === "__altro__") { const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio core (scrivilo a mano):", "") : ""; if (t && t.trim()) { coreInit(riscGiorno())[i].es = t.trim(); if (typeof salvaCustom === "function") salvaCustom(); } apriCore(); return; }
+  coreInit(riscGiorno())[i].es = val; if (typeof salvaCustom === "function") salvaCustom(); apriCore();
+}
+function chiudiCore() { chiudiScheda(); disegna(); }
+function bloccoCore(s) {
+  const p = (s.core || []).filter(r => r.es);
+  if (!p.length) return "";
+  return `<div class="card"><p class="et" style="margin-bottom:6px">Core stability</p>
+    ${p.map(r => `<div style="padding:5px 0${r === p[p.length - 1] ? "" : ";border-bottom:1px solid var(--line)"}"><b>${r.es}</b>${(r.q || r.serie) ? ` <span class="et">${(r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _coreModoLab(r.modo || "rip")}${r.rec ? " · rec " + r.rec : ""}</span>` : ""}</div>`).join("")}</div>`;
+}
+
 // ---------- collegamento al Piano & Picco ----------
 function cicloDaLen(len) { return ({ 1: "1", 2: "1+1", 3: "2+1", 4: "3+1", 5: "4+1" })[len] || ""; }
 function isoLocale(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
@@ -270,7 +323,15 @@ function pistaDi(g) {
   return DEMO.pista[g];
 }
 function pistaInit() {
-  if (S.progAtleta && DEMO.pistaAtleta && DEMO.pistaAtleta[S.progAtleta]) return DEMO.pistaAtleta[S.progAtleta];   // programma personale (salva subito)
+  // PROGRAMMA PERSONALE dell'atleta: dentro l'editor si lavora su una BOZZA (come il madre); fuori si legge il committed.
+  if (S.progAtleta && DEMO.pistaAtleta && DEMO.pistaAtleta[S.progAtleta]) {
+    if (S.vista === "pista") {
+      DEMO.draftPistaAtleta = DEMO.draftPistaAtleta || {};
+      if (!DEMO.draftPistaAtleta[S.progAtleta]) DEMO.draftPistaAtleta[S.progAtleta] = JSON.parse(JSON.stringify(DEMO.pistaAtleta[S.progAtleta]));
+      return DEMO.draftPistaAtleta[S.progAtleta];
+    }
+    return DEMO.pistaAtleta[S.progAtleta];
+  }
   const g = S.progGruppo || "vel";
   // MADRE: SOLO dentro l'editor (S.vista "pista") si lavora su una BOZZA in memoria; fuori (generazione, ecc.)
   // si legge sempre il committed → le modifiche non salvate NON toccano gli atleti.
@@ -282,64 +343,80 @@ function pistaInit() {
   return pistaDi(g);
 }
 function savePista() {
-  if (S.progAtleta) {   // programma personale: isolato → salva subito
-    if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
-    if (typeof salvaCustom === "function") salvaCustom();
-  }
-  // madre: la bozza è già aggiornata in memoria; nessun salvataggio finché non premi «Salva»
+  // sia madre sia personale lavorano su BOZZA: nessun salvataggio finché non premi «💾 Salva programma».
 }
-// ---------- SALVA / ANNULLA del programma MADRE (bozza) ----------
-function _bozzaProg(tipo, g) { return tipo === "palestra" ? (DEMO.draftPal && DEMO.draftPal[g]) : (DEMO.draftPista && DEMO.draftPista[g]); }
-function _liveProg(tipo, g) { return tipo === "palestra" ? (typeof palDi === "function" ? palDi(g) : null) : (typeof pistaDi === "function" ? pistaDi(g) : null); }
-function _bozzaModificata(tipo, g) { const d = _bozzaProg(tipo, g), l = _liveProg(tipo, g); return !!(d && l && JSON.stringify(d) !== JSON.stringify(l)); }
+// ---------- SALVA / ANNULLA (bozza) — vale sia per il MADRE (per gruppo) sia per il PERSONALE (per atleta) ----------
+// contesto corrente: dove sta la bozza, la versione viva, dove committare, la chiave undo.
+function _progCtx(tipo) {
+  const pal = tipo === "palestra";
+  if (S.progAtleta) {
+    const id = S.progAtleta, store = pal ? "draftPalAtleta" : "draftPistaAtleta", com = pal ? "palAtleta" : "pistaAtleta";
+    return {
+      perso: true,
+      draft: () => (DEMO[store] && DEMO[store][id]),
+      clearDraft: () => { if (DEMO[store]) delete DEMO[store][id]; },
+      live: () => (DEMO[com] && DEMO[com][id]),
+      commit: v => { DEMO[com] = DEMO[com] || {}; DEMO[com][id] = v; },
+      undoKey: tipo + ":atl:" + id,
+      nome: ((DEMO.atleti || []).find(a => a.id === id) || {}).nome || "atleta"
+    };
+  }
+  const g = S.progGruppo || "vel";
+  return {
+    perso: false,
+    draft: () => (pal ? (DEMO.draftPal && DEMO.draftPal[g]) : (DEMO.draftPista && DEMO.draftPista[g])),
+    clearDraft: () => { if (pal) { if (DEMO.draftPal) delete DEMO.draftPal[g]; } else { if (DEMO.draftPista) delete DEMO.draftPista[g]; } },
+    live: () => (pal ? (typeof palDi === "function" ? palDi(g) : null) : (typeof pistaDi === "function" ? pistaDi(g) : null)),
+    commit: v => { if (pal) DEMO.palestra[g] = v; else DEMO.pista[g] = v; },
+    undoKey: tipo + ":" + g,
+    nome: null
+  };
+}
+function _bozzaModificata(tipo) { const c = _progCtx(tipo), d = c.draft(), l = c.live(); return !!(d && l && JSON.stringify(d) !== JSON.stringify(l)); }
 // ---------- UNDO: salva la versione precedente ad ogni salvataggio (per «Annulla») ----------
 function _progUndoLeggi() { try { return JSON.parse(localStorage.getItem("metis_progundo") || "{}"); } catch (e) { return {}; } }
 function _progUndoScrivi(o) { try { localStorage.setItem("metis_progundo", JSON.stringify(o)); } catch (e) { /* localStorage pieno/non disp. */ } }
-function _progUndoKey(tipo, g) { return tipo + ":" + g; }
-function _haUndo(tipo, g) { const e = _progUndoLeggi()[_progUndoKey(tipo, g)]; return !!(e && e.prev); }
+function _haUndo(tipo) { const e = _progUndoLeggi()[_progCtx(tipo).undoKey]; return !!(e && e.prev); }
 function salvaProgMadre(tipo) {
-  const g = S.progGruppo || "vel";
-  const d = _bozzaProg(tipo, g);
+  const c = _progCtx(tipo), d = c.draft();
   if (d) {
     // fotografo la versione ATTUALE (prima di questo salvataggio) così si può annullare
-    try { const live = _liveProg(tipo, g); const u = _progUndoLeggi(); u[_progUndoKey(tipo, g)] = { prev: JSON.parse(JSON.stringify(live || { mesocicli: [] })), quando: Date.now() }; _progUndoScrivi(u); } catch (e) { }
-    if (tipo === "palestra") { DEMO.palestra[g] = d; delete DEMO.draftPal[g]; }
-    else { DEMO.pista[g] = d; delete DEMO.draftPista[g]; }
+    try { const u = _progUndoLeggi(); u[c.undoKey] = { prev: JSON.parse(JSON.stringify(c.live() || { mesocicli: [] })), quando: Date.now() }; _progUndoScrivi(u); } catch (e) { }
+    c.commit(JSON.parse(JSON.stringify(d)));
+    c.clearDraft();
     if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
     if (typeof salvaCustom === "function") salvaCustom();
   }
   disegna(); window.scrollTo(0, 0);
-  if (typeof alert === "function") alert("✓ Programma salvato: ora è attivo per gli atleti del gruppo che lo seguono.\nPuoi tornare indietro con «↩️ Annulla l'ultimo salvataggio».");
+  if (typeof alert === "function") alert((c.perso ? "✓ Programma di " + c.nome + " salvato: ora lo vede lui." : "✓ Programma salvato: ora è attivo per gli atleti del gruppo che lo seguono.") + "\nPuoi tornare indietro con «↩️ Annulla l'ultimo salvataggio».");
 }
 // ripristina la versione salvata PRIMA dell'ultimo salvataggio di questo programma
 function annullaUltimoSalvataggio(tipo) {
-  const g = S.progGruppo || "vel";
-  const u = _progUndoLeggi(), e = u[_progUndoKey(tipo, g)];
+  const c = _progCtx(tipo), u = _progUndoLeggi(), e = u[c.undoKey];
   if (!e || !e.prev) { if (typeof alert === "function") alert("Nessuna modifica da annullare."); return; }
-  if (typeof confirm === "function" && !confirm(`Ripristinare il programma ${tipo === "palestra" ? "palestra" : "pista"} com'era PRIMA dell'ultimo salvataggio?\nLe modifiche salvate dopo verranno sostituite.`)) return;
-  const prev = JSON.parse(JSON.stringify(e.prev));
-  if (tipo === "palestra") { DEMO.palestra[g] = prev; if (DEMO.draftPal) delete DEMO.draftPal[g]; }
-  else { DEMO.pista[g] = prev; if (DEMO.draftPista) delete DEMO.draftPista[g]; }
-  delete u[_progUndoKey(tipo, g)]; _progUndoScrivi(u);   // undo singolo: consumato
+  if (typeof confirm === "function" && !confirm("Ripristinare il programma com'era PRIMA dell'ultimo salvataggio?\nLe modifiche salvate dopo verranno sostituite.")) return;
+  c.commit(JSON.parse(JSON.stringify(e.prev)));
+  c.clearDraft();
+  delete u[c.undoKey]; _progUndoScrivi(u);   // undo singolo: consumato
   if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
   if (typeof salvaCustom === "function") salvaCustom();
   disegna(); window.scrollTo(0, 0);
   if (typeof alert === "function") alert("✓ Ripristinata la versione precedente.");
 }
 function annullaProgMadre(tipo) {
-  const g = S.progGruppo || "vel";
-  if (typeof confirm === "function" && !confirm("Annullare le modifiche non salvate del programma madre?")) return;
-  if (tipo === "palestra") { if (DEMO.draftPal) delete DEMO.draftPal[g]; } else { if (DEMO.draftPista) delete DEMO.draftPista[g]; }
+  const c = _progCtx(tipo);
+  if (typeof confirm === "function" && !confirm("Annullare le modifiche non salvate?")) return;
+  c.clearDraft();
   disegna(); window.scrollTo(0, 0);
 }
-// barra in fondo all'editor madre: stato + Salva/Annulla (niente per il programma personale, che salva da solo)
+// barra in fondo all'editor: stato + Salva / Annulla / Annulla-ultimo-salvataggio — sia madre sia personale
 function _barraSalvaMadre(tipo) {
-  if (S.progAtleta) return "";
-  const g = S.progGruppo || "vel";
-  const mod = _bozzaModificata(tipo, g);
-  const undo = (typeof _haUndo === "function") && _haUndo(tipo, g);
+  const c = _progCtx(tipo);
+  const mod = _bozzaModificata(tipo);
+  const undo = _haUndo(tipo);
+  const chi = c.perso ? ("il programma di <b>" + String(c.nome).replace(/</g, "&lt;") + "</b>") : "il programma madre del gruppo";
   return `<div class="card" style="position:sticky;bottom:8px;${mod ? "border-color:var(--verde)" : ""};box-shadow:0 -2px 10px rgba(0,0,0,.15)">
-    <p class="et" style="margin:0 0 8px;${mod ? "color:var(--ambra,#e6a83c)" : "color:var(--txt3)"}">${mod ? "✏️ Hai <b>modifiche non salvate</b>: valgono per il gruppo solo dopo «Salva»." : "Le modifiche al programma madre si applicano solo quando premi «Salva»."}</p>
+    <p class="et" style="margin:0 0 8px;${mod ? "color:var(--ambra,#e6a83c)" : "color:var(--txt3)"}">${mod ? `✏️ Hai <b>modifiche non salvate</b>: valgono ${c.perso ? "per l'atleta" : "per il gruppo"} solo dopo «Salva».` : `Le modifiche a ${chi} si applicano solo quando premi «Salva».`}</p>
     <div style="display:flex;gap:8px">
       <button class="btn" style="flex:1${mod ? "" : ";opacity:.55"}" onclick="salvaProgMadre('${tipo}')">💾 Salva programma</button>
       ${mod ? `<button class="btn btn-2" style="width:auto;padding:10px 14px" onclick="annullaProgMadre('${tipo}')">Annulla</button>` : ""}
@@ -527,7 +604,7 @@ function vistaProgrammaPista() {
   const testa = `
     <div class="card"><h3>Programma Pista</h3>
       <p class="et" style="margin-top:2px">Scrivi contenuto, distanza, n°, recupero e % velocità: il <b>tempo richiesto</b> e la <b>m/s</b> escono da soli dal PB. Il volume è automatico.</p>
-      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo, l'atleta lo vede subito." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» qui in fondo."}</p></div>
+      <p class="et" style="margin-top:8px;color:var(--ambra,#e6a83c)">${S.progAtleta ? "⚠️ Programma <b>personale</b>: le modifiche valgono per l'atleta <b>solo dopo</b> «💾 Salva programma» qui in fondo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» qui in fondo."}</p></div>
     ${S.progAtleta ? "" : `<div class="card" style="border-color:rgba(240,168,60,.55)">
       <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> scegli il suo nome qui sopra in «Programma per», oppure dal suo dettaglio «Adatta contenuto».</p></div>`}
     <div class="card">
@@ -585,6 +662,8 @@ function vistaProgrammaPista() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Core stability</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
     </div>`;
 
   // le settimane del giorno (numero dal ciclo del mesociclo)

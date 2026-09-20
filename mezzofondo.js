@@ -299,7 +299,7 @@ function vistaProgrammaPistaMezzo() {
   const testa = `
     <div class="card"><h3>Programma Pista — mezzofondo / fondo</h3>
       <p class="et" style="margin-top:2px">Scegli il <b>mezzo</b> e metti <b>distanza + n°</b> (ripetute) <b>oppure i minuti</b> (corsa continua). Ritmo/km, tempo per ripetuta e volume escono da soli dal PB (motore <b>Ritmi target</b>).</p>
-      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» in fondo."} Ogni atleta vedrà i ritmi calcolati sul <b>suo</b> PB.</p></div>
+      <p class="et" style="margin-top:8px;color:var(--ambra,#e6a83c)">${S.progAtleta ? "⚠️ Programma <b>personale</b>: le modifiche valgono per l'atleta <b>solo dopo</b> «💾 Salva programma» in fondo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» in fondo."} Ogni atleta vedrà i ritmi calcolati sul <b>suo</b> PB.</p></div>
     <div class="card">
       <label class="lab">Riferimento ritmi (solo anteprima)</label>
       <select onchange="setPistaTop('atletaRif',this.value)" style="margin-top:6px">${_optAtletiMezzo(p.atletaRif, "🎯 Programma madre (PB a mano)")}</select>
@@ -346,6 +346,8 @@ function vistaProgrammaPistaMezzo() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Core stability</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
@@ -430,6 +432,7 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
+    core: (g.core || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -447,6 +450,7 @@ function segnaTempoMezzo(sid, eid, i, val) {
 function vistaPistaMezzo(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
+  ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   ${s.elementi.map(e => {
     const cont = e.min != null;
     const prescr = cont ? `${e.min}′ in continuo` : `${e.ripetute} × ${e.distanza} m`;

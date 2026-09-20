@@ -17,8 +17,8 @@ function creaProgAtletaTipo(tipo) {
   const id = S.progAtleta, a = DEMO.atleti.find(x => x.id === id); if (!a) return;
   const g = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
   const clone = x => JSON.parse(JSON.stringify(x || {}));
-  if (tipo === "palestra") { DEMO.palAtleta = DEMO.palAtleta || {}; if (!DEMO.palAtleta[id] && typeof palDi === "function") { DEMO.palAtleta[id] = clone(palDi(g)); DEMO.palAtleta[id].atletaRif = id; } }
-  else { DEMO.pistaAtleta = DEMO.pistaAtleta || {}; if (!DEMO.pistaAtleta[id] && typeof pistaDi === "function") { DEMO.pistaAtleta[id] = clone(pistaDi(g)); DEMO.pistaAtleta[id].atletaRif = id; } }
+  if (tipo === "palestra") { DEMO.palAtleta = DEMO.palAtleta || {}; if (!DEMO.palAtleta[id] && typeof palDi === "function") { DEMO.palAtleta[id] = clone(palDi(g)); DEMO.palAtleta[id].atletaRif = id; } if (DEMO.draftPalAtleta) delete DEMO.draftPalAtleta[id]; }
+  else { DEMO.pistaAtleta = DEMO.pistaAtleta || {}; if (!DEMO.pistaAtleta[id] && typeof pistaDi === "function") { DEMO.pistaAtleta[id] = clone(pistaDi(g)); DEMO.pistaAtleta[id].atletaRif = id; } if (DEMO.draftPistaAtleta) delete DEMO.draftPistaAtleta[id]; }
   if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
   if (typeof salvaCustom === "function") salvaCustom();
   disegna(); window.scrollTo(0, 0);
@@ -27,8 +27,8 @@ function creaProgAtletaTipo(tipo) {
 function rimuoviProgAtletaTipo(tipo) {
   const id = S.progAtleta, a = DEMO.atleti.find(x => x.id === id); if (!a) return;
   if (typeof confirm === "function" && !confirm(`Rimuovere il programma personale di ${a.nome} (${tipo === "palestra" ? "palestra" : "pista"}) e tornare al programma madre del gruppo?\nLe modifiche personali andranno perse.`)) return;
-  if (tipo === "palestra") { if (DEMO.palAtleta) delete DEMO.palAtleta[id]; }
-  else { if (DEMO.pistaAtleta) delete DEMO.pistaAtleta[id]; }
+  if (tipo === "palestra") { if (DEMO.palAtleta) delete DEMO.palAtleta[id]; if (DEMO.draftPalAtleta) delete DEMO.draftPalAtleta[id]; }
+  else { if (DEMO.pistaAtleta) delete DEMO.pistaAtleta[id]; if (DEMO.draftPistaAtleta) delete DEMO.draftPistaAtleta[id]; }
   if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
   if (typeof salvaCustom === "function") salvaCustom();
   disegna(); window.scrollTo(0, 0);

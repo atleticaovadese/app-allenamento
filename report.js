@@ -109,6 +109,12 @@ function _rProgrammaMesocicli(a, gOverride) {
     const txt = pl.map(r => (typeof plioTxt === "function" ? plioTxt(r) : r.es)).map(esc).join(" · ");
     return `<div class="gsec"><span class="gk">Pliometria / policoncorrenza</span><div class="rz">${txt}</div></div>`;
   };
+  const coreDett = gi => {
+    const cc = (gi.core || []).filter(r => r.es);
+    if (!cc.length) return "";
+    const txt = cc.map(r => (typeof coreTxt === "function" ? coreTxt(r) : r.es)).map(esc).join(" · ");
+    return `<div class="gsec"><span class="gk">Core stability</span><div class="rz">${txt}</div></div>`;
+  };
   // lavoro (ripetute) settimana per settimana — così si legge tutto il mesociclo
   const lavoroDett = (gi, rigaFn, colLabel, m) => {
     const nSett = (typeof nSettimaneMeso === "function" && m) ? nSettimaneMeso(m) : (gi.settimane || []).length;
@@ -122,9 +128,9 @@ function _rProgrammaMesocicli(a, gOverride) {
     return rows ? `<div class="gsec"><span class="gk">${esc(colLabel)}</span><table class="lavtab"><tbody>${rows}</tbody></table></div>` : "";
   };
   const giornoCard = (gi, idx, rigaFn, colLabel, m) => {
-    const risc = riscDett(gi), plio = plioDett(gi), lav = lavoroDett(gi, rigaFn, colLabel, m);
-    if (!risc && !plio && !lav) return "";
-    return `<div class="gday"><h3 class="gtit">Giorno ${idx + 1}${gi.giornoSett ? " · " + esc(gi.giornoSett) : ""}</h3>${risc}${plio}${lav}</div>`;
+    const risc = riscDett(gi), plio = plioDett(gi), core = coreDett(gi), lav = lavoroDett(gi, rigaFn, colLabel, m);
+    if (!risc && !plio && !core && !lav) return "";
+    return `<div class="gday"><h3 class="gtit">Giorno ${idx + 1}${gi.giornoSett ? " · " + esc(gi.giornoSett) : ""}</h3>${risc}${plio}${core}${lav}</div>`;
   };
   const sezione = (titolo, prog, rigaFn, colLavoro, atletaIdGraf) => {
     if (!prog || !prog.mesocicli || !prog.mesocicli.length) return "";

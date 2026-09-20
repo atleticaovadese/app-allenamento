@@ -32,7 +32,15 @@ function palDi(g) {
   return DEMO.palestra[g];
 }
 function palestraInit() {
-  if (S.progAtleta && DEMO.palAtleta && DEMO.palAtleta[S.progAtleta]) return DEMO.palAtleta[S.progAtleta];   // programma personale (salva subito)
+  // PROGRAMMA PERSONALE dell'atleta: dentro l'editor si lavora su una BOZZA (come il madre); fuori si legge il committed.
+  if (S.progAtleta && DEMO.palAtleta && DEMO.palAtleta[S.progAtleta]) {
+    if (S.vista === "palestra") {
+      DEMO.draftPalAtleta = DEMO.draftPalAtleta || {};
+      if (!DEMO.draftPalAtleta[S.progAtleta]) DEMO.draftPalAtleta[S.progAtleta] = JSON.parse(JSON.stringify(DEMO.palAtleta[S.progAtleta]));
+      return DEMO.draftPalAtleta[S.progAtleta];
+    }
+    return DEMO.palAtleta[S.progAtleta];
+  }
   const g = S.progGruppo || "vel";
   // MADRE: bozza solo dentro l'editor (S.vista "palestra"); fuori sempre il committed (gli atleti non vedono le bozze)
   if (S.vista === "palestra") {
@@ -43,11 +51,7 @@ function palestraInit() {
   return palDi(g);
 }
 function savePalestra() {
-  if (S.progAtleta) {   // programma personale: salva subito
-    if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
-    if (typeof salvaCustom === "function") salvaCustom();
-  }
-  // madre: bozza in memoria; si salva con «Salva»
+  // sia madre sia personale lavorano su BOZZA: nessun salvataggio finché non premi «💾 Salva programma».
 }
 function palGiornoCorrente() { return palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno]; }
 
@@ -241,7 +245,7 @@ function vistaProgrammaPalestra() {
   const testa = `
     <div class="card"><h3>Programma Palestra</h3>
       <p class="et" style="margin-top:2px">Scrivi esercizio, serie, rep, %1RM, TUT e velocità target: il <b>peso</b> esce da solo dai massimali dell'atleta (%1RM × 1RM). Il volume in kg è automatico.</p>
-      <p class="et" style="margin-top:8px;color:${S.progAtleta ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${S.progAtleta ? "✓ Programma personale: si salva da solo, l'atleta lo vede subito." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» qui in fondo."}</p></div>
+      <p class="et" style="margin-top:8px;color:var(--ambra,#e6a83c)">${S.progAtleta ? "⚠️ Programma <b>personale</b>: le modifiche valgono per l'atleta <b>solo dopo</b> «💾 Salva programma» qui in fondo." : "⚠️ Il programma <b>madre</b> vale per gli atleti <b>solo dopo</b> aver premuto «💾 Salva programma» qui in fondo."}</p></div>
     ${S.progAtleta ? "" : `<div class="card" style="border-color:rgba(240,168,60,.55)">
       <p class="et" style="margin:0;color:var(--ambra,#e6a83c)">⚠️ Questo è il <b>programma MADRE del gruppo</b>: le modifiche valgono per <b>TUTTI</b> gli atleti che lo seguono. Per cambiare <b>solo un atleta</b> scegli il suo nome qui sopra in «Programma per», oppure dal suo dettaglio «Adatta contenuto».</p></div>`}
     <div class="card">
@@ -287,6 +291,8 @@ function vistaProgrammaPalestra() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriRiscPista()">${riscRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Pliometria / policoncorrenza</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriPlio()">${plioRiassunto(g)}</button>
+      <label class="lab" style="display:block;margin-top:12px">Core stability</label>
+      <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
     </div>`;
 
   const listaSett = palSettimaneDelGiorno(m, g);

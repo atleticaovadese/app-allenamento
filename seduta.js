@@ -92,6 +92,7 @@ function vistaPista(s) {
   if (s.lanci && typeof vistaPistaLanci === "function") return vistaPistaLanci(s);   // seduta lanci
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
+  ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   ${s.elementi.map(e => {
     const caselle = e.tempi.map((t, i) => {
       const v = t === null ? "" : t;
@@ -184,6 +185,7 @@ function setEsitoEs(sid, xid, campo, val) {
 function vistaPalestra(s) {
   return `${bloccoRiscaldamento(s)}
   ${typeof bloccoPliometria === "function" ? bloccoPliometria(s) : ""}
+  ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   <p class="et" style="margin:0 2px 8px">Tocca l'esercizio da cui parti</p>
   ${s.esercizi.map(x => x.id === T.id ? esercizioAperto(s, x) : esercizioChiuso(s, x)).join("")}
   ${bloccoChiusura(s)}`;

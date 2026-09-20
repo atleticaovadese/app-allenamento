@@ -62,6 +62,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
+    core: (g.core || []).filter(r => r.es),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
@@ -155,6 +156,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
+    core: (g.core || []).filter(r => r.es),
     esercizi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }
