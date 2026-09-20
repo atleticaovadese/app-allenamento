@@ -122,7 +122,13 @@ function bloccoPliometria(s) {
 }
 
 // ---------- CORE STABILITY (addominali, isometrie, anti-rotazioni…) — come la pliometria, con tendina esercizi ----------
-const CORE_ESERCIZI = ["Plank frontale", "Plank laterale", "Side plank con rotazione", "Plank con sollevamento arti", "Hollow hold", "Hollow rock", "Dead bug", "Bird dog", "Crunch", "Crunch inverso", "Sit-up", "V-up", "Bicycle crunch", "Sollevamento gambe (leg raise)", "Toes to bar", "Russian twist", "Pallof press (anti-rotazione)", "Anti-rotazione con elastico", "Woodchopper (spinta diagonale)", "Rotazione ai cavi", "Ab wheel (rullo)", "Mountain climber", "Ponte glutei", "Superman (estensioni)", "Back extension (estensioni lombari)", "Farmer walk", "Suitcase carry (anti-flessione lat.)"];
+// gli esercizi arrivano dalla LIBRERIA Sala (categorie "Core - ..."), nell'ordine e raggruppati; fallback se la libreria manca
+const CORE_FALLBACK = ["Plank / Side plank", "Hollow hold", "Dead bug", "Bird dog", "Pallof press", "Suitcase carry", "Crunch", "Russian twist", "Hanging leg raise"];
+function _coreLibVoci() {
+  const sala = (typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala : [];
+  const core = sala.filter(x => String(x.g || "").toUpperCase().startsWith("CORE"));
+  return core.length ? core : CORE_FALLBACK.map(n => ({ g: "Core", n }));
+}
 const CORE_MODI = [["rip", "× rip"], ["sec", "sec (isometria)"], ["lato", "× per lato"]];
 function _coreModoLab(m) { const x = CORE_MODI.find(p => p[0] === m); return x ? x[1] : (m || ""); }
 function coreInit(g) { if (!g.core) g.core = []; return g.core; }
@@ -133,9 +139,15 @@ function coreTxt(r) {
 }
 function _optCoreEs(val) {
   const esc = x => String(x).replace(/"/g, "&quot;");
+  const voci = _coreLibVoci(), nomi = voci.map(v => v.n);
   let h = `<option value="">— scegli —</option>`;
-  if (val && CORE_ESERCIZI.indexOf(val) < 0) h += `<option value="${esc(val)}" selected>${val}</option>`;
-  h += CORE_ESERCIZI.map(x => `<option value="${esc(x)}" ${val === x ? "selected" : ""}>${x}</option>`).join("");
+  if (val && nomi.indexOf(val) < 0) h += `<option value="${esc(val)}" selected>${esc(val)}</option>`;   // valore personalizzato già impostato
+  let curG = null;
+  voci.forEach(v => {
+    if (v.g !== curG) { if (curG !== null) h += `</optgroup>`; h += `<optgroup label="${esc(v.g)}">`; curG = v.g; }
+    h += `<option value="${esc(v.n)}" ${val === v.n ? "selected" : ""}>${esc(v.n)}</option>`;
+  });
+  if (curG !== null) h += `</optgroup>`;
   return h + `<option value="__altro__">✎ Altro (scrivi a mano)…</option>`;
 }
 function apriCore() {
