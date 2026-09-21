@@ -584,16 +584,19 @@ function vistaPresenze() {
   const pr = _presenzeAtleta(a);   // stessa fonte della Home
   const totFatti = pr.stagione.fatti, totProg = pr.stagione.prog, ader = pr.stagione.pct;
   const meseNome = pr.mese.nome, progMese = pr.mese.prog, fattiMese = pr.mese.fatti, aderMese = pr.mese.pct;
-  const max = Math.max(1, ...mesi.map(m => m[1]), ...mesi.map(m => m[2]));
+  // "programmati" mostrato coerente con la % (mai meno dei "fatti"): se un blocco passato non ha più il
+  // programma (es. mesociclo sovrascritto per errore), i giorni svolti NON risultano "mancati/da fare".
+  const progAdj = m => Math.max(m[1], m[2]);
+  const max = Math.max(1, ...mesi.map(progAdj));
 
-  const barre = mesi.map(([nome, prog, fatti]) => `
+  const barre = mesi.map(m => { const nome = m[0], prog = progAdj(m), fatti = m[2]; return `
     <div class="barra">
       <div class="colonna">
         <div class="b prog" style="height:${Math.round(prog / max * 100)}%"></div>
         <div class="b fatti" style="height:${Math.round(fatti / max * 100)}%"></div>
       </div>
       <div class="et" style="text-align:center">${nome}</div>
-    </div>`).join("");
+    </div>`; }).join("");
 
   // nota infortunio SOLO se reale (dall'archivio infortuni dell'atleta)
   const inf = (DEMO.infortuni || []).filter(i => i.atleta === a.id);
