@@ -305,14 +305,24 @@ function pistaCopiaSettimana() {
   const src = g.settimane[0];
   for (let s = 1; s < n; s++) {
     const righe = (src.righe || []).map(r => ({ ...r }));
-    if (isScaricoIdx(m, s)) righe.forEach(r => {
-      if (r.n) r.n = Math.max(1, Math.round(Number(r.n) / 2));
-      if (r.min) r.min = String(Math.max(1, Math.round(Number(r.min) / 2)));   // corsa continua (mezzofondo)
-    });
+    if (isScaricoIdx(m, s)) { const f = scaricoFattore(m); righe.forEach(r => {
+      if (r.n) r.n = Math.max(1, Math.round(Number(r.n) * f));
+      if (r.min) r.min = String(Math.max(1, Math.round(Number(r.min) * f)));   // corsa continua (mezzofondo)
+    }); }
     g.settimane[s].righe = righe;
     g.settimane[s].nota = src.nota || "";
   }
   savePista(); disegna();
+}
+
+// SCARICO: quanto ridurre il volume nella settimana di scarico. Lo decide il tecnico (default 50%).
+const SCARICO_PCT = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90];
+function scaricoPctVal(m) { const p = Number(m && m.scaricoPct); return (p >= 5 && p <= 90) ? p : 50; }   // % di RIDUZIONE
+function scaricoFattore(m) { return (100 - scaricoPctVal(m)) / 100; }                                     // fattore da moltiplicare al volume
+// menu a tendina per scegliere lo scarico (handler = setPistaMeso o setPalMeso)
+function selScaricoMeso(m, handler) {
+  return `<label class="lab">Scarico: riduzione volume nella settimana di scarico</label>
+    <select onchange="${handler}('scaricoPct',this.value)" style="margin-top:6px">${SCARICO_PCT.map(o => `<option value="${o}"${scaricoPctVal(m) === o ? " selected" : ""}>−${o}%</option>`).join("")}</select>`;
 }
 
 // opzioni % progressione: Volume in passi ampi, Intensità in punti percentuali fini
@@ -348,15 +358,16 @@ function applicaProgrPista(s) {
   if (curVuota) cur.nota = prev.nota || "";
   savePista(); disegna();
 }
-// scarico: dimezza il volume (ripetute) della settimana precedente, intensità invariata
+// scarico: riduce il volume (ripetute) della settimana precedente della % scelta dal tecnico, intensità invariata
 function applicaScaricoPista(s) {
   if (s < 1) return;
+  const f = scaricoFattore(pistaInit().mesocicli[S.pistaMeso]);
   const g = giornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
   if (!prev || !(prev.righe || []).some(r => r.n || r.min)) { alert("Compila prima la settimana precedente."); return; }
   cur.righe = prev.righe.map(r => {
     const nr = { ...r };
-    const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n / 2)));
-    const mn = Number(r.min); if (mn > 0) nr.min = String(Math.max(1, Math.round(mn / 2)));   // corsa continua (mezzofondo)
+    const n = Number(r.n); if (n > 0) nr.n = String(Math.max(1, Math.round(n * f)));
+    const mn = Number(r.min); if (mn > 0) nr.min = String(Math.max(1, Math.round(mn * f)));   // corsa continua (mezzofondo)
     return nr;
   });
   cur.nota = prev.nota || "";
@@ -728,7 +739,8 @@ function vistaProgrammaPista() {
         <div><label class="lab">Focus mesociclo</label>
           <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. accelerazione" oninput="setPistaMesoVal('focus',this.value)" onchange="disegna()" style="margin-top:6px"></div>
       </div>
-      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico` : "Scegli un ciclo (o prendilo dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
+      <div style="margin-top:12px">${selScaricoMeso(m, "setPistaMeso")}</div>
+      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico (−${scaricoPctVal(m)}% volume)` : "Scegli un ciclo (o prendilo dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
     </div>`;
 
   // selettore giorno
@@ -750,7 +762,7 @@ function vistaProgrammaPista() {
   // le settimane del giorno (numero dal ciclo del mesociclo)
   const listaSett = settimaneDelGiorno(m, g);
   const copiaBtn = listaSett.length > 1
-    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? " (scarico −50% auto)" : ""}</button>`
+    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? ` (scarico −${scaricoPctVal(m)}% auto)` : ""}</button>`
     : "";
   const settimane = listaSett.map((sett, s) => {
     const scar = isScaricoIdx(m, s);
@@ -772,7 +784,7 @@ function vistaProgrammaPista() {
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
-        ${scar ? '<span class="pill p-giallo">scarico</span>' : ""}
+        ${scar ? `<span class="pill p-giallo">scarico −${scaricoPctVal(m)}%</span>` : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Contenuto</th><th>Distanza</th><th>n°</th><th>Rec</th><th>% vel</th><th>Tempo (s)</th><th>m/s</th><th></th></tr></thead>
@@ -788,7 +800,7 @@ function vistaProgrammaPista() {
         <select id="pgp-${s}" style="padding:7px 8px;width:auto;flex:none">${PROG_VOL.map(o => `<option>${o}</option>`).join("")}</select>
         <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPista(${s})">+% applica</button>
       </div>` : ""}
-      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPista(${s})">⬇ Scarico: volume al 50% della sett. ${s}</button>` : ""}
+      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPista(${s})">⬇ Scarico: volume −${scaricoPctVal(m)}% dalla sett. ${s}</button>` : ""}
       <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
     </div>`;
   }).join("");

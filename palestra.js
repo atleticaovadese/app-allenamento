@@ -172,7 +172,7 @@ function palCopiaSettimana() {
   const src = g.settimane[0];
   for (let s = 1; s < n; s++) {
     const righe = (src.righe || []).map(r => ({ ...r }));
-    if (isScaricoIdx(m, s)) righe.forEach(r => { const rp = Number(r.rep); if (rp > 0) r.rep = String(Math.max(1, Math.round(rp / 2))); });
+    if (isScaricoIdx(m, s)) { const f = scaricoFattore(m); righe.forEach(r => { const rp = Number(r.rep); if (rp > 0) r.rep = String(Math.max(1, Math.round(rp * f))); }); }
     g.settimane[s].righe = righe;
     g.settimane[s].nota = src.nota || "";
   }
@@ -199,12 +199,13 @@ function applicaProgrPal(s) {
   if (curVuota) cur.nota = prev.nota || "";
   savePalestra(); disegna();
 }
-// scarico: dimezza il volume (rep) della settimana precedente, intensità invariata
+// scarico: riduce il volume (rep) della settimana precedente della % scelta dal tecnico, intensità invariata
 function applicaScaricoPal(s) {
   if (s < 1) return;
+  const f = scaricoFattore(palestraInit().mesocicli[S.palMeso]);
   const g = palGiornoCorrente(), prev = g.settimane[s - 1], cur = g.settimane[s];
   if (!prev || !(prev.righe || []).some(r => r.rep)) { alert("Compila prima la settimana precedente."); return; }
-  cur.righe = prev.righe.map(r => { const nr = { ...r }; const rp = Number(r.rep); if (rp > 0) nr.rep = String(Math.max(1, Math.round(rp / 2))); return nr; });
+  cur.righe = prev.righe.map(r => { const nr = { ...r }; const rp = Number(r.rep); if (rp > 0) nr.rep = String(Math.max(1, Math.round(rp * f))); return nr; });
   cur.nota = prev.nota || "";
   savePalestra(); disegna();
 }
@@ -279,7 +280,8 @@ function vistaProgrammaPalestra() {
         <div><label class="lab">Focus mesociclo</label>
           <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. forza massima" oninput="setPalMesoVal('focus',this.value)" onchange="disegna()" style="margin-top:6px"></div>
       </div>
-      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico` : "Scegli un ciclo (o prendilo dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
+      <div style="margin-top:12px">${typeof selScaricoMeso === "function" ? selScaricoMeso(m, "setPalMeso") : ""}</div>
+      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico (−${scaricoPctVal(m)}% volume)` : "Scegli un ciclo (o prendilo dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
     </div>`;
 
   const tabGiorno = tabGiorniPal(m);
@@ -299,7 +301,7 @@ function vistaProgrammaPalestra() {
 
   const listaSett = palSettimaneDelGiorno(m, g);
   const copiaBtn = listaSett.length > 1
-    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="palCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? " (scarico −50% auto)" : ""}</button>`
+    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="palCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? ` (scarico −${scaricoPctVal(m)}% auto)` : ""}</button>`
     : "";
 
   const settimane = listaSett.map((sett, s) => {
@@ -328,7 +330,7 @@ function vistaProgrammaPalestra() {
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.55);background:rgba(240,168,60,.08)"' : ""}>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
-        ${scar ? '<span class="pill p-giallo">scarico · −50% vol</span>' : ""}
+        ${scar ? `<span class="pill p-giallo">scarico · −${scaricoPctVal(m)}% vol</span>` : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Rec</th><th>TUT</th><th>VBT tgt</th><th>Peso (kg)</th><th>Vol (kg)</th><th></th></tr></thead>
@@ -344,7 +346,7 @@ function vistaProgrammaPalestra() {
         <select id="pgpp-${s}" style="padding:7px 8px;width:auto;flex:none">${(typeof PROG_VOL !== "undefined" ? PROG_VOL : [5, 10, 15, 20, 30, 40]).map(o => `<option>${o}</option>`).join("")}</select>
         <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPal(${s})">+% applica</button>
       </div>` : ""}
-      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPal(${s})">⬇ Scarico: volume al 50% della sett. ${s}</button>` : ""}
+      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPal(${s})">⬇ Scarico: volume −${scaricoPctVal(m)}% dalla sett. ${s}</button>` : ""}
       <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaPal(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
     </div>`;
   }).join("");

@@ -316,7 +316,8 @@ function vistaProgrammaPistaLanci() {
         <div><label class="lab">Focus mesociclo</label>
           <input value="${(m.focus || "").replace(/"/g, "&quot;")}" placeholder="Es. forza-potenza" oninput="setPistaMesoVal('focus',this.value)" onchange="disegna()" style="margin-top:6px"></div>
       </div>
-      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico` : "Scegli un ciclo (o dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
+      <div style="margin-top:12px">${typeof selScaricoMeso === "function" ? selScaricoMeso(m, "setPistaMeso") : ""}</div>
+      <p class="et" style="margin-top:10px">${m.ciclo ? `<b style="color:var(--txt)">${nSett} settimane</b> (ciclo ${m.ciclo}) · l'ultima è di scarico (−${scaricoPctVal(m)}% volume)` : "Scegli un ciclo (o dal Piano & Picco) per sapere quante settimane sono e quale è lo scarico."}</p>
     </div>`;
 
   const tabGiorno = tabGiorniPista(m);
@@ -335,7 +336,7 @@ function vistaProgrammaPistaLanci() {
 
   const listaSett = settimaneDelGiorno(m, g);
   const copiaBtn = listaSett.length > 1
-    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? " (scarico −50% auto)" : ""}</button>`
+    ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? ` (scarico −${scaricoPctVal(m)}% auto)` : ""}</button>`
     : "";
   const settimane = listaSett.map((sett, s) => {
     const scar = isScaricoIdx(m, s);
@@ -360,7 +361,7 @@ function vistaProgrammaPistaLanci() {
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
-        ${scar ? '<span class="pill p-giallo">scarico</span>' : ""}
+        ${scar ? `<span class="pill p-giallo">scarico −${scaricoPctVal(m)}%</span>` : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Mezzo / contenuto</th><th>Attrezzo kg</th><th>n° lanci</th><th>Rec</th><th>% int</th><th>Tipo</th><th>Δ% gara</th><th></th></tr></thead>
@@ -375,7 +376,7 @@ function vistaProgrammaPistaLanci() {
         <select id="pgp-${s}" style="padding:7px 8px;width:auto;flex:none">${(typeof PROG_VOL !== "undefined" ? PROG_VOL : [10, 20]).map(o => `<option>${o}</option>`).join("")}</select>
         <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPista(${s})">+% applica</button>
       </div>` : ""}
-      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPista(${s})">⬇ Scarico: n° lanci al 50% della sett. ${s}</button>` : ""}
+      ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPista(${s})">⬇ Scarico: n° lanci −${scaricoPctVal(m)}% dalla sett. ${s}</button>` : ""}
       <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
     </div>`;
   }).join("");
