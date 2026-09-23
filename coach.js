@@ -353,7 +353,7 @@ function notificheCoach(includiVisti) {
       // allenamento EXTRA segnato dall'atleta (corsa in più) → notifica
       if (sv.tipo === "extra") {
         const km = sv.dati && sv.dati.km;
-        add(a, "extra", "y", sv.data, `Corsa in più: ${km} km${sv.rpe != null ? " · RPE " + sv.rpe : ""}${(sv.dati && sv.dati.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(sv.dati.passoSec) + "/km" : ""}`, "extra|" + sv.data + "|" + km);
+        add(a, "extra", "y", sv.data, `Corsa in più: ${km} km${(sv.dati && sv.dati.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(sv.dati.passoSec) + "/km" : ""}${(sv.dati && sv.dati.dislivello != null && sv.dati.dislivello !== "") ? " · " + sv.dati.dislivello + " m D+" : ""}${sv.rpe != null ? " · RPE " + sv.rpe : ""}`, "extra|" + sv.data + "|" + km);
         return;
       }
       const items = (sv.dati && (sv.dati.esercizi || sv.dati.elementi)) || [];
@@ -1424,11 +1424,12 @@ function _cardSvolta(sv) {
   // allenamento EXTRA (corsa in più segnata dall'atleta mezzofondo)
   if (sv.tipo === "extra") {
     const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "";
+    const disl = (d.dislivello != null && d.dislivello !== "") ? d.dislivello + " m D+" : "";
     return `<div class="card" style="border-color:rgba(77,154,255,.4)">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <h3 style="font-size:16px">${dl(sv.data)} · 🏃 Corsa extra</h3>
         <span class="et">${sv.rpe != null ? "RPE " + sv.rpe : ""}</span></div>
-      <p class="et" style="margin-top:6px"><b>${d.km} km</b>${passo ? " · " + passo : ""}${sv.durata_min ? " · ~" + sv.durata_min + "′" : ""}${d.note ? " · " + d.note : ""}</p>
+      <p class="et" style="margin-top:6px"><b>${d.km} km</b>${passo ? " · " + passo : ""}${disl ? " · " + disl : ""}${sv.durata_min ? " · ~" + sv.durata_min + "′" : ""}${d.note ? " · " + d.note : ""}</p>
     </div>`;
   }
   const esito = it => {

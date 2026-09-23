@@ -421,7 +421,8 @@ function _notaExtraGiorno(s) {
   const righe = ex.map(sv => {
     const d = sv.dati || {};
     const passo = (d.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(d.passoSec) + "/km" : "";
-    return `<b>${d.km} km</b>${passo}${sv.rpe != null ? " · RPE " + sv.rpe : ""}${d.note ? " · " + d.note : ""}`;
+    const disl = (d.dislivello != null && d.dislivello !== "") ? " · " + d.dislivello + " m D+" : "";
+    return `<b>${d.km} km</b>${passo}${disl}${sv.rpe != null ? " · RPE " + sv.rpe : ""}${d.note ? " · " + d.note : ""}`;
   }).join("<br>");
   return `<div class="card" style="border-color:rgba(124,194,67,.5);background:var(--verde-bg)">
     <p style="margin:0;font-weight:600;color:var(--verde)">🏃 Corsa in più in questo giorno</p>

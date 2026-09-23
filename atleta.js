@@ -671,10 +671,11 @@ function vistaMieiAllenamenti() {
 }
 // banner "allenamenti da inviare" (coda offline) + pulsante "Invia ora" — mostrato in Home e negli allenamenti svolti
 function _bannerCoda() {
-  const pend = (typeof codaSvoltePendenti === "function") ? codaSvoltePendenti() : 0;
+  const pend = (typeof codaTotalePendenti === "function") ? codaTotalePendenti()
+             : (typeof codaSvoltePendenti === "function") ? codaSvoltePendenti() : 0;
   if (!pend) return "";
   return `<div class="card" style="border-color:rgba(240,168,60,.6);background:var(--giallo-bg)">
-    <p class="et" style="margin:0;color:#8a6d00">📶 <b>${pend} allenament${pend === 1 ? "o" : "i"} da inviare</b>: ${pend === 1 ? "è salvato" : "sono salvati"} sul telefono ma non ${pend === 1 ? "è" : "sono"} ancora arrivat${pend === 1 ? "o" : "i"} all'allenatore. Con una connessione attiva tocca «Invia ora».</p>
+    <p class="et" style="margin:0;color:#8a6d00">📶 <b>${pend} da inviare</b>: hai allenamenti o il diario salvati sul telefono ma non ancora arrivati all'allenatore. Con una connessione attiva tocca «Invia ora».</p>
     <button class="btn" style="margin-top:10px" onclick="inviaCodaOra()">🔄 Invia ora</button>
   </div>`;
 }

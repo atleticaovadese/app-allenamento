@@ -255,6 +255,7 @@ async function caricaDati() {
 
   // diari (storico giorno per giorno): coach vede la società, atleta vede i propri (RLS). Ultimi ~60 giorni.
   try {
+    await _codaDiarioFlush();   // reinvia i diari compilati offline prima di rileggere (così rientrano nel select)
     const dd = new Date(Date.now() - 60 * 86400000);
     const dalISO = dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0") + "-" + String(dd.getDate()).padStart(2, "0");
     const { data: diari } = await sb.from("diario").select("atleta_id,data,ore_sonno,sonno_qualita,stress,dolori,energia,peso,ciclo,fastidi,dove_fastidi,note").gte("data", dalISO).order("data", { ascending: false });
@@ -412,15 +413,20 @@ async function caricaDatiDB() {
 
 // diario di oggi dell'atleta → DB (upsert per atleta+data). Solo l'atleta scrive il proprio (RLS).
 async function salvaDiarioDB(dataISO, d) {
-  if (!haDB()) return;
   const aid = S.utente && S.utente.atletaId;
   if (!aid) return;
   if (atletaBloccato(aid)) return;
-  await sb.from("diario").upsert({
+  const payload = {
     atleta_id: aid, data: dataISO,
     ore_sonno: d.oreSonno, sonno_qualita: d.sonno_qualita, stress: d.stress, dolori: d.dolori, energia: d.energia,
     peso: d.peso, ciclo: !!d.ciclo, fastidi: !!d.fastidi, dove_fastidi: d.doveFastidi || null, note: d.note || null
-  }, { onConflict: "atleta_id,data" });
+  };
+  if (!haDB()) { _codaDiarioAggiungi(payload); return; }   // niente rete: metti in coda, si reinvia da sola
+  try {
+    const { error } = await sb.from("diario").upsert(payload, { onConflict: "atleta_id,data" });
+    if (error) { _codaDiarioAggiungi(payload); return; }
+    _codaDiarioFlush();   // salvataggio ok → tento di svuotare eventuale arretrato
+  } catch (e) { _codaDiarioAggiungi(payload); }   // offline / errore rete: resta in coda
 }
 
 // ---------- CODA OFFLINE delle sedute svolte (localStorage): se il salvataggio nel DB fallisce
@@ -435,9 +441,37 @@ function _codaAggiungi(p) {
   _codaScrivi(arr);
 }
 function codaSvoltePendenti() { return _codaLeggi().length; }
-// alla riconnessione, reinvia da sola le sedute in coda e aggiorna la schermata
+
+// ---------- CODA OFFLINE del DIARIO: un diario compilato senza rete non va perso, resta sul telefono
+// e si reinvia da solo alla riconnessione / al prossimo accesso (stesso principio delle sedute). ----------
+const _CODA_DIARIO_KEY = "metis_coda_diario";
+function _codaDiarioLeggi() { try { return JSON.parse(localStorage.getItem(_CODA_DIARIO_KEY) || "[]"); } catch (e) { return []; } }
+function _codaDiarioScrivi(arr) { try { localStorage.setItem(_CODA_DIARIO_KEY, JSON.stringify(arr)); } catch (e) { /* storage pieno */ } }
+function _codaDiarioAggiungi(p) {
+  const arr = _codaDiarioLeggi();
+  const i = arr.findIndex(x => x.atleta_id === p.atleta_id && x.data === p.data);
+  if (i >= 0) arr[i] = p; else arr.push(p);   // una sola voce per atleta+giorno (l'ultima vince)
+  _codaDiarioScrivi(arr);
+}
+function codaDiarioPendenti() { return _codaDiarioLeggi().length; }
+async function _codaDiarioFlush() {
+  if (!haDB()) return { rimasti: codaDiarioPendenti(), errore: null };
+  const arr = _codaDiarioLeggi();
+  if (!arr.length) return { rimasti: 0, errore: null };
+  const rimasti = []; let ultimo = null;
+  for (const p of arr) {
+    try { const { error } = await sb.from("diario").upsert(p, { onConflict: "atleta_id,data" }); if (error) { rimasti.push(p); ultimo = error.message || String(error); } }
+    catch (e) { rimasti.push(p); ultimo = (e && e.message) || String(e); }
+  }
+  _codaDiarioScrivi(rimasti);
+  return { rimasti: rimasti.length, errore: ultimo };
+}
+// totale voci in attesa (sedute + diario): per il banner "da inviare"
+function codaTotalePendenti() { return codaSvoltePendenti() + codaDiarioPendenti(); }
+
+// alla riconnessione, reinvia da soli sedute + diario in coda e aggiorna la schermata
 if (typeof window !== "undefined" && window.addEventListener) {
-  window.addEventListener("online", function () { _codaFlush().then(function () { if (typeof disegna === "function") disegna(); }); });
+  window.addEventListener("online", function () { Promise.all([_codaFlush(), _codaDiarioFlush()]).then(function () { if (typeof disegna === "function") disegna(); }); });
 }
 // prova a reinviare tutte le sedute in coda; toglie dalla coda solo quelle andate a buon fine
 async function _codaFlush() {
@@ -454,15 +488,16 @@ async function _codaFlush() {
 }
 // invio MANUALE della coda (pulsante "Invia ora"): forza la sincronizzazione delle sedute rimaste sul telefono
 async function inviaCodaOra() {
-  const prima = codaSvoltePendenti();
+  const prima = codaTotalePendenti();
   if (!prima) { alert("Non c'è nulla in attesa: è tutto già inviato. ✓"); return; }
   if (!haDB()) { alert("Sembra che tu sia offline: appena torni online si inviano da soli. Riprova con una connessione attiva."); return; }
   const btn = document.querySelector('button[onclick="inviaCodaOra()"]'); if (btn) { btn.textContent = "Invio in corso…"; btn.disabled = true; }
-  const r = await _codaFlush();
+  const r1 = await _codaFlush();
+  const r2 = await _codaDiarioFlush();
   await caricaDati();   // ricarica dal DB così compaiono in calendario/andamento/allenatore
-  const dopo = codaSvoltePendenti(), inviati = prima - dopo;
-  if (dopo === 0) alert("✓ Inviati " + inviati + " allenament" + (inviati === 1 ? "o" : "i") + ". Ora si vedono nel calendario e l'allenatore li riceve.");
-  else alert("Inviati " + inviati + ", " + dopo + " non riuscit" + (dopo === 1 ? "o" : "i") + ".\nMotivo: " + ((r && r.errore) || "connessione") + "\nRiprova con una buona connessione o avvisa l'allenatore.");
+  const dopo = codaTotalePendenti(), inviati = prima - dopo;
+  if (dopo === 0) alert("✓ Inviati " + inviati + " element" + (inviati === 1 ? "o" : "i") + " (allenamenti/diario). Ora si vedono e l'allenatore li riceve.");
+  else alert("Inviati " + inviati + ", " + dopo + " non riuscit" + (dopo === 1 ? "o" : "i") + ".\nMotivo: " + ((r1 && r1.errore) || (r2 && r2.errore) || "connessione") + "\nRiprova con una buona connessione o avvisa l'allenatore.");
   disegna();
 }
 
@@ -505,7 +540,7 @@ async function salvaExtraDB(atletaId, ex) {
     atleta_id: atletaId, chiave: "extra-" + Date.now(), tipo: "extra",
     data: data, durata_min: ex.durata != null ? ex.durata : null, rpe: ex.rpe != null ? ex.rpe : null,
     fastidi: false, giorno: null, chiusa: true,
-    dati: { extra: true, km: ex.km, passoSec: ex.passoSec != null ? ex.passoSec : null, note: ex.note || "" }
+    dati: { extra: true, km: ex.km, passoSec: ex.passoSec != null ? ex.passoSec : null, dislivello: ex.dislivello != null ? ex.dislivello : null, note: ex.note || "" }
   };
   DEMO.seduteSvolte = DEMO.seduteSvolte || {};
   (DEMO.seduteSvolte[atletaId] = DEMO.seduteSvolte[atletaId] || []).push({ atleta_id: atletaId, data: data, tipo: "extra", giorno: null, durata_min: payload.durata_min, rpe: payload.rpe, fastidi: false, dati: payload.dati });

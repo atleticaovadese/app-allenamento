@@ -732,10 +732,11 @@ function _reportBodyHTML(id) {
   if (extraSv.length) {
     const totKm = extraSv.reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);
     h += `<h2>Corse in più (extra) · ${Math.round(totKm * 10) / 10} km</h2>`;
-    h += `<table><tr><th>Data</th><th>Km</th><th>Passo</th><th>RPE</th><th>Note</th></tr>${extraSv.map(sv => {
+    h += `<table><tr><th>Data</th><th>Km</th><th>Passo</th><th>D+</th><th>RPE</th><th>Note</th></tr>${extraSv.map(sv => {
       const d = sv.dati || {};
       const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "—";
-      return `<tr><td>${_rDataL(sv.data)}</td><td><b>${d.km != null ? d.km : "—"}</b></td><td>${passo}</td><td>${sv.rpe != null ? sv.rpe : "—"}</td><td>${d.note || ""}</td></tr>`;
+      const disl = (d.dislivello != null && d.dislivello !== "") ? d.dislivello + " m" : "—";
+      return `<tr><td>${_rDataL(sv.data)}</td><td><b>${d.km != null ? d.km : "—"}</b></td><td>${passo}</td><td>${disl}</td><td>${sv.rpe != null ? sv.rpe : "—"}</td><td>${d.note || ""}</td></tr>`;
     }).join("")}</table>`;
   }
 

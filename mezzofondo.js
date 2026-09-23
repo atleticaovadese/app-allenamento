@@ -1615,7 +1615,7 @@ function kmExtraMese(a) {
 }
 // form: l'atleta segna una corsa fatta in più (km, passo, rpe)
 function apriExtra() {
-  S._extra = S._extra || { km: "", passoMin: "", passoSec: "", rpe: "", note: "" };
+  S._extra = S._extra || { km: "", passoMin: "", passoSec: "", rpe: "", note: "", dislivello: "" };
   const e = S._extra;
   mostraFoglio(`
     <div class="foglio-top"><h3>➕ Allenamento extra (corsa)</h3>
@@ -1630,6 +1630,8 @@ function apriExtra() {
       <input inputmode="numeric" value="${e.passoSec}" placeholder="sec" oninput="S._extra.passoSec=this.value" style="width:76px">
       <span class="et" style="margin:0">/km</span>
     </div>
+    <label class="lab" style="display:block;margin-top:12px">Dislivello (m D+, facoltativo)</label>
+    <input inputmode="numeric" value="${e.dislivello}" placeholder="es. 250" oninput="S._extra.dislivello=this.value" style="margin-top:6px;max-width:140px">
     <label class="lab" style="display:block;margin-top:12px">RPE (1-10, anche mezzi)</label>
     <input inputmode="decimal" value="${e.rpe}" placeholder="es. 6.5" oninput="S._extra.rpe=this.value" style="margin-top:6px;max-width:120px">
     <label class="lab" style="display:block;margin-top:12px">Note (facoltative)</label>
@@ -1643,10 +1645,12 @@ function salvaExtra() {
   const pm = parseInt(e.passoMin) || 0, ps = parseInt(e.passoSec) || 0;
   const passoSec = (pm * 60 + ps) || null;
   const rpe = (e.rpe !== "" && e.rpe != null) ? Number(String(e.rpe).replace(",", ".")) : null;
+  const disl = parseInt(String(e.dislivello).replace(/[^\d-]/g, ""));
+  const dislivello = (!isNaN(disl) && disl >= 0) ? disl : null;   // metri D+ (facoltativo)
   const durata = passoSec ? Math.round(km * passoSec / 60) : null;   // minuti stimati (per il carico)
   const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
   if (!aid) { alert("Atleta non trovato."); return; }
-  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { km, passoSec, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note });
+  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { km, passoSec, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note, dislivello });
   S._extra = null;
   if (typeof chiudiScheda === "function") chiudiScheda();
   if (typeof alert === "function") alert("✓ Corsa aggiunta: " + km + " km. È nei tuoi km e l'allenatore riceve la notifica.");
