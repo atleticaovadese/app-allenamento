@@ -599,10 +599,13 @@ function vistaCalendarioSquadra() {
     const celle = s.settimana.map((tp, i) => {
       const ex = s.extra && s.extra[i] > 0;
       const dop = s.doppio && s.doppio[i];   // doppio allenamento (pista + palestra)
-      const ring = dop ? "box-shadow:0 0 0 2px #e6a83c, 0 0 6px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
+      const nS = (s.nSed && s.nSed[i]) || 0;
+      const multi = nS >= 2;                  // 2+ sedute lo stesso giorno (anche due piste dopo uno spostamento)
+      const ring = (dop || multi) ? "box-shadow:0 0 0 2px #e6a83c, 0 0 6px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
       const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
-      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (ex ? ` title="+${s.extra[i]} km corsi in più"` : "");
-      if (tp) return `<div class="cell ${dop ? '' : (TIPO_CELLA[tp] || '')} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${bg}${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${s.done[i] ? '✓' : (ex ? '🏃' : '')}</div>`;
+      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (multi ? ` title="${nS} sedute in questo giorno"` : (ex ? ` title="+${s.extra[i]} km corsi in più"` : ""));
+      const testo = multi ? `${s.done[i] ? "✓" : ""}${nS}` : (s.done[i] ? "✓" : (ex ? "🏃" : ""));
+      if (tp) return `<div class="cell ${dop ? '' : (TIPO_CELLA[tp] || '')} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${bg}${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${testo}</div>`;
       if (ex) return `<div class="cell off" style="${ring}"${title}>🏃</div>`;
       return `<div class="cell off"></div>`;
     }).join("");
@@ -637,6 +640,7 @@ function vistaCalendarioSquadra() {
       <span>✓ fatto</span>
       <span><span class="quad" style="background:transparent;box-shadow:0 0 0 2px var(--verde)"></span> 🏃 corsa in più</span>
       <span><span class="quad" style="background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);box-shadow:0 0 0 2px #e6a83c"></span> doppio (pista+palestra)</span>
+      <span><span class="quad" style="background:#2f6fd6;box-shadow:0 0 0 2px #e6a83c"></span> numero = 2+ sedute nel giorno</span>
     </div>
     <p class="et" style="margin-top:8px;color:var(--txt3)">Tocca una casella per aprire l'allenamento di quell'atleta in quel giorno.</p>
   </div>`;
@@ -651,15 +655,17 @@ function apriSedutaCal(atletaId, off, tp, wkOff) {
   const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + Number(off));
   const iso = (typeof isoDiData === "function") ? isoDiData(d) : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const sd = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(iso, false, a) : [];
-  const pistaS = sd.find(x => x.tipo === "pista"), palS = sd.find(x => x.tipo === "palestra");
-  // DOPPIO allenamento: pista + palestra lo stesso giorno → chiedi quale aprire
-  if (pistaS && palS && typeof mostraFoglio === "function") {
-    const apri = id => `chiudiScheda();apriSeduta('${id}')`;
-    mostraFoglio(`<div class="foglio-top"><h3>${a.nome} · doppio allenamento</h3>
+  const scelte = sd.filter(x => x.tipo === "pista" || x.tipo === "palestra");
+  // 2+ sedute lo stesso giorno (pista+palestra, oppure due piste dopo uno spostamento) → chiedi quale aprire
+  if (scelte.length >= 2 && typeof mostraFoglio === "function") {
+    const btns = scelte.map((s, k) => {
+      const lab = (s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra") + " · giorno " + s.giorno;
+      const rie = (typeof riepilogoSeduta === "function") ? riepilogoSeduta(s) : "";
+      return `<button class="btn ${k === 0 ? "" : "btn-2"}" style="${k === 0 ? "" : "margin-top:8px;"}text-align:left" onclick="chiudiScheda();apriSeduta('${s.id}')">${lab}${rie ? `<span class="et" style="display:block;color:inherit;opacity:.85">${rie}</span>` : ""}</button>`;
+    }).join("");
+    mostraFoglio(`<div class="foglio-top"><h3>${a.nome} · ${scelte.length} sedute</h3>
         <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
-      <p class="et" style="margin-bottom:10px">Questo giorno ha <b>due sedute</b>. Quale vuoi aprire?</p>
-      <button class="btn" onclick="${apri(pistaS.id)}">🏃 Pista</button>
-      <button class="btn btn-2" style="margin-top:8px" onclick="${apri(palS.id)}">🏋 Palestra</button>`);
+      <p class="et" style="margin-bottom:10px">Questo giorno ha <b>${scelte.length} sedute</b>. Quale vuoi aprire?</p>${btns}`);
     return;
   }
   const s = sd.find(x => x.tipo === tp) || sd[0];

@@ -357,7 +357,7 @@ async function caricaDati() {
 // settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
 function _settimanaMonReale(a, off) {
   off = off || 0;
-  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0], doppio = [false, false, false, false, false, false, false];
+  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0], doppio = [false, false, false, false, false, false, false], nSed = [0, 0, 0, 0, 0, 0, 0];
   const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + off * 7);
@@ -371,15 +371,20 @@ function _settimanaMonReale(a, off) {
     extra[i] = svGiorno.filter(sv => sv.tipo === "extra").reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);
     // tipi presenti quel giorno: dal programma E dalle sedute svolte (anche se non programmate)
     const tipi = new Set();
+    let prog = [];
     if (typeof seduteDelGiorno === "function") {
-      try { seduteDelGiorno(iso, false, a).forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); }); } catch (e) { /* ignora */ }
+      try { prog = seduteDelGiorno(iso, false, a) || []; } catch (e) { prog = []; }
     }
+    prog.forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); });
     reali.forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); });
     doppio[i] = tipi.has("pista") && tipi.has("palestra");   // doppio allenamento: pista + palestra lo stesso giorno
+    // n° sedute del giorno (programmate, o svolte se di più): mostra i giorni con 2+ sedute (anche 2 piste dopo uno spostamento)
+    const nProg = prog.filter(x => x.tipo === "pista" || x.tipo === "palestra").length;
+    nSed[i] = Math.max(nProg, reali.length);
     const tipo = tipi.has("pista") ? "pista" : (tipi.has("palestra") ? "palestra" : "");
     sett[i] = (gare || []).some(g => g.data === iso) ? "gara" : tipo;
   }
-  return { settimana: sett, done, extra, doppio };
+  return { settimana: sett, done, extra, doppio, nSed };
 }
 
 // ---------- scrittura: nuovo atleta ----------
