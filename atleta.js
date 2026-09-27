@@ -7,7 +7,7 @@ function schedaAtleta(a, mod) {
     ["Categoria", an.categoria], ["Anno", an.anno],
     ["Data di nascita", an.nascita], ["Lead Leg", an.gambaStacco],
     ["Altezza", an.altezza ? an.altezza + " cm" : ""], ["Peso rif.", an.peso ? an.peso + " kg" : ""],
-    ["Disciplina", a.disciplina], ["Specialità", a.specialita]
+    ["Disciplina", nomeDisciplina(a.disciplina)], ["Specialità", a.specialita]
   ];
   // mod: true/"full" = tutto editabile (coach); "pb" = solo i PB (atleta); false = sola lettura
   const canEdit = (tipo) => mod === true || mod === "full" || mod === tipo;
@@ -17,27 +17,27 @@ function schedaAtleta(a, mod) {
     ? `<button class="btn btn-2" style="margin-top:10px" onclick="apriAggiungi('${tipo}','${a.id}')">＋ ${label}</button>` : "";
 
   const disc = a.disciplina;
-  const suff = pbSuff(disc);
   const pbRow = (r, i) => {
     const [d, t, data, stag, ob, id, dataFull, origine, vento] = r;
+    const suff = pbSuff(disc, d);   // unità in base all'EVENTO (m per salti/lanci, s per corse) — serve per le prove multiple
     const ventoTxt = (vento != null && vento !== "") ? " · vento " + (Number(vento) > 0 ? "+" : "") + Number(vento).toFixed(1) : "";
     return `<div class="riga">
       <div style="flex:1;min-width:0">
         <div style="font-weight:500">${d}</div>
-        <div class="et" style="margin-top:1px">${data ? "fatto il " + data : "—"}${ventoTxt}${(stag != null && stag !== "") ? " · miglior stagione " + fmtMisura(disc, stag) + suff : ""}</div>
-        ${(ob != null && ob !== "") ? `<div style="font-size:12px;color:var(--blu);margin-top:2px">obiettivo ${fmtMisura(disc, ob) + suff}</div>` : ""}
+        <div class="et" style="margin-top:1px">${data ? "fatto il " + data : "—"}${ventoTxt}${(stag != null && stag !== "") ? " · miglior stagione " + fmtMisura(disc, stag, d) + suff : ""}</div>
+        ${(ob != null && ob !== "") ? `<div style="font-size:12px;color:var(--blu);margin-top:2px">obiettivo ${fmtMisura(disc, ob, d) + suff}</div>` : ""}
       </div>
-      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${fmtMisura(disc, t)}${disc === "lanci" ? " m" : ""}</b>${del("pb", "pb", id, i)}</div></div>`;
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${fmtMisura(disc, t, d)}${pbEDistanza(disc, d) ? " m" : ""}</b>${del("pb", "pb", id, i)}</div></div>`;
   };
   const gruppoPb = (origine) => {
     const filt = (s.pb || []).map((r, i) => [r, i]).filter(x => (x[0][7] || "gara") === origine);
     const best = {};
     filt.forEach(x => {
-      const d = x[0][0], t = parseMisura(disc, x[0][1]);
+      const d = x[0][0], t = parseMisura(disc, x[0][1], d);
       if (t == null || isNaN(t)) return;
       if (!(d in best)) { best[d] = x; return; }
-      const bt = parseMisura(disc, best[d][0][1]);
-      const meglio = pbPiuAltoMeglio(disc) ? t > bt : t < bt;   // lanci: più lungo; tempi: meno
+      const bt = parseMisura(disc, best[d][0][1], d);
+      const meglio = pbPiuAltoMeglio(disc, d) ? t > bt : t < bt;   // salti/lanci: più lungo; corse: meno
       if (meglio) best[d] = x;
     });
     return Object.values(best).map(x => pbRow(x[0], x[1])).join("");
@@ -61,7 +61,7 @@ function schedaAtleta(a, mod) {
   <div class="card">
     <div style="display:flex;align-items:center;gap:12px">
       ${avatarAtleta(a)}
-      <div><h3>${a.nome}${a.bloccato ? ' <span title="Sola lettura">🔒</span>' : ""}</h3><p class="et" style="margin-top:2px">${a.disciplina} · ${a.specialita}${an.categoria ? " · " + an.categoria : ""}</p></div>
+      <div><h3>${a.nome}${a.bloccato ? ' <span title="Sola lettura">🔒</span>' : ""}</h3><p class="et" style="margin-top:2px">${nomeDisciplina(a.disciplina)} · ${a.specialita}${an.categoria ? " · " + an.categoria : ""}</p></div>
     </div>
   </div>
 
@@ -108,7 +108,33 @@ const ATTREZZI_LANCI = [
   ["Femminile", ["Giavellotto 400 g", "Giavellotto 500 g", "Giavellotto 600 g", "Disco 1 kg", "Peso 3 kg", "Peso 4 kg", "Martello 3 kg", "Martello 4 kg"]],
   ["Maschile", ["Giavellotto 600 g", "Giavellotto 700 g", "Giavellotto 800 g", "Disco 1,5 kg", "Disco 1,75 kg", "Disco 2 kg", "Peso 4 kg", "Peso 5 kg", "Peso 6 kg", "Peso 7,26 kg", "Martello 4 kg", "Martello 5 kg", "Martello 6 kg", "Martello 7,26 kg"]]
 ];
+// PROVE MULTIPLE: l'atleta può inserire PB di corse, ostacoli, salti e lanci insieme
+const EV_PROVE = [
+  ["Corse", ["60 m", "100 m", "150 m", "200 m", "300 m", "400 m", "600 m", "800 m", "1000 m", "1500 m"]],
+  ["Ostacoli", ["60 hs", "80 hs", "100 hs", "110 hs", "400 hs"]],
+  ["Salti", ["Salto in lungo", "Salto in alto", "Salto triplo", "Salto con l'asta"]],
+  ["Lanci", ["Peso", "Disco", "Giavellotto", "Martello"]]
+];
+// tipo di misura in base all'EVENTO (per le prove multiple) o alla disciplina:
+// "distanza" = salti/lanci (metri, più alto = meglio) · "mezzo" = mm:ss · "tempo" = sec.cent (più basso = meglio)
+function _pbTipo(disc, ev) {
+  // se conosco l'EVENTO decido da quello (indispensabile per le prove multiple; corregge anche i salti dei velocisti):
+  if (ev != null && ev !== "") {
+    if (typeof EV_SALTI !== "undefined" && EV_SALTI.includes(ev)) return "distanza";
+    if (/peso|disco|giavellotto|martello/i.test(String(ev))) return "distanza";
+    if (typeof EV_MEZZO !== "undefined" && EV_MEZZO.includes(ev)) return "mezzo";
+  }
+  // altrimenti dalla disciplina (comportamento invariato quando l'evento non è passato):
+  if (disc === "lanci") return "distanza";
+  if (disc === "mezzofondo" || disc === "fondo") return "mezzo";
+  return "tempo";
+}
+// etichetta leggibile della disciplina (per la visualizzazione)
+function nomeDisciplina(d) {
+  return ({ velocita: "Velocità / Salti", "velocità": "Velocità / Salti", lanci: "Lanci", mezzofondo: "Mezzofondo / Fondo", fondo: "Mezzofondo / Fondo", prove: "Prove multiple", palestra: "Solo palestra" })[d] || (d || "");
+}
 function eventiPB(disc) {
+  if (disc === "prove") return EV_PROVE;
   if (disc === "lanci") return ATTREZZI_LANCI;
   if (disc === "mezzofondo" || disc === "fondo") return EV_MEZZO;
   return EV_VELOCITA;
@@ -123,37 +149,38 @@ function _optsPB(voci, sel) {
 function labelPB(disc) {
   if (disc === "lanci") return { ev: "Attrezzo", val: "Misura (m)", ph: "es. 45.20", mode: "decimal", val2: "Miglior misura stagione (m)", ob: "Obiettivo (m)" };
   if (disc === "mezzofondo" || disc === "fondo") return { ev: "Distanza", val: "Tempo (min:sec o sec)", ph: "es. 4:02.5", mode: "text", val2: "Miglior tempo stagione", ob: "Obiettivo" };
+  if (disc === "prove") return { ev: "Prova", val: "Misura (tempo per le corse, metri per salti/lanci)", ph: "es. 12.86 / 6.50", mode: "text", val2: "Miglior stagione", ob: "Obiettivo" };
   return { ev: "Prova", val: "Tempo (s) — per i salti: misura (m)", ph: "es. 12.86", mode: "decimal", val2: "Miglior stagione", ob: "Obiettivo" };
 }
 // --- misure PB per disciplina: tempi (secondi) per corsa, distanze (metri) per lanci/salti ---
-function pbEDistanza(disc) { return disc === "lanci"; }               // lanci = misura in metri (più lungo = meglio)
-function pbPiuAltoMeglio(disc) { return disc === "lanci"; }
+function pbEDistanza(disc, ev) { return _pbTipo(disc, ev) === "distanza"; }   // metri (più lungo = meglio)
+function pbPiuAltoMeglio(disc, ev) { return _pbTipo(disc, ev) === "distanza"; }
 // parse robusto → numero (secondi per i tempi, metri per le distanze). NON perde i decimali.
-function parseMisura(disc, raw) {
+function parseMisura(disc, raw, ev) {
   if (raw == null) return null;
   let x = String(raw).trim(); if (x === "") return null;
   x = x.replace(",", ".");
   if (x.indexOf(":") >= 0) { const p = x.split(":"); return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0); } // mm:ss(.cc)
-  if (disc === "mezzofondo" || disc === "fondo") {
+  if (_pbTipo(disc, ev) === "mezzo") {
     const dot = x.indexOf(".");
     if (dot >= 0) { const R = x.slice(dot + 1); if (R.length === 2 && Number(R) < 60) return (Number(x.slice(0, dot)) || 0) * 60 + Number(R); } // "2.40" → 2:40
     return Number(x); // solo secondi (eventuali decimali)
   }
-  return Number(x); // velocità (s) / lanci (m)
+  return Number(x); // velocità (s) / lanci-salti (m)
 }
 // formatta per la visualizzazione PRESERVANDO zeri e centesimi
-function fmtMisura(disc, val) {
+function fmtMisura(disc, val, ev) {
   if (val == null || val === "") return "—";
-  const n = (typeof val === "number") ? val : parseMisura(disc, val);
+  const n = (typeof val === "number") ? val : parseMisura(disc, val, ev);
   if (n == null || isNaN(n)) return String(val);
-  if (disc === "mezzofondo" || disc === "fondo") {
+  if (_pbTipo(disc, ev) === "mezzo") {
     const m = Math.floor(n / 60), s = n - m * 60, whole = Math.floor(s + 1e-6), cc = Math.round((s - whole) * 100);
     const base = m + ":" + String(whole).padStart(2, "0");
     return cc > 0 ? base + "." + String(cc).padStart(2, "0") : base;
   }
-  return n.toFixed(2); // velocità (s) e lanci (m): sempre 2 decimali → 45.20, 10.90
+  return n.toFixed(2); // velocità (s) e lanci/salti (m): sempre 2 decimali → 45.20, 10.90
 }
-function pbSuff(disc) { return disc === "lanci" ? " m" : ((disc === "mezzofondo" || disc === "fondo") ? "" : " s"); }
+function pbSuff(disc, ev) { const t = _pbTipo(disc, ev); return t === "distanza" ? " m" : (t === "mezzo" ? "" : " s"); }
 
 // ---------- Foto atleta (scattata o scelta dall'app, ridimensionata sul dispositivo) ----------
 function fotoAtleta(id) { return (DEMO.atletaFoto && DEMO.atletaFoto[id]) || ""; }
@@ -281,9 +308,9 @@ const EV_SALTI = ["Salto in lungo", "Salto triplo", "Salto in alto", "Salto con 
 const EV_VENTO = ["30 m lanciato", "60 m", "80 m", "100 m", "120 m", "150 m", "200 m", "60 hs", "100 hs", "110 hs", "Salto in lungo", "Salto triplo"];
 // campi misura giusti in base a disciplina + evento scelto (i salti sono distanze anche se l'atleta è "velocità")
 function misuraHTMLPB(disc, ev) {
-  if (disc === "mezzofondo" || disc === "fondo") return { lab: "Tempo (ore : min : sec . cent)", html: campiTempoMezzo("f2") };
-  if (disc === "lanci") return { lab: "Misura (metri . cm)", html: campiDistanza("f2") };
-  if (EV_SALTI.includes(ev)) return { lab: "Misura (metri . cm)", html: campiDistanza("f2") + (EV_VENTO.includes(ev) ? campoVento() : "") };
+  const tipo = _pbTipo(disc, ev);
+  if (tipo === "mezzo") return { lab: "Tempo (ore : min : sec . cent)", html: campiTempoMezzo("f2") };
+  if (tipo === "distanza") return { lab: "Misura (metri . cm)", html: campiDistanza("f2") + (EV_VENTO.includes(ev) ? campoVento() : "") };
   return { lab: "Tempo (sec . cent)", html: campiTempoVel("f2") + (EV_VENTO.includes(ev) ? campoVento() : "") };
 }
 function primoEvento(disc) { const v = eventiPB(disc); return (v.length && Array.isArray(v[0])) ? v[0][1][0] : v[0]; }
@@ -352,22 +379,23 @@ async function salvaVoce(tipo, atletaId) {
     const disc = at ? at.disciplina : "velocita";
     const parseVento = () => { const w = v("f2v"); if (w === "") return null; const n = parseFloat(String(w).replace(",", ".").replace("+", "")); return isNaN(n) ? null : n; };
     let tempoNum, vento = null;
-    if (disc === "mezzofondo" || disc === "fondo") {          // ore : min : sec . cent → secondi
+    const tipoM = _pbTipo(disc, n1);   // misura in base all'evento (per le prove multiple: corsa=tempo, salto/lancio=metri, mezzofondo=min:sec)
+    if (tipoM === "mezzo") {                                   // ore : min : sec . cent → secondi
       const o = Number(v("f2o")) || 0, m = Number(v("f2m")) || 0, sec = Number(v("f2s")) || 0, cc = Number(v("f2c")) || 0;
       if (!o && !m && !sec) { alert("Inserisci il tempo (almeno minuti e secondi)."); return; }
       tempoNum = o * 3600 + m * 60 + sec + cc / 100;
-    } else if (disc === "lanci" || EV_SALTI.includes(n1)) {    // metri . cm → metri (salti anche se disciplina "velocità")
+    } else if (tipoM === "distanza") {                         // metri . cm → metri (salti/lanci)
       const me = Number(v("f2me")) || 0, cm = Number(v("f2cm")) || 0;
       if (!me && !cm) { alert("Inserisci la misura (metri)."); return; }
       tempoNum = me + cm / 100;
       vento = parseVento();
-    } else {                                                   // velocità: sec . cent → secondi
+    } else {                                                   // corsa: sec . cent → secondi
       const sec = Number(v("f2s")) || 0, cc = Number(v("f2c")) || 0;
       if (!sec && !cc) { alert("Inserisci il tempo (secondi e centesimi)."); return; }
       tempoNum = sec + cc / 100;
       vento = parseVento();
     }
-    ok = await creaPB(atletaId, { distanza: n1, tempo: tempoNum, vento, data: v("f3") || null, stagione: parseMisura(disc, v("f4")), obiettivo: parseMisura(disc, v("f5")), origine: "gara" });
+    ok = await creaPB(atletaId, { distanza: n1, tempo: tempoNum, vento, data: v("f3") || null, stagione: parseMisura(disc, v("f4"), n1), obiettivo: parseMisura(disc, v("f5"), n1), origine: "gara" });
   } else if (tipo === "massimale") {
     if (!n1 || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
     ok = await creaMassimale(atletaId, { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
@@ -399,7 +427,7 @@ function riepiloVelHTML(a) {
   const row = (l, v, extra) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span class="et" style="margin:0">${l}</span><span><b>${v}</b>${extra ? ` <span class="et" style="margin:0">${extra}</span>` : ""}</span></div>`;
   const bestMap = (rows, kIdx, vParse, higher) => {
     const best = {};
-    (rows || []).forEach(r => { if (!r) return; const k = r[kIdx], val = vParse(r); if (val == null || isNaN(val)) return; if (!(k in best) || (higher ? val > best[k].v : val < best[k].v)) best[k] = { r, v: val }; });
+    (rows || []).forEach(r => { if (!r) return; const k = r[kIdx], val = vParse(r); if (val == null || isNaN(val)) return; const hi = (typeof higher === "function") ? higher(k) : higher; if (!(k in best) || (hi ? val > best[k].v : val < best[k].v)) best[k] = { r, v: val }; });
     return best;
   };
 
@@ -409,10 +437,10 @@ function riepiloVelHTML(a) {
     ${anagLine ? `<p class="et" style="margin-top:6px">${anagLine}</p>` : ""}</div>`;
 
   // 1) PB
-  const pbBest = bestMap(s.pb, 0, r => parseMisura(disc, r[1]), (typeof pbPiuAltoMeglio === "function") ? pbPiuAltoMeglio(disc) : false);
+  const pbBest = bestMap(s.pb, 0, r => parseMisura(disc, r[1], r[0]), (k) => (typeof pbPiuAltoMeglio === "function") ? pbPiuAltoMeglio(disc, k) : false);
   const pbKeys = Object.keys(pbBest).sort((x, y) => (typeof rankDist === "function" ? rankDist(x) - rankDist(y) : 0));
   const cardPB = `<div class="card"><p class="et" style="margin-bottom:6px">🏆 PB di gara</p>
-    ${pbKeys.length ? pbKeys.map(k => { const b = pbBest[k], vento = b.r[8]; return row(k, fmtMisura(disc, b.r[1]) + (disc === "lanci" ? " m" : ""), (vento != null && vento !== "") ? "vento " + (Number(vento) > 0 ? "+" : "") + Number(vento).toFixed(1) : ""); }).join("") : `<p class="et">Nessun PB inserito.</p>`}</div>`;
+    ${pbKeys.length ? pbKeys.map(k => { const b = pbBest[k], vento = b.r[8]; return row(k, fmtMisura(disc, b.r[1], k) + (pbEDistanza(disc, k) ? " m" : ""), (vento != null && vento !== "") ? "vento " + (Number(vento) > 0 ? "+" : "") + Number(vento).toFixed(1) : ""); }).join("") : `<p class="et">Nessun PB inserito.</p>`}</div>`;
 
   // 2) Forza
   const mxBest = bestMap(s.massimali, 0, r => Number(r[1]), true);
@@ -477,7 +505,7 @@ function apriModificaDati(atletaId) {
 function chiudiModificaDati() { S.modificaDati = null; disegna(); window.scrollTo(0, 0); }
 function vistaModificaDati() {
   const m = S.modificaDati, a = DEMO.atleti.find(x => x.id === m.atletaId);
-  const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["palestra", "Solo palestra"]];
+  const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["prove", "Prove multiple"], ["palestra", "Solo palestra"]];
   const spec = (typeof SPEC_DISC !== "undefined" ? SPEC_DISC[m.disciplina] : null) || [];
   const foto = fotoAtleta(m.atletaId);
   return `<button class="indietro" onclick="chiudiModificaDati()">‹ Indietro</button>

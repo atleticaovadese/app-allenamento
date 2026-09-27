@@ -26,7 +26,7 @@ function nomeBreve(nome) { const p = String(nome || "").trim().split(/\s+/).filt
 
 // gruppi per disciplina: si toccano per vedere solo gli atleti di quel gruppo
 const GRUPPI = [
-  ["vel", "Velocisti / Saltatori", ["velocita", "velocità", "salti", "palestra"]],
+  ["vel", "Velocisti / Saltatori", ["velocita", "velocità", "salti", "palestra", "prove", "prove multiple", "combinata"]],
   ["lanci", "Lanciatori", ["lanci"]],
   ["mezzo", "Mezzofondo / Fondo", ["mezzofondo", "fondo", "mezzofondo/fondo"]]
 ];
@@ -87,11 +87,12 @@ const SPEC_DISC = {
   velocita: ["60 m", "100 m", "200 m", "400 m", "60 hs", "100 hs", "110 hs", "400 hs", "Salto in lungo", "Salto in alto", "Salto triplo", "Salto con l'asta"],
   lanci: ["Peso", "Martello", "Disco", "Giavellotto"],
   mezzofondo: ["500 m", "600 m", "800 m", "1000 m", "1200 m", "1500 m", "2000 m", "2000 siepi", "3000 m", "3000 siepi", "5000 m", "10000 m", "Mezza maratona", "Maratona", "5 km strada/campestre", "10 km strada/campestre"],
+  prove: ["Decathlon", "Eptathlon", "Pentathlon", "Esathlon", "Prove multiple giovanili"],
   palestra: []
 };
 function vistaNuovoAtleta() {
   const a = S.nuovoAtleta;
-  const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["palestra", "Solo palestra"]];
+  const disc = [["velocita", "Velocità / Salti"], ["lanci", "Lanci"], ["mezzofondo", "Mezzofondo / Fondo"], ["prove", "Prove multiple"], ["palestra", "Solo palestra"]];
   const spec = SPEC_DISC[a.disciplina] || [];
   return `<button class="indietro" onclick="chiudiNuovoAtleta()">‹ Indietro</button>
     <div class="card"><h3>Nuovo atleta</h3>
@@ -161,19 +162,20 @@ async function salvaNuovoAtleta() {
 function _pbSpecDisplay(a) {
   const disc = a.disciplina, spec = (a.specialita || "").trim(), rows = (a.scheda && a.scheda.pb) || [];
   if (!rows.length || !spec) return "";
-  const higher = (typeof pbPiuAltoMeglio === "function") ? pbPiuAltoMeglio(disc) : false;
   let best = null;
   rows.forEach(r => {
     if (!r) return;
     const ev = String(r[0] || "");
     if (ev !== spec && ev.indexOf(spec) !== 0) return;         // stessa specialità (o attrezzo che inizia con essa)
-    const val = (typeof parseMisura === "function") ? parseMisura(disc, r[1]) : Number(r[1]);
+    const val = (typeof parseMisura === "function") ? parseMisura(disc, r[1], ev) : Number(r[1]);
     if (val == null || isNaN(val)) return;
+    const higher = (typeof pbPiuAltoMeglio === "function") ? pbPiuAltoMeglio(disc, ev) : false;
     if (!best || (higher ? val > best.v : val < best.v)) best = { r, v: val };
   });
   if (!best) return "";
-  const fmt = (typeof fmtMisura === "function") ? fmtMisura(disc, best.r[1]) : best.r[1];
-  return "PB " + fmt + (disc === "lanci" ? " m" : "");
+  const evB = String(best.r[0] || "");
+  const fmt = (typeof fmtMisura === "function") ? fmtMisura(disc, best.r[1], evB) : best.r[1];
+  return "PB " + fmt + ((typeof pbEDistanza === "function" && pbEDistanza(disc, evB)) ? " m" : "");
 }
 // metrica che "riguarda l'atleta" secondo la disciplina (report squadra adattivo)
 function _metricaGruppo(a) {
