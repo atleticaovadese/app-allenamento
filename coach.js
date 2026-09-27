@@ -1338,15 +1338,23 @@ function _tabellaAdattaPista(a, righe) {
 function _tabellaAdattaPal(a, righe) {
   const oggiV = (typeof oggiISO === "function") ? oggiISO() : "";
   const rows = righe.map((r, i) => {
-    const target = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
-    const peso = target != null ? target : (typeof pesoRifAtleta === "function" ? pesoRifAtleta(a, r, oggiV) : null);
-    const pesoCell = target != null ? target + " kg" : (peso != null ? `<span title="peso usato nel blocco precedente" style="color:var(--txt3)">~${peso} kg</span>` : "—");
+    const rmAtl = (typeof massimaleAtleta === "function") ? massimaleAtleta(a, r.esercizio) : null;   // massimale dell'atleta per questo esercizio
+    let pesoCell;
+    if (rmAtl != null) {
+      // ha il massimale → il peso esce da massimale × %1RM (non modificabile a mano)
+      const w = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
+      pesoCell = `<td class="pauto" title="dal massimale ${rmAtl} kg">${w != null ? w + " kg" : "—"}</td>`;
+    } else {
+      // niente massimale → peso a mano; se vuoto, suggerisco l'ultimo usato (settimana 1 / blocco prec.) come placeholder
+      const rif = (typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, oggiV) : null;
+      pesoCell = `<td><input inputmode="numeric" value="${r.peso || ""}" placeholder="${rif != null ? "~" + rif : "kg"}" oninput="setAdattaRigaVal('peso',${i},this.value)" onchange="disegna()" style="min-width:60px"></td>`;
+    }
     return `<tr>
       <td>${typeof _campoEsercizio === "function" ? _campoEsercizio(r.esercizio, "dl-pal", "setAdattaEsercizio(" + i + ",this.value)", "min-width:150px") : `<select onchange="setAdattaEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : ""}</select>`}</td>
       <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setAdattaRigaVal('serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setAdattaRigaVal('rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
-      <td class="pauto">${pesoCell}</td>
+      ${pesoCell}
       <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${i})" aria-label="Rimuovi">✕</button></td>
     </tr>`;
   }).join("");
@@ -1354,7 +1362,8 @@ function _tabellaAdattaPal(a, righe) {
   return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Peso</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>${dlPal}
-    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button></div>`;
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button>
+    <p class="et" style="margin-top:8px;color:var(--txt3)">💡 Se l'atleta non ha il massimale, scrivi il <b>peso</b> a mano. Basta metterlo nella <b>Settimana 1</b>: le settimane dopo lo useranno in automatico (finché l'atleta non registra i pesi suoi).</p></div>`;
 }
 // Adatta per il MEZZOFONDO: righe con Mezzo (tendina) + distanza libera + n° + minuti (corsa continua)
 function _tabellaAdattaMezzo(a, righe) {
