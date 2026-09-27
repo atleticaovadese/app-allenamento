@@ -1100,15 +1100,16 @@ function delPrevEs(i) {
 // ---------- monitoraggio: presenze squadra ----------
 function vistaPresenzeCoach() {
   const righe = ordinaAtleti().map(a => {
-    const stag = a.presenzeStagione[1] ? Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100) : 0;
-    const col = stag >= 85 ? "var(--verde)" : stag >= 70 ? "var(--giallo)" : "var(--rosso)";
+    // aderenza = fatti su programmati NEL MESOCICLO attuale (presenzeMese = finestra mesociclo)
+    const ad = a.presenzeMese[1] ? Math.round(a.presenzeMese[0] / a.presenzeMese[1] * 100) : 0;
+    const col = ad >= 85 ? "var(--verde)" : ad >= 70 ? "var(--giallo)" : "var(--rosso)";
     return `<div class="card riga-a">
       <div style="flex:1;min-width:0"><h3>${a.nome}</h3>
-        <p class="et" style="margin-top:2px">mese ${a.presenzeMese[0]}/${a.presenzeMese[1]} · stagione ${a.presenzeStagione[0]}/${a.presenzeStagione[1]}</p></div>
-      <b style="font-size:18px;color:${col}">${stag}%</b></div>`;
+        <p class="et" style="margin-top:2px">mesociclo ${a.presenzeMese[0]}/${a.presenzeMese[1]} · stagione ${a.presenzeStagione[0]} svolti</p></div>
+      <b style="font-size:18px;color:${col}">${ad}%</b></div>`;
   }).join("");
   return `<div class="card"><h3>Presenze squadra</h3>
-    <p class="et" style="margin-top:2px">Aderenza di ogni atleta (fatti su programmati)</p></div>
+    <p class="et" style="margin-top:2px">Aderenza nel mesociclo attuale (fatti su programmati)</p></div>
     ${righe}`;
 }
 
@@ -1540,7 +1541,8 @@ function apriSeduteSvolte(id) { S.sedSvolte = id; disegna(); window.scrollTo(0, 
 function chiudiSeduteSvolte() { S.sedSvolte = null; disegna(); window.scrollTo(0, 0); }
 // card di UN allenamento svolto (condivisa coach + atleta): mostra tempi/misure, RPE e "non chiuse"
 function _cardSvolta(sv) {
-  const dl = v => typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v;
+  // data con il giorno della settimana: es. "Lunedì 21 settembre"
+  const dl = v => { if (typeof dataLunga === "function") { const s = dataLunga(v); return s ? s.charAt(0).toUpperCase() + s.slice(1) : v; } return typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v; };
   const d = sv.dati || {};
   // allenamento EXTRA (corsa in più segnata dall'atleta mezzofondo)
   if (sv.tipo === "extra") {
@@ -1626,7 +1628,7 @@ function _commentoScreening(atleta, giorni, ctx) {
   if (!atleta) return "";
   const id = atleta.id;
   const oggiS = new Date().toISOString().slice(0, 10);
-  const dalS = new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
+  const dalS = ctx.dalS || new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
   const prog = (typeof contaProgrammate === "function") ? contaProgrammate(atleta, dalS, oggiS) : 0;
   const sedute = ctx.sedute, m = ctx.m || {};
   const isMezzo = (typeof gruppoDi === "function") && gruppoDi(atleta) === "mezzo";
@@ -1665,10 +1667,10 @@ function _commentoScreening(atleta, giorni, ctx) {
     <p class="et" style="margin:0 0 4px;color:var(--blu);font-weight:600">🧭 Come sta andando (${giorni <= 7 ? "settimana" : "mesociclo"})</p>
     <p style="margin:0;font-size:13px;line-height:1.55">${bits.join(" ")}</p>${nota}</div>`;
 }
-function bloccoScreening(atletaId, giorni, titolo) {
+function bloccoScreening(atletaId, giorni, titolo, dalOverride) {
   const atleta = (DEMO.atleti || []).find(x => x.id === atletaId);
   const oggiISO = new Date().toISOString().slice(0, 10);
-  const dalISO = new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
+  const dalISO = dalOverride || new Date(Date.now() - giorni * 86400000).toISOString().slice(0, 10);
   const inWin = d => d && d >= dalISO && d <= oggiISO;
   const pista = (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && inWin(l.data));
   const pistaPrima = (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && l.data < dalISO);
@@ -1697,7 +1699,7 @@ function bloccoScreening(atletaId, giorni, titolo) {
   // RPE medio del periodo (sedute chiuse, no extra) per il commento automatico
   const svRpe = ((DEMO.seduteSvolte || {})[atletaId] || []).filter(sv => sv.tipo !== "extra" && inWin(sv.data) && sv.rpe != null);
   const avgRpe = svRpe.length ? svRpe.reduce((s, sv) => s + Number(sv.rpe), 0) / svRpe.length : null;
-  const commento = (typeof _commentoScreening === "function") ? _commentoScreening(atleta, giorni, { sedute, volume, mig, peg, distLen: dist.length, dVbt, m, avgRpe }) : "";
+  const commento = (typeof _commentoScreening === "function") ? _commentoScreening(atleta, giorni, { sedute, volume, mig, peg, distLen: dist.length, dVbt, m, avgRpe, dalS: dalISO, isMeso: !!dalOverride }) : "";
 
   const perf = sedute === 0 ? "🕓 nessun allenamento nel periodo"
     : dist.length === 0 ? `✅ ${sedute} allenament${sedute === 1 ? "o" : "i"} svolt${sedute === 1 ? "o" : "i"} (nessun tempo cronometrato)`
@@ -1706,7 +1708,7 @@ function bloccoScreening(atletaId, giorni, titolo) {
 
   return `${commento}<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:baseline">
-      <p class="et" style="margin:0">${titolo}</p><span class="et">ultimi ${giorni} giorni</span></div>
+      <p class="et" style="margin:0">${titolo}</p><span class="et">${dalOverride ? "dal " + (typeof fmtData === "function" ? fmtData(dalOverride) : dalOverride) : "ultimi " + giorni + " giorni"}</span></div>
     <div style="display:flex;gap:8px;margin:12px 0 4px">
       ${[["Sedute", sedute], ["Volume pista", volume ? (volume >= 1000 ? (volume / 1000).toFixed(1) + " km" : volume + " m") : "—"], ["VBT media", vMedia != null ? vMedia.toFixed(2) : "—"], ["Gare", gare.length]]
         .map(([l, v]) => `<div style="flex:1;background:var(--card2);border-radius:12px;padding:10px 4px;text-align:center"><p class="et" style="margin:0 0 2px">${l}</p><b style="font-size:16px">${v}</b></div>`).join("")}
@@ -1734,6 +1736,6 @@ function vistaScreening() {
   </div>
   ${atl ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriSeduteSvolte('${atl.id}')">✓ Vedi gli allenamenti svolti da ${atl.nome}</button>
     <p class="sez">Settimana</p>${bloccoScreening(atl.id, 7, "Questa settimana")}
-    <p class="sez">Mesociclo</p>${bloccoScreening(atl.id, 28, "Ultime 4 settimane")}`
+    <p class="sez">Mesociclo</p>${bloccoScreening(atl.id, 28, "Mesociclo attuale", (typeof _mesoInizioAtleta === "function" && _mesoInizioAtleta(atl)) || null)}`
     : `<div class="card"><p class="et">Scegli un atleta per vedere lo screening.</p></div>`}`;
 }

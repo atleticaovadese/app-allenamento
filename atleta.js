@@ -593,25 +593,36 @@ function _presenzeMesiReali(a) {
   }
   return out;
 }
-// presenze dell'atleta da UNA sola fonte (_presenzeMesiReali) → Home e vista Presenze coerenti (fatti/programmati/%)
+// presenze su una finestra [dal, oggi]: fatti (sedute non-extra) / programmati (dal programma). Denominatore mai < fatti.
+function _presenzeFinestra(a, dalISO, oggiISO) {
+  const svolte = (DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [];
+  const fatti = svolte.filter(s => s.tipo !== "extra" && s.data >= dalISO && s.data <= oggiISO).length;
+  const prog = (typeof contaProgrammate === "function") ? contaProgrammate(a, dalISO, oggiISO) : 0;
+  const den = Math.max(prog, fatti);
+  return { fatti, prog: den, pct: den > 0 ? Math.round(fatti / den * 100) : 0 };
+}
+function _isoLoc(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+// presenze dell'atleta: QUESTA SETTIMANA e QUESTO MESOCICLO (blocco attuale) → coerenti tra loro (la settimana è dentro il mesociclo).
+// Niente più "mese"/"stagione" come aderenza: sul periodo senza programma (blocco passato perso) l'aderenza non è calcolabile → per la stagione solo il conteggio.
 function _presenzeAtleta(a) {
-  const mesi = _presenzeMesiReali(a);
-  const totF = mesi.reduce((s, m) => s + m[2], 0);
-  const totP = Math.max(mesi.reduce((s, m) => s + m[1], 0), totF);   // programmati almeno = fatti (niente "1/0")
-  const cur = mesi.length ? mesi[mesi.length - 1] : ["", 0, 0];
-  const curF = cur[2], curP = Math.max(cur[1], curF);
-  const pct = (f, p) => p > 0 ? Math.round(f / p * 100) : 0;
+  const now = new Date();
+  const oggi = (typeof oggiISO === "function") ? oggiISO() : _isoLoc(now);
+  const lunISO = _isoLoc(new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)));   // lunedì di questa settimana
+  const mesoStart = (typeof _mesoInizioAtleta === "function" && _mesoInizioAtleta(a)) || (oggi.slice(0, 8) + "01");
+  const stagStart = _isoLoc(now.getMonth() >= 8 ? new Date(now.getFullYear(), 8, 1) : new Date(now.getFullYear() - 1, 8, 1));
+  const svolte = (DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || [];
+  const totStag = svolte.filter(s => s.tipo !== "extra" && s.data >= stagStart && s.data <= oggi).length;
   return {
-    mese: { nome: cur[0], fatti: curF, prog: curP, pct: pct(curF, curP) },
-    stagione: { fatti: totF, prog: totP, pct: pct(totF, totP) }
+    settimana: _presenzeFinestra(a, lunISO, oggi),
+    mesociclo: _presenzeFinestra(a, mesoStart, oggi),
+    stagione: { fatti: totStag }
   };
 }
 function vistaPresenze() {
   const a = atletaCorrente();
   const mesi = _presenzeMesiReali(a);
-  const pr = _presenzeAtleta(a);   // stessa fonte della Home
-  const totFatti = pr.stagione.fatti, totProg = pr.stagione.prog, ader = pr.stagione.pct;
-  const meseNome = pr.mese.nome, progMese = pr.mese.prog, fattiMese = pr.mese.fatti, aderMese = pr.mese.pct;
+  const pr = _presenzeAtleta(a);   // stessa fonte della Home: settimana + mesociclo (blocco attuale) + conteggio stagione
+  const sett = pr.settimana, meso = pr.mesociclo, totFattiStag = pr.stagione.fatti;
   // "programmati" mostrato coerente con la % (mai meno dei "fatti"): se un blocco passato non ha più il
   // programma (es. mesociclo sovrascritto per errore), i giorni svolti NON risultano "mancati/da fare".
   const progAdj = m => Math.max(m[1], m[2]);
@@ -630,19 +641,23 @@ function vistaPresenze() {
   const inf = (DEMO.infortuni || []).filter(i => i.atleta === a.id);
   const notaInf = inf.length ? `<div class="card" style="border-color:rgba(240,168,60,.45)">
     <p style="font-size:13px;color:var(--giallo)">🩹 ${inf.map(i => `${i.zona || "Infortunio"}${i.lato ? " " + i.lato : ""}${i.stato ? " · " + i.stato : ""}`).join(" · ")}</p></div>` : "";
-  const vuoto = totFatti === 0 && totProg === 0;
+  const vuoto = sett.fatti === 0 && meso.fatti === 0 && totFattiStag === 0;
 
   return `
   <div class="griglia2" style="margin-bottom:11px">
     <div class="num" style="border-color:rgba(77,154,255,.4)">
-      <div class="k">Questo mese${meseNome ? " · " + meseNome : ""}</div>
-      <div class="v">${fattiMese} / ${progMese}</div>
-      <div class="et" style="margin-top:2px;color:var(--blu)">${aderMese}% aderenza</div></div>
+      <div class="k">Questa settimana</div>
+      <div class="v">${sett.fatti} / ${sett.prog}</div>
+      <div class="et" style="margin-top:2px;color:var(--blu)">${sett.pct}% aderenza</div></div>
     <div class="num" style="border-color:rgba(124,194,67,.4)">
-      <div class="k">Generale (stagione)</div>
-      <div class="v">${totFatti} / ${totProg}</div>
-      <div class="et" style="margin-top:2px;color:var(--verde)">${ader}% aderenza</div></div>
+      <div class="k">Questo mesociclo</div>
+      <div class="v">${meso.fatti} / ${meso.prog}</div>
+      <div class="et" style="margin-top:2px;color:var(--verde)">${meso.pct}% aderenza</div></div>
   </div>
+  <div class="num" style="border-color:rgba(150,150,150,.35);margin-bottom:11px">
+    <div class="k">Totale stagione</div>
+    <div class="v">${totFattiStag}</div>
+    <div class="et" style="margin-top:2px">allenamenti svolti da settembre</div></div>
 
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">

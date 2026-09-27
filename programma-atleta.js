@@ -26,6 +26,17 @@ function mesoAttivo(prog, dataISO, clamp) {
   if (gg(primo.inizio, dataISO) < 0) return { m: primo, settIdx: 0 };
   return { m: ultimo, settIdx: nSettDi(ultimo) - 1 };
 }
+// inizio del mesociclo ATTUALE dell'atleta (il blocco che copre oggi, pista o palestra): serve per calcolare
+// presenze/aderenza SOLO sul periodo che ha davvero un programma (evita di conteggiare periodi senza programma).
+function _mesoInizioAtleta(a) {
+  const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  let best = null;
+  [(typeof _progPista === "function") ? _progPista(a) : null, (typeof _progPal === "function") ? _progPal(a) : null].forEach(prog => {
+    const pa = mesoAttivo(prog, oggi, false);
+    if (pa && pa.m && pa.m.inizio && (!best || pa.m.inizio < best)) best = pa.m.inizio;   // il più antico dei blocchi attivi (pista/palestra)
+  });
+  return best;   // null se nessun blocco attivo oggi
+}
 
 // cache delle sedute generate: stesso id → stesso oggetto (così i dati inseriti non si perdono al re-render)
 function _cacheSeduta(s) {

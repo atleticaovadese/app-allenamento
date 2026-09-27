@@ -305,10 +305,9 @@ function vistaOggi() {
   const tacche = pos ? Array.from({ length: pos.tot },
     (_, i) => `<i class="${i < pos.sett ? "on" : ""}"></i>`).join("") : "";
   // presenze dalla STESSA fonte della vista Presenze (evita che Home e Presenze diano numeri diversi)
-  const pres = (typeof _presenzeAtleta === "function") ? _presenzeAtleta(a)
-    : { mese: { fatti: a.presenzeMese[0], prog: a.presenzeMese[1], pct: a.presenzeMese[1] ? Math.round(a.presenzeMese[0] / a.presenzeMese[1] * 100) : 0 }, stagione: { fatti: a.presenzeStagione[0], prog: a.presenzeStagione[1], pct: a.presenzeStagione[1] ? Math.round(a.presenzeStagione[0] / a.presenzeStagione[1] * 100) : 0 } };
-  const ad = pres.stagione.pct;
-  const pmPct = pres.mese.pct;
+  const pres = _presenzeAtleta(a);
+  const adMeso = pres.mesociclo.pct;      // aderenza del mesociclo attuale
+  const pmSett = pres.settimana.pct;      // aderenza di questa settimana
   const d = DEMO.diarioOggi, fatto = d.salvato && diarioCompleto(d);
 
   // il cruscotto si adatta: per il mezzofondo mostra ritmi/zone e km invece di sprint/salti
@@ -373,16 +372,16 @@ function vistaOggi() {
     </div>
 
     <div class="q" onclick="vai('presenze')"><div class="q-ic">📅</div>
-      <div class="k">Presenze del mese</div>
-      <div><div class="v">${pres.mese.fatti} / ${pres.mese.prog}</div>
-        <div class="qbar"><i style="width:${pmPct}%"></i></div></div>
+      <div class="k">Presenze settimana</div>
+      <div><div class="v">${pres.settimana.fatti} / ${pres.settimana.prog}</div>
+        <div class="qbar"><i style="width:${pmSett}%"></i></div></div>
     </div>
 
     <div class="q" onclick="vai('presenze')"><div class="q-ic">📈</div>
-      <div class="k">Stagione</div>
+      <div class="k">Mesociclo</div>
       <div style="display:flex;align-items:center;gap:11px;margin-top:5px">
-        ${_ringPct(ad, 46, ad >= 85 ? "var(--verde)" : "var(--blu)")}
-        <div class="d">${pres.stagione.fatti} su ${pres.stagione.prog}<br>presenze</div>
+        ${_ringPct(adMeso, 46, adMeso >= 85 ? "var(--verde)" : "var(--blu)")}
+        <div class="d">${pres.mesociclo.fatti} su ${pres.mesociclo.prog}<br>nel mesociclo</div>
       </div>
     </div>
 

@@ -339,13 +339,15 @@ async function caricaDati() {
     // le corse EXTRA non sono presenze programmate: le escludo dal conteggio (contano solo come km)
     try { const { data } = await sb.from("seduta_svolta").select("atleta_id,data").eq("chiusa", true).neq("tipo", "extra").gte("data", stagStart); stagRows = data || []; } catch (e) { /* ignora */ }
     (DEMO.atleti || []).forEach(a => {
-      const doneM = (svolte || []).filter(s => s.atleta_id === a.id && s.tipo !== "extra" && s.data >= meseStart && s.data <= oggiStr).length;
+      // ADERENZA sul MESOCICLO attuale (dall'inizio del blocco che ha un programma): evita di conteggiare
+      // periodi senza programma (es. blocco passato sovrascritto) che gonfiavano l'aderenza a ~100%.
+      const mesoStart = (typeof _mesoInizioAtleta === "function" && _mesoInizioAtleta(a)) || meseStart;
+      const doneMeso = (svolte || []).filter(s => s.atleta_id === a.id && s.tipo !== "extra" && s.data >= mesoStart && s.data <= oggiStr).length;
+      const progMeso = (typeof contaProgrammate === "function") ? contaProgrammate(a, mesoStart, oggiStr) : 0;
       const doneS = stagRows.filter(s => s.atleta_id === a.id && s.data <= oggiStr).length;
-      const progM = (typeof contaProgrammate === "function") ? contaProgrammate(a, meseStart, oggiStr) : 0;
-      const progS = (typeof contaProgrammate === "function") ? contaProgrammate(a, stagStart, oggiStr) : 0;
-      a.presenzeMese = [doneM, Math.max(progM, doneM)];
-      a.presenzeStagione = [doneS, Math.max(progS, doneS)];
-      if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progS > 0 ? Math.min(100, Math.round(doneS / progS * 100)) : (doneS > 0 ? 100 : 0);
+      a.presenzeMese = [doneMeso, Math.max(progMeso, doneMeso)];   // ora = "questo mesociclo" (blocco attuale)
+      a.presenzeStagione = [doneS, doneS];                          // stagione = solo CONTEGGIO svolti (aderenza reale = quella del mesociclo)
+      if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progMeso > 0 ? Math.min(100, Math.round(doneMeso / progMeso * 100)) : (doneMeso > 0 ? 100 : 0);
       // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
       if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; }
     });
