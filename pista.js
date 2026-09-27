@@ -103,6 +103,7 @@ function apriPlio() {
     <div class="foglio-top"><h3>Pliometria / policoncorrenza</h3>
       <button class="chiudi" onclick="chiudiPlio()" aria-label="Chiudi">✕</button></div>
     <p class="et" style="margin-bottom:8px">Esercizi da fare <b>dopo il riscaldamento</b>. Scegli l'esercizio, le serie, se contarlo in <b>balzi</b>, <b>metri</b> o <b>ostacoli</b>, e la quantità.<br>Es: <i>Balzi tra ostacoli 4 × 8 ostacoli · Salto in lungo da fermo 4 × 5 balzi · Balzi alternati 4 × 30 m · Cadute (drop) 4 × 6 balzi</i></p>
+    <details style="margin:0 0 10px"><summary style="cursor:pointer;color:var(--blu);font-size:13px;font-weight:600">ℹ️ Come dosare la pliometria (spiegazione)</summary>${typeof guidaPliometriaHTML === "function" ? guidaPliometriaHTML() : ""}</details>
     <div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Conta</th><th>Quantità</th><th>Rec</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table></div>
@@ -119,6 +120,30 @@ function bloccoPliometria(s) {
   if (!p.length) return "";
   return `<div class="card"><p class="et" style="margin-bottom:6px">Pliometria / policoncorrenza (dopo il riscaldamento)</p>
     ${p.map(r => `<div style="padding:5px 0${r === p[p.length - 1] ? "" : ";border-bottom:1px solid var(--line)"}"><b>${r.es}</b>${(r.q || r.serie) ? ` <span class="et">${(r.serie ? r.serie + "×" : "") + (r.q || "") + " " + _plioModoLab(r.modo)}${r.rec ? " · rec " + r.rec : ""}</span>` : ""}</div>`).join("")}</div>`;
+}
+
+// Guida alla PLIOMETRIA (spiegazione + come dosarla). Usata nella libreria Pliometria e nella finestra di programmazione.
+function guidaPliometriaHTML() {
+  const sez = (t, c) => `<div style="margin-top:10px"><p style="font-weight:600;margin:0 0 3px;font-size:13px">${t}</p>${c}</div>`;
+  const ul = items => `<ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6">${items.map(i => `<li>${i}</li>`).join("")}</ul>`;
+  return `
+    ${sez("Cos'è", `<p style="font-size:13.5px;line-height:1.6;margin:0">Sfrutta il <b>ciclo allungamento-accorciamento</b> (SSC): il muscolo si carica nell'ammortizzazione (fase eccentrica) e restituisce energia nella spinta (concentrica). Allena <b>forza esplosiva, reattività e rigidità</b> (stiffness) — chiave per accelerazione, velocità e salti.</p>`)}
+    ${sez("I tipi (dal meno al più intenso)", ul([
+    "<b>Estensiva / basso impatto</b>: skip, hops sul posto, corda, balzi bassi — tanti contatti, bassa intensità (fase generale, tecnica, tessuti).",
+    "<b>Intensiva</b>: balzi orizzontali, tra ostacoli, bounding (balzi alternati), salti verticali (CMJ) — media-alta intensità.",
+    "<b>Shock / reattiva</b>: drop/depth jump, rimbalzi rapidi, ostacoli alti — massima intensità, contatto a terra brevissimo: serve una base di forza."])) }
+    ${sez("Come dosarla", ul([
+    "<b>Contatti a terra per seduta</b> (il vero indice di volume): principiante ~60-100 · intermedio ~100-120 · avanzato ~120-140 (fino a ~200 solo in lavoro estensivo a bassa intensità).",
+    "<b>Regola d'oro</b>: più è alta l'intensità, <b>meno</b> contatti. Estensiva = tanti contatti, shock = pochi.",
+    "<b>Serie × ripetizioni</b>: in genere 3-6 × 4-10 per esercizio (drop jump 3-5 × 4-6 · hops estensivi 3-4 × 10-20).",
+    "<b>Recupero ampio</b> (1-3′ tra le serie intense): è lavoro di <b>qualità</b>, si fa freschi e reattivi — non stanchi.",
+    "<b>Frequenza</b>: 1-3 sedute a settimana secondo fase e intensità; 48-72h tra le sedute intense.",
+    "<b>Quando</b>: dopo il riscaldamento, a inizio seduta (da freschi), prima della forza pesante o della velocità."])) }
+    ${sez("Progressione e sicurezza", ul([
+    "Progredisci: bilaterale → monolaterale · basso → alto · orizzontale → verticale · estensivo → shock. Prima aumenta i contatti (volume), poi l'intensità/altezza.",
+    "<b>Superficie</b> elastica ma stabile (erba, pista, tappetino sottile); evita il cemento sui volumi alti.",
+    "<b>Prerequisiti</b>: base di forza + buona <b>tecnica di atterraggio</b> (ammortizza, ginocchia allineate). Per i depth jump alti serve forza (indicativamente ~1.5× peso corporeo nello squat).",
+    "<b>Stop</b> quando il contatto a terra si allunga o la tecnica cala: è arrivata la fatica, la qualità è finita."])) }`;
 }
 
 // ---------- CORE STABILITY (addominali, isometrie, anti-rotazioni…) — come la pliometria, con tendina esercizi ----------

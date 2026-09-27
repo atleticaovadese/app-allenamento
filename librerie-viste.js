@@ -47,6 +47,11 @@ function vistaLibreria(tipo, titolo) {
     <div class="card"><input id="libSearch" value="${(S.libQuery || "").replace(/"/g, "&quot;")}" placeholder="🔎 Cerca un esercizio…" oninput="setLibQuery(this.value)" style="width:100%">
       ${q ? `<button class="link-indietro" style="margin-top:8px" onclick="setLibQuery('')">✕ pulisci ricerca</button>` : ""}</div>`;
 
+  // guida completa (spiegazione + come dosarla) in cima alla libreria Pliometria — pieghevole, solo quando non si cerca
+  if (tipo === "pliometria" && !q && typeof guidaPliometriaHTML === "function") {
+    h += `<details class="card" open style="border-color:rgba(77,154,255,.35)"><summary style="font-weight:600;cursor:pointer;font-size:15px">ℹ️ Guida e dosaggio della pliometria</summary>${guidaPliometriaHTML()}</details>`;
+  }
+
   if (q) {   // ricerca: lista piatta filtrata per nome o mezzo
     const trovati = items.map((x, idx) => idx).filter(idx => (String(items[idx].n).toLowerCase().indexOf(q) >= 0) || (String(items[idx].m || "").toLowerCase().indexOf(q) >= 0));
     h += trovati.length ? `<p class="sez">${trovati.length} risultat${trovati.length === 1 ? "o" : "i"}</p>` + trovati.map(riga).join("")
