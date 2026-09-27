@@ -124,6 +124,19 @@ function bloccoPliometria(s) {
 // ---------- CORE STABILITY (addominali, isometrie, anti-rotazioni…) — come la pliometria, con tendina esercizi ----------
 // gli esercizi arrivano dalla LIBRERIA Sala (categorie "Core - ..."), nell'ordine e raggruppati; fallback se la libreria manca
 const CORE_FALLBACK = ["Plank / Side plank", "Hollow hold", "Dead bug", "Bird dog", "Pallof press", "Suitcase carry", "Crunch", "Russian twist", "Hanging leg raise"];
+// ---- CAMPO ESERCIZIO "scrivi o scegli": <input> + <datalist> → si può SCRIVERE per filtrare (si arriva prima)
+// oppure aprire e scorrere tutta la lista; il testo libero è ammesso (niente più "✎ Altro"). ----
+// dlId: id del <datalist> condiviso (uno per lista, da inserire una volta nella pagina/foglio). onCommitJS usa this.value.
+function _campoEsercizio(valore, dlId, onCommitJS, style) {
+  const v = String(valore == null ? "" : valore).replace(/"/g, "&quot;");
+  return `<input list="${dlId}" value="${v}" placeholder="scrivi o scegli…" autocomplete="off" spellcheck="false" onchange="${onCommitJS}" style="${style || ""}">`;
+}
+function _datalistEsercizi(dlId, nomi) {
+  const esc = x => String(x).replace(/"/g, "&quot;"), seen = {}, opt = [];
+  (nomi || []).forEach(n => { const k = String(n); if (n && !seen[k]) { seen[k] = 1; opt.push(`<option value="${esc(n)}"></option>`); } });
+  return `<datalist id="${dlId}">${opt.join("")}</datalist>`;
+}
+
 function _coreLibVoci() {
   const sala = (typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala : [];
   const core = sala.filter(x => String(x.g || "").toUpperCase().startsWith("CORE"));
@@ -154,7 +167,7 @@ function apriCore() {
   const g = riscGiorno(), core = coreInit(g);
   const optModo = sel => CORE_MODI.map(([k, l]) => `<option value="${k}" ${sel === k ? "selected" : ""}>${l}</option>`).join("");
   const rows = core.map((r, i) => `<tr>
-      <td><select onchange="setCoreEsercizio(${i},this.value)">${_optCoreEs(r.es || "")}</select></td>
+      <td>${_campoEsercizio(r.es || "", "dl-core", "setCoreEsercizio(" + i + ",this.value)", "min-width:150px")}</td>
       <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="serie" oninput="setCoreRigaVal(${i},'serie',this.value)" style="min-width:52px"></td>
       <td><input inputmode="numeric" value="${r.q || ""}" placeholder="quant." oninput="setCoreRigaVal(${i},'q',this.value)" style="min-width:58px"></td>
       <td><select onchange="setCoreRiga(${i},'modo',this.value)">${optModo(r.modo || "rip")}</select></td>
@@ -168,6 +181,7 @@ function apriCore() {
     <div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Quantità</th><th>Tipo</th><th>Rec</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table></div>
+    ${_datalistEsercizi("dl-core", _coreLibVoci().map(v => v.n))}
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="coreAddRiga()">＋ esercizio</button>`);
 }
 function coreAddRiga() { coreInit(riscGiorno()).push({ es: "", serie: "", q: "", modo: "rip", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriCore(); }
@@ -221,7 +235,7 @@ function apriSpeciali() {
   const g = riscGiorno(), spec = specialiInit(g);
   const optModo = sel => SPEC_MODI.map(([k, l]) => `<option value="${k}" ${sel === k ? "selected" : ""}>${l}</option>`).join("");
   const rows = spec.map((r, i) => `<tr>
-      <td><select onchange="setSpecialiEsercizio(${i},this.value)">${_optSpecEs(r.es || "")}</select></td>
+      <td>${_campoEsercizio(r.es || "", "dl-spec", "setSpecialiEsercizio(" + i + ",this.value)", "min-width:150px")}</td>
       <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="serie" oninput="setSpecialiRigaVal(${i},'serie',this.value)" style="min-width:52px"></td>
       <td><input inputmode="numeric" value="${r.q || ""}" placeholder="quant." oninput="setSpecialiRigaVal(${i},'q',this.value)" style="min-width:58px"></td>
       <td><select onchange="setSpecialiRiga(${i},'modo',this.value)">${optModo(r.modo || "m")}</select></td>
@@ -235,6 +249,7 @@ function apriSpeciali() {
     <div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Quantità</th><th>Unità</th><th>Rec</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table></div>
+    ${_datalistEsercizi("dl-spec", _specVoci().map(v => v.n))}
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="specialiAddRiga()">＋ esercizio</button>`);
 }
 function specialiAddRiga() { specialiInit(riscGiorno()).push({ es: "", serie: "", q: "", modo: "m", rec: "" }); if (typeof salvaCustom === "function") salvaCustom(); apriSpeciali(); }

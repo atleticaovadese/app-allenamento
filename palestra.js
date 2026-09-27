@@ -331,7 +331,7 @@ function vistaProgrammaPalestra() {
         ? `<td class="pauto">${w != null ? w : "—"}</td>`
         : `<td><input inputmode="numeric" value="${r.peso || ""}" placeholder="kg" oninput="setPalRigaVal(${s},${i},'peso',this.value)" onchange="disegna()" style="min-width:56px"></td>`;
       return `<tr>
-        <td><select onchange="setPalEsercizio(${s},${i},this.value)" style="min-width:150px">${optEsercizio(r.esercizio)}</select></td>
+        <td>${_campoEsercizio(r.esercizio, "dl-pal", "setPalEsercizio(" + s + "," + i + ",this.value)", "min-width:150px")}</td>
         <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setPalRigaVal(${s},${i},'serie',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setPalRigaVal(${s},${i},'rep',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPalRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:48px"></td>
@@ -367,5 +367,6 @@ function vistaProgrammaPalestra() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("palestra") : "");
+  const dlPal = (typeof _datalistEsercizi === "function") ? _datalistEsercizi("dl-pal", _eserciziSala()) : "";
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + dlPal + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("palestra") : "");
 }

@@ -1342,7 +1342,7 @@ function _tabellaAdattaPal(a, righe) {
     const peso = target != null ? target : (typeof pesoRifAtleta === "function" ? pesoRifAtleta(a, r, oggiV) : null);
     const pesoCell = target != null ? target + " kg" : (peso != null ? `<span title="peso usato nel blocco precedente" style="color:var(--txt3)">~${peso} kg</span>` : "—");
     return `<tr>
-      <td><select onchange="setAdattaEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : `<option>${r.esercizio || ""}</option>`}</select></td>
+      <td>${typeof _campoEsercizio === "function" ? _campoEsercizio(r.esercizio, "dl-pal", "setAdattaEsercizio(" + i + ",this.value)", "min-width:150px") : `<select onchange="setAdattaEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : ""}</select>`}</td>
       <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setAdattaRigaVal('serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setAdattaRigaVal('rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
       <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
@@ -1350,9 +1350,10 @@ function _tabellaAdattaPal(a, righe) {
       <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${i})" aria-label="Rimuovi">✕</button></td>
     </tr>`;
   }).join("");
+  const dlPal = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function") ? _datalistEsercizi("dl-pal", _eserciziSala()) : "";
   return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Peso</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="6"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
+      <tbody>${rows || `<tr><td colspan="6"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>${dlPal}
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button></div>`;
 }
 // Adatta per il MEZZOFONDO: righe con Mezzo (tendina) + distanza libera + n° + minuti (corsa continua)

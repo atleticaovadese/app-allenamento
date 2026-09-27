@@ -125,9 +125,8 @@ function editorRoutine() {
         ${RISC_TIPI.map(t => `<button class="${r.tipo === t ? "on" : ""}" onclick="setTipoRisc('${t}')">${t}</button>`).join("")}
       </div>
       <label class="lab">Esercizio (${nTot} in «${r.tipo}»)</label>
-      <select id="esSel" style="margin-top:6px">
-        ${gruppi.map(g => g.items.length ? `<optgroup label="${g.cat}">${g.items.map(x => `<option value="${x.n.replace(/"/g, "&quot;")}">${x.n}</option>`).join("")}</optgroup>` : "").join("")}
-      </select>
+      <input id="esSel" list="dl-routine" placeholder="scrivi o scegli…" autocomplete="off" spellcheck="false" style="margin-top:6px;width:100%">
+      ${(typeof _datalistEsercizi === "function") ? _datalistEsercizi("dl-routine", gruppi.reduce((a, g) => a.concat(g.items.map(x => x.n)), [])) : ""}
       <div style="display:flex;gap:8px;margin-top:8px">
         <input id="doseEs" placeholder="dose (opz.) es. 2×20 m" style="flex:1">
         <button class="btn" style="width:auto;padding:0 16px" onclick="aggiungiDaTipo()">＋ Aggiungi</button>
