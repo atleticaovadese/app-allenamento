@@ -830,7 +830,7 @@ function disegnaMenu(menu) {
     if (m.k) {
       let badge = "";
       if (m.k === "notifiche" && typeof notificheCoach === "function") {
-        const n = notificheCoach().filter(x => x.lv === "r" || x.lv === "y").length;
+        const n = notificheCoach().filter(x => x.imp).length;   // solo gli avvisi "Da gestire": la casella non è più sempre piena
         if (n) badge = ` <span style="background:#c0392b;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">${n}</span>`;
       }
       return `<a class="${S.vista === m.k ? "on" : ""}" onclick="vai('${m.k}')">

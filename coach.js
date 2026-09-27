@@ -315,11 +315,18 @@ function spegniFastidio(atletaId) {
 }
 // chiave stabile di una notifica: cambia se la situazione cambia (→ ricompare)
 function _notifKey(atletaId, tipo, sig) { return atletaId + "|" + tipo + "|" + sig; }
+// avvisi IMPORTANTI ("Da gestire", fanno il numero rosso): infortuni/fastidi, calo condizione/prontezza, sforzo alto, carico (monitor), ACWR ALTO.
+// Informazioni (non urgenti, ripiegate, niente numero): corsa extra, lavoro non completato, ACWR basso.
+const _NOTIF_IMP = { infortunio: 1, fastidio: 1, monitor: 1, prontezza: 1, sforzo: 1 };
+function _notifImp(tipo, lv) {
+  if (tipo === "acwr") return lv === "r";   // ACWR alto = da gestire; ACWR basso = informazione
+  return !!_NOTIF_IMP[tipo];
+}
 function notificheCoach(includiVisti) {
   const out = [], oggiN = new Date();
   const gg = iso => iso ? Math.round((oggiN - new Date(iso + "T00:00:00")) / 86400000) : 999;
   const sog = (typeof CONFIG !== "undefined" && CONFIG.soglie) ? CONFIG.soglie : { prontezzaBassa: 2.5, acwrAlto: 1.5 };
-  const add = (a, tipo, lv, data, testo, sig) => out.push({ atletaId: a.id, nome: a.nome, tipo, lv, data, testo, key: _notifKey(a.id, tipo, sig) });
+  const add = (a, tipo, lv, data, testo, sig) => out.push({ atletaId: a.id, nome: a.nome, tipo, lv, data, testo, key: _notifKey(a.id, tipo, sig), imp: _notifImp(tipo, lv) });
   (DEMO.atleti || []).forEach(a => {
     // infortuni/fastidi aperti (sig = id infortunio)
     (DEMO.infortuni || []).filter(i => i.atleta === a.id && (i.stato || "") !== "Risolto").forEach(i => {
@@ -418,28 +425,28 @@ function _storicoBreveAtleta(atletaId) {
   else h += `<p class="et">Nessuna seduta chiusa di recente.</p>`;
   return h;
 }
-function vistaNotifiche() {
-  const list = notificheCoach();
-  const crit = list.filter(x => x.lv === "r").length, warn = list.filter(x => x.lv === "y").length;
-  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔", extra: "🏃" })[t] || "•";
-  const col = lv => lv === "r" ? "#c0392b" : lv === "y" ? "#d99000" : "#3a9a5a";
-  const nascoste = (typeof _notifNascoste === "function") ? _notifNascoste() : 0;
-  const intro = `<div class="card"><h3>🔔 Notifiche</h3>
-    <p class="et" style="margin-top:2px">Avvisi automatici sui tuoi atleti: <b>infortuni/fastidi</b> segnalati, <b>cali di condizione</b> e <b>ACWR</b> fuori range. Un doppio controllo oltre ai cruscotti.</p>
-    <p class="et" style="margin-top:8px">${list.length ? `<b style="color:${crit ? "#c0392b" : "var(--txt)"}">${list.length}</b> avvisi · ${crit} critici · ${warn} da tenere d'occhio` : "✓ Tutto tranquillo: nessun avviso al momento."}</p>
-    <p class="et" style="margin-top:6px;color:var(--txt3)">Un avviso sparisce da solo quando la causa rientra (infortunio risolto, prontezza/ACWR di nuovo a posto). Con <b>✓ Visto</b> lo nascondi tu: torna solo se la situazione <b>peggiora o cambia</b>.</p>
-    ${nascoste ? `<button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="riattivaNotifiche()">↺ Rivedi i ${nascoste} avvisi nascosti</button>` : ""}</div>`;
-  if (!list.length) return intro;
+// segna lette (per questo allenatore) TUTTE le notifiche, o solo le "Informazioni" (soloInfo=true)
+async function leggiNotifTutte(soloInfo) {
+  const keys = notificheCoach().filter(x => soloInfo ? !x.imp : true).map(x => x.key);
+  if (!keys.length) return;
+  DEMO.notifVisti = DEMO.notifVisti || {}; keys.forEach(k => DEMO.notifVisti[k] = 1);
+  disegna();
+  const uid = S.utente && S.utente.id;
+  if (sb && uid) { try { await sb.from("notifica_vista").upsert(keys.map(k => ({ profilo_id: uid, chiave: k })), { onConflict: "profilo_id,chiave" }); } catch (e) { /* offline */ } }
+}
+// una card per atleta (nome + gravità + «Letto»), apribile → dettaglio + storico. Riusata da "Da gestire" e "Informazioni".
+function _notifGruppiHTML(list) {
   const esc = s => String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const dl = v => v ? (typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v) : "";
-  // UNA RIGA PER ATLETA (compatta): nome + gravità + «Letto». Si apre col tocco → dettaglio (cosa) + storico.
+  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔", extra: "🏃" })[t] || "•";
+  const col = lv => lv === "r" ? "#c0392b" : lv === "y" ? "#d99000" : "#3a9a5a";
   const rankLv = { r: 0, y: 1, v: 2 };
   const perAtl = {};
   list.forEach(x => { (perAtl[x.atletaId] = perAtl[x.atletaId] || { atletaId: x.atletaId, nome: x.nome, items: [] }).items.push(x); });
   const gruppi = Object.keys(perAtl).map(k => { const g = perAtl[k]; g.worst = g.items.reduce((w, it) => Math.min(w, rankLv[it.lv]), 2); return g; })
     .sort((a, b) => (a.worst - b.worst) || String(a.nome).localeCompare(String(b.nome), "it"));
   const apri = S.notifApri || {};
-  const rows = gruppi.map(g => {
+  return gruppi.map(g => {
     const nR = g.items.filter(i => i.lv === "r").length, nY = g.items.filter(i => i.lv === "y").length;
     const badge = `${nR ? `<span style="color:${col("r")};font-weight:600">● ${nR}</span>` : ""}${nR && nY ? " · " : ""}${nY ? `<span style="color:${col("y")};font-weight:600">● ${nY}</span>` : ""}`;
     const icons = [...new Set(g.items.map(i => ico(i.tipo)))].join(" ");
@@ -468,7 +475,26 @@ function vistaNotifiche() {
         </div>` : ""}
       </div>`;
   }).join("");
-  return intro + rows;
+}
+function vistaNotifiche() {
+  const list = notificheCoach();
+  const imp = list.filter(x => x.imp), info = list.filter(x => !x.imp);
+  const crit = imp.filter(x => x.lv === "r").length, warn = imp.filter(x => x.lv === "y").length;
+  const nascoste = (typeof _notifNascoste === "function") ? _notifNascoste() : 0;
+  const intro = `<div class="card"><h3>🔔 Notifiche</h3>
+    <p class="et" style="margin-top:2px">Divise in <b>Da gestire</b> (infortuni/fastidi, carico e sforzo, cali di condizione) e <b>Informazioni</b> (corsa extra, lavoro non completato, ACWR basso). Il numero rosso nel menù conta solo le prime.</p>
+    <p class="et" style="margin-top:8px">${imp.length ? `<b style="color:${crit ? "#c0392b" : "var(--txt)"}">${imp.length}</b> da gestire · ${crit} critici · ${warn} da tenere d'occhio` : "✓ Niente da gestire al momento."}${info.length ? ` · <span style="color:var(--txt3)">${info.length} in Informazioni</span>` : ""}</p>
+    <p class="et" style="margin-top:6px;color:var(--txt3)">Un avviso sparisce da solo quando la causa rientra. Con <b>✓ Visto</b> lo nascondi tu: torna solo se la situazione <b>peggiora o cambia</b>.</p>
+    ${nascoste ? `<button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="riattivaNotifiche()">↺ Rivedi i ${nascoste} avvisi nascosti</button>` : ""}</div>`;
+  if (!list.length) return intro;
+  let h = intro;
+  if (imp.length) h += `<p class="sez">Da gestire (${imp.length})</p>` + _notifGruppiHTML(imp);
+  else h += `<div class="card" style="border-left:4px solid #3a9a5a"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Niente da gestire</p><p class="et" style="margin-top:2px">Nessun infortunio, carico o calo da controllare adesso.</p></div>`;
+  if (info.length) h += `<details style="margin:10px 0 11px">
+      <summary style="cursor:pointer;font-weight:600;padding:11px 14px;background:var(--card2);border-radius:12px">ℹ️ Informazioni · ${info.length} <span class="et" style="font-weight:400">— corsa extra, non completato, ACWR basso</span></summary>
+      <div style="margin-top:8px"><button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:12px;margin-bottom:8px" onclick="leggiNotifTutte(true)">✓ Segna tutte lette</button>${_notifGruppiHTML(info)}</div>
+    </details>`;
+  return h;
 }
 
 function vistaAtletaDettaglio() {
