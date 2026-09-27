@@ -1154,27 +1154,33 @@ function setOverrideGiorno(atletaId, tipo, gi, wd) {
 function bloccoSposta(atletaId, tipo, prog) {
   const m = _mesoRif(prog);
   const giorniProg = (m && m.giorni || []).map((g, gi) => ({ g, gi })).filter(x => x.g.giornoSett);
-  if (!giorniProg.length) return `<div class="card"><p class="et" style="margin:0">${tipo === "pista" ? "Pista" : "Palestra"}: nessun giorno programmato nel madre.</p></div>`;
+  const titolo = tipo === "pista" ? "🏃 Pista" : "🏋 Palestra";
+  if (!giorniProg.length) return `<div class="card"><p class="et" style="margin:0"><b>${titolo}</b> — nessun giorno programmato nel madre.</p></div>`;
   const ov = (DEMO.overrideGiorni && DEMO.overrideGiorni[atletaId] && DEMO.overrideGiorni[atletaId][tipo]) || {};
+  const cols = "display:grid;grid-template-columns:1fr 20px 1.25fr;align-items:center;gap:8px";
   const righe = giorniProg.map(({ g, gi }) => {
     const cur = ov[gi] || "";
     const spostato = cur && cur !== g.giornoSett;
     const opts = `<option value="">Come il madre (${GG_LABEL[g.giornoSett] || g.giornoSett})</option>` +
       GG_ORDER.map(w => `<option value="${w}" ${cur === w ? "selected" : ""}>${GG_LABEL[w]}</option>`).join("");
-    return `<div style="margin-bottom:14px">
-      <div style="font-weight:500">Giorno ${gi + 1}</div>
-      <div class="et" style="margin:2px 0 6px">madre: ${GG_LABEL[g.giornoSett] || g.giornoSett}${spostato ? ` → <b style="color:var(--blu)">${GG_LABEL[cur]}</b>` : ""}</div>
-      <select style="width:100%" onchange="setOverrideGiorno('${atletaId}','${tipo}',${gi},this.value)">${opts}</select>
+    return `<div style="${cols};padding:9px 0;border-top:1px solid var(--line)">
+      <div><b>Giorno ${gi + 1}</b><span class="et" style="display:block;margin-top:1px">${GG_LABEL[g.giornoSett] || g.giornoSett}</span></div>
+      <div style="text-align:center;font-weight:700;color:${spostato ? "var(--blu)" : "var(--txt3)"}">→</div>
+      <div><select style="width:100%${spostato ? ";border-color:var(--blu);color:var(--blu);font-weight:600" : ""}" onchange="setOverrideGiorno('${atletaId}','${tipo}',${gi},this.value)">${opts}</select></div>
     </div>`;
   }).join("");
-  return `<div class="card"><p class="et" style="margin-bottom:8px">${tipo === "pista" ? "Pista" : "Palestra"}</p>${righe}</div>`;
+  return `<div class="card"><p class="et" style="margin-bottom:6px;font-weight:600">${titolo}</p>
+    <div style="${cols};font-size:11px;letter-spacing:.03em;text-transform:uppercase;color:var(--txt3)">
+      <span>Si allena (madre)</span><span></span><span>Giorno scelto</span>
+    </div>
+    ${righe}</div>`;
 }
 function vistaSpostaGiorni() {
   const a = DEMO.atleti.find(x => x.id === S.spostaGiorni);
   if (!a) { S.spostaGiorni = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
   return `<button class="indietro" onclick="chiudiSpostaGiorni()">‹ Torna all'atleta</button>
     <div class="card"><h3>Sposta giorni · ${a.nome}</h3>
-      <p class="et" style="margin-top:2px">Scegli in che giorno della settimana ${a.nome} fa ogni seduta. Non cambia il programma madre: vale solo per lui. "Come il madre" = giorno standard. Si salva da solo.</p></div>
+      <p class="et" style="margin-top:2px">A sinistra i giorni di allenamento (come nel madre), a destra scegli in che giorno della settimana ${a.nome} li fa davvero. Non cambia il programma madre: vale solo per lui. "Come il madre" = giorno standard. Si salva da solo.</p></div>
     ${bloccoSposta(a.id, "pista", typeof pistaDi === "function" ? pistaDi(gruppoDi(a)) : DEMO.pista)}
     ${bloccoSposta(a.id, "palestra", typeof palDi === "function" ? palDi(gruppoDi(a)) : DEMO.palestra)}`;
 }
