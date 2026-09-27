@@ -643,6 +643,16 @@ function setPistaRiga(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].gio
 function setPistaTopVal(campo, val) { const p = pistaInit(); p[campo] = val; savePista(); }
 function setPistaMesoVal(campo, val) { pistaInit().mesocicli[S.pistaMeso][campo] = val; savePista(); }
 function setPistaRigaVal(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i][campo] = val; savePista(); }
+// − / ＋ sulla % velocità (velocisti): passo di 2.5, più comodo che riscriverla ogni volta (il tempo si aggiorna dal PB)
+function pistaStepPerc(s, i, delta) {
+  const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i];
+  if (!r) return;
+  const cur = parseFloat(String(r.perc).replace(",", ".")) || 0;
+  let v = Math.round((cur + delta) * 10) / 10;
+  v = Math.max(0, Math.min(110, v));
+  r.perc = String(v);
+  savePista(); disegna();
+}
 function pistaAddRiga(s) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe.push(rigaVuota()); savePista(); disegna(); }
 function pistaDelRiga(s, i) { const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePista(); disegna(); }
 function pistaAddMeso() { pistaInit().mesocicli.push(mesoVuoto()); S.pistaMeso = pistaInit().mesocicli.length - 1; S.pistaGiorno = 0; savePista(); disegna(); window.scrollTo(0, 0); }
@@ -811,7 +821,11 @@ function vistaProgrammaPista() {
         <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px"></td>
         <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
-        <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:52px"></td>
+        <td><div style="display:flex;align-items:center;gap:2px">
+          <button type="button" onclick="pistaStepPerc(${s},${i},-2.5)" title="−2.5%" style="width:24px;height:30px;flex:none;padding:0;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">−</button>
+          <input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="width:42px;min-width:42px;text-align:center">
+          <button type="button" onclick="pistaStepPerc(${s},${i},2.5)" title="+2.5%" style="width:24px;height:30px;flex:none;padding:0;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">＋</button>
+        </div></td>
         <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
         <td class="pauto">${ms != null ? ms.toFixed(2) : "—"}</td>
         <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>

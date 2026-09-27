@@ -847,6 +847,10 @@ function disegnaMenu(menu) {
 
 function disegna() {
   const r = $("radice");
+  // ricordo la posizione di scorrimento: rifacendo tutta la pagina il browser tornerebbe in cima.
+  // La navigazione (vai, apriSeduta, tour…) fa window.scrollTo(0,0) DOPO disegna() e sovrascrive questo ripristino;
+  // le modifiche in-place (compilo una casella e passo alla successiva) restano dov'erano → niente più salto in alto.
+  const _scrollPrec = (typeof window !== "undefined") ? (window.scrollY || window.pageYOffset || 0) : 0;
   if (S.recupero && typeof vistaNuovaPassword === "function") { r.innerHTML = vistaNuovaPassword(); return; }
   if (!S.utente) { r.innerHTML = vistaLogin(); return; }
 
@@ -955,6 +959,8 @@ function disegna() {
     </div>
     <div class="main">${S.curiosando && typeof _bannerCuriosa === "function" ? _bannerCuriosa() : ""}${!coach ? ((typeof _promemoriaDiario === "function" ? _promemoriaDiario() : "") + (typeof _promemoriaAllenamento === "function" ? _promemoriaAllenamento() : "")) : ""}${corpo}</div>`;
   aggiornaMenu();
+  // ripristino la posizione di scorrimento (la navigazione la sovrascrive subito dopo con scrollTo(0,0))
+  if (_scrollPrec > 0) { try { window.scrollTo(0, _scrollPrec); } catch (e) { } }
 }
 
 if (typeof caricaCustom === "function") caricaCustom();
