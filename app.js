@@ -851,6 +851,8 @@ function disegna() {
   // La navigazione (vai, apriSeduta, tour…) fa window.scrollTo(0,0) DOPO disegna() e sovrascrive questo ripristino;
   // le modifiche in-place (compilo una casella e passo alla successiva) restano dov'erano → niente più salto in alto.
   const _scrollPrec = (typeof window !== "undefined") ? (window.scrollY || window.pageYOffset || 0) : 0;
+  const _latoEl = (typeof $ === "function") ? $("lato") : null;   // scorrimento del menù laterale: da mantenere quando apro/chiudo un gruppo
+  const _latoScroll = _latoEl ? _latoEl.scrollTop : 0;
   if (S.recupero && typeof vistaNuovaPassword === "function") { r.innerHTML = vistaNuovaPassword(); return; }
   if (!S.utente) { r.innerHTML = vistaLogin(); return; }
 
@@ -961,6 +963,8 @@ function disegna() {
   aggiornaMenu();
   // ripristino la posizione di scorrimento (la navigazione la sovrascrive subito dopo con scrollTo(0,0))
   if (_scrollPrec > 0) { try { window.scrollTo(0, _scrollPrec); } catch (e) { } }
+  // ripristino lo scorrimento del menù laterale: aprendo/chiudendo un gruppo non torna più in cima
+  if (_latoScroll > 0) { try { const l = $("lato"); if (l) l.scrollTop = _latoScroll; } catch (e) { } }
 }
 
 if (typeof caricaCustom === "function") caricaCustom();

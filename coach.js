@@ -1324,6 +1324,22 @@ function copiaAdattaSuTutte(fromWk) {
   if (typeof salvaCustom === "function") salvaCustom();
   disegna(); window.scrollTo(0, 0);
 }
+// copia il contenuto di UNA settimana specifica (fromWk) sulla settimana corrente (toWk) — es. "copia la Settimana 1 su questa"
+function copiaAdattaDaSett(toWk, fromWk) {
+  const s = S.adatta; toWk = Number(toWk); fromWk = Number(fromWk);
+  if (isNaN(toWk) || isNaN(fromWk) || toWk === fromWk) return;
+  const a = DEMO.atleti.find(x => x.id === s.atletaId);
+  const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
+  if (!src.length) { alert("La Settimana " + (fromWk + 1) + " non ha righe da copiare."); return; }
+  if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${fromWk + 1} sulla Settimana ${toWk + 1} (Giorno ${s.gi + 1})?\nSostituisce il contenuto attuale della Settimana ${toWk + 1}.`)) return;
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
+  const o = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
+  const t = o[s.tipo] = o[s.tipo] || {};
+  const g = t[s.gi] = t[s.gi] || {};
+  g[toWk] = JSON.parse(JSON.stringify(src));
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
 function ripristinaAdatta(wk) {
   const s = S.adatta, o = DEMO.overrideContenuto && DEMO.overrideContenuto[s.atletaId];
   if (o && o[s.tipo] && o[s.tipo][s.gi]) {
@@ -1434,6 +1450,12 @@ function vistaAdatta() {
     const hasOv = !!overrideRighe(a, s.tipo, s.gi, w);
     const scar = (typeof isScaricoIdx === "function" && mesoRif) ? isScaricoIdx(mesoRif, w) : false;
     const tab = s.tipo !== "pista" ? _tabellaAdattaPal(a, w) : grA === "mezzo" ? _tabellaAdattaMezzo(a, w) : _tabellaAdattaPista(a, w);
+    const altre = Array.from({ length: nSett }, (_, x) => x).filter(x => x !== w);
+    const copiaDaUI = altre.length ? `<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <span class="et" style="margin:0">Copia qui da:</span>
+        <select id="cpFrom${w}" style="width:auto;padding:6px 8px">${altre.map(x => `<option value="${x}">Settimana ${x + 1}${overrideRighe(a, s.tipo, s.gi, x) ? " ✏️" : ""}</option>`).join("")}</select>
+        <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="copiaAdattaDaSett(${w}, (document.getElementById('cpFrom${w}')||{}).value)">📋 copia</button>
+      </div>` : "";
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${w + 1}${scar ? ` <span class="pill p-giallo">scarico</span>` : ""} ${hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`}</p>
@@ -1441,7 +1463,7 @@ function vistaAdatta() {
           <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="copiaAdattaSuTutte(${w})" title="Copia questa settimana su tutte le altre">⧉ su tutte</button>
           ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="ripristinaAdatta(${w})">↺ madre</button>` : ""}
         </div>
-      </div>${tab}</div>`;
+      </div>${copiaDaUI}${tab}</div>`;
   }).join("");
   const notaPal = (s.tipo === "palestra" && sch.length && canEditA) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Peso a mano (se manca il massimale) o con − / ＋ (±2.5 kg). Scrivilo nella Settimana 1: le altre lo useranno in automatico. Con «⧉ su tutte» copi una settimana sulle altre.</p>` : "";
   return `<button class="indietro" onclick="chiudiAdatta()">‹ Torna all'atleta</button>
