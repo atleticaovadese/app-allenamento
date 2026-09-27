@@ -1248,32 +1248,52 @@ function setAdattaSel(campo, val) {
   else S.adatta[campo] = Number(val);
   disegna(); window.scrollTo(0, 0);
 }
-function _ensureAdattaRighe() {
+// Adatta lavora su TUTTE le settimane di un giorno insieme: ogni handler riceve la settimana (wk).
+function _ensureAdattaRighe(wk) {
   const s = S.adatta;
   DEMO.overrideContenuto = DEMO.overrideContenuto || {};
   const a = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
   const t = a[s.tipo] = a[s.tipo] || {};
   const d = t[s.gi] = t[s.gi] || {};
-  if (!d[s.wk]) d[s.wk] = JSON.parse(JSON.stringify(_righeMadre(s.tipo, s.gi, s.wk)));
-  return d[s.wk];
+  if (!d[wk]) d[wk] = JSON.parse(JSON.stringify(_righeMadre(s.tipo, s.gi, wk)));
+  return d[wk];
 }
-function setAdattaRigaVal(campo, i, val) {
-  const righe = _ensureAdattaRighe();
+function setAdattaRigaVal(wk, campo, i, val) {
+  const righe = _ensureAdattaRighe(wk);
   if (righe[i]) righe[i][campo] = val;
   if (typeof salvaCustom === "function") salvaCustom();
 }
-function setAdattaRiga(campo, i, val) { setAdattaRigaVal(campo, i, val); disegna(); }
-// esercizio dalla tendina in Adatta: "__altro__" chiede il nome a mano
-function setAdattaEsercizio(i, val) {
+function setAdattaRiga(wk, campo, i, val) { setAdattaRigaVal(wk, campo, i, val); disegna(); }
+// esercizio dalla tendina/campo in Adatta: "__altro__" (vecchio select) chiede il nome a mano
+function setAdattaEsercizio(wk, i, val) {
   if (val === "__altro__") {
     const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio (scrivilo a mano):", "") : "";
-    if (t && t.trim()) setAdattaRiga("esercizio", i, t.trim()); else disegna();
+    if (t && t.trim()) setAdattaRiga(wk, "esercizio", i, t.trim()); else disegna();
     return;
   }
-  setAdattaRiga("esercizio", i, val);
+  setAdattaRiga(wk, "esercizio", i, val);
 }
-function addAdattaRiga() {
-  const righe = _ensureAdattaRighe();
+// − / ＋ sul peso (±2.5 kg) e sulla % (±2.5), come nella % velocità: si può schiacciare o scrivere a mano
+function stepAdattaPeso(wk, i, delta) {
+  const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
+  const cur = parseFloat(String(r.peso).replace(",", ".")) || 0;
+  r.peso = String(Math.max(0, Math.round((cur + delta) * 2) / 2));   // passo 2.5 → mezzi kg
+  if (typeof salvaCustom === "function") salvaCustom(); disegna();
+}
+function stepAdattaPerc(wk, i, delta) {
+  const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
+  const cur = parseFloat(String(r.perc).replace(",", ".")) || 0;
+  r.perc = String(Math.max(0, Math.min(100, Math.round((cur + delta) * 10) / 10)));
+  if (typeof salvaCustom === "function") salvaCustom(); disegna();
+}
+// cella con − [input] ＋ (per peso e %): si può schiacciare o scrivere
+function _stepCell(value, placeholder, minusJS, plusJS, inputJS, w) {
+  const v = (value == null ? "" : String(value)).replace(/"/g, "&quot;");
+  const btn = (js, sym) => `<button type="button" onclick="${js}" style="width:24px;height:30px;flex:none;padding:0;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">${sym}</button>`;
+  return `<div style="display:flex;align-items:center;gap:2px">${btn(minusJS, "−")}<input inputmode="decimal" value="${v}" placeholder="${placeholder}" oninput="${inputJS}" onchange="disegna()" style="width:${w || "44px"};min-width:${w || "44px"};text-align:center">${btn(plusJS, "＋")}</div>`;
+}
+function addAdattaRiga(wk) {
+  const righe = _ensureAdattaRighe(wk);
   const s = S.adatta, a = DEMO.atleti.find(x => x.id === s.atletaId);
   const gr = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
   if (s.tipo !== "pista") righe.push({ esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" });
@@ -1282,33 +1302,32 @@ function addAdattaRiga() {
   if (typeof salvaCustom === "function") salvaCustom();
   disegna();
 }
-function delAdattaRiga(i) {
-  const righe = _ensureAdattaRighe();
+function delAdattaRiga(wk, i) {
+  const righe = _ensureAdattaRighe(wk);
   righe.splice(i, 1);
   if (typeof salvaCustom === "function") salvaCustom();
   disegna();
 }
-// copia nel giorno/settimana corrente il contenuto dello STESSO giorno di un'altra settimana
-// (override di quella settimana se personalizzata, altrimenti il madre). Serve a ripetere una modifica fatta prima.
-function copiaAdattaDaSett(fromWk) {
+// copia il contenuto di una settimana (di questo giorno) su TUTTE le altre settimane — per impostare in fretta
+function copiaAdattaSuTutte(fromWk) {
   const s = S.adatta; fromWk = Number(fromWk);
-  if (isNaN(fromWk) || fromWk === s.wk) return;
   const a = DEMO.atleti.find(x => x.id === s.atletaId);
   const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
-  if (!src.length) { alert("La Settimana " + (fromWk + 1) + " (Giorno " + (s.gi + 1) + ") non ha righe da copiare."); return; }
-  if (typeof confirm === "function" && !confirm(`Copiare il Giorno ${s.gi + 1} della Settimana ${fromWk + 1} qui, nella Settimana ${s.wk + 1}? Sostituisce il contenuto attuale di questo giorno.`)) return;
+  if (!src.length) { alert("La Settimana " + (fromWk + 1) + " non ha righe da copiare."); return; }
+  const nSett = _nSettMeso(s.tipo);
+  if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${fromWk + 1} (Giorno ${s.gi + 1}) su tutte le altre settimane di questo giorno?\nSostituisce il loro contenuto attuale.`)) return;
   DEMO.overrideContenuto = DEMO.overrideContenuto || {};
   const o = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
   const t = o[s.tipo] = o[s.tipo] || {};
   const g = t[s.gi] = t[s.gi] || {};
-  g[s.wk] = JSON.parse(JSON.stringify(src));
+  for (let w = 0; w < nSett; w++) { if (w !== fromWk) g[w] = JSON.parse(JSON.stringify(src)); }
   if (typeof salvaCustom === "function") salvaCustom();
   disegna(); window.scrollTo(0, 0);
 }
-function ripristinaAdatta() {
+function ripristinaAdatta(wk) {
   const s = S.adatta, o = DEMO.overrideContenuto && DEMO.overrideContenuto[s.atletaId];
   if (o && o[s.tipo] && o[s.tipo][s.gi]) {
-    delete o[s.tipo][s.gi][s.wk];
+    delete o[s.tipo][s.gi][wk];
     if (!Object.keys(o[s.tipo][s.gi]).length) delete o[s.tipo][s.gi];
     if (!Object.keys(o[s.tipo]).length) delete o[s.tipo];
     if (!Object.keys(o).length) delete DEMO.overrideContenuto[s.atletaId];
@@ -1316,26 +1335,30 @@ function ripristinaAdatta() {
   if (typeof salvaCustom === "function") salvaCustom();
   disegna();
 }
-function _tabellaAdattaPista(a, righe) {
-  const prof = (typeof pistaDi === "function" && typeof gruppoDi === "function") ? pistaDi(gruppoDi(a)).profilo : (DEMO.pista && DEMO.pista.profilo);
+function _tabellaAdattaPista(a, wk) {
+  const s = S.adatta;
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
   const rows = righe.map((r, i) => {
     const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
+    const percCell = _stepCell(r.perc, "%", "stepAdattaPerc(" + wk + "," + i + ",-2.5)", "stepAdattaPerc(" + wk + "," + i + ",2.5)", "setAdattaRigaVal(" + wk + ",'perc'," + i + ",this.value)", "42px");
     return `<tr>
-      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setAdattaRigaVal('contenuto',${i},this.value)" style="min-width:110px"></td>
-      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal('distanza',${i},this.value)" onchange="disegna()" style="min-width:58px"></td>
-      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
-      <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
-      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal('rec',${i},this.value)" style="min-width:60px"></td>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setAdattaRigaVal(${wk},'contenuto',${i},this.value)" style="min-width:110px"></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal(${wk},'distanza',${i},this.value)" onchange="disegna()" style="min-width:58px"></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal(${wk},'n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td>${percCell}</td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal(${wk},'rec',${i},this.value)" style="min-width:60px"></td>
       <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
-      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${i})" aria-label="Rimuovi">✕</button></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${wk},${i})" aria-label="Rimuovi">✕</button></td>
     </tr>`;
   }).join("");
-  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+  return `<div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Contenuto</th><th>Dist.</th><th>n°</th><th>% vel</th><th>Rec</th><th>Tempo</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
-    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button></div>`;
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga(${wk})">＋ riga</button>`;
 }
-function _tabellaAdattaPal(a, righe) {
+function _tabellaAdattaPal(a, wk) {
+  const s = S.adatta;
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
   const oggiV = (typeof oggiISO === "function") ? oggiISO() : "";
   const rows = righe.map((r, i) => {
     const rmAtl = (typeof massimaleAtleta === "function") ? massimaleAtleta(a, r.esercizio) : null;   // massimale dell'atleta per questo esercizio
@@ -1345,43 +1368,45 @@ function _tabellaAdattaPal(a, righe) {
       const w = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
       pesoCell = `<td class="pauto" title="dal massimale ${rmAtl} kg">${w != null ? w + " kg" : "—"}</td>`;
     } else {
-      // niente massimale → peso a mano; se vuoto, suggerisco l'ultimo usato (settimana 1 / blocco prec.) come placeholder
+      // niente massimale → peso a mano con − / ＋ (±2.5 kg); placeholder = ultimo usato (sett.1 / blocco prec.)
       const rif = (typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, oggiV) : null;
-      pesoCell = `<td><input inputmode="numeric" value="${r.peso || ""}" placeholder="${rif != null ? "~" + rif : "kg"}" oninput="setAdattaRigaVal('peso',${i},this.value)" onchange="disegna()" style="min-width:60px"></td>`;
+      pesoCell = `<td>${_stepCell(r.peso, rif != null ? "~" + rif : "kg", "stepAdattaPeso(" + wk + "," + i + ",-2.5)", "stepAdattaPeso(" + wk + "," + i + ",2.5)", "setAdattaRigaVal(" + wk + ",'peso'," + i + ",this.value)", "50px")}</td>`;
     }
+    const percCell = _stepCell(r.perc, "%", "stepAdattaPerc(" + wk + "," + i + ",-2.5)", "stepAdattaPerc(" + wk + "," + i + ",2.5)", "setAdattaRigaVal(" + wk + ",'perc'," + i + ",this.value)", "44px");
     return `<tr>
-      <td>${typeof _campoEsercizio === "function" ? _campoEsercizio(r.esercizio, "dl-pal", "setAdattaEsercizio(" + i + ",this.value)", "min-width:150px") : `<select onchange="setAdattaEsercizio(${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : ""}</select>`}</td>
-      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setAdattaRigaVal('serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
-      <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setAdattaRigaVal('rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
-      <td><input inputmode="numeric" value="${r.perc || ""}" placeholder="%" oninput="setAdattaRigaVal('perc',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td>${typeof _campoEsercizio === "function" ? _campoEsercizio(r.esercizio, "dl-pal", "setAdattaEsercizio(" + wk + "," + i + ",this.value)", "min-width:150px") : `<select onchange="setAdattaEsercizio(${wk},${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : ""}</select>`}</td>
+      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setAdattaRigaVal(${wk},'serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
+      <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setAdattaRigaVal(${wk},'rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
+      <td>${percCell}</td>
       ${pesoCell}
-      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${i})" aria-label="Rimuovi">✕</button></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${wk},${i})" aria-label="Rimuovi">✕</button></td>
     </tr>`;
   }).join("");
   const dlPal = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function") ? _datalistEsercizi("dl-pal", _eserciziSala()) : "";
-  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+  return `<div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Peso</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>${dlPal}
-    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button>
-    <p class="et" style="margin-top:8px;color:var(--txt3)">💡 Se l'atleta non ha il massimale, scrivi il <b>peso</b> a mano. Basta metterlo nella <b>Settimana 1</b>: le settimane dopo lo useranno in automatico (finché l'atleta non registra i pesi suoi).</p></div>`;
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga(${wk})">＋ riga</button>`;
 }
 // Adatta per il MEZZOFONDO: righe con Mezzo (tendina) + distanza libera + n° + minuti (corsa continua)
-function _tabellaAdattaMezzo(a, righe) {
+function _tabellaAdattaMezzo(a, wk) {
+  const s = S.adatta;
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
   const MZ = (typeof MZ_MEZZI !== "undefined") ? MZ_MEZZI : [];
   const optMezzo = (val) => `<option value="">—</option>` + MZ.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
   const rows = righe.map((r, i) => `<tr>
-      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setAdattaRigaVal('contenuto',${i},this.value)" style="min-width:100px"></td>
-      <td><select onchange="setAdattaRiga('mezzo',${i},this.value)">${optMezzo(r.mezzo)}</select></td>
-      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal('distanza',${i},this.value)" onchange="disegna()" style="min-width:56px"></td>
-      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal('n',${i},this.value)" onchange="disegna()" style="min-width:44px"></td>
-      <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setAdattaRigaVal('min',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
-      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal('rec',${i},this.value)" style="min-width:56px"></td>
-      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${i})" aria-label="Rimuovi">✕</button></td>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setAdattaRigaVal(${wk},'contenuto',${i},this.value)" style="min-width:100px"></td>
+      <td><select onchange="setAdattaRiga(${wk},'mezzo',${i},this.value)">${optMezzo(r.mezzo)}</select></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal(${wk},'distanza',${i},this.value)" onchange="disegna()" style="min-width:56px"></td>
+      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal(${wk},'n',${i},this.value)" onchange="disegna()" style="min-width:44px"></td>
+      <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setAdattaRigaVal(${wk},'min',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal(${wk},'rec',${i},this.value)" style="min-width:56px"></td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${wk},${i})" aria-label="Rimuovi">✕</button></td>
     </tr>`).join("");
-  return `<div class="card"><div class="p-scroll"><table class="ptab pista-w">
+  return `<div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Focus</th><th>Mezzo</th><th>Dist (m)</th><th>n°</th><th>Min</th><th>Rec</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga — aggiungine una.</span></td></tr>`}</tbody></table></div>
-    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga()">＋ riga</button></div>`;
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:8px" onclick="addAdattaRiga(${wk})">＋ riga</button>`;
 }
 function vistaAdatta() {
   const s = S.adatta;
@@ -1390,38 +1415,35 @@ function vistaAdatta() {
   const sch = _giorniSched(s.tipo);
   if (sch.length && !sch.some(x => x.gi === s.gi)) s.gi = sch[0].gi;
   const nSett = _nSettMeso(s.tipo);
-  if (s.wk >= nSett) s.wk = 0;
-  const hasOv = !!overrideRighe(a, s.tipo, s.gi, s.wk);
-  const righe = hasOv ? overrideRighe(a, s.tipo, s.gi, s.wk) : _righeMadre(s.tipo, s.gi, s.wk);
+  const grA = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  const canEditA = !(s.tipo === "pista" && grA === "lanci");
+  const mesoRif = (typeof _mesoRif === "function") ? _mesoRif((typeof _progAdatta === "function") ? _progAdatta(s.tipo) : null) : null;
   const tipoTab = `<div class="tabbar">
     <button class="${s.tipo === "pista" ? "on" : ""}" onclick="setAdattaSel('tipo','pista')">Pista</button>
     <button class="${s.tipo === "palestra" ? "on" : ""}" onclick="setAdattaSel('tipo','palestra')">Palestra</button></div>`;
-  const grA = (typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
-  // copia in questo giorno il contenuto dello STESSO giorno di un'altra settimana (per ripetere una modifica fatta prima)
-  const altreWk = Array.from({ length: nSett }, (_, w) => w).filter(w => w !== s.wk);
-  const canEditA = !(s.tipo === "pista" && grA === "lanci");
-  const copiaUI = (sch.length && canEditA && altreWk.length) ? `<div style="margin-top:10px;border-top:1px solid var(--line2);padding-top:10px">
-      <p class="et" style="margin:0 0 6px">Copia qui il <b>Giorno ${s.gi + 1}</b> da un'altra settimana (stesso giorno):</p>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="copiaWkSel" style="width:auto;padding:8px 10px">${altreWk.map(w => `<option value="${w}">Settimana ${w + 1}${overrideRighe(a, s.tipo, s.gi, w) ? " ✏️" : ""}</option>`).join("")}</select>
-        <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="copiaAdattaDaSett(document.getElementById('copiaWkSel').value)">📋 Copia qui</button>
-      </div>
-      <p class="et" style="margin-top:6px;color:var(--txt3)">✏️ = settimana già personalizzata per ${a.nome}. La copia sostituisce il contenuto attuale di questo giorno.</p>
-    </div>` : "";
-  const selettori = !sch.length ? "" : `<div class="card"><div class="griglia2">
-      <div><label class="lab">Giorno</label><select onchange="setAdattaSel('gi',this.value)" style="margin-top:6px">${sch.map(x => `<option value="${x.gi}" ${x.gi === s.gi ? "selected" : ""}>Giorno ${x.gi + 1} (${GG_LABEL[x.g.giornoSett] || x.g.giornoSett})</option>`).join("")}</select></div>
-      <div><label class="lab">Settimana</label><select onchange="setAdattaSel('wk',this.value)" style="margin-top:6px">${Array.from({ length: nSett }, (_, w) => `<option value="${w}" ${w === s.wk ? "selected" : ""}>Settimana ${w + 1}</option>`).join("")}</select></div>
-    </div>
-    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <span style="font-size:13px;margin:0;${hasOv ? "color:var(--blu);font-weight:600" : "color:var(--txt3)"}">${hasOv ? "✏️ Personalizzato per lui" : "Come il madre"}</span>
-      ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:8px 12px" onclick="ripristinaAdatta()">↺ Ripristina il madre</button>` : ""}
-    </div>${copiaUI}</div>`;
-  const corpo = !sch.length
-    ? `<div class="card"><p class="et">Nessun giorno programmato in ${s.tipo} nel madre. Imposta prima il programma.</p></div>`
-    : s.tipo !== "pista" ? _tabellaAdattaPal(a, righe)
-      : grA === "mezzo" ? _tabellaAdattaMezzo(a, righe)
-        : grA === "lanci" ? `<div class="card"><p class="et">Per i <b>lanciatori</b> l'adattamento fine (attrezzi, kg, tipi) si fa dall'editor completo: <b>Programma → Pista → «Programma per» → ${a.nome}</b>.</p></div>`
-          : _tabellaAdattaPista(a, righe);
+  const selGiorno = !sch.length ? "" : `<div class="card">
+      <label class="lab">Giorno</label>
+      <select onchange="setAdattaSel('gi',this.value)" style="margin-top:6px">${sch.map(x => `<option value="${x.gi}" ${x.gi === s.gi ? "selected" : ""}>Giorno ${x.gi + 1} (${GG_LABEL[x.g.giornoSett] || x.g.giornoSett})</option>`).join("")}</select>
+      <p class="et" style="margin-top:6px;color:var(--txt3)">Sotto vedi <b>tutte le settimane</b> di questo giorno: modificale al volo. ✏️ = settimana già personalizzata per ${a.nome}.</p>
+    </div>`;
+  // corpo: una card per ogni settimana del giorno scelto (tutte insieme)
+  let corpo;
+  if (!sch.length) corpo = `<div class="card"><p class="et">Nessun giorno programmato in ${s.tipo} nel madre. Imposta prima il programma.</p></div>`;
+  else if (!canEditA) corpo = `<div class="card"><p class="et">Per i <b>lanciatori</b> l'adattamento fine (attrezzi, kg, tipi) si fa dall'editor completo: <b>Programma → Pista → «Programma per» → ${a.nome}</b>.</p></div>`;
+  else corpo = Array.from({ length: nSett }, (_, w) => {
+    const hasOv = !!overrideRighe(a, s.tipo, s.gi, w);
+    const scar = (typeof isScaricoIdx === "function" && mesoRif) ? isScaricoIdx(mesoRif, w) : false;
+    const tab = s.tipo !== "pista" ? _tabellaAdattaPal(a, w) : grA === "mezzo" ? _tabellaAdattaMezzo(a, w) : _tabellaAdattaPista(a, w);
+    return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <p style="font-weight:600;font-size:13px;margin:0">Settimana ${w + 1}${scar ? ` <span class="pill p-giallo">scarico</span>` : ""} ${hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`}</p>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="copiaAdattaSuTutte(${w})" title="Copia questa settimana su tutte le altre">⧉ su tutte</button>
+          ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="ripristinaAdatta(${w})">↺ madre</button>` : ""}
+        </div>
+      </div>${tab}</div>`;
+  }).join("");
+  const notaPal = (s.tipo === "palestra" && sch.length && canEditA) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Peso a mano (se manca il massimale) o con − / ＋ (±2.5 kg). Scrivilo nella Settimana 1: le altre lo useranno in automatico. Con «⧉ su tutte» copi una settimana sulle altre.</p>` : "";
   return `<button class="indietro" onclick="chiudiAdatta()">‹ Torna all'atleta</button>
     <div class="card"><h3>Adatta contenuto · ${a.nome}</h3>
       <p class="et" style="margin-top:2px">Cambia ripetute, %, distanze o carichi solo per ${a.nome}, senza toccare il madre. Tempi e pesi restano calcolati sui suoi PB. Si salva da solo.</p></div>
@@ -1432,7 +1454,8 @@ function vistaAdatta() {
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="apriModDataAdatta()">✏️ Modifica quel giorno →</button>
       </div></div>
     ${tipoTab}
-    ${selettori}
+    ${selGiorno}
+    ${notaPal}
     ${corpo}`;
 }
 
