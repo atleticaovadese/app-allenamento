@@ -604,10 +604,10 @@ function palLogVoci(atletaId, esercizio) {
     .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
 }
 // blocco Sedute / Media / Max / Min come nell'Excel
-function statBlocco(vals) {
+function statBlocco(vals, fmt) {
   const v = vals.filter(x => x != null && !isNaN(x));
   const n = v.length;
-  const f = x => Math.abs(x) >= 100 ? String(Math.round(x)) : (Math.round(x * 100) / 100).toString();
+  const f = fmt || (x => Math.abs(x) >= 100 ? String(Math.round(x)) : (Math.round(x * 100) / 100).toString());
   const cells = [["Sedute", String(n)], ["Media", n ? f(v.reduce((s, x) => s + x, 0) / n) : "—"],
     ["Max", n ? f(Math.max(...v)) : "—"], ["Min", n ? f(Math.min(...v)) : "—"]];
   return `<div style="display:flex;gap:8px;margin:12px 0 4px">${cells.map(([l, val]) =>
@@ -637,11 +637,17 @@ function chartSerie(punti) {
 
 // ANDAMENTO PISTA — per distanza (Tempo / Volume / Vel), si compila dalle sedute di pista
 // formatta un tempo di pista: mm:ss.cc per i mezzofondisti o per i tempi lunghi (≥60s), altrimenti secondi.cc
+// tempo in 3 fasce: < 60 s → secondi (7.05) · < 60 min → minuti (m:ss[.cc]) · ≥ 60 min → ore (h:mm:ss)
 function fmtTempoPista(sec, atleta) {
   if (sec == null || sec === "" || isNaN(Number(sec))) return "—";
   sec = Number(sec);
-  const isMezzo = (typeof gruppoDi === "function" && atleta) ? gruppoDi(atleta) === "mezzo" : false;
-  return (isMezzo || sec >= 60) && typeof _mzMMSSc === "function" ? _mzMMSSc(sec) : sec.toFixed(2);
+  if (sec < 60) return sec.toFixed(2);                       // secondi (velocità, ripetute brevi)
+  const cc = Math.round(sec * 100) % 100;
+  let tot = Math.floor(Math.round(sec * 100) / 100);
+  const h = Math.floor(tot / 3600); tot -= h * 3600;
+  const m = Math.floor(tot / 60), s = tot % 60;
+  if (h > 0) return h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");   // ore (lunghi ≥ 60′)
+  return m + ":" + String(s).padStart(2, "0") + (cc ? "." + String(cc).padStart(2, "0") : "");  // minuti (m:ss)
 }
 // indicatore di VARIAZIONE nel periodo: dal primo all'ultimo valore, delta + %, con colore (verde = meglio)
 function _variazionePeriodo(serie, met, atl) {
@@ -671,7 +677,7 @@ function _andaPistaCorpo(atl, dist, met) {
   return `<div class="card">
       <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m${met === "tempo" ? " · più in basso = meglio" : ""}</p>
       ${_variazionePeriodo(serie, met, atl)}
-      ${statBlocco(serie.map(s => s.val))}
+      ${statBlocco(serie.map(s => s.val), met === "tempo" ? (x => fmtTempoPista(x, atl)) : null)}
       ${voci.length >= 2 ? chartSerie(serie) : ""}
       <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
         <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${fmtTempoPista(v.tempo, atl)}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>

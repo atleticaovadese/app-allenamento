@@ -1522,12 +1522,16 @@ function _commentoScreening(atleta, giorni, ctx) {
   const prog = (typeof contaProgrammate === "function") ? contaProgrammate(atleta, dalS, oggiS) : 0;
   const sedute = ctx.sedute, m = ctx.m || {};
   const isMezzo = (typeof gruppoDi === "function") && gruppoDi(atleta) === "mezzo";
-  const pct = prog > 0 ? Math.round(sedute / prog * 100) : null;
+  // la % ha senso solo se il programma copre tutto il periodo: se i svolti superano i previsti,
+  // vuol dire che per parte del periodo il programma non c'è (es. blocco riscritto) → niente % ingannevole.
+  const progOk = prog >= sedute;
+  const pct = (prog > 0 && progOk) ? Math.round(sedute / prog * 100) : null;
   const perido = giorni <= 7 ? "questa settimana" : "nel mesociclo";
   const bits = [];
   if (sedute === 0) bits.push(`Nessun allenamento svolto ${perido}${prog > 0 ? ` (ne erano previsti ${prog})` : ""}.`);
   else {
-    bits.push(`Presenza <b>${sedute}${prog ? "/" + Math.max(prog, sedute) : ""}</b> ${perido}${pct != null ? ` (${pct}%${pct >= 85 ? ", ottima costanza" : pct >= 70 ? ", buona" : ", sotto l'obiettivo"})` : ""}.`);
+    if (pct != null) bits.push(`Presenza <b>${sedute}/${prog}</b> ${perido} (${pct}%${pct >= 85 ? ", ottima costanza" : pct >= 70 ? ", buona" : ", sotto l'obiettivo"}).`);
+    else bits.push(`<b>${sedute}</b> allenament${sedute === 1 ? "o" : "i"} svolt${sedute === 1 ? "o" : "i"} ${perido}.`);
     if (isMezzo) { const km = (typeof kmFattiPeriodo === "function") ? kmFattiPeriodo(atleta, dalS, oggiS) : 0; if (km) bits.push(`Volume <b>${km} km</b> di corsa.`); }
     else if (ctx.volume) bits.push(`Volume pista <b>${ctx.volume >= 1000 ? (ctx.volume / 1000).toFixed(1) + " km" : ctx.volume + " m"}</b>.`);
     // distanze percorse seduta per seduta e come stanno andando (dalle ripetute cronometrate)
