@@ -115,6 +115,21 @@ function setPalMeso(campo, val) {
 }
 function setPalMesoVal(campo, val) { palestraInit().mesocicli[S.palMeso][campo] = val; savePalestra(); }
 function setPalGiorno(campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno][campo] = val; savePalestra(); disegna(); }
+// copia tutto il contenuto del giorno palestra corrente su un altro giorno (la destinazione tiene il suo giorno-settimana)
+function copiaGiornoPal(targetIdx) {
+  targetIdx = Number(targetIdx);
+  const m = palestraInit().mesocicli[S.palMeso];
+  if (!m || isNaN(targetIdx) || targetIdx === S.palGiorno) return;
+  const src = m.giorni[S.palGiorno], dst = m.giorni[targetIdx];
+  if (!src || !dst) return;
+  if (typeof _giornoNonVuoto === "function" && _giornoNonVuoto(dst) && typeof confirm === "function"
+    && !confirm(`Copiare il Giorno ${S.palGiorno + 1} sul Giorno ${targetIdx + 1}?\nIl contenuto attuale del Giorno ${targetIdx + 1} verrà sostituito.`)) return;
+  const clone = JSON.parse(JSON.stringify(src));
+  clone.giornoSett = dst.giornoSett;
+  m.giorni[targetIdx] = clone;
+  savePalestra(); disegna();
+  if (typeof alert === "function") alert(`✓ Giorno ${S.palGiorno + 1} copiato sul Giorno ${targetIdx + 1}. Ricordati di «Salva programma».`);
+}
 function setPalRiga(s, i, campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe[i][campo] = val; savePalestra(); disegna(); }
 // esercizio dalla tendina: "__altro__" chiede un nome scritto a mano, altrimenti salva la voce scelta
 function setPalEsercizio(s, i, val) {
@@ -297,6 +312,7 @@ function vistaProgrammaPalestra() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
+      ${typeof _selCopiaGiorno === "function" ? _selCopiaGiorno(m.giorni, S.palGiorno, "copiaGiornoPal") : ""}
     </div>`;
 
   const listaSett = palSettimaneDelGiorno(m, g);

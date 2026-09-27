@@ -663,6 +663,41 @@ function pistaDelGiorno(i) {
   if (S.pistaGiorno >= m.giorni.length) S.pistaGiorno = m.giorni.length - 1;
   savePista(); disegna(); window.scrollTo(0, 0);
 }
+// ---------- COPIA GIORNO: copia tutto il contenuto di un giorno su un altro (stesso mesociclo) ----------
+// un giorno ha contenuto reale? (righe compilate o plio/core/speciali) — generico per pista e palestra
+function _giornoNonVuoto(g) {
+  if (!g) return false;
+  if (["plio", "core", "speciali"].some(k => Array.isArray(g[k]) && g[k].some(r => r && r.es))) return true;
+  const campi = ["contenuto", "distanza", "n", "mezzo", "perc", "kg", "min", "esercizio", "serie", "rep", "peso", "vbt", "tut", "rec"];
+  return (g.settimane || []).some(s => (s.righe || []).some(r => r && campi.some(k => r[k] !== undefined && r[k] !== "" && r[k] !== null)));
+}
+// menu «copia questo giorno su…» (condiviso da pista vel/mezzo/lanci e palestra)
+function _selCopiaGiorno(giorni, curIdx, fnName) {
+  if (!giorni || giorni.length < 2) return "";
+  const opts = giorni.map((gg, i) => i === curIdx ? "" : `<option value="${i}">Giorno ${i + 1}${gg.giornoSett ? " · " + gg.giornoSett : ""}</option>`).join("");
+  return `<label class="lab" style="display:block;margin-top:14px">Copia questo giorno su un altro</label>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      <select id="copiaGiornoSel" style="flex:1;min-width:130px">${opts}</select>
+      <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="${fnName}((document.getElementById('copiaGiornoSel')||{}).value)">⧉ Copia</button>
+    </div>
+    <p class="et" style="margin-top:4px">Copia tutto il contenuto del giorno (riscaldamento, esercizi e tutte le settimane). Il giorno di destinazione mantiene il suo giorno della settimana.</p>`;
+}
+// pista velocità/mezzo/lanci: condividono pistaInit()/S.pistaMeso/S.pistaGiorno
+function copiaGiornoPista(targetIdx) {
+  targetIdx = Number(targetIdx);
+  const m = pistaInit().mesocicli[S.pistaMeso];
+  if (!m || isNaN(targetIdx) || targetIdx === S.pistaGiorno) return;
+  const src = m.giorni[S.pistaGiorno], dst = m.giorni[targetIdx];
+  if (!src || !dst) return;
+  if (_giornoNonVuoto(dst) && typeof confirm === "function"
+    && !confirm(`Copiare il Giorno ${S.pistaGiorno + 1} sul Giorno ${targetIdx + 1}?\nIl contenuto attuale del Giorno ${targetIdx + 1} verrà sostituito.`)) return;
+  const clone = JSON.parse(JSON.stringify(src));
+  clone.giornoSett = dst.giornoSett;   // la destinazione tiene il SUO giorno della settimana
+  m.giorni[targetIdx] = clone;
+  savePista(); disegna();
+  if (typeof alert === "function") alert(`✓ Giorno ${S.pistaGiorno + 1} copiato sul Giorno ${targetIdx + 1}. Ricordati di «Salva programma».`);
+}
+
 // tab dei giorni (condivisa da pista velocità/lanci/mezzo): pulsanti + «＋» (fino a 5) + rimuovi il giorno corrente
 function tabGiorniPista(m) {
   const n = (m.giorni || []).length;
@@ -757,6 +792,7 @@ function vistaProgrammaPista() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
+      ${typeof _selCopiaGiorno === "function" ? _selCopiaGiorno(m.giorni, S.pistaGiorno, "copiaGiornoPista") : ""}
     </div>`;
 
   // le settimane del giorno (numero dal ciclo del mesociclo)

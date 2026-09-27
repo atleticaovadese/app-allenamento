@@ -351,6 +351,7 @@ function vistaProgrammaPistaMezzo() {
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriCore()">${coreRiassunto(g)}</button>
       <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
+      ${typeof _selCopiaGiorno === "function" ? _selCopiaGiorno(m.giorni, S.pistaGiorno, "copiaGiornoPista") : ""}
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
