@@ -683,6 +683,14 @@ function setPistaRiga(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].gio
 function setPistaTopVal(campo, val) { const p = pistaInit(); p[campo] = val; savePista(); }
 function setPistaMesoVal(campo, val) { pistaInit().mesocicli[S.pistaMeso][campo] = val; savePista(); }
 function setPistaRigaVal(s, i, campo, val) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i][campo] = val; savePista(); }
+// − / ＋ sul n° di ripetute (velocisti): passo di 1
+function pistaStepN(s, i, delta) {
+  const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i];
+  if (!r) return;
+  const cur = parseInt(String(r.n == null ? "" : r.n).replace(/[^\d-]/g, ""), 10) || 0;
+  r.n = String(Math.max(1, cur + delta));
+  savePista(); disegna();
+}
 // − / ＋ sulla % velocità (velocisti): passo di 2.5, più comodo che riscriverla ogni volta (il tempo si aggiorna dal PB)
 function pistaStepPerc(s, i, delta) {
   const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i];
@@ -859,7 +867,7 @@ function vistaProgrammaPista() {
       return `<tr>
         <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
         <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px"></td>
-        <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px"></td>
+        <td>${typeof _stepCell === "function" ? _stepCell(r.n, "n°", "pistaStepN(" + s + "," + i + ",-1)", "pistaStepN(" + s + "," + i + ",1)", "setPistaRigaVal(" + s + "," + i + ",'n',this.value)", "40px") : `<input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px">`}</td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
         <td><div style="display:flex;align-items:center;gap:2px">
           <button type="button" onclick="pistaStepPerc(${s},${i},-2.5)" title="−2.5%" style="width:24px;height:30px;flex:none;padding:0;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">−</button>

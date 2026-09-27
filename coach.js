@@ -1273,10 +1273,27 @@ function setAdattaEsercizio(wk, i, val) {
   }
   setAdattaRiga(wk, "esercizio", i, val);
 }
+// peso di riferimento mostrato in grigio in Adatta (ultimo usato / settimana 1 / blocco prec.): usato anche come base dei tasti − / ＋
+function _pesoRifAdatta(a, r, wk) {
+  const s = S.adatta;
+  let p = (a && typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, (typeof oggiISO === "function" ? oggiISO() : "")) : null;
+  if (p == null && Number(wk) > 0 && typeof _pesoSett1Atleta === "function") {   // settimane dopo la 1: considera anche il peso prescritto nella settimana 1
+    const m = (typeof _mesoRif === "function" && typeof _progAdatta === "function") ? _mesoRif(_progAdatta(s.tipo)) : null;
+    const g = m && m.giorni && m.giorni[s.gi];
+    if (g) p = _pesoSett1Atleta(a, g, s.gi + 1, r.esercizio);
+  }
+  return p;
+}
 // − / ＋ sul peso (±2.5 kg) e sulla % (±2.5), come nella % velocità: si può schiacciare o scrivere a mano
 function stepAdattaPeso(wk, i, delta) {
+  const s = S.adatta;
   const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
-  const cur = parseFloat(String(r.peso).replace(",", ".")) || 0;
+  let cur = parseFloat(String(r.peso).replace(",", "."));
+  if (isNaN(cur) || cur === 0) {   // peso vuoto → parti dal valore grigio di riferimento (non da zero)
+    const a = DEMO.atleti.find(x => x.id === s.atletaId);
+    const rif = _pesoRifAdatta(a, r, wk);
+    cur = (rif != null && !isNaN(Number(rif))) ? Number(rif) : 0;
+  }
   r.peso = String(Math.max(0, Math.round((cur + delta) * 2) / 2));   // passo 2.5 → mezzi kg
   if (typeof salvaCustom === "function") salvaCustom(); disegna();
 }
@@ -1284,6 +1301,13 @@ function stepAdattaPerc(wk, i, delta) {
   const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
   const cur = parseFloat(String(r.perc).replace(",", ".")) || 0;
   r.perc = String(Math.max(0, Math.min(100, Math.round((cur + delta) * 10) / 10)));
+  if (typeof salvaCustom === "function") salvaCustom(); disegna();
+}
+// − / ＋ su un campo intero (serie, rep, n°): passo ±1, minimo 1
+function stepAdattaNum(wk, i, campo, delta) {
+  const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
+  const cur = parseInt(String(r[campo] == null ? "" : r[campo]).replace(/[^\d-]/g, ""), 10) || 0;
+  r[campo] = String(Math.max(1, cur + delta));
   if (typeof salvaCustom === "function") salvaCustom(); disegna();
 }
 // cella con − [input] ＋ (per peso e %): si può schiacciare o scrivere
@@ -1360,7 +1384,7 @@ function _tabellaAdattaPista(a, wk) {
     return `<tr>
       <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setAdattaRigaVal(${wk},'contenuto',${i},this.value)" style="min-width:110px"></td>
       <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal(${wk},'distanza',${i},this.value)" onchange="disegna()" style="min-width:58px"></td>
-      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal(${wk},'n',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+      <td>${_stepCell(r.n, "n°", "stepAdattaNum(" + wk + "," + i + ",'n',-1)", "stepAdattaNum(" + wk + "," + i + ",'n',1)", "setAdattaRigaVal(" + wk + ",'n'," + i + ",this.value)", "40px")}</td>
       <td>${percCell}</td>
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal(${wk},'rec',${i},this.value)" style="min-width:60px"></td>
       <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
@@ -1384,15 +1408,17 @@ function _tabellaAdattaPal(a, wk) {
       const w = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null;
       pesoCell = `<td class="pauto" title="dal massimale ${rmAtl} kg">${w != null ? w + " kg" : "—"}</td>`;
     } else {
-      // niente massimale → peso a mano con − / ＋ (±2.5 kg); placeholder = ultimo usato (sett.1 / blocco prec.)
-      const rif = (typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, oggiV) : null;
+      // niente massimale → peso a mano con − / ＋ (±2.5 kg), che partono dal grigio di riferimento; placeholder = quel riferimento
+      const rif = _pesoRifAdatta(a, r, wk);
       pesoCell = `<td>${_stepCell(r.peso, rif != null ? "~" + rif : "kg", "stepAdattaPeso(" + wk + "," + i + ",-2.5)", "stepAdattaPeso(" + wk + "," + i + ",2.5)", "setAdattaRigaVal(" + wk + ",'peso'," + i + ",this.value)", "50px")}</td>`;
     }
     const percCell = _stepCell(r.perc, "%", "stepAdattaPerc(" + wk + "," + i + ",-2.5)", "stepAdattaPerc(" + wk + "," + i + ",2.5)", "setAdattaRigaVal(" + wk + ",'perc'," + i + ",this.value)", "44px");
+    const serieCell = _stepCell(r.serie, "s", "stepAdattaNum(" + wk + "," + i + ",'serie',-1)", "stepAdattaNum(" + wk + "," + i + ",'serie',1)", "setAdattaRigaVal(" + wk + ",'serie'," + i + ",this.value)", "34px");
+    const repCell = _stepCell(r.rep, "r", "stepAdattaNum(" + wk + "," + i + ",'rep',-1)", "stepAdattaNum(" + wk + "," + i + ",'rep',1)", "setAdattaRigaVal(" + wk + ",'rep'," + i + ",this.value)", "34px");
     return `<tr>
       <td>${typeof _campoEsercizio === "function" ? _campoEsercizio(r.esercizio, "dl-pal", "setAdattaEsercizio(" + wk + "," + i + ",this.value)", "min-width:150px") : `<select onchange="setAdattaEsercizio(${wk},${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : ""}</select>`}</td>
-      <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setAdattaRigaVal(${wk},'serie',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
-      <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setAdattaRigaVal(${wk},'rep',${i},this.value)" onchange="disegna()" style="min-width:42px"></td>
+      <td>${serieCell}</td>
+      <td>${repCell}</td>
       <td>${percCell}</td>
       ${pesoCell}
       <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${wk},${i})" aria-label="Rimuovi">✕</button></td>
@@ -1414,7 +1440,7 @@ function _tabellaAdattaMezzo(a, wk) {
       <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setAdattaRigaVal(${wk},'contenuto',${i},this.value)" style="min-width:100px"></td>
       <td><select onchange="setAdattaRiga(${wk},'mezzo',${i},this.value)">${optMezzo(r.mezzo)}</select></td>
       <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAdattaRigaVal(${wk},'distanza',${i},this.value)" onchange="disegna()" style="min-width:56px"></td>
-      <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setAdattaRigaVal(${wk},'n',${i},this.value)" onchange="disegna()" style="min-width:44px"></td>
+      <td>${_stepCell(r.n, "n°", "stepAdattaNum(" + wk + "," + i + ",'n',-1)", "stepAdattaNum(" + wk + "," + i + ",'n',1)", "setAdattaRigaVal(" + wk + ",'n'," + i + ",this.value)", "40px")}</td>
       <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setAdattaRigaVal(${wk},'min',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAdattaRigaVal(${wk},'rec',${i},this.value)" style="min-width:56px"></td>
       <td><button class="chiudi" style="font-size:14px" onclick="delAdattaRiga(${wk},${i})" aria-label="Rimuovi">✕</button></td>

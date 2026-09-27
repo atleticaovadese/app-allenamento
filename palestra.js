@@ -141,6 +141,14 @@ function setPalEsercizio(s, i, val) {
   setPalRiga(s, i, "esercizio", val);
 }
 function setPalRigaVal(s, i, campo, val) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe[i][campo] = val; savePalestra(); }
+// − / ＋ su serie o rep (passo ±1, minimo 1)
+function palStepN(s, i, campo, delta) {
+  const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe[i];
+  if (!r) return;
+  const cur = parseInt(String(r[campo] == null ? "" : r[campo]).replace(/[^\d-]/g, ""), 10) || 0;
+  r[campo] = String(Math.max(1, cur + delta));
+  savePalestra(); disegna();
+}
 function palAddRiga(s) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe.push(palRigaVuota()); savePalestra(); disegna(); }
 function palDelRiga(s, i) { const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePalestra(); disegna(); }
 function palAddMeso() { palestraInit().mesocicli.push(palMesoVuoto()); S.palMeso = palestraInit().mesocicli.length - 1; S.palGiorno = 0; savePalestra(); disegna(); window.scrollTo(0, 0); }
@@ -332,8 +340,8 @@ function vistaProgrammaPalestra() {
         : `<td><input inputmode="numeric" value="${r.peso || ""}" placeholder="kg" oninput="setPalRigaVal(${s},${i},'peso',this.value)" onchange="disegna()" style="min-width:56px"></td>`;
       return `<tr>
         <td>${_campoEsercizio(r.esercizio, "dl-pal", "setPalEsercizio(" + s + "," + i + ",this.value)", "min-width:150px")}</td>
-        <td><input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setPalRigaVal(${s},${i},'serie',this.value)" onchange="disegna()" style="min-width:48px"></td>
-        <td><input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setPalRigaVal(${s},${i},'rep',this.value)" onchange="disegna()" style="min-width:48px"></td>
+        <td>${typeof _stepCell === "function" ? _stepCell(r.serie, "s", "palStepN(" + s + "," + i + ",'serie',-1)", "palStepN(" + s + "," + i + ",'serie',1)", "setPalRigaVal(" + s + "," + i + ",'serie',this.value)", "34px") : `<input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setPalRigaVal(${s},${i},'serie',this.value)" onchange="disegna()" style="min-width:48px">`}</td>
+        <td>${typeof _stepCell === "function" ? _stepCell(r.rep, "r", "palStepN(" + s + "," + i + ",'rep',-1)", "palStepN(" + s + "," + i + ",'rep',1)", "setPalRigaVal(" + s + "," + i + ",'rep',this.value)", "34px") : `<input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setPalRigaVal(${s},${i},'rep',this.value)" onchange="disegna()" style="min-width:48px">`}</td>
         <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPalRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:48px"></td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPalRigaVal(${s},${i},'rec',this.value)" style="min-width:64px"></td>
         <td><input value="${(r.tut || "").replace(/"/g, "&quot;")}" placeholder="TUT" oninput="setPalRigaVal(${s},${i},'tut',this.value)" style="min-width:64px"></td>
