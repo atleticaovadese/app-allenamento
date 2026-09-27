@@ -139,7 +139,12 @@ const _TUT_SCREENS = {
       <div style="display:flex;gap:6px;margin-top:8px">${["PB", "ACWR", "Forma"].map(k => `<div style="flex:1;background:#eef2f8;border-radius:8px;text-align:center;padding:6px 0"><div style="font-size:8px;color:#7a8598">${k}</div></div>`).join("")}</div>
       <div style="font-size:10px;color:#7a8598;margin-top:8px">Storico test</div>
       <svg viewBox="0 0 190 34" style="width:100%"><polyline points="6,28 50,22 94,16 138,12 182,6" fill="none" stroke="${_TG}" stroke-width="2"/></svg></div>
-    <div style="font-size:9px;color:#7a8598;text-align:center">tutto l'atleta in un PDF</div>`)
+    <div style="font-size:9px;color:#7a8598;text-align:center">tutto l'atleta in un PDF</div>`),
+  metis: () => _tf("Scrivi a Metis", "#5a4a8a", `
+    <div class="tc"><div style="font-size:11px;color:#7a8598">Un messaggio diretto ad Ale</div>
+      <div style="margin-top:6px;border:1px dashed #c8cfdd;border-radius:8px;padding:9px;font-size:11px;color:#4a5364;min-height:46px">Ciao Ale! Ho trovato un piccolo bug… 🐛</div></div>
+    <button class="tut-mini" style="background:#5a4a8a;align-self:center">📨 Invia a Metis</button>
+    <div style="font-size:9px;color:#7a8598;text-align:center">bug, idee… o un saluto (con pizza 🍕)</div>`)
 };
 
 function _tutMock(key) {
