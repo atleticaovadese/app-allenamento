@@ -769,10 +769,12 @@ function _reportBodyHTML(id) {
 // contenuto "svolto" di una seduta (pista: ripetute/tempi/lanci; palestra: esercizi/serie/VBT)
 function _rContenutoSvolta(sv) {
   const d = sv.dati || {};
+  // tempo: oltre i 60 s in minuti:secondi (es. 1:30.50), sotto in secondi
+  const ft = t => (Number(t) >= 60 && typeof _mzMMSSc === "function") ? _mzMMSSc(Number(t)) : Number(t).toFixed(2);
   if (sv.tipo === "pista") return (d.elementi || []).map(e => {
     if (e.misure) { const f = (e.misure || []).filter(v => v != null); return `${e.mezzo || "lanci"}${e.lanci ? " " + e.lanci + " lanci" : ""}${f.length ? " (best " + Math.max(...f).toFixed(2) + "m)" : ""}`; }
     if (e.min != null) return `${e.mezzo || "continuo"} ${e.min}′`;
-    const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(t => Number(t).toFixed(2)).join(", ") + ")" : ""}`;
+    const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(ft).join(", ") + ")" : ""}`;
   }).join(" · ");
   return (d.esercizi || []).map(x => { const f = (x.vbt || []).filter(v => v != null); const vm = f.length ? (f.reduce((s, v) => s + v, 0) / f.length).toFixed(2) : null; return `${x.nome} ${x.serie || "?"}×${x.rep || "?"}${x.peso ? "@" + x.peso + "kg" : ""}${vm ? " VBT " + vm : ""}`; }).join(" · ");
 }
@@ -847,10 +849,19 @@ function _reportMesoBodyHTML(id, k) {
     ${kmMeso ? `<div class="box"><div class="k">Km corsi</div><div class="v">${kmMeso}</div></div>` : ""}
   </div>`;
 
-  // allenamenti svolti (tutti quelli del mesociclo)
+  // allenamenti svolti RAGGRUPPATI per giorno della settimana (tutti i lunedì insieme, ecc.): si legge la progressione settimana per settimana
   h += `<h2>Allenamenti svolti (${svolteMeso.length})</h2>`;
-  if (svolteMeso.length) h += `<table><tr><th>Data</th><th>Tipo</th><th>Durata · RPE</th><th>Contenuto svolto</th></tr>${svolteMeso.map(_rRigaSvolta).join("")}</table>`;
-  else h += `<p class="muted">Nessun allenamento chiuso in questo mesociclo.</p>`;
+  if (svolteMeso.length) {
+    const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    const _wd = iso => (typeof wdIdx === "function") ? wdIdx(iso) : ((new Date(iso + "T00:00:00").getDay() + 6) % 7);
+    const nomiG = (typeof GG_FULL !== "undefined") ? GG_FULL : ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"];
+    for (let wd = 0; wd < 7; wd++) {
+      const delG = svolteMeso.filter(s => _wd(s.data) === wd).slice().sort((x, y) => x.data < y.data ? -1 : 1);  // cronologico: 1ª settimana → ultima
+      if (!delG.length) continue;
+      h += `<p class="sub" style="margin-top:10px"><b>${cap(nomiG[wd])}</b> · ${delG.length} ${delG.length === 1 ? "allenamento" : "allenamenti"}</p>
+        <table><tr><th>Data</th><th>Tipo</th><th>Durata · RPE</th><th>Contenuto svolto</th></tr>${delG.map(_rRigaSvolta).join("")}</table>`;
+    }
+  } else h += `<p class="muted">Nessun allenamento chiuso in questo mesociclo.</p>`;
 
   // NON fatto: allenamenti programmati ma non svolti (saltati) + lavori non completati
   const saltati = [];
