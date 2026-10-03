@@ -473,11 +473,19 @@ function _rPeriodoCut() {
   const days = Number(p) || 0; if (!days) return null;
   return new Date(new Date().getTime() - days * 86400000);
 }
-function _rInPeriodo(dataISO) { const c = _rPeriodoCut(); if (!c) return true; const t = new Date((dataISO || "") + "T00:00:00"); return !isNaN(t) && t >= c; }
+// data minima ASSOLUTA del report = inizio del primo mesociclo (impostata da _reportBodyHTML): niente presenze
+// né allenamenti prima della programmazione reale (evita il "casino" del blocco sovrascritto per errore).
+let _rFloorISO = null;
+function _rInPeriodo(dataISO) {
+  const d = dataISO || "";
+  if (_rFloorISO && d && d < _rFloorISO) return false;   // mai prima del primo mesociclo
+  const c = _rPeriodoCut(); if (!c) return true;
+  const t = new Date(d + "T00:00:00"); return !isNaN(t) && t >= c;
+}
 function _rPeriodoLabel() { const p = S.reportPeriodo || "tutto"; return p === "tutto" ? "intera stagione" : "ultimi " + p + " giorni"; }
 
 // (12) copertina brandizzata: logo + nome prodotto + foto/placeholder atleta + disciplina + data
-function _rCover(a, an, oggi) {
+function _rCover(a, an, oggi, metaOverride) {
   const brand = (typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis Performance";
   const src = (typeof fotoAtleta === "function" ? fotoAtleta(a.id) : "") || an.foto || "";
   const foto = src ? `<img class="cover-foto" src="${src}" alt="" onerror="this.style.display='none'">`
@@ -488,7 +496,7 @@ function _rCover(a, an, oggi) {
     <div class="cover-hero">${foto}
       <div><div class="cover-name">${a.nome}</div><div class="cover-sub">${sub || "&nbsp;"}</div></div>
     </div>
-    <div class="cover-meta">Report individuale · ${_rPeriodoLabel()} · generato il ${oggi}</div>
+    <div class="cover-meta">${metaOverride ? metaOverride + " · generato il " + oggi : "Report individuale · " + _rPeriodoLabel() + " · generato il " + oggi}</div>
   </div>`;
 }
 
@@ -592,6 +600,9 @@ function _reportBodyHTML(id) {
   const oggi = new Date().toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
   const ps = a.presenzeStagione || [0, 0], pm = a.presenzeMese || [0, 0];
   const ader = m.aderenza != null ? m.aderenza : (ps[1] ? Math.round(ps[0] / ps[1] * 100) : 0);
+  // PRESENZE del report contate SOLO dal primo mesociclo (non da periodi orfani precedenti → vedi errore "meso 2 su meso 1")
+  const primoMeso = (typeof _primoMesoInizio === "function") ? _primoMesoInizio(a) : null;
+  _rFloorISO = primoMeso;   // tutte le sezioni temporali del report non vanno prima del primo mesociclo
 
   // --- intestazione / copertina ---
   let h = _rCover(a, an, oggi);
@@ -653,12 +664,19 @@ function _reportBodyHTML(id) {
   // --- prevenzione: asimmetrie dx/sx ---
   h += _rPrevenzione(id);
 
-  // --- presenze ---
+  // --- presenze (SOLO dal primo mesociclo: niente conteggio di periodi orfani precedenti) ---
+  const _oggiR = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  const svNoExtraR = ((DEMO.seduteSvolte || {})[id] || []).filter(s => s.tipo !== "extra");
+  const doneStag = primoMeso ? svNoExtraR.filter(s => s.data >= primoMeso && s.data <= _oggiR).length : (ps[0] || 0);
+  const progStag = (primoMeso && typeof contaProgrammate === "function") ? contaProgrammate(a, primoMeso, _oggiR) : (ps[1] || 0);
+  const denStag = Math.max(progStag, doneStag);
+  const aderStag = denStag ? Math.round(doneStag / denStag * 100) : (doneStag > 0 ? 100 : 0);
   h += `<h2>Presenze</h2><div class="kpi">
-    <div class="box"><div class="k">Questo mese</div><div class="v">${pm[0]}/${pm[1]}</div></div>
-    <div class="box"><div class="k">Stagione</div><div class="v">${ps[0]}/${ps[1]}</div></div>
-    <div class="box"><div class="k">Aderenza</div><div class="v ${_rClsAder(ader)}">${ader}%</div></div>
+    <div class="box"><div class="k">Questo mesociclo</div><div class="v">${pm[0]}/${pm[1]}</div></div>
+    <div class="box"><div class="k">Dal primo mesociclo</div><div class="v">${doneStag}/${denStag}</div></div>
+    <div class="box"><div class="k">Aderenza</div><div class="v ${_rClsAder(aderStag)}">${aderStag}%</div></div>
   </div>`;
+  if (primoMeso) h += `<p class="sub muted">Presenze contate dal <b>${_rDataL(primoMeso)}</b> (inizio del primo mesociclo). Allenamenti svolti prima di questa data non contano come presenze.</p>`;
 
   // --- salute: diario recente + grafico + infortuni ---
   const storia = ((DEMO.diariStorico || {})[id] || []).filter(v => _rInPeriodo(v.data)).slice().sort((x, y) => x.data < y.data ? 1 : -1);
@@ -695,17 +713,7 @@ function _reportBodyHTML(id) {
   h += `<h2>Allenamenti svolti (${nSvolte})</h2>`;
   if (nSvolte) h += `<p class="sub">${nPista} in pista/campo · ${nSvolte - nPista} in palestra${nSvolte > 12 ? " · sotto gli ultimi 12" : ""}</p>`;
   if (svolte.length) {
-    h += `<table><tr><th>Data</th><th>Tipo</th><th>Durata · RPE</th><th>Contenuto svolto</th></tr>${svolte.map(sv => {
-      const d = sv.dati || {};
-      const cont = sv.tipo === "pista"
-        ? (d.elementi || []).map(e => {
-            if (e.misure) { const f = (e.misure || []).filter(v => v != null); return `${e.mezzo || "lanci"}${e.lanci ? " " + e.lanci + " lanci" : ""}${f.length ? " (best " + Math.max(...f).toFixed(2) + "m)" : ""}`; }
-            if (e.min != null) return `${e.mezzo || "continuo"} ${e.min}′`;
-            const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(t => Number(t).toFixed(2)).join(", ") + ")" : ""}`;
-          }).join(" · ")
-        : (d.esercizi || []).map(x => { const f = (x.vbt || []).filter(v => v != null); const vm = f.length ? (f.reduce((s, v) => s + v, 0) / f.length).toFixed(2) : null; return `${x.nome} ${x.serie || "?"}×${x.rep || "?"}${x.peso ? "@" + x.peso + "kg" : ""}${vm ? " VBT " + vm : ""}`; }).join(" · ");
-      return `<tr><td>${_rDataL(sv.data)}</td><td>${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.fastidi ? ' <span class="r">⚠</span>' : ""}</td><td>${sv.durata_min ? sv.durata_min + "′" : "—"}${sv.rpe ? " · RPE " + sv.rpe : ""}</td><td>${cont || "—"}</td></tr>`;
-    }).join("")}</table>`;
+    h += `<table><tr><th>Data</th><th>Tipo</th><th>Durata · RPE</th><th>Contenuto svolto</th></tr>${svolte.map(_rRigaSvolta).join("")}</table>`;
   } else h += `<p class="muted">Nessun allenamento chiuso ancora dall'atleta.</p>`;
 
   // --- volume corsa (km FATTI) per mesociclo — solo mezzofondo/fondo (differenza di km tra i blocchi) ---
@@ -755,21 +763,177 @@ function _reportBodyHTML(id) {
   return h;
 }
 
+// ============================================================================
+// REPORT DEL MESOCICLO — un singolo mesociclo (selezionabile): allenamenti, tempi, cosa non è stato fatto.
+// ============================================================================
+// contenuto "svolto" di una seduta (pista: ripetute/tempi/lanci; palestra: esercizi/serie/VBT)
+function _rContenutoSvolta(sv) {
+  const d = sv.dati || {};
+  if (sv.tipo === "pista") return (d.elementi || []).map(e => {
+    if (e.misure) { const f = (e.misure || []).filter(v => v != null); return `${e.mezzo || "lanci"}${e.lanci ? " " + e.lanci + " lanci" : ""}${f.length ? " (best " + Math.max(...f).toFixed(2) + "m)" : ""}`; }
+    if (e.min != null) return `${e.mezzo || "continuo"} ${e.min}′`;
+    const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(t => Number(t).toFixed(2)).join(", ") + ")" : ""}`;
+  }).join(" · ");
+  return (d.esercizi || []).map(x => { const f = (x.vbt || []).filter(v => v != null); const vm = f.length ? (f.reduce((s, v) => s + v, 0) / f.length).toFixed(2) : null; return `${x.nome} ${x.serie || "?"}×${x.rep || "?"}${x.peso ? "@" + x.peso + "kg" : ""}${vm ? " VBT " + vm : ""}`; }).join(" · ");
+}
+function _rRigaSvolta(sv) {
+  const cont = _rContenutoSvolta(sv);
+  return `<tr><td>${_rDataL(sv.data)}</td><td>${sv.tipo === "pista" ? "Pista" : "Palestra"}${sv.fastidi ? ' <span class="r">⚠</span>' : ""}</td><td>${sv.durata_min ? sv.durata_min + "′" : "—"}${sv.rpe ? " · RPE " + sv.rpe : ""}</td><td>${cont || "—"}</td></tr>`;
+}
+function _rDescrElemento(e) {
+  if (e.misure) return `${e.mezzo || "lanci"}${e.lanci ? " " + e.lanci + " lanci" : ""}`;
+  if (e.min != null) return `${e.mezzo || "continuo"} ${e.min}′`;
+  return `${e.ripetute}×${e.distanza} m`;
+}
+function _rPrevDay(iso) { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() - 1); return (typeof isoDiData === "function") ? isoDiData(d) : d.toISOString().slice(0, 10); }
+
+// elenco dei mesocicli dell'atleta (unione pista+palestra) come finestre temporali ordinate
+function _mesocicliAtleta(a) {
+  const prs = [(typeof _progPista === "function") ? _progPista(a) : null, (typeof _progPal === "function") ? _progPal(a) : null];
+  const starts = [];
+  prs.forEach(p => ((p && p.mesocicli) || []).forEach(m => { if (m.inizio) starts.push(m.inizio); }));
+  const uniq = [...new Set(starts)].sort();
+  return uniq.map((ini, i) => {
+    const start = new Date(ini + "T00:00:00");
+    let nome = "", nSett = 0;
+    prs.forEach(p => ((p && p.mesocicli) || []).forEach(m => {
+      if (m.inizio === ini) { if (!nome) nome = m.blocco || m.ciclo || m.focus || ""; const n = (typeof nSettDi === "function") ? nSettDi(m) : 4; if (n > nSett) nSett = n; }
+    }));
+    if (!nSett) nSett = 4;
+    const end = (i < uniq.length - 1) ? new Date(uniq[i + 1] + "T00:00:00") : new Date(start.getFullYear(), start.getMonth(), start.getDate() + nSett * 7);
+    return { idx: i, inizio: ini, startISO: ini, endISO: (typeof isoDiData === "function") ? isoDiData(end) : end.toISOString().slice(0, 10), nSett, nome };
+  });
+}
+
+function _reportMesoBodyHTML(id, k) {
+  const a = DEMO.atleti.find(x => x.id === id);
+  if (!a) return "<p>Atleta non trovato.</p>";
+  const an = (a.scheda && a.scheda.anagrafica) || {};
+  const oggi = new Date().toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  _rFloorISO = null;
+  const mesos = _mesocicliAtleta(a);
+  if (!mesos.length) return _rCover(a, an, oggi, "Report del mesociclo") +
+    `<h2>Report del mesociclo</h2><p class="muted">Nessun mesociclo con data d'inizio impostata. Imposta i mesocicli nel Programma (Pista/Palestra) per avere questo report.</p>`;
+  const mi = Math.min(Math.max(0, k || 0), mesos.length - 1);
+  const win = mesos[mi];
+  const _oggiISO = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  const inWin = iso => iso && iso >= win.startISO && iso < win.endISO;
+  const finEff = (win.endISO <= _oggiISO) ? _rPrevDay(win.endISO) : _oggiISO;   // per contaProgrammate/saltati: non oltre oggi né oltre il blocco
+  const inCorso = win.endISO > _oggiISO;
+
+  let h = _rCover(a, an, oggi, `Report del mesociclo · Meso ${mi + 1} di ${mesos.length}`);
+  h += `<h2>Mesociclo ${mi + 1}${win.nome ? " · " + win.nome : ""}</h2>`;
+  h += `<p class="sub">Dal <b>${_rDataL(win.startISO)}</b> al <b>${_rDataL(_rPrevDay(win.endISO))}</b> · ${win.nSett} settimane${inCorso ? ` · <span class="y">in corso</span>` : ""}</p>`;
+
+  const allSv = ((DEMO.seduteSvolte || {})[id] || []);
+  const svolteMeso = allSv.filter(s => s.tipo !== "extra" && inWin(s.data)).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  const extraMeso = allSv.filter(s => s.tipo === "extra" && inWin(s.data)).slice().sort((x, y) => x.data < y.data ? 1 : -1);
+  const nPista = svolteMeso.filter(s => s.tipo === "pista").length, nPal = svolteMeso.length - nPista;
+  const progMeso = (typeof contaProgrammate === "function") ? contaProgrammate(a, win.startISO, finEff) : 0;
+  const denMeso = Math.max(progMeso, svolteMeso.length);
+  const aderMeso = denMeso ? Math.round(svolteMeso.length / denMeso * 100) : (svolteMeso.length > 0 ? 100 : 0);
+  const rpeArr = svolteMeso.filter(s => s.rpe != null).map(s => Number(s.rpe));
+  const rpeMed = rpeArr.length ? rpeArr.reduce((s, v) => s + v, 0) / rpeArr.length : null;
+  const isMezzo = (typeof gruppoDi === "function") && gruppoDi(a) === "mezzo";
+  const kmMeso = (isMezzo && typeof kmFattiPeriodo === "function") ? kmFattiPeriodo(a, win.startISO, finEff) : null;
+
+  // riepilogo
+  h += `<h2>Riepilogo</h2><div class="kpi">
+    <div class="box"><div class="k">Presenze</div><div class="v ${_rClsAder(aderMeso)}">${svolteMeso.length}/${denMeso}</div></div>
+    <div class="box"><div class="k">Aderenza</div><div class="v ${_rClsAder(aderMeso)}">${aderMeso}%</div></div>
+    <div class="box"><div class="k">Pista/Campo</div><div class="v">${nPista}</div></div>
+    <div class="box"><div class="k">Palestra</div><div class="v">${nPal}</div></div>
+    <div class="box"><div class="k">RPE medio</div><div class="v">${rpeMed != null ? rpeMed.toFixed(1) : "—"}</div></div>
+    ${kmMeso ? `<div class="box"><div class="k">Km corsi</div><div class="v">${kmMeso}</div></div>` : ""}
+  </div>`;
+
+  // allenamenti svolti (tutti quelli del mesociclo)
+  h += `<h2>Allenamenti svolti (${svolteMeso.length})</h2>`;
+  if (svolteMeso.length) h += `<table><tr><th>Data</th><th>Tipo</th><th>Durata · RPE</th><th>Contenuto svolto</th></tr>${svolteMeso.map(_rRigaSvolta).join("")}</table>`;
+  else h += `<p class="muted">Nessun allenamento chiuso in questo mesociclo.</p>`;
+
+  // NON fatto: allenamenti programmati ma non svolti (saltati) + lavori non completati
+  const saltati = [];
+  const dcur = new Date(win.startISO + "T00:00:00"), stop = new Date(finEff + "T00:00:00").getTime();
+  let guard = 0;
+  while (dcur.getTime() <= stop && guard++ < 400) {
+    const iso = (typeof isoDiData === "function") ? isoDiData(dcur) : dcur.toISOString().slice(0, 10);
+    const prog = (typeof seduteDelGiorno === "function") ? seduteDelGiorno(iso, false, a) : [];
+    prog.forEach(s => { if (!allSv.some(sv => sv.data === iso && sv.tipo === s.tipo)) saltati.push({ data: iso, tipo: s.tipo, giorno: s.giorno, riep: (typeof riepilogoSeduta === "function") ? riepilogoSeduta(s) : "" }); });
+    dcur.setDate(dcur.getDate() + 1);
+  }
+  const nonFatti = [];
+  svolteMeso.forEach(sv => {
+    const d = sv.dati || {};
+    (d.elementi || []).forEach(e => { if (e.nonCompletato) nonFatti.push({ data: sv.data, tipo: "Pista", descr: _rDescrElemento(e), fatto: "", nota: e.notaAtleta || "" }); });
+    (d.esercizi || []).forEach(x => { if (x.nonCompletato) nonFatti.push({ data: sv.data, tipo: "Palestra", descr: `${x.nome} ${x.serie || "?"}×${x.rep || "?"}`, fatto: (x.serieFatte != null ? `fatte ${x.serieFatte}${x.repFatte != null ? "×" + x.repFatte : ""}` : ""), nota: x.notaAtleta || "" }); });
+  });
+  if (saltati.length || nonFatti.length) {
+    h += `<h2>Non fatto / da recuperare</h2>`;
+    if (saltati.length) h += `<p class="sub"><b class="y">Allenamenti programmati ma non svolti</b> · ${saltati.length}</p>
+      <table><tr><th>Data</th><th>Tipo</th><th>Giorno</th><th>Era previsto</th></tr>${saltati.map(s => `<tr><td>${_rDataL(s.data)}</td><td>${s.tipo === "pista" ? "Pista" : "Palestra"}</td><td>${s.giorno != null ? "g" + s.giorno : "—"}</td><td>${s.riep || "—"}</td></tr>`).join("")}</table>`;
+    if (nonFatti.length) h += `<p class="sub" style="margin-top:8px"><b class="r">Esercizi/ripetute non completati</b> · ${nonFatti.length}</p>
+      <table><tr><th>Data</th><th>Tipo</th><th>Lavoro</th><th>Fatto</th><th>Nota atleta</th></tr>${nonFatti.map(n => `<tr><td>${_rDataL(n.data)}</td><td>${n.tipo}</td><td>${n.descr}</td><td>${n.fatto || "—"}</td><td>${n.nota || ""}</td></tr>`).join("")}</table>`;
+  } else if (svolteMeso.length) {
+    h += `<h2>Non fatto / da recuperare</h2><p class="muted">Nessun allenamento saltato e nessun lavoro segnato come non completato. 👏</p>`;
+  }
+
+  // migliori del mesociclo (pista): best tempo per distanza + best misura per attrezzo
+  const best = {};
+  svolteMeso.filter(s => s.tipo === "pista").forEach(sv => (sv.dati && sv.dati.elementi || []).forEach(e => {
+    if (e.misure) { const f = (e.misure || []).filter(v => v != null).map(Number); if (f.length) { const b = Math.max(...f), key = "L:" + (e.mezzo || "Lanci"); if (!best[key] || b > best[key].val) best[key] = { lab: e.mezzo || "Lanci", val: b, kind: "m" }; } }
+    else if (e.min == null && e.distanza) { const f = (e.tempi || []).filter(v => v != null).map(Number); if (f.length) { const b = Math.min(...f), key = "T:" + e.distanza; if (!best[key] || b < best[key].val) best[key] = { lab: e.distanza + " m", val: b, kind: "t" }; } }
+  }));
+  const bestRows = Object.values(best);
+  if (bestRows.length) h += `<h2>Migliori del mesociclo</h2><table><tr><th>Prova</th><th>Migliore</th></tr>${bestRows.map(r => `<tr><td>${r.lab}</td><td><b>${r.kind === "m" ? r.val.toFixed(2) + " m" : (r.val >= 60 && typeof _mzMMSSc === "function" ? _mzMMSSc(r.val) : r.val.toFixed(2) + " s")}</b></td></tr>`).join("")}</table>`;
+
+  // allenamenti in più (extra) nel mesociclo
+  if (extraMeso.length) h += `<h2>Allenamenti in più (${extraMeso.length})</h2>
+    <table><tr><th>Data</th><th>Cosa</th><th>RPE</th></tr>${extraMeso.map(sv => { const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "In più", riga: "" }; return `<tr><td>${_rDataL(sv.data)}</td><td>${inf.icona} ${inf.titolo}${inf.riga ? " · " + inf.riga : ""}</td><td>${sv.rpe != null ? sv.rpe : "—"}</td></tr>`; }).join("")}</table>`;
+
+  // note allenatore
+  h += _rNoteCoach(id);
+  h += `<div class="foot">${(typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis Performance"} · Report mesociclo ${mi + 1} · ${a.nome}</div>`;
+  h += `<div class="print-footer">${(typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis Performance"} · ${a.nome} · Meso ${mi + 1} · ${oggi}</div>`;
+  return h;
+}
+
+function setReportVista(v) { S.reportVista = v; disegna(); window.scrollTo(0, 0); }
+function setReportMesoIdx(i) { S.reportMesoIdx = Number(i); disegna(); }
 function vistaReportAtleta() {
   const a = DEMO.atleti.find(x => x.id === S.report);
   if (!a) { S.report = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
+  const vista = S.reportVista || "completo";
   const per = S.reportPeriodo || "tutto";
   const pill = (v, l) => `<button class="btn ${per === v ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setReportPeriodo('${v}')">${l}</button>`;
+  // mesocicli disponibili per il "Report del mesociclo"
+  const mesos = (typeof _mesocicliAtleta === "function") ? _mesocicliAtleta(a) : [];
+  let mi = (S.reportMesoIdx != null) ? S.reportMesoIdx : (mesos.length - 1);   // default: mesociclo più recente
+  if (mi < 0 || mi >= mesos.length) mi = Math.max(0, mesos.length - 1);
+  const modoBtn = (v, l) => `<button class="btn ${vista === v ? "" : "btn-2"}" style="width:auto;padding:8px 14px;font-size:13px" onclick="setReportVista('${v}')">${l}</button>`;
+  const mesoPill = (m) => `<button class="btn ${mi === m.idx ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setReportMesoIdx(${m.idx})">Meso ${m.idx + 1}${m.nome ? " · " + m.nome : ""}</button>`;
+  const body = (vista === "meso")
+    ? (mesos.length ? _reportMesoBodyHTML(a.id, mi) : _reportMesoBodyHTML(a.id, 0))
+    : _reportBodyHTML(a.id);
+  const barraFiltri = (vista === "meso")
+    ? `<div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <span class="et" style="margin:0 2px 0 0">Mesociclo:</span>${mesos.length ? mesos.map(mesoPill).join("") : `<span class="et" style="color:var(--muted,#8a94a3)">nessun mesociclo impostato</span>`}
+        ${mesos.length > 1 ? `<span class="et" style="margin:0 0 0 6px;color:var(--muted,#8a94a3)">Scegli il mesociclo da stampare.</span>` : ""}
+      </div>`
+    : `<div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <span class="et" style="margin:0 2px 0 0">Periodo:</span>${pill("tutto", "Stagione")}${pill("90", "90 giorni")}${pill("180", "180 giorni")}
+        <span class="et" style="margin:0 0 0 6px;color:var(--muted,#8a94a3)">Grafici e diario mostrano <b>${_rPeriodoLabel()}</b>.</span>
+      </div>`;
   return `<style>${_REPORT_CSS}</style>
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-2" style="width:auto;padding:9px 14px" onclick="chiudiReport()">‹ Indietro</button>
       <button class="btn" style="width:auto;padding:9px 16px" onclick="window.print()">🖨 Stampa / Salva PDF</button>
     </div>
-    <div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-      <span class="et" style="margin:0 2px 0 0">Periodo:</span>${pill("tutto", "Stagione")}${pill("90", "90 giorni")}${pill("180", "180 giorni")}
-      <span class="et" style="margin:0 0 0 6px;color:var(--muted,#8a94a3)">Grafici e diario mostrano <b>${_rPeriodoLabel()}</b>. Premi <b>Stampa › Salva come PDF</b>.</span>
+    <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      ${modoBtn("completo", "📄 Report completo")}${modoBtn("meso", "📆 Report del mesociclo")}
     </div>
-    <div id="app-report">${_reportBodyHTML(a.id)}</div>`;
+    ${barraFiltri}
+    <div id="app-report">${body}</div>`;
 }
 
 // per validazione/uso esterno: documento HTML autonomo

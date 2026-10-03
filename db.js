@@ -344,9 +344,11 @@ async function caricaDati() {
       const mesoStart = (typeof _mesoInizioAtleta === "function" && _mesoInizioAtleta(a)) || meseStart;
       const doneMeso = (svolte || []).filter(s => s.atleta_id === a.id && s.tipo !== "extra" && s.data >= mesoStart && s.data <= oggiStr).length;
       const progMeso = (typeof contaProgrammate === "function") ? contaProgrammate(a, mesoStart, oggiStr) : 0;
-      const doneS = stagRows.filter(s => s.atleta_id === a.id && s.data <= oggiStr).length;
+      // "stagione" = conteggio svolti DAL PRIMO MESOCICLO (non da date orfane precedenti, es. blocco sovrascritto per errore)
+      const stagFloor = (typeof _primoMesoInizio === "function" && _primoMesoInizio(a)) || stagStart;
+      const doneS = stagRows.filter(s => s.atleta_id === a.id && s.data >= stagFloor && s.data <= oggiStr).length;
       a.presenzeMese = [doneMeso, Math.max(progMeso, doneMeso)];   // ora = "questo mesociclo" (blocco attuale)
-      a.presenzeStagione = [doneS, doneS];                          // stagione = solo CONTEGGIO svolti (aderenza reale = quella del mesociclo)
+      a.presenzeStagione = [doneS, doneS];                          // stagione = solo CONTEGGIO svolti (dal primo mesociclo)
       if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progMeso > 0 ? Math.min(100, Math.round(doneMeso / progMeso * 100)) : (doneMeso > 0 ? 100 : 0);
       // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
       if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; DEMO.mon[a.id].extraKm = wk.extraKm; }

@@ -37,6 +37,16 @@ function _mesoInizioAtleta(a) {
   });
   return best;   // null se nessun blocco attivo oggi
 }
+// inizio del PRIMO mesociclo (pista o palestra) dell'atleta = inizio REALE della programmazione.
+// Serve a NON conteggiare presenze/allenamenti di periodi orfani (es. blocco sovrascritto per errore:
+// "meso 2 su meso 1"), così le presenze partono dal primo mesociclo vero e non da date precedenti senza programma.
+function _primoMesoInizio(a) {
+  let best = null;
+  [(typeof _progPista === "function") ? _progPista(a) : null, (typeof _progPal === "function") ? _progPal(a) : null].forEach(prog => {
+    ((prog && prog.mesocicli) || []).forEach(m => { if (m.inizio && (!best || m.inizio < best)) best = m.inizio; });
+  });
+  return best;   // null se nessun mesociclo con data d'inizio
+}
 
 // cache delle sedute generate: stesso id → stesso oggetto (così i dati inseriti non si perdono al re-render)
 function _cacheSeduta(s) {
