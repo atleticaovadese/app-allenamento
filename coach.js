@@ -45,6 +45,30 @@ function chipsGruppi() {
   }).join("")}</div>`;
 }
 
+// testo compatto di una riga di programma (pista vel/lanci/mezzo o palestra) — per la vista "Oggi"
+function _txtRigaProg(r, g, tipo) {
+  if (!r) return "";
+  if (tipo === "palestra") return `${r.esercizio || ""}${(r.serie && r.rep) ? " " + r.serie + "×" + r.rep : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.tut ? " · TUT " + r.tut : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+  if (g === "lanci") return `${r.mezzo || r.contenuto || ""}${r.kg ? " " + r.kg + "kg" : ""}${r.n ? " ×" + r.n : ""}${r.tipo ? " (" + r.tipo + ")" : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+  if (g === "mezzo") return `${r.mezzo || r.contenuto || ""}${(Number(r.distanza) > 0) ? " " + (Number(r.n) > 0 ? r.n + "×" : "") + r.distanza + "m" : ""}${r.min ? " " + r.min + "′" : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+  return `${r.contenuto || ""}${(r.distanza && r.n) ? " " + r.n + "×" + r.distanza + "m" : ""}${r.perc ? " @" + r.perc + "%" : ""}${r.rec ? " · rec " + r.rec : ""}`.trim();
+}
+// righe del programma MADRE del gruppo per OGGI (solo la giornata), per un tipo → {giorno, righe} o null
+function _madreRigheOggi(g, tipo, oggi) {
+  const prog = tipo === "palestra" ? ((typeof palDi === "function") ? palDi(g) : null) : ((typeof pistaDi === "function") ? pistaDi(g) : null);
+  const pa = (typeof mesoAttivo === "function") ? mesoAttivo(prog, oggi, false) : null;
+  if (!pa) return null;
+  const wd = GG_ISO[wdIdx(oggi)];
+  let found = null;
+  (pa.m.giorni || []).forEach((gi, idx) => {
+    if ((gi.giornoSett || "") !== wd) return;
+    const sett = gi.settimane && gi.settimane[pa.settIdx];
+    const righe = (sett && sett.righe) || [];
+    if (righe.length) found = { giorno: idx + 1, righe };
+  });
+  return found;
+}
+
 // ---------- OGGI (allenatore): colpo d'occhio sulla giornata della squadra ----------
 function vistaOggiCoach() {
   const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
@@ -81,9 +105,41 @@ function vistaOggiCoach() {
   const _pr = x => (typeof _notifPront === "function") ? _notifPront(x.dObj) : null;
   const daGestire = info.filter(x => x.dObj && (x.dObj.fastidi || (_pr(x) != null && _pr(x) < 2.5)));
   const extraOggi = info.filter(x => x.extra.length);
+
+  // --- PROGRAMMA MADRE di OGGI (solo la giornata) + chi ha un programma DIVERSO dal madre oggi ---
+  const madreP = _madreRigheOggi(g, "pista", oggi);
+  const madreG = _madreRigheOggi(g, "palestra", oggi);
+  const _rowsTxt = (righe, tipo) => (righe || []).map(r => _txtRigaProg(r, g, tipo)).filter(Boolean);
+  const diffAtl = [];
+  lista.forEach(a => {
+    const diffs = [];
+    [["pista", madreP], ["palestra", madreG]].forEach(([tipo, madre]) => {
+      const atlR = (typeof righeGiornoAtleta === "function") ? righeGiornoAtleta(a, oggi, tipo) : [];
+      const aTxt = _rowsTxt(atlR, tipo), mTxt = _rowsTxt(madre && madre.righe, tipo);
+      if (JSON.stringify(aTxt) === JSON.stringify(mTxt)) return;   // identico al madre → non è "diverso"
+      const txt = aTxt.length ? aTxt.join(" · ") : (mTxt.length ? "riposo (non fa l'allenamento madre oggi)" : "");
+      diffs.push({ tipo, txt });
+    });
+    if (diffs.length) diffAtl.push({ a, diffs });
+  });
+  const madreVuoto = (!madreP || !madreP.righe.length) && (!madreG || !madreG.righe.length);
+  const madreHtml = `<p class="sez">Programma madre di oggi · ${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""}</p>
+    <div class="card" style="border-color:rgba(77,154,255,.35)">
+      ${madreP ? `<p style="font-weight:600;margin:0 0 4px">🏃 Pista${madreP.giorno ? " · g" + madreP.giorno : ""}</p><p class="et" style="margin:0 0 ${madreG ? "10px" : "0"}">${_rowsTxt(madreP.righe, "pista").join(" · ") || "—"}</p>` : ""}
+      ${madreG ? `<p style="font-weight:600;margin:0 0 4px">🏋 Palestra${madreG.giorno ? " · g" + madreG.giorno : ""}</p><p class="et" style="margin:0">${_rowsTxt(madreG.righe, "palestra").join(" · ") || "—"}</p>` : ""}
+      ${madreVuoto ? `<p class="et" style="margin:0">Riposo — nessun allenamento madre oggi per questo gruppo.</p>` : ""}
+    </div>
+    <p class="sez">Diversi dal madre oggi · ${diffAtl.length}</p>
+    ${diffAtl.length ? diffAtl.map(d => `<div class="card riga-a" onclick="apriAtleta('${d.a.id}')">
+        <div style="flex:1;min-width:0"><h3>${d.a.nome}</h3>
+          <p class="et" style="margin-top:2px">${d.diffs.map(x => `${x.tipo === "pista" ? "🏃" : "🏋"} ${x.txt || "—"}`).join("<br>")}</p></div>
+        <span class="freccia">›</span></div>`).join("")
+      : `<div class="card"><p class="et">Tutti seguono il programma madre oggi. ✓</p></div>`}`;
+
   return `${(typeof chipsGruppi === "function") ? chipsGruppi() : ""}
   <div class="card"><h3>Oggi · ${dataLbl}</h3>
     <p class="et" style="margin-top:2px">Colpo d'occhio sulla giornata (${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""}). Tocca un atleta per aprirlo.</p></div>
+  ${madreHtml}
   <div class="quadri" style="margin-bottom:11px">
     <div class="q"><div class="k">Si allenano oggi</div><div class="v">${allena.length}</div></div>
     <div class="q"><div class="k">Hanno chiuso</div><div class="v" style="color:var(--verde)">${chiusi}</div></div>
