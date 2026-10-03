@@ -403,12 +403,13 @@ function _modBtnSeduta(s) {
   if (typeof apriModSeduta !== "function") return "";
   return `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriModSeduta('${s.id}')">✏️ Modifica questo allenamento (solo oggi)</button>`;
 }
-// pulsante "corsa in più" nella seduta — solo per l'ATLETA mezzofondo/fondo
+// pulsante "allenamento in più" nella seduta — per l'ATLETA: corsa (mezzofondo) o pista/palestra (velocisti/lanciatori)
 function _extraBtnSeduta() {
   if (S.utente && S.utente.ruolo === "coach") return "";
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
-  if (!a || typeof gruppoDi !== "function" || gruppoDi(a) !== "mezzo" || typeof apriExtra !== "function") return "";
-  return `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>`;
+  if (!a || typeof gruppoDi !== "function") return "";
+  if (gruppoDi(a) === "mezzo") return (typeof apriExtra === "function") ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>` : "";
+  return (typeof apriExtraGen === "function") ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtraGen()">➕ Ho fatto un allenamento in più</button>` : "";
 }
 // nota "corsa in più" nel giorno della seduta (la vede il coach aprendo la giornata e l'atleta): km · passo · RPE
 function _extraDelGiorno(aid, dataISO) {
@@ -419,13 +420,11 @@ function _notaExtraGiorno(s) {
   const ex = _extraDelGiorno(s.atletaId, s.dataISO);
   if (!ex.length) return "";
   const righe = ex.map(sv => {
-    const d = sv.dati || {};
-    const passo = (d.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(d.passoSec) + "/km" : "";
-    const disl = (d.dislivello != null && d.dislivello !== "") ? " · " + d.dislivello + " m D+" : "";
-    return `<b>${d.km} km</b>${passo}${disl}${sv.rpe != null ? " · RPE " + sv.rpe : ""}${d.note ? " · " + d.note : ""}`;
+    const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "Allenamento in più", riga: "" };
+    return `${inf.icona} <b>${inf.titolo}</b>${inf.riga ? " · " + inf.riga : ""}${sv.rpe != null ? " · RPE " + sv.rpe : ""}`;
   }).join("<br>");
   return `<div class="card" style="border-color:rgba(124,194,67,.5);background:var(--verde-bg)">
-    <p style="margin:0;font-weight:600;color:var(--verde)">🏃 Corsa in più in questo giorno</p>
+    <p style="margin:0;font-weight:600;color:var(--verde)">➕ Allenamento in più in questo giorno</p>
     <p class="et" style="margin:4px 0 0">${righe}</p></div>`;
 }
 function segnalaInfortunioSeduta() {

@@ -349,7 +349,7 @@ async function caricaDati() {
       a.presenzeStagione = [doneS, doneS];                          // stagione = solo CONTEGGIO svolti (aderenza reale = quella del mesociclo)
       if (DEMO.mon[a.id]) DEMO.mon[a.id].aderenza = progMeso > 0 ? Math.min(100, Math.round(doneMeso / progMeso * 100)) : (doneMeso > 0 ? 100 : 0);
       // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
-      if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; }
+      if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; DEMO.mon[a.id].extraKm = wk.extraKm; }
     });
   } catch (e) { /* tabella seduta_svolta assente o offline */ }
 
@@ -359,7 +359,7 @@ async function caricaDati() {
 // settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
 function _settimanaMonReale(a, off) {
   off = off || 0;
-  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0], doppio = [false, false, false, false, false, false, false], nSed = [0, 0, 0, 0, 0, 0, 0];
+  const sett = ["", "", "", "", "", "", ""], done = [0, 0, 0, 0, 0, 0, 0], extra = [0, 0, 0, 0, 0, 0, 0], extraKm = [0, 0, 0, 0, 0, 0, 0], doppio = [false, false, false, false, false, false, false], nSed = [0, 0, 0, 0, 0, 0, 0];
   const isoL = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + off * 7);
@@ -370,7 +370,9 @@ function _settimanaMonReale(a, off) {
     const svGiorno = svolte.filter(sv => sv.data === iso);
     const reali = svGiorno.filter(sv => sv.tipo !== "extra");     // le extra non contano come "seduta fatta"
     done[i] = reali.length ? 1 : 0;
-    extra[i] = svGiorno.filter(sv => sv.tipo === "extra").reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);
+    const exGiorno = svGiorno.filter(sv => sv.tipo === "extra");
+    extra[i] = exGiorno.length;                                                                   // n° allenamenti in più (corsa mezzofondo O pista/palestra extra)
+    extraKm[i] = exGiorno.reduce((s, sv) => s + (Number(sv.dati && sv.dati.km) || 0), 0);         // km (solo le corse extra del mezzofondo)
     // tipi presenti quel giorno: dal programma E dalle sedute svolte (anche se non programmate)
     const tipi = new Set();
     let prog = [];
@@ -386,7 +388,7 @@ function _settimanaMonReale(a, off) {
     const tipo = tipi.has("pista") ? "pista" : (tipi.has("palestra") ? "palestra" : "");
     sett[i] = (gare || []).some(g => g.data === iso) ? "gara" : tipo;
   }
-  return { settimana: sett, done, extra, doppio, nSed };
+  return { settimana: sett, done, extra, extraKm, doppio, nSed };
 }
 
 // ---------- scrittura: nuovo atleta ----------
@@ -547,7 +549,7 @@ async function salvaExtraDB(atletaId, ex) {
     atleta_id: atletaId, chiave: "extra-" + Date.now(), tipo: "extra",
     data: data, durata_min: ex.durata != null ? ex.durata : null, rpe: ex.rpe != null ? ex.rpe : null,
     fastidi: false, giorno: null, chiusa: true,
-    dati: { extra: true, km: ex.km, passoSec: ex.passoSec != null ? ex.passoSec : null, dislivello: ex.dislivello != null ? ex.dislivello : null, note: ex.note || "" }
+    dati: { extra: true, km: ex.km != null ? ex.km : null, passoSec: ex.passoSec != null ? ex.passoSec : null, dislivello: ex.dislivello != null ? ex.dislivello : null, ambito: ex.ambito || null, cosa: ex.cosa || null, note: ex.note || "" }
   };
   DEMO.seduteSvolte = DEMO.seduteSvolte || {};
   (DEMO.seduteSvolte[atletaId] = DEMO.seduteSvolte[atletaId] || []).push({ atleta_id: atletaId, data: data, tipo: "extra", giorno: null, durata_min: payload.durata_min, rpe: payload.rpe, fastidi: false, dati: payload.dati });

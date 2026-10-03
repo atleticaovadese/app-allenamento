@@ -681,20 +681,29 @@ function vistaCalendario() {
   const dNum = iso => new Date(iso + "T00:00:00").getDate();
   const range = sett.length ? `${dNum(sett[0].dataISO)} – ${dNum(sett[6].dataISO)} ${MESI_FULL[new Date(sett[6].dataISO + "T00:00:00").getMonth()]}` : "";
   const haQualcosa = sett.some(d => d.sedute.length);
+  // allenamenti fatti IN PIÙ (extra) dell'atleta, per poterli mostrare nel giorno giusto
+  const aCal = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const extraDi = iso => aCal ? ((DEMO.seduteSvolte && DEMO.seduteSvolte[aCal.id]) || []).filter(sv => sv.tipo === "extra" && sv.data === iso) : [];
+  const rigaExtra = (sv, i, iso) => { const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "Allenamento in più", riga: "" };
+    return `<div class="lib-row" style="margin-top:8px;border:1px solid rgba(124,194,67,.5);background:var(--verde-bg)" onclick="vediExtraGiorno('${iso}',${i})">
+      <div style="flex:1;min-width:0"><div style="font-weight:500;color:var(--verde)">${inf.icona} ${inf.titolo} <span class="et" style="color:var(--verde)">· in più</span></div>
+        <div class="et" style="margin-top:1px">${inf.riga}</div></div>
+      <span class="freccia">›</span></div>`; };
   return `
   <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px">
     <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="calSett(-1)">‹</button>
     <div style="text-align:center"><b>${off === 0 ? "Questa settimana" : (off > 0 ? "+" + off : off) + " sett"}</b><div class="et">${range}</div></div>
     <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="calSett(1)">›</button>
   </div>
-  ${sett.map(d => `<div class="card"${d.oggi ? ' style="border-color:var(--blu)"' : ""}>
+  ${sett.map(d => { const exs = extraDi(d.dataISO); return `<div class="card"${d.oggi ? ' style="border-color:var(--blu)"' : ""}>
     <p style="font-weight:600${d.oggi ? ";color:var(--blu)" : ""}">${cap(d.nomeGiorno)} ${dNum(d.dataISO)}${d.oggi ? " · oggi" : ""}</p>
     ${d.sedute.length ? d.sedute.map(s => `<div class="lib-row" style="margin-top:8px" onclick="apriSeduta('${s.id}')">
       <div style="flex:1;min-width:0"><div style="font-weight:500">${s.chiusa ? "<span style='color:var(--verde)'>✓</span> " : ""}${s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra"} · giorno ${s.giorno}${s.chiusa ? " <span class='et' style='color:var(--verde)'>· svolto</span>" : ""}</div>
         <div class="et" style="margin-top:1px">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</div></div>
       <span class="freccia">›</span></div>`).join("")
-      : `<p class="et" style="margin-top:6px">Riposo</p>`}
-  </div>`).join("")}
+      : (exs.length ? "" : `<p class="et" style="margin-top:6px">Riposo</p>`)}
+    ${exs.map((sv, i) => rigaExtra(sv, i, d.dataISO)).join("")}
+  </div>`; }).join("")}
   ${!haQualcosa ? `<div class="card"><p class="et">Nessun allenamento programmato in questa settimana. Il programma lo imposta l'allenatore.</p></div>` : ""}`;
 }
 function calSett(d) { S.calOff = (S.calOff || 0) + d; disegna(); window.scrollTo(0, 0); }
@@ -729,6 +738,75 @@ function apriSedutaSvolta(dataISO, tipo, giorno) {
   const s = sd.find(x => x.tipo === tipo && (giorno == null || x.giorno === giorno)) || sd.find(x => x.tipo === tipo);
   if (!s) { alert("Questo allenamento non è più modificabile (il programma di quel giorno è cambiato). I dati salvati restano comunque qui."); return; }
   if (typeof apriSeduta === "function") apriSeduta(s.id); else { S.seduta = s.id; disegna(); }
+}
+
+// ============================================================================
+// ALLENAMENTO IN PIÙ (extra) — oltre al programma. Mezzofondo = "corsa extra" (km, in mezzofondo.js);
+// velocisti / saltatori / lanciatori = allenamento extra PISTA o PALESTRA (qui sotto).
+// Entrambi salvano come seduta_svolta tipo "extra" e NON contano come presenza.
+// ============================================================================
+// descrizione sintetica di un extra, usata da calendario, allenamenti svolti, note e notifiche del coach
+function _extraInfo(sv) {
+  const d = (sv && sv.dati) || {};
+  // corsa extra (mezzofondo): ha i km
+  if (d.km != null && d.km !== "") {
+    const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "";
+    const disl = (d.dislivello != null && d.dislivello !== "") ? d.dislivello + " m D+" : "";
+    const parti = [d.km + " km", passo, disl, sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
+    return { icona: "🏃", titolo: "Corsa extra", riga: parti.join(" · ") };
+  }
+  // extra generico (velocisti/lanciatori): pista o palestra
+  const pal = d.ambito === "palestra";
+  const parti = [d.cosa || "", sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
+  return { icona: pal ? "🏋" : "🏃", titolo: pal ? "Palestra extra" : "Pista extra", riga: parti.join(" · ") || "allenamento in più" };
+}
+// form: l'atleta (non mezzofondo) segna un allenamento fatto IN PIÙ, scegliendo pista o palestra
+function apriExtraGen() {
+  S._extraG = S._extraG || { ambito: "pista", cosa: "", durata: "", rpe: "", note: "" };
+  mostraFoglio(_foglioExtraGen());
+}
+function setExtraGenAmbito(v) { (S._extraG = S._extraG || {}).ambito = v; mostraFoglio(_foglioExtraGen()); }
+function _foglioExtraGen() {
+  const e = S._extraG || {};
+  const seg = (v, lbl) => `<button class="btn ${e.ambito === v ? "" : "btn-2"}" style="flex:1" onclick="setExtraGenAmbito('${v}')">${lbl}</button>`;
+  return `
+    <div class="foglio-top"><h3>➕ Allenamento in più</h3>
+      <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    <p class="et" style="margin-bottom:10px">Un allenamento fatto <b>in più</b> rispetto al programma. Compare nel calendario e negli allenamenti svolti, e l'allenatore riceve una notifica. (Non toglie e non aggiunge presenze.)</p>
+    <label class="lab">Dove</label>
+    <div style="display:flex;gap:8px;margin-top:6px">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}</div>
+    <label class="lab" style="display:block;margin-top:12px">Cosa hai fatto</label>
+    <textarea rows="2" oninput="S._extraG.cosa=this.value" style="margin-top:6px" placeholder="${e.ambito === "palestra" ? "es. core + stacchi leggeri" : "es. allunghi + tecnica di corsa"}">${e.cosa || ""}</textarea>
+    <label class="lab" style="display:block;margin-top:12px">Durata (minuti, facoltativa)</label>
+    <input inputmode="numeric" value="${e.durata || ""}" placeholder="es. 45" oninput="S._extraG.durata=this.value" style="margin-top:6px;max-width:140px">
+    <label class="lab" style="display:block;margin-top:12px">RPE (1-10, facoltativo)</label>
+    <input inputmode="decimal" value="${e.rpe || ""}" placeholder="es. 6" oninput="S._extraG.rpe=this.value" style="margin-top:6px;max-width:120px">
+    <label class="lab" style="display:block;margin-top:12px">Note (facoltative)</label>
+    <textarea rows="2" oninput="S._extraG.note=this.value" style="margin-top:6px" placeholder="es. la mattina, sentivo bene">${e.note || ""}</textarea>
+    <button class="btn" style="margin-top:14px" onclick="salvaExtraGen()">Salva allenamento in più</button>`;
+}
+function salvaExtraGen() {
+  const e = S._extraG || {};
+  const ambito = e.ambito === "palestra" ? "palestra" : "pista";
+  const cosa = (e.cosa || "").trim();
+  const dd = parseInt(e.durata); const durata = (!isNaN(dd) && dd > 0) ? dd : null;
+  const rpe = (e.rpe !== "" && e.rpe != null) ? Number(String(e.rpe).replace(",", ".")) : null;
+  const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
+  if (!aid) { alert("Atleta non trovato."); return; }
+  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { ambito, cosa, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note });
+  S._extraG = null;
+  if (typeof chiudiScheda === "function") chiudiScheda();
+  if (typeof alert === "function") alert("✓ Allenamento in più aggiunto (" + (ambito === "palestra" ? "palestra" : "pista") + "). L'allenatore lo vede e riceve la notifica.");
+  disegna();
+}
+// apre (sola lettura) il dettaglio di un extra fatto in un dato giorno (dal calendario)
+function vediExtraGiorno(dataISO, idx) {
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null; if (!a) return;
+  const ex = ((DEMO.seduteSvolte && DEMO.seduteSvolte[a.id]) || []).filter(sv => sv.tipo === "extra" && sv.data === dataISO);
+  const sv = ex[idx]; if (!sv) return;
+  mostraFoglio(`<div class="foglio-top"><h3>Allenamento in più</h3>
+    <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
+    ${typeof _cardSvolta === "function" ? _cardSvolta(sv) : ""}`);
 }
 
 function calMesociclo() {

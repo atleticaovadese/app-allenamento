@@ -359,10 +359,11 @@ function notificheCoach(includiVisti) {
     const rpeLim = (sog.rpeAlto || 9);
     ((DEMO.seduteSvolte || {})[a.id] || []).forEach(sv => {
       if (gg(sv.data) > 21) return;                       // solo le ultime ~3 settimane
-      // allenamento EXTRA segnato dall'atleta (corsa in più) → notifica
+      // allenamento EXTRA (in più) segnato dall'atleta — corsa (mezzofondo) o pista/palestra (velocisti/lanciatori) → notifica
       if (sv.tipo === "extra") {
-        const km = sv.dati && sv.dati.km;
-        add(a, "extra", "y", sv.data, `Corsa in più: ${km} km${(sv.dati && sv.dati.passoSec && typeof _mzMMSS === "function") ? " · " + _mzMMSS(sv.dati.passoSec) + "/km" : ""}${(sv.dati && sv.dati.dislivello != null && sv.dati.dislivello !== "") ? " · " + sv.dati.dislivello + " m D+" : ""}${sv.rpe != null ? " · RPE " + sv.rpe : ""}`, "extra|" + sv.data + "|" + km);
+        const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { titolo: "Allenamento in più", riga: "" };
+        const key = (sv.dati && (sv.dati.km != null ? sv.dati.km : sv.dati.ambito)) || "";
+        add(a, "extra", "y", sv.data, `${inf.titolo} in più${inf.riga ? ": " + inf.riga : ""}${sv.rpe != null ? " · RPE " + sv.rpe : ""}`, "extra|" + sv.data + "|" + key);
         return;
       }
       const items = (sv.dati && (sv.dati.esercizi || sv.dati.elementi)) || [];
@@ -422,7 +423,7 @@ function _storicoBreveAtleta(atletaId) {
   let h = `<p class="et" style="margin:12px 0 4px;font-weight:600">📚 Storico recente</p>`;
   if (diarioUlt) { const p = (typeof _notifPront === "function") ? _notifPront(diarioUlt) : null; h += `<p class="et" style="margin:0 0 4px">Ultimo diario ${dl(diarioUlt.data)}: prontezza <b>${p != null ? p.toFixed(1) : "—"}</b>/5${diarioUlt.oreSonno != null ? " · sonno " + diarioUlt.oreSonno + " h" : ""}</p>`; }
   if (inf.length) h += `<p class="et" style="margin:0 0 4px;color:var(--rosso)">🩹 ${inf.map(i => (i.zona || "") + (i.lato ? " " + i.lato : "") + (i.stato ? " · " + i.stato : "")).join(" · ")}</p>`;
-  if (extra.length) h += `<p class="et" style="margin:0 0 4px;color:var(--verde)">🏃 Corse extra: ${extra.map(s => (s.dati && s.dati.km) + " km").join(" · ")}</p>`;
+  if (extra.length) h += `<p class="et" style="margin:0 0 4px;color:var(--verde)">➕ In più: ${extra.map(s => { const inf = (typeof _extraInfo === "function") ? _extraInfo(s) : { titolo: "allenamento", riga: "" }; return inf.titolo + (inf.riga ? " (" + inf.riga + ")" : ""); }).join(" · ")}</p>`;
   if (sv.length) h += `<div class="p-scroll"><table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Tipo</th><th>Dur·RPE</th></tr></thead><tbody>${sv.map(s => `<tr><td>${dl(s.data)}</td><td>${s.tipo === "pista" ? "Pista" : "Palestra"}${s.fastidi ? " ⚠" : ""}</td><td>${s.durata_min ? s.durata_min + "′" : "—"}${s.rpe != null ? " · RPE " + s.rpe : ""}</td></tr>`).join("")}</tbody></table></div>`;
   else h += `<p class="et">Nessuna seduta chiusa di recente.</p>`;
   return h;
@@ -513,18 +514,20 @@ function vistaAtletaDettaglio() {
   }).join("");
 
   // settimana LIVE (riflette subito i programmi) e quadratini cliccabili → aprono l'allenamento del giorno.
-  // Giorni con CORSA EXTRA: anello verde intorno alla casella (+ 🏃 se non c'è una seduta programmata).
+  // Giorni con ALLENAMENTO IN PIÙ (corsa extra del mezzofondo O pista/palestra extra): anello verde + ＋ se non c'è seduta programmata.
   const wk = (typeof _settimanaMonReale === "function") ? _settimanaMonReale(a) : s;
   const sett = wk.settimana.map((tp, i) => {
     const ex = wk.extra && wk.extra[i] > 0;
+    const exKm = wk.extraKm && wk.extraKm[i] > 0;
+    const exTip = ex ? (exKm ? `+${wk.extraKm[i]} km corsi in più` : `${wk.extra[i]} allenament${wk.extra[i] > 1 ? "i" : "o"} in più`) : "";
     const dop = wk.doppio && wk.doppio[i];   // doppio allenamento (pista + palestra)
     const ring = dop ? "box-shadow:0 0 0 2px #e6a83c, 0 0 5px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
     const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
     const dim = wk.done[i] ? "" : (ex ? "" : "nofatto");
-    const glyph = wk.done[i] ? "✓" : (ex ? "🏃" : "");
+    const glyph = wk.done[i] ? "✓" : (ex ? "＋" : "");
     const cls = dop ? "" : (tp ? TIPO_CELLA[tp] : "vuoto");
     return `<div class="mini-g">
-      <div class="mini-c ${cls} ${dim}" style="${tp ? "cursor:pointer;" : ""}${bg}${ring}"${tp ? ` onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}${dop ? ` title="Doppio allenamento: pista + palestra"` : (ex ? ` title="+${wk.extra[i]} km corsi in più"` : "")}>${glyph}</div>
+      <div class="mini-c ${cls} ${dim}" style="${tp ? "cursor:pointer;" : ""}${bg}${ring}"${tp ? ` onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}${dop ? ` title="Doppio allenamento: pista + palestra"` : (ex ? ` title="${exTip}"` : "")}>${glyph}</div>
       <div class="et" style="text-align:center;font-size:10px">${DEMO.giorniSettimana[i]}</div>
     </div>`;
   }).join("");
@@ -626,15 +629,17 @@ function vistaCalendarioSquadra() {
       : (DEMO.mon[a.id] || (typeof monDefault === "function" ? monDefault() : { settimana: ["", "", "", "", "", "", ""], done: [0, 0, 0, 0, 0, 0, 0], extra: [0, 0, 0, 0, 0, 0, 0] }));
     const celle = s.settimana.map((tp, i) => {
       const ex = s.extra && s.extra[i] > 0;
+      const exKm = s.extraKm && s.extraKm[i] > 0;
+      const exTip = ex ? (exKm ? `+${s.extraKm[i]} km corsi in più` : `${s.extra[i]} allenament${s.extra[i] > 1 ? "i" : "o"} in più`) : "";
       const dop = s.doppio && s.doppio[i];   // doppio allenamento (pista + palestra)
       const nS = (s.nSed && s.nSed[i]) || 0;
       const multi = nS >= 2;                  // 2+ sedute lo stesso giorno (anche due piste dopo uno spostamento)
       const ring = (dop || multi) ? "box-shadow:0 0 0 2px #e6a83c, 0 0 6px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
       const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
-      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (multi ? ` title="${nS} sedute in questo giorno"` : (ex ? ` title="+${s.extra[i]} km corsi in più"` : ""));
-      const testo = multi ? `${s.done[i] ? "✓" : ""}${nS}` : (s.done[i] ? "✓" : (ex ? "🏃" : ""));
+      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (multi ? ` title="${nS} sedute in questo giorno"` : (ex ? ` title="${exTip}"` : ""));
+      const testo = multi ? `${s.done[i] ? "✓" : ""}${nS}` : (s.done[i] ? "✓" : (ex ? "＋" : ""));
       if (tp) return `<div class="cell ${dop ? '' : (TIPO_CELLA[tp] || '')} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${bg}${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${testo}</div>`;
-      if (ex) return `<div class="cell off" style="${ring}"${title}>🏃</div>`;
+      if (ex) return `<div class="cell off" style="${ring}"${title}>＋</div>`;
       return `<div class="cell off"></div>`;
     }).join("");
     return `<div class="srow">
@@ -1544,15 +1549,14 @@ function _cardSvolta(sv) {
   // data con il giorno della settimana: es. "Lunedì 21 settembre"
   const dl = v => { if (typeof dataLunga === "function") { const s = dataLunga(v); return s ? s.charAt(0).toUpperCase() + s.slice(1) : v; } return typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v; };
   const d = sv.dati || {};
-  // allenamento EXTRA (corsa in più segnata dall'atleta mezzofondo)
+  // allenamento EXTRA (in più) segnato dall'atleta: corsa (mezzofondo) o pista/palestra (velocisti/lanciatori)
   if (sv.tipo === "extra") {
-    const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "";
-    const disl = (d.dislivello != null && d.dislivello !== "") ? d.dislivello + " m D+" : "";
-    return `<div class="card" style="border-color:rgba(77,154,255,.4)">
+    const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "Allenamento in più", riga: "" };
+    return `<div class="card" style="border-color:rgba(124,194,67,.5)">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <h3 style="font-size:16px">${dl(sv.data)} · 🏃 Corsa extra</h3>
+        <h3 style="font-size:16px">${dl(sv.data)} · ${inf.icona} ${inf.titolo} <span class="et" style="font-weight:400">· in più</span></h3>
         <span class="et">${sv.rpe != null ? "RPE " + sv.rpe : ""}</span></div>
-      <p class="et" style="margin-top:6px"><b>${d.km} km</b>${passo ? " · " + passo : ""}${disl ? " · " + disl : ""}${sv.durata_min ? " · ~" + sv.durata_min + "′" : ""}${d.note ? " · " + d.note : ""}</p>
+      ${inf.riga ? `<p class="et" style="margin-top:6px">${inf.riga}</p>` : ""}
     </div>`;
   }
   const esito = it => {
