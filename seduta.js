@@ -245,7 +245,7 @@ function esercizioAperto(s, x) {
         onchange="setPesoFatto('${s.id}','${x.id}',this.value)">
     </div>
     ${righe}${parziale}
-    ${T.sec > 0 ? bloccoTimer() : ""}
+    ${T.sec > 0 ? bloccoTimer() : `<button class="btn btn-2" style="width:auto;padding:8px 14px;font-size:13px;margin-top:8px" onclick="avviaRecupero('${s.id}','${x.id}')">⏱ Avvia recupero${x.recuperoSec > 0 ? " · " + fmtRec(x.recuperoSec) : ""}</button>`}
     ${bloccoSforzoEs(s.id, x)}
   </div>`;
 }
@@ -270,6 +270,12 @@ function segnaVbt(sid, xid, i, val) {
   const restano = x.vbt.some(v => v === null);
   if (!isNaN(n) && restano) avviaTimer(x.recuperoSec); else fermaTimer();
   disegna();
+}
+// avvia il recupero a mano (senza dover segnare i m/s): usa il recupero prescritto, o 90s di default
+function avviaRecupero(sid, xid) {
+  const s = sedutaDaId(sid), x = s && (s.esercizi || []).find(e => e.id === xid);
+  const rec = (x && x.recuperoSec > 0) ? x.recuperoSec : 90;
+  avviaTimer(rec); disegna();
 }
 
 // ---------- timer di recupero ----------
@@ -408,8 +414,9 @@ function _extraBtnSeduta() {
   if (S.utente && S.utente.ruolo === "coach") return "";
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
   if (!a || typeof gruppoDi !== "function") return "";
-  if (gruppoDi(a) === "mezzo") return (typeof apriExtra === "function") ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>` : "";
-  return (typeof apriExtraGen === "function") ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtraGen()">➕ Ho fatto un allenamento in più</button>` : "";
+  const gen = (typeof apriExtraGen === "function") ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtraGen()">➕ ${gruppoDi(a) === "mezzo" ? "Altro allenamento in più (palestra / bici)" : "Ho fatto un allenamento in più"}</button>` : "";
+  if (gruppoDi(a) === "mezzo") return ((typeof apriExtra === "function") ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>` : "") + gen;
+  return gen;
 }
 // nota "corsa in più" nel giorno della seduta (la vede il coach aprendo la giornata e l'atleta): km · passo · RPE
 function _extraDelGiorno(aid, dataISO) {

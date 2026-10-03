@@ -45,6 +45,58 @@ function chipsGruppi() {
   }).join("")}</div>`;
 }
 
+// ---------- OGGI (allenatore): colpo d'occhio sulla giornata della squadra ----------
+function vistaOggiCoach() {
+  const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const dataLbl = (typeof dataLunga === "function") ? cap(dataLunga(oggi)) : oggi;
+  const g = S.gruppo || "vel";
+  const lista = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(g) : (DEMO.atleti || []);
+  const info = lista.map(a => {
+    let prog = [];
+    try { prog = (typeof seduteDelGiorno === "function") ? (seduteDelGiorno(oggi, false, a) || []) : []; } catch (e) { prog = []; }
+    const svOggi = ((DEMO.seduteSvolte || {})[a.id] || []).filter(s => s.data === oggi);
+    const svNorm = svOggi.filter(s => s.tipo !== "extra");
+    const extra = svOggi.filter(s => s.tipo === "extra");
+    const dObj = ((DEMO.diariStorico || {})[a.id] || []).find(v => v.data === oggi) || null;
+    return { a, prog, svNorm, extra, diario: !!dObj, dObj };
+  });
+  const allena = info.filter(x => x.prog.length || x.svNorm.length).sort((x, y) => (x.svNorm.length ? 1 : 0) - (y.svNorm.length ? 1 : 0));   // prima chi deve ancora fare
+  const chiusi = allena.filter(x => x.svNorm.length).length;
+  const daFare = allena.length - chiusi;
+  const diarioN = info.filter(x => x.diario).length;
+  const tipoLbl = { pista: "🏃 Pista", palestra: "🏋 Palestra" };
+  const rigaAllena = x => {
+    const tipi = [...new Set(x.prog.map(s => s.tipo))];
+    x.svNorm.forEach(s => { if (!tipi.includes(s.tipo)) tipi.push(s.tipo); });
+    const badges = tipi.map(t => { const fatto = x.svNorm.some(s => s.tipo === t); return `<span style="color:${fatto ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${tipoLbl[t] || t} ${fatto ? "✓" : "⏳"}</span>`; }).join(" · ");
+    const ex = x.extra.length ? ` · <span style="color:var(--verde)">＋${x.extra.length} in più</span>` : "";
+    const dia = x.diario ? "" : ` · <span style="color:var(--txt3)">diario ✗</span>`;
+    return `<div class="card riga-a" onclick="apriAtleta('${x.a.id}')">
+      <div style="flex:1;min-width:0"><h3>${x.a.nome}</h3>
+        <p class="et" style="margin-top:2px">${badges || "—"}${ex}${dia}</p></div>
+      <span class="freccia">›</span></div>`;
+  };
+  const senzaDiario = info.filter(x => !x.diario);
+  const _pr = x => (typeof _notifPront === "function") ? _notifPront(x.dObj) : null;
+  const daGestire = info.filter(x => x.dObj && (x.dObj.fastidi || (_pr(x) != null && _pr(x) < 2.5)));
+  const extraOggi = info.filter(x => x.extra.length);
+  return `${(typeof chipsGruppi === "function") ? chipsGruppi() : ""}
+  <div class="card"><h3>Oggi · ${dataLbl}</h3>
+    <p class="et" style="margin-top:2px">Colpo d'occhio sulla giornata (${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""}). Tocca un atleta per aprirlo.</p></div>
+  <div class="quadri" style="margin-bottom:11px">
+    <div class="q"><div class="k">Si allenano oggi</div><div class="v">${allena.length}</div></div>
+    <div class="q"><div class="k">Hanno chiuso</div><div class="v" style="color:var(--verde)">${chiusi}</div></div>
+    <div class="q"><div class="k">Ancora da fare</div><div class="v" style="color:${daFare ? "var(--ambra,#e6a83c)" : "var(--verde)"}">${daFare}</div></div>
+    <div class="q"><div class="k">Diario oggi</div><div class="v">${diarioN}/${lista.length}</div></div>
+  </div>
+  <p class="sez">Allenamenti di oggi</p>
+  ${allena.length ? allena.map(rigaAllena).join("") : `<div class="card"><p class="et">Nessun allenamento programmato oggi per questo gruppo.</p></div>`}
+  ${daGestire.length ? `<p class="sez">Da gestire oggi</p>${daGestire.map(x => { const p = _pr(x); return `<div class="card riga-a" style="border-color:rgba(176,42,55,.4)" onclick="apriAtleta('${x.a.id}')"><div style="flex:1;min-width:0"><h3>${x.a.nome}</h3><p class="et" style="margin-top:2px">${x.dObj.fastidi ? "🩹 fastidio segnalato oggi" : ""}${x.dObj.fastidi && p != null && p < 2.5 ? " · " : ""}${p != null && p < 2.5 ? "🔋 prontezza bassa " + p.toFixed(1) : ""}</p></div><span class="freccia">›</span></div>`; }).join("")}` : ""}
+  ${senzaDiario.length ? `<p class="sez">Diario non compilato oggi · ${senzaDiario.length}</p><div class="card"><p class="et">${senzaDiario.map(x => x.a.nome).join(" · ")}</p></div>` : `<div class="card" style="border-color:rgba(124,194,67,.4)"><p class="et" style="color:var(--verde)">✓ Tutti hanno compilato il diario oggi.</p></div>`}
+  ${extraOggi.length ? `<p class="sez">Allenamenti in più oggi</p>${extraOggi.map(x => `<div class="card riga-a" onclick="apriAtleta('${x.a.id}')"><div style="flex:1;min-width:0"><h3>${x.a.nome}</h3><p class="et" style="margin-top:2px">${x.extra.map(sv => { const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "In più" }; return inf.icona + " " + inf.titolo; }).join(" · ")}</p></div><span class="freccia">›</span></div>`).join("")}` : ""}`;
+}
+
 // ---------- squadra (ingresso coach) ----------
 function vistaSquadra() {
   const lista = atletiDelGruppo(S.gruppo);
@@ -1665,10 +1717,31 @@ function _commentoScreening(atleta, giorni, ctx) {
     if (m.acwr && m.acwr !== "—") { const ac = parseFloat(m.acwr); bits.push(`Carico ACWR <b>${m.acwr}</b>${!isNaN(ac) ? (ac > 1.5 ? " (in salita rapida ⚠)" : ac >= 0.8 && ac <= 1.3 ? " (ottimale)" : ac < 0.8 ? " (in calo)" : "") : ""}${m.forma ? `, forma ${m.forma}` : ""}.`); }
     if (ctx.dVbt != null) bits.push(`VBT ${ctx.dVbt >= 0 ? "in aumento" : "in calo"} (${ctx.dVbt >= 0 ? "+" : ""}${ctx.dVbt.toFixed(2)} m/s).`);
   }
+  // --- VERDETTO D'INSIEME: l'atleta sta migliorando? (confronto col periodo precedente di pari durata) ---
+  const _1g = 86400000;
+  const giorniWin = Math.max(1, Math.round((new Date(oggiS + "T00:00:00") - new Date(dalS + "T00:00:00")) / _1g));
+  const prevDal = new Date(new Date(dalS + "T00:00:00").getTime() - giorniWin * _1g).toISOString().slice(0, 10);
+  const svAll = (DEMO.seduteSvolte && DEMO.seduteSvolte[id]) || [];
+  const prevSed = svAll.filter(s => s.tipo !== "extra" && s.data >= prevDal && s.data < dalS).length;
+  let score = 0; const perche = [];
+  if (ctx.distLen > 0) { if (ctx.mig > ctx.peg) { score++; perche.push("tempi in miglioramento"); } else if (ctx.peg > ctx.mig) { score--; perche.push("tempi in calo"); } }
+  if (ctx.dVbt != null) { if (ctx.dVbt >= 0.03) { score++; perche.push("velocità (VBT) in aumento"); } else if (ctx.dVbt <= -0.03) { score--; perche.push("velocità (VBT) in calo"); } }
+  if (sedute !== prevSed && (sedute > 0 || prevSed > 0)) {
+    if (sedute > prevSed) { score += 0.5; perche.push(`più costante del periodo prima (${prevSed}→${sedute} allenamenti)`); }
+    else { score -= 0.5; perche.push(`meno costante del periodo prima (${prevSed}→${sedute} allenamenti)`); }
+  }
+  const _acwrN = parseFloat(m.acwr); if (!isNaN(_acwrN) && _acwrN > 1.5) { score -= 0.5; perche.push("carico in salita rapida (ACWR alto ⚠)"); }
+  const _prN = parseFloat(m.prontezza); if (!isNaN(_prN) && _prN < 2.5) { score -= 0.5; perche.push("prontezza bassa ⚠"); }
   const pochiDati = sedute < 6;
+  let verd;
+  if (pochiDati) verd = { ic: "⏳", txt: "Dati ancora pochi per un giudizio", col: "#7a8496" };
+  else if (score >= 1) verd = { ic: "📈", txt: "In miglioramento", col: "#1a7a3a" };
+  else if (score <= -1) verd = { ic: "📉", txt: "In calo — da monitorare", col: "#b02a37" };
+  else verd = { ic: "➡️", txt: "Sta tenendo (stabile)", col: "#a86800" };
   const nota = pochiDati ? `<p class="et" style="margin:6px 0 0;color:var(--txt3)">⏳ Pochi dati: servono ~4 settimane (≥6 sedute) per un giudizio affidabile su tempi, RPE e carico.</p>` : "";
   return `<div class="card" style="border-color:rgba(77,154,255,.4);background:var(--blu-bg)">
     <p class="et" style="margin:0 0 4px;color:var(--blu);font-weight:600">🧭 Come sta andando (${giorni <= 7 ? "settimana" : "mesociclo"})</p>
+    <p style="margin:0 0 6px"><span style="font-weight:700;color:${verd.col}">${verd.ic} ${verd.txt}</span>${perche.length ? ` <span class="et" style="color:var(--txt2)">— ${perche.join(", ")}</span>` : ""}</p>
     <p style="margin:0;font-size:13px;line-height:1.55">${bits.join(" ")}</p>${nota}</div>`;
 }
 function bloccoScreening(atletaId, giorni, titolo, dalOverride) {

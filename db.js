@@ -114,6 +114,27 @@ async function disattivaNotifiche() {
     disegna();
   } catch (e) { alert("Non riuscito: " + ((e && e.message) || e)); }
 }
+// ri-sincronizza SILENZIOSAMENTE l'iscrizione push a ogni avvio (chiamata a fine caricaDati).
+// Le push subscription possono "ruotare"/scadere e venivano create SOLO all'attivazione → alcuni atleti
+// smettevano di ricevere il promemoria diario senza accorgersene. Qui riallineo endpoint + atleta_id/profilo_id
+// correnti, senza chiedere nulla. Così, appena un atleta riapre l'app, la sua iscrizione torna valida.
+async function _syncPushSilenzioso() {
+  try {
+    if (typeof pushSupportato !== "function" || !pushSupportato()) return;
+    let on = false; try { on = localStorage.getItem("metis_push") === "on"; } catch (e) { }
+    if (!on) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const uid = S.utente && S.utente.id;
+    if (!sb || !uid) return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) { try { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _urlB64ToUint8(VAPID_PUBLIC) }); } catch (e) { return; } }
+    const j = sub && sub.toJSON();
+    if (!j || !j.keys) return;
+    const aid = S.utente && S.utente.atletaId;
+    await sb.from("push_sub").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, atleta_id: aid || null, profilo_id: uid }, { onConflict: "endpoint" });
+  } catch (e) { /* silenzioso: non deve mai disturbare l'avvio */ }
+}
 
 // ---------- recupero password (self-service, via email) ----------
 // L'utente riceve un link via email e sceglie da solo la nuova password: l'app non gestisce mai password altrui.
@@ -357,6 +378,9 @@ async function caricaDati() {
 
   // super-admin (Alessandro): carica l'elenco società e i messaggi "Scrivi a Metis"
   if (S.utente.superAdmin && typeof caricaExtraAdmin === "function") { try { await caricaExtraAdmin(); } catch (e) { /* ignora */ } }
+
+  // riallinea in sordina l'iscrizione alle notifiche push (fix "non arriva a tutti il promemoria diario")
+  if (typeof _syncPushSilenzioso === "function") { _syncPushSilenzioso(); }
 }
 // settimana corrente (lun→dom) di un atleta: per ogni giorno il tipo di seduta programmata (o gara) + se è stata svolta.
 function _settimanaMonReale(a, off) {

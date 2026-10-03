@@ -755,10 +755,11 @@ function _extraInfo(sv) {
     const parti = [d.km + " km", passo, disl, sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
     return { icona: "🏃", titolo: "Corsa extra", riga: parti.join(" · ") };
   }
-  // extra generico (velocisti/lanciatori): pista o palestra
-  const pal = d.ambito === "palestra";
+  // extra generico (velocisti/lanciatori): pista, palestra o bici
+  const MAP = { palestra: ["🏋", "Palestra extra"], bici: ["🚴", "Bici extra"], pista: ["🏃", "Pista extra"] };
+  const [icona, titolo] = MAP[d.ambito] || MAP.pista;
   const parti = [d.cosa || "", sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
-  return { icona: pal ? "🏋" : "🏃", titolo: pal ? "Palestra extra" : "Pista extra", riga: parti.join(" · ") || "allenamento in più" };
+  return { icona, titolo, riga: parti.join(" · ") || "allenamento in più" };
 }
 // form: l'atleta (non mezzofondo) segna un allenamento fatto IN PIÙ, scegliendo pista o palestra
 function apriExtraGen() {
@@ -774,9 +775,9 @@ function _foglioExtraGen() {
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     <p class="et" style="margin-bottom:10px">Un allenamento fatto <b>in più</b> rispetto al programma. Compare nel calendario e negli allenamenti svolti, e l'allenatore riceve una notifica. (Non toglie e non aggiunge presenze.)</p>
     <label class="lab">Dove</label>
-    <div style="display:flex;gap:8px;margin-top:6px">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}</div>
+    <div style="display:flex;gap:8px;margin-top:6px">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}${seg("bici", "🚴 Bici")}</div>
     <label class="lab" style="display:block;margin-top:12px">Cosa hai fatto</label>
-    <textarea rows="2" oninput="S._extraG.cosa=this.value" style="margin-top:6px" placeholder="${e.ambito === "palestra" ? "es. core + stacchi leggeri" : "es. allunghi + tecnica di corsa"}">${e.cosa || ""}</textarea>
+    <textarea rows="2" oninput="S._extraG.cosa=this.value" style="margin-top:6px" placeholder="${e.ambito === "palestra" ? "es. core + stacchi leggeri" : e.ambito === "bici" ? "es. 1h di fondo, 30 km" : "es. allunghi + tecnica di corsa"}">${e.cosa || ""}</textarea>
     <label class="lab" style="display:block;margin-top:12px">Durata (minuti, facoltativa)</label>
     <input inputmode="numeric" value="${e.durata || ""}" placeholder="es. 45" oninput="S._extraG.durata=this.value" style="margin-top:6px;max-width:140px">
     <label class="lab" style="display:block;margin-top:12px">RPE (1-10, facoltativo)</label>
@@ -787,7 +788,7 @@ function _foglioExtraGen() {
 }
 function salvaExtraGen() {
   const e = S._extraG || {};
-  const ambito = e.ambito === "palestra" ? "palestra" : "pista";
+  const ambito = (["pista", "palestra", "bici"].includes(e.ambito)) ? e.ambito : "pista";
   const cosa = (e.cosa || "").trim();
   const dd = parseInt(e.durata); const durata = (!isNaN(dd) && dd > 0) ? dd : null;
   const rpe = (e.rpe !== "" && e.rpe != null) ? Number(String(e.rpe).replace(",", ".")) : null;
@@ -796,7 +797,7 @@ function salvaExtraGen() {
   if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { ambito, cosa, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note });
   S._extraG = null;
   if (typeof chiudiScheda === "function") chiudiScheda();
-  if (typeof alert === "function") alert("✓ Allenamento in più aggiunto (" + (ambito === "palestra" ? "palestra" : "pista") + "). L'allenatore lo vede e riceve la notifica.");
+  if (typeof alert === "function") alert("✓ Allenamento in più aggiunto (" + ambito + "). L'allenatore lo vede e riceve la notifica.");
   disegna();
 }
 // apre (sola lettura) il dettaglio di un extra fatto in un dato giorno (dal calendario)

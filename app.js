@@ -80,6 +80,7 @@ const MENU_ATLETA = [
 ];
 
 const MENU_COACH = [
+  { k: "oggi", ic: "📅", l: "Oggi" },
   { k: "squadra", ic: "◧", l: "Squadra" },
   { k: "atleti", ic: "◉", l: "Atleti" },
   { k: "allenatori", ic: "🧑‍🏫", l: "Allenatori" },
@@ -348,7 +349,8 @@ function vistaOggi() {
   ${cardOggi}
   ${typeof _bannerCoda === "function" ? _bannerCoda() : ""}
   ${typeof _bottoneNotifiche === "function" ? _bottoneNotifiche() : ""}
-  ${isMezzo ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>${kmExM > 0 ? `<p class="et" style="margin:-6px 2px 11px;color:var(--txt3)">Km corsi in più: <b>${kmEx}</b> questa settimana · <b>${kmExM}</b> questo mese</p>` : ""}`
+  ${isMezzo ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtra()">➕ Ho corso in più (aggiungi km · corsa extra)</button>${kmExM > 0 ? `<p class="et" style="margin:-6px 2px 11px;color:var(--txt3)">Km corsi in più: <b>${kmEx}</b> questa settimana · <b>${kmExM}</b> questo mese</p>` : ""}
+    <button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtraGen()">➕ Altro allenamento in più (palestra / bici)</button>`
     : `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriExtraGen()">➕ Ho fatto un allenamento in più</button>`}
 
   <div class="quadri">
@@ -878,6 +880,7 @@ function disegna() {
   else if (coach && S.atletaSel && S.mostraScheda) corpo = vistaSchedaAtleta();
   else if (coach && S.atletaSel) corpo = vistaAtletaDettaglio();
   else if (coach && S.diarioAtleta) corpo = vistaDiarioAtleta();
+  else if (coach && S.vista === "oggi") corpo = vistaOggiCoach();
   else if (coach && S.vista === "squadra") corpo = vistaSquadra();
   else if (coach && S.vista === "atleti") corpo = vistaAtleti();
   else if (coach && S.vista === "allenatori") corpo = vistaAllenatori();
