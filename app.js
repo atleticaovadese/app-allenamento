@@ -847,8 +847,17 @@ function disegnaMenu(menu) {
   }).join("");
 }
 
+// nasconde lo splash d'avvio (logo + frase) alla prima renderizzazione reale della pagina
+function _nascondiSplash() {
+  const sp = (typeof document !== "undefined") ? document.getElementById("splash") : null;
+  if (!sp || sp._via) return;
+  sp._via = true;
+  sp.classList.add("hide");
+  setTimeout(() => { try { sp.remove(); } catch (e) { } }, 600);
+}
 function disegna() {
   const r = $("radice");
+  _nascondiSplash();   // appena si vede qualcosa (login o app), lo splash sfuma
   // ricordo la posizione di scorrimento: rifacendo tutta la pagina il browser tornerebbe in cima.
   // La navigazione (vai, apriSeduta, tour…) fa window.scrollTo(0,0) DOPO disegna() e sovrascrive questo ripristino;
   // le modifiche in-place (compilo una casella e passo alla successiva) restano dov'erano → niente più salto in alto.
