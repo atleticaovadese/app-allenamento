@@ -847,6 +847,24 @@ function disegnaMenu(menu) {
   }).join("");
 }
 
+// auto-aggiornamento: se il telefono ha in memoria una versione VECCHIA dell'app (capita con le PWA),
+// la ricarica UNA volta per prendere l'ultima. Così le nuove funzioni (es. bici negli extra) arrivano a tutti
+// senza dover svuotare la cache a mano. Guardia in sessionStorage per non entrare in loop.
+async function _controllaVersione() {
+  try {
+    if (typeof fetch !== "function" || typeof CONFIG === "undefined" || !CONFIG.versione) return;
+    const r = await fetch("config.js?nc=" + Date.now(), { cache: "no-store" });
+    if (!r || !r.ok) return;
+    const t = await r.text();
+    const m = t.match(/versione:\s*["']([^"']+)["']/);
+    const serverV = m && m[1];
+    if (!serverV || serverV === CONFIG.versione) return;   // già aggiornato
+    let gia = false; try { gia = sessionStorage.getItem("metis_reload_v") === serverV; } catch (e) { }
+    if (gia) return;                                        // ho già ricaricato per questa versione: non insisto (niente loop)
+    try { sessionStorage.setItem("metis_reload_v", serverV); } catch (e) { }
+    location.reload();
+  } catch (e) { /* offline o errore: si resta com'è */ }
+}
 // nasconde lo splash d'avvio (logo + frase) alla prima renderizzazione reale della pagina
 function _nascondiSplash() {
   const sp = (typeof document !== "undefined") ? document.getElementById("splash") : null;
@@ -982,3 +1000,4 @@ function disegna() {
 if (typeof caricaCustom === "function") caricaCustom();
 if (typeof avvioApp === "function") { avvioApp(); }
 else { ripristina(); disegna(); }
+if (typeof _controllaVersione === "function") { _controllaVersione(); }   // prende l'ultima versione se il telefono ne ha una vecchia in cache
