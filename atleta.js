@@ -757,7 +757,7 @@ function _extraInfo(sv) {
     const parti = [d.km + " km", passo, disl, sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
     return { icona: "🏃", titolo: "Corsa extra", riga: parti.join(" · "), dettaglio: [] };
   }
-  const MAP = { palestra: ["🏋", "Palestra extra"], bici: ["🚴", "Bici extra"], pista: ["🏃", "Pista extra"] };
+  const MAP = { palestra: ["🏋", "Palestra extra"], bici: ["🚴", "Bici extra"], nuoto: ["🏊", "Nuoto extra"], pista: ["🏃", "Pista extra"] };
   const [icona, titolo] = MAP[d.ambito] || MAP.pista;
   const dettaglio = [];
   (d.elementi || []).forEach(e => {
@@ -785,9 +785,14 @@ function _extraInfo(sv) {
   return { icona, titolo, riga: sintesi.join(" · ") || "allenamento in più", dettaglio };
 }
 
-// ---- form "allenamento in più" RICCO: pista/bici (contenuto, distanza, n°, recupero, tempi; +km/dislivello) · palestra (esercizio, serie, rep, recupero, peso, VBT) ----
-function _rigaExtraVuota() { return { contenuto: "", distanza: "", n: "", rec: "", tempi: "" }; }
-function _eserExtraVuoto() { return { nome: "", serie: "", rep: "", rec: "", peso: "", vbt: "" }; }
+// ---- form "allenamento in più" RICCO: pista/nuoto/bici (contenuto, distanza, n°, recupero min:sec, tempi; +km/dislivello) · palestra (esercizio da lista, serie, rep, recupero min:sec, peso) ----
+function _rigaExtraVuota() { return { contenuto: "", distanza: "", n: "", recMin: "", recSec: "", tempi: "" }; }
+function _eserExtraVuoto() { return { nome: "", serie: "", rep: "", recMin: "", recSec: "", peso: "" }; }
+function _recTxt(min, sec) {
+  const m = parseInt(String(min || "").replace(/[^\d]/g, "")) || 0, s = parseInt(String(sec || "").replace(/[^\d]/g, "")) || 0, tot = m * 60 + s;
+  if (!tot) return "";
+  return m ? (m + "'" + (s ? String(s).padStart(2, "0") : "")) : (s + '"');
+}
 function apriExtraGen() {
   if (!S._extraG) S._extraG = { ambito: "pista", km: "", dislivello: "", durata: "", rpe: "", note: "", righe: [_rigaExtraVuota()], eser: [_eserExtraVuoto()] };
   mostraFoglio(_foglioExtraGen());
@@ -803,24 +808,32 @@ function _foglioExtraGen() {
   const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
   const isMezzo = a && typeof gruppoDi === "function" && gruppoDi(a) === "mezzo";
   const showKm = (e.ambito === "bici") || (e.ambito === "pista" && isMezzo);
-  const seg = (v, lbl) => `<button class="btn ${e.ambito === v ? "" : "btn-2"}" style="flex:1;padding:9px 4px" onclick="setExtraGenAmbito('${v}')">${lbl}</button>`;
+  const seg = (v, lbl) => `<button class="btn ${e.ambito === v ? "" : "btn-2"}" style="flex:1 1 40%;padding:9px 4px" onclick="setExtraGenAmbito('${v}')">${lbl}</button>`;
+  const recRow = (arr, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+          <span class="et" style="margin:0">recupero</span>
+          <input inputmode="numeric" placeholder="min" value="${esc(S._extraG[arr][i].recMin)}" oninput="S._extraG.${arr}[${i}].recMin=this.value" style="width:68px">
+          <span style="font-weight:600">:</span>
+          <input inputmode="numeric" placeholder="sec" value="${esc(S._extraG[arr][i].recSec)}" oninput="S._extraG.${arr}[${i}].recSec=this.value" style="width:68px">
+        </div>`;
   let corpo;
   if (e.ambito === "palestra") {
+    const dl = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function") ? _datalistEsercizi("dl-pal-extra", _eserciziSala()) : "";
+    const campoEs = (x, i) => (typeof _campoEsercizio === "function")
+      ? _campoEsercizio(x.nome, "dl-pal-extra", "S._extraG.eser[" + i + "].nome=this.value", "width:100%")
+      : `<input placeholder="Esercizio" value="${esc(x.nome)}" oninput="S._extraG.eser[${i}].nome=this.value">`;
     const eser = (e.eser || []).map((x, i) => `
       <div class="card" style="padding:10px;margin-top:8px">
-        <input placeholder="Esercizio (es. Squat)" value="${esc(x.nome)}" oninput="S._extraG.eser[${i}].nome=this.value">
+        ${campoEs(x, i)}
         <div style="display:flex;gap:6px;margin-top:6px">
-          <input inputmode="numeric" placeholder="serie" value="${esc(x.serie)}" oninput="S._extraG.eser[${i}].serie=this.value" style="width:25%">
-          <input inputmode="numeric" placeholder="rep" value="${esc(x.rep)}" oninput="S._extraG.eser[${i}].rep=this.value" style="width:25%">
-          <input inputmode="decimal" placeholder="peso kg" value="${esc(x.peso)}" oninput="S._extraG.eser[${i}].peso=this.value" style="width:50%">
+          <input inputmode="numeric" placeholder="serie" value="${esc(x.serie)}" oninput="S._extraG.eser[${i}].serie=this.value" style="width:33%">
+          <input inputmode="numeric" placeholder="rep" value="${esc(x.rep)}" oninput="S._extraG.eser[${i}].rep=this.value" style="width:33%">
+          <input inputmode="decimal" placeholder="peso kg" value="${esc(x.peso)}" oninput="S._extraG.eser[${i}].peso=this.value" style="width:34%">
         </div>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <input placeholder="recupero (es. 2')" value="${esc(x.rec)}" oninput="S._extraG.eser[${i}].rec=this.value" style="width:50%">
-          <input inputmode="decimal" placeholder="VBT m/s (spazio)" value="${esc(x.vbt)}" oninput="S._extraG.eser[${i}].vbt=this.value" style="width:50%">
-        </div>
+        ${recRow("eser", i)}
         ${(e.eser || []).length > 1 ? `<button class="btn btn-2" style="width:auto;padding:4px 10px;font-size:12px;margin-top:8px" onclick="extraGenDelEser(${i})">✕ rimuovi</button>` : ""}
       </div>`).join("");
-    corpo = `<label class="lab" style="display:block;margin-top:12px">Esercizi</label>${eser}
+    corpo = `${dl}<label class="lab" style="display:block;margin-top:12px">Esercizi</label>
+      <p class="et" style="margin:2px 0 0;color:var(--txt3)">Tocca il campo esercizio: scrivi o scegli dalla lista.</p>${eser}
       <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px;margin-top:8px" onclick="extraGenAddEser()">+ Aggiungi esercizio</button>`;
   } else {
     const km = showKm ? `<div style="display:flex;gap:8px;margin-top:6px">
@@ -831,14 +844,14 @@ function _foglioExtraGen() {
       <div class="card" style="padding:10px;margin-top:8px">
         <input placeholder="Contenuto (es. allunghi)" value="${esc(r.contenuto)}" oninput="S._extraG.righe[${i}].contenuto=this.value">
         <div style="display:flex;gap:6px;margin-top:6px">
-          <input inputmode="numeric" placeholder="distanza m" value="${esc(r.distanza)}" oninput="S._extraG.righe[${i}].distanza=this.value" style="width:36%">
-          <input inputmode="numeric" placeholder="n°" value="${esc(r.n)}" oninput="S._extraG.righe[${i}].n=this.value" style="width:22%">
-          <input placeholder="recupero" value="${esc(r.rec)}" oninput="S._extraG.righe[${i}].rec=this.value" style="width:42%">
+          <input inputmode="numeric" placeholder="distanza m" value="${esc(r.distanza)}" oninput="S._extraG.righe[${i}].distanza=this.value" style="width:50%">
+          <input inputmode="numeric" placeholder="n°" value="${esc(r.n)}" oninput="S._extraG.righe[${i}].n=this.value" style="width:50%">
         </div>
+        ${recRow("righe", i)}
         <input placeholder="tempi (sec, separati da spazio)" value="${esc(r.tempi)}" oninput="S._extraG.righe[${i}].tempi=this.value" style="margin-top:6px">
         ${(e.righe || []).length > 1 ? `<button class="btn btn-2" style="width:auto;padding:4px 10px;font-size:12px;margin-top:8px" onclick="extraGenDelRiga(${i})">✕ rimuovi</button>` : ""}
       </div>`).join("");
-    corpo = `${km}<label class="lab" style="display:block;margin-top:12px">Lavori (facoltativo)</label>${righe}
+    corpo = `${km}<label class="lab" style="display:block;margin-top:12px">Lavori${e.ambito === "bici" ? " (facoltativo)" : ""}</label>${righe}
       <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px;margin-top:8px" onclick="extraGenAddRiga()">+ Aggiungi lavoro</button>`;
   }
   return `
@@ -846,7 +859,7 @@ function _foglioExtraGen() {
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     <p class="et" style="margin-bottom:10px">Un allenamento fatto <b>in più</b> rispetto al programma. Lo scrivi come i tuoi allenamenti (con tempi/distanze/peso), l'allenatore lo vede come «in più» e le distanze restano tracciate. (Non toglie e non aggiunge presenze.)</p>
     <label class="lab">Dove</label>
-    <div style="display:flex;gap:8px;margin-top:6px">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}${seg("bici", "🚴 Bici")}</div>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}${seg("bici", "🚴 Bici")}${seg("nuoto", "🏊 Nuoto")}</div>
     ${corpo}
     <label class="lab" style="display:block;margin-top:12px">Durata (minuti, facoltativa)</label>
     <input inputmode="numeric" value="${esc(e.durata)}" placeholder="es. 45" oninput="S._extraG.durata=this.value" style="margin-top:6px;max-width:140px">
@@ -861,20 +874,20 @@ function _exInt(v) { const n = parseInt(String(v == null ? "" : v).replace(/[^\d
 function _exNums(str) { return String(str == null ? "" : str).split(/[\s,;]+/).map(x => parseFloat(String(x).replace(",", "."))).filter(x => !isNaN(x)); }
 function salvaExtraGen() {
   const e = S._extraG || {};
-  const ambito = (["pista", "palestra", "bici"].includes(e.ambito)) ? e.ambito : "pista";
+  const ambito = (["pista", "palestra", "bici", "nuoto"].includes(e.ambito)) ? e.ambito : "pista";
   const durata = _exInt(e.durata);
   const rpe = (e.rpe !== "" && e.rpe != null) ? _exNum(e.rpe) : null;
   const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
   if (!aid) { alert("Atleta non trovato."); return; }
   const ex = { ambito, durata, rpe, note: e.note };
   if (ambito === "palestra") {
-    ex.esercizi = (e.eser || []).filter(x => (x.nome || "").trim()).map(x => ({ nome: x.nome.trim(), serie: _exInt(x.serie), rep: _exInt(x.rep), recupero: (x.rec || "").trim(), peso: _exNum(x.peso), vbt: _exNums(x.vbt) }));
+    ex.esercizi = (e.eser || []).filter(x => (x.nome || "").trim()).map(x => ({ nome: x.nome.trim(), serie: _exInt(x.serie), rep: _exInt(x.rep), recupero: _recTxt(x.recMin, x.recSec), peso: _exNum(x.peso) }));
     if (!ex.esercizi.length) { alert("Aggiungi almeno un esercizio (nome)."); return; }
   } else {
     const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
     const showKm = (ambito === "bici") || (ambito === "pista" && a && typeof gruppoDi === "function" && gruppoDi(a) === "mezzo");
     if (showKm) { ex.km = _exNum(e.km); ex.dislivello = _exInt(e.dislivello); }
-    ex.elementi = (e.righe || []).filter(r => (r.contenuto || "").trim() || _exInt(r.distanza) || _exNums(r.tempi).length).map(r => ({ contenuto: (r.contenuto || "").trim(), distanza: _exInt(r.distanza), ripetute: _exInt(r.n), recupero: (r.rec || "").trim(), tempi: _exNums(r.tempi) }));
+    ex.elementi = (e.righe || []).filter(r => (r.contenuto || "").trim() || _exInt(r.distanza) || _exNums(r.tempi).length).map(r => ({ contenuto: (r.contenuto || "").trim(), distanza: _exInt(r.distanza), ripetute: _exInt(r.n), recupero: _recTxt(r.recMin, r.recSec), tempi: _exNums(r.tempi) }));
     if (!ex.elementi.length && !(ex.km > 0)) { alert("Aggiungi un lavoro oppure i km."); return; }
   }
   if (typeof salvaExtraDB === "function") salvaExtraDB(aid, ex);
