@@ -745,59 +745,142 @@ function apriSedutaSvolta(dataISO, tipo, giorno) {
 // velocisti / saltatori / lanciatori = allenamento extra PISTA o PALESTRA (qui sotto).
 // Entrambi salvano come seduta_svolta tipo "extra" e NON contano come presenza.
 // ============================================================================
-// descrizione sintetica di un extra, usata da calendario, allenamenti svolti, note e notifiche del coach
+// descrizione di un extra, usata da calendario, allenamenti svolti, note, notifiche e report.
+// Ritorna anche `dettaglio` (righe pronte da stampare: lavori di pista/bici con tempi, o esercizi palestra con VBT).
 function _extraInfo(sv) {
   const d = (sv && sv.dati) || {};
-  // corsa extra (mezzofondo): ha i km
-  if (d.km != null && d.km !== "") {
+  const fmtT = t => (Number(t) >= 60 && typeof _mzMMSSc === "function") ? _mzMMSSc(Number(t)) : Number(t).toFixed(2);
+  // corsa extra "veloce" (mezzofondo, dal form km/passo) senza lavori strutturati
+  if ((d.km != null && d.km !== "") && !(d.elementi && d.elementi.length)) {
     const passo = (d.passoSec && typeof _mzMMSS === "function") ? _mzMMSS(d.passoSec) + "/km" : "";
     const disl = (d.dislivello != null && d.dislivello !== "") ? d.dislivello + " m D+" : "";
     const parti = [d.km + " km", passo, disl, sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
-    return { icona: "🏃", titolo: "Corsa extra", riga: parti.join(" · ") };
+    return { icona: "🏃", titolo: "Corsa extra", riga: parti.join(" · "), dettaglio: [] };
   }
-  // extra generico (velocisti/lanciatori): pista, palestra o bici
   const MAP = { palestra: ["🏋", "Palestra extra"], bici: ["🚴", "Bici extra"], pista: ["🏃", "Pista extra"] };
   const [icona, titolo] = MAP[d.ambito] || MAP.pista;
-  const parti = [d.cosa || "", sv.durata_min ? "~" + sv.durata_min + "′" : "", d.note || ""].filter(Boolean);
-  return { icona, titolo, riga: parti.join(" · ") || "allenamento in più" };
+  const dettaglio = [];
+  (d.elementi || []).forEach(e => {
+    const lab = e.contenuto || e.mezzo || "lavoro";
+    const quant = (e.ripetute && e.distanza) ? ` ${e.ripetute}×${e.distanza} m` : (e.distanza ? ` ${e.distanza} m` : "");
+    const rec = e.recupero ? ` · rec ${e.recupero}` : "";
+    const f = (e.tempi || []).filter(v => v != null && v !== "");
+    const tmp = f.length ? ` → ${f.map(fmtT).join(", ")}` : "";
+    dettaglio.push(`${lab}${quant}${rec}${tmp}`);
+  });
+  (d.esercizi || []).forEach(x => {
+    const f = (x.vbt || []).filter(v => v != null && v !== "").map(Number);
+    const vm = f.length ? (f.reduce((s, v) => s + v, 0) / f.length).toFixed(2) : null;
+    const peso = (x.peso != null && x.peso !== "") ? ` @${x.peso} kg` : "";
+    const rec = x.recupero ? ` · rec ${x.recupero}` : "";
+    dettaglio.push(`${x.nome || "esercizio"} ${x.serie || "?"}×${x.rep || "?"}${peso}${rec}${vm ? " · VBT " + vm + " m/s" : ""}`);
+  });
+  const sintesi = [];
+  if (d.km != null && d.km !== "") sintesi.push(d.km + " km");
+  if (d.dislivello != null && d.dislivello !== "") sintesi.push(d.dislivello + " m D+");
+  if (dettaglio.length) sintesi.push(dettaglio.length === 1 ? dettaglio[0] : dettaglio.length + " lavori");
+  if (sv.durata_min) sintesi.push("~" + sv.durata_min + "′");
+  if (d.cosa) sintesi.push(d.cosa);
+  if (d.note) sintesi.push(d.note);
+  return { icona, titolo, riga: sintesi.join(" · ") || "allenamento in più", dettaglio };
 }
-// form: l'atleta (non mezzofondo) segna un allenamento fatto IN PIÙ, scegliendo pista o palestra
+
+// ---- form "allenamento in più" RICCO: pista/bici (contenuto, distanza, n°, recupero, tempi; +km/dislivello) · palestra (esercizio, serie, rep, recupero, peso, VBT) ----
+function _rigaExtraVuota() { return { contenuto: "", distanza: "", n: "", rec: "", tempi: "" }; }
+function _eserExtraVuoto() { return { nome: "", serie: "", rep: "", rec: "", peso: "", vbt: "" }; }
 function apriExtraGen() {
-  S._extraG = S._extraG || { ambito: "pista", cosa: "", durata: "", rpe: "", note: "" };
+  if (!S._extraG) S._extraG = { ambito: "pista", km: "", dislivello: "", durata: "", rpe: "", note: "", righe: [_rigaExtraVuota()], eser: [_eserExtraVuoto()] };
   mostraFoglio(_foglioExtraGen());
 }
 function setExtraGenAmbito(v) { (S._extraG = S._extraG || {}).ambito = v; mostraFoglio(_foglioExtraGen()); }
+function extraGenAddRiga() { (S._extraG.righe = S._extraG.righe || []).push(_rigaExtraVuota()); mostraFoglio(_foglioExtraGen()); }
+function extraGenDelRiga(i) { if (S._extraG.righe && S._extraG.righe.length > 1) S._extraG.righe.splice(i, 1); mostraFoglio(_foglioExtraGen()); }
+function extraGenAddEser() { (S._extraG.eser = S._extraG.eser || []).push(_eserExtraVuoto()); mostraFoglio(_foglioExtraGen()); }
+function extraGenDelEser(i) { if (S._extraG.eser && S._extraG.eser.length > 1) S._extraG.eser.splice(i, 1); mostraFoglio(_foglioExtraGen()); }
 function _foglioExtraGen() {
   const e = S._extraG || {};
-  const seg = (v, lbl) => `<button class="btn ${e.ambito === v ? "" : "btn-2"}" style="flex:1" onclick="setExtraGenAmbito('${v}')">${lbl}</button>`;
+  const esc = v => String(v == null ? "" : v).replace(/"/g, "&quot;");
+  const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+  const isMezzo = a && typeof gruppoDi === "function" && gruppoDi(a) === "mezzo";
+  const showKm = (e.ambito === "bici") || (e.ambito === "pista" && isMezzo);
+  const seg = (v, lbl) => `<button class="btn ${e.ambito === v ? "" : "btn-2"}" style="flex:1;padding:9px 4px" onclick="setExtraGenAmbito('${v}')">${lbl}</button>`;
+  let corpo;
+  if (e.ambito === "palestra") {
+    const eser = (e.eser || []).map((x, i) => `
+      <div class="card" style="padding:10px;margin-top:8px">
+        <input placeholder="Esercizio (es. Squat)" value="${esc(x.nome)}" oninput="S._extraG.eser[${i}].nome=this.value">
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input inputmode="numeric" placeholder="serie" value="${esc(x.serie)}" oninput="S._extraG.eser[${i}].serie=this.value" style="width:25%">
+          <input inputmode="numeric" placeholder="rep" value="${esc(x.rep)}" oninput="S._extraG.eser[${i}].rep=this.value" style="width:25%">
+          <input inputmode="decimal" placeholder="peso kg" value="${esc(x.peso)}" oninput="S._extraG.eser[${i}].peso=this.value" style="width:50%">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input placeholder="recupero (es. 2')" value="${esc(x.rec)}" oninput="S._extraG.eser[${i}].rec=this.value" style="width:50%">
+          <input inputmode="decimal" placeholder="VBT m/s (spazio)" value="${esc(x.vbt)}" oninput="S._extraG.eser[${i}].vbt=this.value" style="width:50%">
+        </div>
+        ${(e.eser || []).length > 1 ? `<button class="btn btn-2" style="width:auto;padding:4px 10px;font-size:12px;margin-top:8px" onclick="extraGenDelEser(${i})">✕ rimuovi</button>` : ""}
+      </div>`).join("");
+    corpo = `<label class="lab" style="display:block;margin-top:12px">Esercizi</label>${eser}
+      <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px;margin-top:8px" onclick="extraGenAddEser()">+ Aggiungi esercizio</button>`;
+  } else {
+    const km = showKm ? `<div style="display:flex;gap:8px;margin-top:6px">
+        <div style="flex:1"><label class="lab">Km</label><input inputmode="decimal" value="${esc(e.km)}" placeholder="es. 12" oninput="S._extraG.km=this.value" style="margin-top:4px"></div>
+        <div style="flex:1"><label class="lab">Dislivello (m D+)</label><input inputmode="numeric" value="${esc(e.dislivello)}" placeholder="es. 150" oninput="S._extraG.dislivello=this.value" style="margin-top:4px"></div>
+      </div>` : "";
+    const righe = (e.righe || []).map((r, i) => `
+      <div class="card" style="padding:10px;margin-top:8px">
+        <input placeholder="Contenuto (es. allunghi)" value="${esc(r.contenuto)}" oninput="S._extraG.righe[${i}].contenuto=this.value">
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input inputmode="numeric" placeholder="distanza m" value="${esc(r.distanza)}" oninput="S._extraG.righe[${i}].distanza=this.value" style="width:36%">
+          <input inputmode="numeric" placeholder="n°" value="${esc(r.n)}" oninput="S._extraG.righe[${i}].n=this.value" style="width:22%">
+          <input placeholder="recupero" value="${esc(r.rec)}" oninput="S._extraG.righe[${i}].rec=this.value" style="width:42%">
+        </div>
+        <input placeholder="tempi (sec, separati da spazio)" value="${esc(r.tempi)}" oninput="S._extraG.righe[${i}].tempi=this.value" style="margin-top:6px">
+        ${(e.righe || []).length > 1 ? `<button class="btn btn-2" style="width:auto;padding:4px 10px;font-size:12px;margin-top:8px" onclick="extraGenDelRiga(${i})">✕ rimuovi</button>` : ""}
+      </div>`).join("");
+    corpo = `${km}<label class="lab" style="display:block;margin-top:12px">Lavori (facoltativo)</label>${righe}
+      <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px;margin-top:8px" onclick="extraGenAddRiga()">+ Aggiungi lavoro</button>`;
+  }
   return `
     <div class="foglio-top"><h3>➕ Allenamento in più</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
-    <p class="et" style="margin-bottom:10px">Un allenamento fatto <b>in più</b> rispetto al programma. Compare nel calendario e negli allenamenti svolti, e l'allenatore riceve una notifica. (Non toglie e non aggiunge presenze.)</p>
+    <p class="et" style="margin-bottom:10px">Un allenamento fatto <b>in più</b> rispetto al programma. Lo scrivi come i tuoi allenamenti (con tempi/distanze/peso), l'allenatore lo vede come «in più» e le distanze restano tracciate. (Non toglie e non aggiunge presenze.)</p>
     <label class="lab">Dove</label>
     <div style="display:flex;gap:8px;margin-top:6px">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}${seg("bici", "🚴 Bici")}</div>
-    <label class="lab" style="display:block;margin-top:12px">Cosa hai fatto</label>
-    <textarea rows="2" oninput="S._extraG.cosa=this.value" style="margin-top:6px" placeholder="${e.ambito === "palestra" ? "es. core + stacchi leggeri" : e.ambito === "bici" ? "es. 1h di fondo, 30 km" : "es. allunghi + tecnica di corsa"}">${e.cosa || ""}</textarea>
+    ${corpo}
     <label class="lab" style="display:block;margin-top:12px">Durata (minuti, facoltativa)</label>
-    <input inputmode="numeric" value="${e.durata || ""}" placeholder="es. 45" oninput="S._extraG.durata=this.value" style="margin-top:6px;max-width:140px">
+    <input inputmode="numeric" value="${esc(e.durata)}" placeholder="es. 45" oninput="S._extraG.durata=this.value" style="margin-top:6px;max-width:140px">
     <label class="lab" style="display:block;margin-top:12px">RPE (1-10, facoltativo)</label>
-    <input inputmode="decimal" value="${e.rpe || ""}" placeholder="es. 6" oninput="S._extraG.rpe=this.value" style="margin-top:6px;max-width:120px">
+    <input inputmode="decimal" value="${esc(e.rpe)}" placeholder="es. 6" oninput="S._extraG.rpe=this.value" style="margin-top:6px;max-width:120px">
     <label class="lab" style="display:block;margin-top:12px">Note (facoltative)</label>
-    <textarea rows="2" oninput="S._extraG.note=this.value" style="margin-top:6px" placeholder="es. la mattina, sentivo bene">${e.note || ""}</textarea>
+    <textarea rows="2" oninput="S._extraG.note=this.value" style="margin-top:6px" placeholder="es. la mattina, sentivo bene">${(e.note || "").replace(/</g, "&lt;")}</textarea>
     <button class="btn" style="margin-top:14px" onclick="salvaExtraGen()">Salva allenamento in più</button>`;
 }
+function _exNum(v) { const n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? null : n; }
+function _exInt(v) { const n = parseInt(String(v == null ? "" : v).replace(/[^\d-]/g, "")); return isNaN(n) ? null : n; }
+function _exNums(str) { return String(str == null ? "" : str).split(/[\s,;]+/).map(x => parseFloat(String(x).replace(",", "."))).filter(x => !isNaN(x)); }
 function salvaExtraGen() {
   const e = S._extraG || {};
   const ambito = (["pista", "palestra", "bici"].includes(e.ambito)) ? e.ambito : "pista";
-  const cosa = (e.cosa || "").trim();
-  const dd = parseInt(e.durata); const durata = (!isNaN(dd) && dd > 0) ? dd : null;
-  const rpe = (e.rpe !== "" && e.rpe != null) ? Number(String(e.rpe).replace(",", ".")) : null;
+  const durata = _exInt(e.durata);
+  const rpe = (e.rpe !== "" && e.rpe != null) ? _exNum(e.rpe) : null;
   const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
   if (!aid) { alert("Atleta non trovato."); return; }
-  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { ambito, cosa, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note });
+  const ex = { ambito, durata, rpe, note: e.note };
+  if (ambito === "palestra") {
+    ex.esercizi = (e.eser || []).filter(x => (x.nome || "").trim()).map(x => ({ nome: x.nome.trim(), serie: _exInt(x.serie), rep: _exInt(x.rep), recupero: (x.rec || "").trim(), peso: _exNum(x.peso), vbt: _exNums(x.vbt) }));
+    if (!ex.esercizi.length) { alert("Aggiungi almeno un esercizio (nome)."); return; }
+  } else {
+    const a = (typeof atletaCorrente === "function") ? atletaCorrente() : null;
+    const showKm = (ambito === "bici") || (ambito === "pista" && a && typeof gruppoDi === "function" && gruppoDi(a) === "mezzo");
+    if (showKm) { ex.km = _exNum(e.km); ex.dislivello = _exInt(e.dislivello); }
+    ex.elementi = (e.righe || []).filter(r => (r.contenuto || "").trim() || _exInt(r.distanza) || _exNums(r.tempi).length).map(r => ({ contenuto: (r.contenuto || "").trim(), distanza: _exInt(r.distanza), ripetute: _exInt(r.n), recupero: (r.rec || "").trim(), tempi: _exNums(r.tempi) }));
+    if (!ex.elementi.length && !(ex.km > 0)) { alert("Aggiungi un lavoro oppure i km."); return; }
+  }
+  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, ex);
   S._extraG = null;
   if (typeof chiudiScheda === "function") chiudiScheda();
-  if (typeof alert === "function") alert("✓ Allenamento in più aggiunto (" + ambito + "). L'allenatore lo vede e riceve la notifica.");
+  if (typeof alert === "function") alert("✓ Allenamento in più aggiunto (" + ambito + "). L'allenatore lo vede e le distanze restano tracciate.");
   disegna();
 }
 // apre (sola lettura) il dettaglio di un extra fatto in un dato giorno (dal calendario)

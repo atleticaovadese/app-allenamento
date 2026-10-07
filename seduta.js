@@ -245,7 +245,7 @@ function esercizioAperto(s, x) {
         onchange="setPesoFatto('${s.id}','${x.id}',this.value)">
     </div>
     ${righe}${parziale}
-    ${T.sec > 0 ? bloccoTimer() : `<button class="btn btn-2" style="width:auto;padding:8px 14px;font-size:13px;margin-top:8px" onclick="avviaRecupero('${s.id}','${x.id}')">⏱ Avvia recupero${x.recuperoSec > 0 ? " · " + fmtRec(x.recuperoSec) : ""}</button>`}
+    <button class="btn btn-2" style="width:auto;padding:8px 14px;font-size:13px;margin-top:8px" onclick="avviaRecupero('${s.id}','${x.id}')">⏱ Avvia recupero${x.recuperoSec > 0 ? " · " + fmtRec(x.recuperoSec) : ""}</button>
     ${bloccoSforzoEs(s.id, x)}
   </div>`;
 }
@@ -261,7 +261,7 @@ function setPesoFatto(sid, xid, val) {
 }
 function media(a) { const v = a.filter(x => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0; }
 
-function apriEsercizio(id) { T.id = (T.id === id ? null : id); fermaTimer(); disegna(); }
+function apriEsercizio(id) { T.id = (T.id === id ? null : id); disegna(); }   // il recupero NON si ferma cambiando esercizio: continua galleggiante
 
 function segnaVbt(sid, xid, i, val) {
   const s = sedutaDaId(sid), x = s.esercizi.find(e => e.id === xid);
@@ -275,28 +275,49 @@ function segnaVbt(sid, xid, i, val) {
 function avviaRecupero(sid, xid) {
   const s = sedutaDaId(sid), x = s && (s.esercizi || []).find(e => e.id === xid);
   const rec = (x && x.recuperoSec > 0) ? x.recuperoSec : 90;
-  avviaTimer(rec); disegna();
+  avviaTimer(rec);
 }
 
-// ---------- timer di recupero ----------
-function bloccoTimer() {
-  const m = Math.floor(T.sec / 60), s = String(T.sec % 60).padStart(2, "0");
-  return `<div class="timer">
-    <span class="tv">${m}:${s}</span>
-    <span class="tl">recupero</span>
-    <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:13px" onclick="fermaTimer();disegna()">Salta</button>
-  </div>`;
+// ---------- timer di recupero (GALLEGGIANTE: continua anche navigando; va in negativo e in ROSSO se si sfora) ----------
+// Elemento fisso attaccato al <body>: NON dipende da disegna(), così resta mentre l'atleta gira per l'app.
+function _timerEl() {
+  let el = document.getElementById("timer-flt");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "timer-flt";
+    el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:6000;display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:14px;background:var(--card2,#171c28);border:1px solid var(--line2,#2a3550);box-shadow:0 6px 22px rgba(0,0,0,.45);font-size:15px;color:var(--txt,#e6ebf5);max-width:92vw";
+    el.innerHTML = `<span id="timer-flt-txt"></span><button onclick="fermaTimer()" style="border:none;background:transparent;color:inherit;font-size:13px;cursor:pointer;opacity:.75;padding:4px 6px">✕ stop</button>`;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function _timerRender() {
+  const el = _timerEl(), txt = el.querySelector("#timer-flt-txt");
+  const over = T.sec < 0, abs = Math.abs(T.sec);
+  const mmss = Math.floor(abs / 60) + ":" + String(abs % 60).padStart(2, "0");
+  if (over) {
+    el.style.borderColor = "var(--rosso,#b02a37)"; el.style.background = "rgba(176,42,55,.16)"; el.style.color = "var(--rosso,#e0556a)";
+    txt.innerHTML = `⏱ <b>+${mmss}</b> oltre il recupero`;
+  } else {
+    el.style.borderColor = "var(--line2,#2a3550)"; el.style.background = "var(--card2,#171c28)"; el.style.color = "var(--txt,#e6ebf5)";
+    txt.innerHTML = `⏱ recupero <b>${mmss}</b>`;
+  }
 }
 function avviaTimer(sec) {
-  fermaTimer(); T.sec = sec;
+  if (T.handle) clearInterval(T.handle);
+  T.sec = sec || 0;
+  _timerRender();
   T.handle = setInterval(() => {
     T.sec--;
-    if (T.sec <= 0) { fermaTimer(); disegna(); return; }
-    const el = document.querySelector(".tv");
-    if (el) el.textContent = Math.floor(T.sec / 60) + ":" + String(T.sec % 60).padStart(2, "0");
+    _timerRender();
+    if (T.sec === 0 && typeof navigator !== "undefined" && navigator.vibrate) { try { navigator.vibrate(220); } catch (e) { } }   // avviso allo scadere
   }, 1000);
 }
-function fermaTimer() { if (T.handle) clearInterval(T.handle); T.handle = null; T.sec = 0; }
+function fermaTimer() {
+  if (T.handle) clearInterval(T.handle);
+  T.handle = null; T.sec = 0;
+  const el = document.getElementById("timer-flt"); if (el) el.remove();
+}
 
 // ---------- chiusura seduta ----------
 function bloccoChiusura(s) {
@@ -438,7 +459,7 @@ function segnalaInfortunioSeduta() {
   const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id) || "";
   if (typeof apriInfortunio === "function") apriInfortunio(aid, "seduta");
 }
-function tornaIndietro() { fermaTimer(); T.id = null; S.seduta = null; disegna(); }
+function tornaIndietro() { T.id = null; S.seduta = null; disegna(); }   // esce dalla seduta ma il recupero continua (galleggiante) finché non scade/stop
 
 // ============================================================================
 // MODIFICA LIVE (solo allenatore) — cambia l'allenamento di un atleta SOLO per quel giorno.

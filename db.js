@@ -575,7 +575,7 @@ async function salvaExtraDB(atletaId, ex) {
     atleta_id: atletaId, chiave: "extra-" + Date.now(), tipo: "extra",
     data: data, durata_min: ex.durata != null ? ex.durata : null, rpe: ex.rpe != null ? ex.rpe : null,
     fastidi: false, giorno: null, chiusa: true,
-    dati: { extra: true, km: ex.km != null ? ex.km : null, passoSec: ex.passoSec != null ? ex.passoSec : null, dislivello: ex.dislivello != null ? ex.dislivello : null, ambito: ex.ambito || null, cosa: ex.cosa || null, note: ex.note || "" }
+    dati: { extra: true, km: ex.km != null ? ex.km : null, passoSec: ex.passoSec != null ? ex.passoSec : null, dislivello: ex.dislivello != null ? ex.dislivello : null, ambito: ex.ambito || null, cosa: ex.cosa || null, note: ex.note || "", elementi: (ex.elementi && ex.elementi.length) ? ex.elementi : null, esercizi: (ex.esercizi && ex.esercizi.length) ? ex.esercizi : null }
   };
   DEMO.seduteSvolte = DEMO.seduteSvolte || {};
   (DEMO.seduteSvolte[atletaId] = DEMO.seduteSvolte[atletaId] || []).push({ atleta_id: atletaId, data: data, tipo: "extra", giorno: null, durata_min: payload.durata_min, rpe: payload.rpe, fastidi: false, dati: payload.dati });

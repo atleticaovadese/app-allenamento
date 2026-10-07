@@ -158,6 +158,7 @@ async function aggiornaDati() {
 }
 function esci() {
   if (typeof disconnetti === "function") disconnetti();
+  if (typeof fermaTimer === "function") fermaTimer();   // ferma il recupero galleggiante all'uscita
   S.utente = null; S.seduta = null; S.vista = "oggi"; S.menu = false; S.atletaSel = null; S.curiosando = null;
   localStorage.removeItem("utente"); disegna();
 }

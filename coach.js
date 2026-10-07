@@ -1659,12 +1659,21 @@ function _cardSvolta(sv) {
   const d = sv.dati || {};
   // allenamento EXTRA (in più) segnato dall'atleta: corsa (mezzofondo) o pista/palestra (velocisti/lanciatori)
   if (sv.tipo === "extra") {
-    const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "Allenamento in più", riga: "" };
+    const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "Allenamento in più", riga: "", dettaglio: [] };
+    const d = sv.dati || {};
+    const testa = [];
+    if (d.km != null && d.km !== "") testa.push(`<b>${d.km} km</b>`);
+    if (d.dislivello != null && d.dislivello !== "") testa.push(`${d.dislivello} m D+`);
+    if (sv.durata_min) testa.push(`~${sv.durata_min}′`);
+    const dett = (inf.dettaglio && inf.dettaglio.length)
+      ? `<div style="margin-top:6px">${inf.dettaglio.map(r => `<div class="et" style="margin:2px 0">• ${r}</div>`).join("")}</div>`
+      : (inf.riga ? `<p class="et" style="margin-top:6px">${inf.riga}</p>` : "");
     return `<div class="card" style="border-color:rgba(124,194,67,.5)">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <h3 style="font-size:16px">${dl(sv.data)} · ${inf.icona} ${inf.titolo} <span class="et" style="font-weight:400">· in più</span></h3>
         <span class="et">${sv.rpe != null ? "RPE " + sv.rpe : ""}</span></div>
-      ${inf.riga ? `<p class="et" style="margin-top:6px">${inf.riga}</p>` : ""}
+      ${testa.length ? `<p class="et" style="margin-top:6px">${testa.join(" · ")}</p>` : ""}
+      ${dett}
     </div>`;
   }
   const esito = it => {

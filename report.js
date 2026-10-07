@@ -900,7 +900,15 @@ function _reportMesoBodyHTML(id, k) {
 
   // allenamenti in più (extra) nel mesociclo
   if (extraMeso.length) h += `<h2>Allenamenti in più (${extraMeso.length})</h2>
-    <table><tr><th>Data</th><th>Cosa</th><th>RPE</th></tr>${extraMeso.map(sv => { const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "In più", riga: "" }; return `<tr><td>${_rDataL(sv.data)}</td><td>${inf.icona} ${inf.titolo}${inf.riga ? " · " + inf.riga : ""}</td><td>${sv.rpe != null ? sv.rpe : "—"}</td></tr>`; }).join("")}</table>`;
+    <table><tr><th>Data</th><th>Tipo</th><th>Dettaglio</th><th>RPE</th></tr>${extraMeso.map(sv => {
+      const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "In più", riga: "", dettaglio: [] };
+      const d = sv.dati || {};
+      const testa = [];
+      if (d.km != null && d.km !== "") testa.push("<b>" + d.km + " km</b>");
+      if (d.dislivello != null && d.dislivello !== "") testa.push(d.dislivello + " m D+");
+      const corpo = (inf.dettaglio && inf.dettaglio.length) ? inf.dettaglio.join("<br>") : inf.riga;
+      return `<tr><td>${_rDataL(sv.data)}</td><td>${inf.icona} ${inf.titolo}</td><td>${testa.length ? testa.join(" · ") + (corpo ? "<br>" : "") : ""}${corpo || ""}</td><td>${sv.rpe != null ? sv.rpe : "—"}</td></tr>`;
+    }).join("")}</table>`;
 
   // note allenatore
   h += _rNoteCoach(id);
