@@ -1002,3 +1002,4 @@ if (typeof caricaCustom === "function") caricaCustom();
 if (typeof avvioApp === "function") { avvioApp(); }
 else { ripristina(); disegna(); }
 if (typeof _controllaVersione === "function") { _controllaVersione(); }   // prende l'ultima versione se il telefono ne ha una vecchia in cache
+if (typeof _ripristinaTimer === "function") { _ripristinaTimer(); }       // riprende il recupero se la pagina si è ricaricata a timer attivo

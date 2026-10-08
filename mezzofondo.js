@@ -450,6 +450,7 @@ function segnaTempoMezzo(sid, eid, i, val) {
   if (!e || !e.tempi) return;
   const sec = _mzToSec(val);
   e.tempi[i] = (sec != null && sec > 0) ? sec : null;
+  if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s);
   disegna();
 }
 function vistaPistaMezzo(s) {

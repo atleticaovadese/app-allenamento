@@ -342,6 +342,7 @@ function _svoltaDi(s) {
 }
 function _applicaSvolta(s) {
   if (!s || s.chiusa) return s;                 // già chiusa in questa sessione (edit live): non toccare
+  if (typeof applicaBozza === "function") applicaBozza(s);   // ripristina la bozza locale (lavoro in corso: tempi/peso/RPE non ancora chiusi)
   const sv = _svoltaDi(s);
   if (!sv) return s;
   s.chiusa = true;

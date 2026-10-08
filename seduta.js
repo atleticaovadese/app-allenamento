@@ -1,7 +1,61 @@
 // Schermata della seduta: pista e palestra.
-const T = { id: null, sec: 0, handle: null };   // timer di recupero
+const T = { id: null, sec: 0, handle: null, endAt: null };   // timer di recupero (endAt = istante di fine, wall-clock)
 
 function sedutaDaId(id) { return DEMO.sedute.find(s => s.id === id) || (typeof sedutaGen === "function" ? sedutaGen(id) : null); }
+
+// ---------- BOZZA locale dell'allenamento IN CORSO ----------
+// Ogni dato che l'atleta segna (tempi, misure, VBT, peso, RPE, "non completato", note) viene salvato subito
+// nel telefono (localStorage). Così se cambia app o la pagina si ricarica NON perde nulla: alla riapertura
+// i dati tornano, e vengono inviati al coach solo quando chiude l'allenamento. Bozza cancellata alla chiusura.
+function _bozzaKey(s) { return "metis_bozza:" + (s.atletaId || (S.utente && S.utente.atletaId) || "") + ":" + s.id; }
+function _datiBozza(s) {
+  return s.tipo === "pista"
+    ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, mezzo: e.mezzo, tempi: e.tempi, misure: e.misure, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
+    : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, vbt: x.vbt, pesoFatto: x.pesoFatto, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
+}
+function salvaBozzaSeduta(s) {
+  if (!s || s.chiusa || !s.id) return;   // chiusa = già salvata nel DB, niente bozza
+  try { localStorage.setItem(_bozzaKey(s), JSON.stringify({ ts: Date.now(), tipo: s.tipo, durata: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, notaCoach: s.notaCoach || "", dati: _datiBozza(s) })); } catch (e) { }
+}
+function _rimuoviBozza(s) { if (s) { try { localStorage.removeItem(_bozzaKey(s)); } catch (e) { } } }
+function applicaBozza(s) {
+  if (!s || s.chiusa || s._bozzaApplicata) return s;
+  s._bozzaApplicata = true;   // applica una sola volta per oggetto (le modifiche in memoria restano la verità durante la sessione)
+  let b; try { const r = localStorage.getItem(_bozzaKey(s)); b = r ? JSON.parse(r) : null; } catch (e) { b = null; }
+  if (!b) return s;
+  if (b.ts && (Date.now() - b.ts) > 3 * 24 * 3600 * 1000) { _rimuoviBozza(s); return s; }   // bozza vecchia (>3 gg): scarta
+  if (b.durata != null) s.durata = b.durata;
+  if (b.rpe != null) s.rpe = b.rpe;
+  if (b.fastidi) s.fastidi = true;
+  if (b.notaCoach) s.notaCoach = b.notaCoach;
+  const d = b.dati || {};
+  if (s.tipo === "pista" && d.elementi) {
+    const used = [];
+    (s.elementi || []).forEach((e, i) => {
+      let de = d.elementi.find((c, j) => !used[j] && Number(c.distanza) === Number(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
+      if (!de && d.elementi[i] && !used[i]) de = d.elementi[i];
+      if (!de) return;
+      used[d.elementi.indexOf(de)] = true;
+      if (de.tempi) e.tempi = de.tempi;
+      if (de.misure) e.misure = de.misure;
+      if (de.rpe != null) e.rpe = de.rpe;
+      if (de.nonCompletato) { e.nonCompletato = true; e.notaAtleta = de.notaAtleta || ""; }
+    });
+  } else if (s.esercizi && d.esercizi) {
+    const used = [];
+    (s.esercizi || []).forEach((x, i) => {
+      let dx = d.esercizi.find((c, j) => !used[j] && (c.nome || "") === (x.nome || ""));
+      if (!dx && d.esercizi[i] && !used[i]) dx = d.esercizi[i];
+      if (!dx) return;
+      used[d.esercizi.indexOf(dx)] = true;
+      if (dx.vbt) x.vbt = dx.vbt;
+      if (dx.pesoFatto != null) x.pesoFatto = dx.pesoFatto;
+      if (dx.rpe != null) x.rpe = dx.rpe;
+      if (dx.nonCompletato) { x.nonCompletato = true; x.serieFatte = dx.serieFatte; x.repFatte = dx.repFatte; x.notaAtleta = dx.notaAtleta || ""; }
+    });
+  }
+  return s;
+}
 
 // ---------- riscaldamento (comune) ----------
 function bloccoRiscaldamento(s) {
@@ -29,7 +83,7 @@ function bloccoObiettivi(s) {
       : `<div class="obiettivi">${testo.split("\n").filter(r => r.trim()).map(r => `<div>${r}</div>`).join("")}</div>`}
   </div>`;
 }
-function segnaTestoSeduta(sid, campo, val) { sedutaDaId(sid)[campo] = val; }
+function segnaTestoSeduta(sid, campo, val) { const s = sedutaDaId(sid); s[campo] = val; salvaBozzaSeduta(s); }
 function chiudiScheda() { $("velo").classList.remove("on"); $("velo").innerHTML = ""; }
 
 function apriScheda(nome) {
@@ -127,6 +181,7 @@ function segnaTempo(sid, eid, i, val) {
   const s = sedutaDaId(sid), e = s.elementi.find(x => x.id === eid);
   const n = parseFloat(String(val).replace(",", "."));
   e.tempi[i] = isNaN(n) ? null : n;
+  salvaBozzaSeduta(s);
   disegna();
 }
 
@@ -149,9 +204,10 @@ function bloccoSforzoPista(sid, e) {
 function setEsitoPista(sid, eid, campo, val) {
   const s = sedutaDaId(sid), e = s && (s.elementi || []).find(x => x.id === eid);
   if (!e) return;
-  if (campo === "nonCompletato") { e.nonCompletato = val; disegna(); }
+  if (campo === "nonCompletato") { e.nonCompletato = val; salvaBozzaSeduta(s); disegna(); return; }
   else if (campo === "rpe") e.rpe = (val === "" ? null : Number(String(val).replace(",", ".")));
   else e[campo] = val;
+  salvaBozzaSeduta(s);
 }
 // Blocco per un ESERCIZIO di palestra: RPE + "non chiuso" con serie/rep effettive.
 function bloccoSforzoEs(sid, x) {
@@ -177,9 +233,10 @@ function bloccoSforzoEs(sid, x) {
 function setEsitoEs(sid, xid, campo, val) {
   const s = sedutaDaId(sid), x = s && (s.esercizi || []).find(e => e.id === xid);
   if (!x) return;
-  if (campo === "nonCompletato") { x.nonCompletato = val; disegna(); }
+  if (campo === "nonCompletato") { x.nonCompletato = val; salvaBozzaSeduta(s); disegna(); return; }
   else if (campo === "rpe" || campo === "serieFatte" || campo === "repFatte") x[campo] = (val === "" ? null : Number(String(val).replace(",", ".")));
   else x[campo] = val;
+  salvaBozzaSeduta(s);
 }
 
 // ---------- PALESTRA ----------
@@ -257,7 +314,8 @@ function setPesoFatto(sid, xid, val) {
   if (!x) return;
   const n = Number(String(val).replace(",", "."));
   x.pesoFatto = (val === "" || !Number.isFinite(n)) ? null : n;
-  if (s.chiusa && typeof salvaSedutaSvoltaDB === "function") salvaSedutaSvoltaDB(s);
+  if (s.chiusa) { if (typeof salvaSedutaSvoltaDB === "function") salvaSedutaSvoltaDB(s); }
+  else salvaBozzaSeduta(s);
 }
 function media(a) { const v = a.filter(x => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0; }
 
@@ -269,6 +327,7 @@ function segnaVbt(sid, xid, i, val) {
   x.vbt[i] = isNaN(n) ? null : n;
   const restano = x.vbt.some(v => v === null);
   if (!isNaN(n) && restano) avviaTimer(x.recuperoSec); else fermaTimer();
+  salvaBozzaSeduta(s);
   disegna();
 }
 // avvia il recupero a mano (senza dover segnare i m/s): usa il recupero prescritto, o 90s di default
@@ -303,20 +362,41 @@ function _timerRender() {
     txt.innerHTML = `⏱ recupero <b>${mmss}</b>`;
   }
 }
+// il timer è ancorato a un ISTANTE DI FINE (wall-clock): così resta corretto anche se il telefono mette Metis
+// in pausa mentre si cambia app (musica, ecc.) — al ritorno ricalcola dal tempo reale e non si resetta.
+function _timerTick() {
+  if (T.endAt == null) return;
+  const prev = T.sec;
+  T.sec = Math.round((T.endAt - Date.now()) / 1000);
+  _timerRender();
+  if (prev > 0 && T.sec <= 0 && typeof navigator !== "undefined" && navigator.vibrate) { try { navigator.vibrate(220); } catch (e) { } }   // avviso allo scadere
+}
 function avviaTimer(sec) {
   if (T.handle) clearInterval(T.handle);
-  T.sec = sec || 0;
-  _timerRender();
-  T.handle = setInterval(() => {
-    T.sec--;
-    _timerRender();
-    if (T.sec === 0 && typeof navigator !== "undefined" && navigator.vibrate) { try { navigator.vibrate(220); } catch (e) { } }   // avviso allo scadere
-  }, 1000);
+  T.endAt = Date.now() + (sec || 0) * 1000;
+  try { localStorage.setItem("metis_rec_end", String(T.endAt)); } catch (e) { }   // per riprenderlo dopo un reload
+  _timerTick();
+  T.handle = setInterval(_timerTick, 1000);
 }
 function fermaTimer() {
   if (T.handle) clearInterval(T.handle);
-  T.handle = null; T.sec = 0;
+  T.handle = null; T.sec = 0; T.endAt = null;
+  try { localStorage.removeItem("metis_rec_end"); } catch (e) { }
   const el = document.getElementById("timer-flt"); if (el) el.remove();
+}
+// al ritorno in primo piano aggiorna subito (lo sleep in background può aver "congelato" il conteggio)
+if (typeof document !== "undefined" && document.addEventListener) {
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && T.endAt != null) _timerTick(); });
+}
+// riprende il recupero dopo un reload della pagina (auto-aggiornamento o app ricaricata dal sistema)
+function _ripristinaTimer() {
+  try {
+    const raw = localStorage.getItem("metis_rec_end"); if (!raw) return;
+    const endAt = parseInt(raw); if (!endAt) return;
+    if (Date.now() - endAt > 20 * 60 * 1000) { localStorage.removeItem("metis_rec_end"); return; }   // troppo vecchio: scarta
+    if (T.handle) clearInterval(T.handle);
+    T.endAt = endAt; _timerTick(); T.handle = setInterval(_timerTick, 1000);
+  } catch (e) { }
 }
 
 // ---------- chiusura seduta ----------
@@ -353,9 +433,10 @@ function bloccoChiusura(s) {
 }
 function segnaChiusura(sid, campo, val) {
   const s = sedutaDaId(sid);
-  if (campo === "fastidi") { s[campo] = val; return; }
+  if (campo === "fastidi") { s[campo] = val; salvaBozzaSeduta(s); return; }
   const n = Number(String(val).replace(",", "."));
   s[campo] = (val === "" || !Number.isFinite(n)) ? null : n;   // scarta NaN (es. testo) invece di salvarlo
+  salvaBozzaSeduta(s);
 }
 async function chiudiSeduta(sid) {
   const s = sedutaDaId(sid);
@@ -393,6 +474,7 @@ async function chiudiSeduta(sid) {
     });
   }
   s.chiusa = true;
+  if (typeof _rimuoviBozza === "function") _rimuoviBozza(s);   // chiusa: la bozza locale non serve più (ora è nel DB/coda)
   // TAPPA 4: la seduta svolta va al coach (DB) → screening/andamento/VBT/carico reali
   if (typeof salvaSedutaSvoltaDB === "function") { try { await salvaSedutaSvoltaDB(s); } catch (e) { /* offline: resta in coda */ } }
   fermaTimer(); S.seduta = null;

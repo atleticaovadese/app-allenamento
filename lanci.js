@@ -458,6 +458,7 @@ function segnaMisura(sid, eid, i, val) {
   if (!e) return;
   const n = parseFloat(String(val).replace(",", "."));
   e.misure[i] = isNaN(n) ? null : n;
+  if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s);
   disegna();
 }
 // registro lanci: mezzo / attrezzo / n° / miglior misura → per andamento e riepilogo
