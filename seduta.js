@@ -160,7 +160,9 @@ function vistaPista(s) {
         onchange="segnaTempo('${s.id}','${e.id}',${i},this.value)">`;
     }).join("");
     const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
+    const cont = e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "";
     return `<div class="card">
+      ${cont ? `<p style="font-weight:600;font-size:15px;margin:0 0 6px;line-height:1.35">${cont}</p>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <h3>${e.ripetute} × ${e.distanza} m</h3>
         <span class="et" style="margin:0">${meta}</span>

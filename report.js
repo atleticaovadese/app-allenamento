@@ -774,7 +774,7 @@ function _rContenutoSvolta(sv) {
   if (sv.tipo === "pista") return (d.elementi || []).map(e => {
     if (e.misure) { const f = (e.misure || []).filter(v => v != null); return `${e.mezzo || "lanci"}${e.lanci ? " " + e.lanci + " lanci" : ""}${f.length ? " (best " + Math.max(...f).toFixed(2) + "m)" : ""}`; }
     if (e.min != null) return `${e.mezzo || "continuo"} ${e.min}′`;
-    const f = (e.tempi || []).filter(v => v != null); return `${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(ft).join(", ") + ")" : ""}`;
+    const f = (e.tempi || []).filter(v => v != null); return `${e.contenuto ? e.contenuto + " — " : ""}${e.ripetute}×${e.distanza}m${f.length ? " (" + f.map(ft).join(", ") + ")" : ""}`;
   }).join(" · ");
   return (d.esercizi || []).map(x => { const f = (x.vbt || []).filter(v => v != null); const vm = f.length ? (f.reduce((s, v) => s + v, 0) / f.length).toFixed(2) : null; return `${x.nome} ${x.serie || "?"}×${x.rep || "?"}${x.peso ? "@" + x.peso + "kg" : ""}${vm ? " VBT " + vm : ""}`; }).join(" · ");
 }

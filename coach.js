@@ -1700,7 +1700,10 @@ function _cardSvolta(sv) {
       const tstr = f.length ? f.map(fmtT).join(" · ") : "—", best = f.length ? Math.min(...f) : null;
       const col = (best != null && e.target != null) ? (best <= e.target ? "var(--verde)" : "var(--rosso)") : "var(--txt2)";
       const bestStr = best != null ? fmtT(best) : "";
-      return riga(`${e.ripetute}×${e.distanza} m`, e.percentuale ? e.percentuale + "%" : "", `tempi ${tstr}${e.target != null ? ` · obiettivo ${Number(e.target).toFixed(2)}` : ""}`, bestStr, col, e);
+      const contTxt = e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "";
+      const titolo = contTxt || `${e.ripetute}×${e.distanza} m`;
+      const metaR = [contTxt ? `${e.ripetute}×${e.distanza} m` : "", e.percentuale ? e.percentuale + "%" : ""].filter(Boolean).join(" · ");
+      return riga(titolo, metaR, `tempi ${tstr}${e.target != null ? ` · obiettivo ${Number(e.target).toFixed(2)}` : ""}`, bestStr, col, e);
     }).join("");
   } else {
     corpo = (d.esercizi || []).map(x => {
