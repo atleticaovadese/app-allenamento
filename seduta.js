@@ -1,5 +1,5 @@
 // Schermata della seduta: pista e palestra.
-const T = { id: null, sec: 0, handle: null, endAt: null };   // timer di recupero (endAt = istante di fine, wall-clock)
+const T = { id: null, sec: 0, handle: null, endAt: null, over: false, suonato: false };   // timer di recupero (endAt = istante di fine, wall-clock)
 
 function sedutaDaId(id) { return DEMO.sedute.find(s => s.id === id) || (typeof sedutaGen === "function" ? sedutaGen(id) : null); }
 
@@ -352,43 +352,101 @@ function _timerEl() {
   }
   return el;
 }
+function _mmss(s) { s = Math.max(0, s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 function _timerRender() {
   const el = _timerEl(), txt = el.querySelector("#timer-flt-txt");
-  const over = T.sec < 0, abs = Math.abs(T.sec);
-  const mmss = Math.floor(abs / 60) + ":" + String(abs % 60).padStart(2, "0");
-  if (over) {
+  if (T.over) {
     el.style.borderColor = "var(--rosso,#b02a37)"; el.style.background = "rgba(176,42,55,.16)"; el.style.color = "var(--rosso,#e0556a)";
-    txt.innerHTML = `⏱ <b>+${mmss}</b> oltre il recupero`;
+    txt.innerHTML = `⏱ recupero finito · <b>+${_mmss(T.sec)}</b>`;
   } else {
     el.style.borderColor = "var(--line2,#2a3550)"; el.style.background = "var(--card2,#171c28)"; el.style.color = "var(--txt,#e6ebf5)";
-    txt.innerHTML = `⏱ recupero <b>${mmss}</b>`;
+    txt.innerHTML = `⏱ recupero <b>${_mmss(T.sec)}</b>`;
   }
 }
-// il timer è ancorato a un ISTANTE DI FINE (wall-clock): così resta corretto anche se il telefono mette Metis
-// in pausa mentre si cambia app (musica, ecc.) — al ritorno ricalcola dal tempo reale e non si resetta.
+// il timer è ancorato a un ISTANTE DI FINE (wall-clock): resta corretto anche se il telefono mette Metis in
+// pausa (cambio app, schermo spento) — al ritorno ricalcola dal tempo reale e non si resetta né sbaglia.
 function _timerTick() {
   if (T.endAt == null) return;
-  const prev = T.sec;
-  T.sec = Math.round((T.endAt - Date.now()) / 1000);
+  const remMs = T.endAt - Date.now();
+  T.over = remMs <= 0;
+  T.sec = T.over ? Math.floor((Date.now() - T.endAt) / 1000) : Math.ceil(remMs / 1000);
+  if (T.over && !T.suonato) { T.suonato = true; _allarmeRecupero(); }   // scaduto → avviso (vibrazione + suono + notifica)
   _timerRender();
-  if (prev > 0 && T.sec <= 0 && typeof navigator !== "undefined" && navigator.vibrate) { try { navigator.vibrate(220); } catch (e) { } }   // avviso allo scadere
 }
 function avviaTimer(sec) {
   if (T.handle) clearInterval(T.handle);
-  T.endAt = Date.now() + (sec || 0) * 1000;
+  T.endAt = Date.now() + (sec || 0) * 1000; T.over = false; T.suonato = false;
   try { localStorage.setItem("metis_rec_end", String(T.endAt)); } catch (e) { }   // per riprenderlo dopo un reload
+  _primeAudio();                 // "sblocca" l'audio sul gesto dell'utente, così il beep finale può suonare
+  _chiediNotifSeServe();         // permesso notifiche (per l'avviso quando sei su un'altra app / schermo spento)
+  _acquisisciWakeLock();         // tiene lo schermo acceso durante il recupero (niente standby)
   _timerTick();
-  T.handle = setInterval(_timerTick, 1000);
+  T.handle = setInterval(_timerTick, 250);   // 250ms = conteggio fluido e sempre allineato all'orario reale
 }
 function fermaTimer() {
   if (T.handle) clearInterval(T.handle);
-  T.handle = null; T.sec = 0; T.endAt = null;
+  T.handle = null; T.sec = 0; T.endAt = null; T.over = false; T.suonato = false;
   try { localStorage.removeItem("metis_rec_end"); } catch (e) { }
+  _rilasciaWakeLock();
   const el = document.getElementById("timer-flt"); if (el) el.remove();
 }
-// al ritorno in primo piano aggiorna subito (lo sleep in background può aver "congelato" il conteggio)
+// ----- avviso di fine recupero: vibrazione + suono + notifica di sistema (sveglia lo schermo anche in standby) -----
+let _recAudioCtx = null;
+function _primeAudio() {
+  try {
+    if (!_recAudioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) _recAudioCtx = new AC(); }
+    if (_recAudioCtx && _recAudioCtx.state === "suspended") _recAudioCtx.resume();
+  } catch (e) { }
+}
+function _beepRecupero() {
+  try {
+    _primeAudio(); if (!_recAudioCtx) return;
+    const t0 = _recAudioCtx.currentTime;
+    [0, 0.32, 0.64].forEach(off => {
+      const o = _recAudioCtx.createOscillator(), g = _recAudioCtx.createGain();
+      o.type = "sine"; o.frequency.value = 880; o.connect(g); g.connect(_recAudioCtx.destination);
+      g.gain.setValueAtTime(0.0001, t0 + off);
+      g.gain.exponentialRampToValueAtTime(0.5, t0 + off + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + off + 0.28);
+      o.start(t0 + off); o.stop(t0 + off + 0.3);
+    });
+  } catch (e) { }
+}
+function _notificaFineRecupero() {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const opts = { body: "Recupero finito 💪 torna all'esercizio.", tag: "recupero-metis", renotify: true, vibrate: [500, 150, 500, 150, 500], icon: "icon-192.png", badge: "icon-192.png" };
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(reg => { try { reg.showNotification("⏱ Recupero finito", opts); } catch (e) { try { new Notification("⏱ Recupero finito", opts); } catch (_) { } } }).catch(() => { try { new Notification("⏱ Recupero finito", opts); } catch (e) { } });
+    } else { try { new Notification("⏱ Recupero finito", opts); } catch (e) { } }
+  } catch (e) { }
+}
+function _allarmeRecupero() {
+  try { if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([500, 150, 500, 150, 500]); } catch (e) { }
+  _beepRecupero();
+  _notificaFineRecupero();
+  _rilasciaWakeLock();   // recupero finito: lascia che lo schermo possa spegnersi
+}
+function _chiediNotifSeServe() {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "default") return;
+    let chiesto = false; try { chiesto = localStorage.getItem("metis_notif_rec") === "1"; } catch (e) { }
+    if (chiesto) return;
+    try { localStorage.setItem("metis_notif_rec", "1"); } catch (e) { }
+    Notification.requestPermission().catch(() => { });
+  } catch (e) { }
+}
+// ----- Wake Lock: schermo acceso durante il recupero (si rilascia da solo quando la pagina va in background) -----
+let _recWakeLock = null;
+async function _acquisisciWakeLock() {
+  try { if ("wakeLock" in navigator && document.visibilityState === "visible") { _recWakeLock = await navigator.wakeLock.request("screen"); _recWakeLock.addEventListener && _recWakeLock.addEventListener("release", () => { _recWakeLock = null; }); } } catch (e) { }
+}
+function _rilasciaWakeLock() { try { if (_recWakeLock) { _recWakeLock.release(); _recWakeLock = null; } } catch (e) { } }
+// al ritorno in primo piano aggiorna subito (lo sleep in background può aver "congelato" il conteggio) e riprende il wake lock
 if (typeof document !== "undefined" && document.addEventListener) {
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && T.endAt != null) _timerTick(); });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && T.endAt != null) { _timerTick(); if (!T.over) _acquisisciWakeLock(); }
+  });
 }
 // riprende il recupero dopo un reload della pagina (auto-aggiornamento o app ricaricata dal sistema)
 function _ripristinaTimer() {
@@ -397,7 +455,8 @@ function _ripristinaTimer() {
     const endAt = parseInt(raw); if (!endAt) return;
     if (Date.now() - endAt > 20 * 60 * 1000) { localStorage.removeItem("metis_rec_end"); return; }   // troppo vecchio: scarta
     if (T.handle) clearInterval(T.handle);
-    T.endAt = endAt; _timerTick(); T.handle = setInterval(_timerTick, 1000);
+    T.endAt = endAt; T.suonato = (Date.now() >= endAt);   // se è già scaduto non risuonare
+    _timerTick(); T.handle = setInterval(_timerTick, 250);
   } catch (e) { }
 }
 
