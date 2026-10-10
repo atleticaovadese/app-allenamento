@@ -83,7 +83,7 @@ function bloccoComeSiFa(k) {
 function toggleNuovoTest() { S.nuovoTest = !S.nuovoTest; disegna(); if (S.nuovoTest) window.scrollTo(0, 0); }
 
 let testState = { atletaRif: "" };
-function setTestAtleta(id) { testState.atletaRif = id; disegna(); window.scrollTo(0, 0); }
+function setTestAtleta(id) { testState.atletaRif = id; disegna(); }
 
 // progressione dell'atleta in tutto: salti/test, tempi/PB, massimali (riusa andaVoci/andaMetriche/chartSerie di analisi.js)
 function progressioneAtleta(atl) {
@@ -225,7 +225,7 @@ const TEMPLATE_BLOCCHI = [
   }
 ];
 
-function setTmplSet(v) { S.tmplSet = v; disegna(); window.scrollTo(0, 0); }
+function setTmplSet(v) { S.tmplSet = v; disegna(); }
 function _renderTemplateBlocchi(blocchi, colPista, col2) {
   const c2 = col2 || ("Distanze/" + (colPista === "Corsa" ? "ritmo" : "%"));
   return blocchi.map(b => `

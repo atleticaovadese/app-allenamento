@@ -37,7 +37,7 @@ function gruppoDi(a) {
 }
 function nomeGruppo(k) { const g = GRUPPI.find(x => x[0] === k); return g ? g[1] : "Tutti"; }
 function atletiDelGruppo(gk) { return DEMO.atleti.filter(a => gruppoDi(a) === gk); }
-function setGruppo(gk) { S.gruppo = gk; disegna(); window.scrollTo(0, 0); }
+function setGruppo(gk) { S.gruppo = gk; disegna(); }   // cambia disciplina restando dove sei
 function chipsGruppi() {
   return `<div class="tabbar" style="margin-bottom:11px">${GRUPPI.map(([k, l]) => {
     const n = atletiDelGruppo(k).length;
@@ -829,7 +829,7 @@ function vistaCalendarioSquadra() {
     <p class="et" style="margin-top:8px;color:var(--txt3)">Tocca una casella per aprire l'allenamento di quell'atleta in quel giorno.</p>
   </div>`;
 }
-function calSqSett(d) { S.calSqOff = (S.calSqOff || 0) + d; disegna(); window.scrollTo(0, 0); }
+function calSqSett(d) { S.calSqOff = (S.calSqOff || 0) + d; disegna(); }   // cambia settimana restando dove sei
 // tocco su una casella del calendario squadra → apre la seduta di quell'atleta in quel giorno (settimana con offset)
 function apriSedutaCal(atletaId, off, tp, wkOff) {
   const a = DEMO.atleti.find(x => x.id === atletaId); if (!a) return;
@@ -1788,7 +1788,7 @@ function apriSedutaSvoltaCoach(atletaId, dataISO, tipo, giorno) {
 
 // ---------- monitoraggio: SCREENING (performance + carico) settimana / mesociclo ----------
 let screeningState = { atletaRif: "" };
-function setScreeningAtleta(id) { screeningState.atletaRif = id; disegna(); window.scrollTo(0, 0); }
+function setScreeningAtleta(id) { screeningState.atletaRif = id; disegna(); }
 
 // commento automatico dello screening: presenza, volume, tempi, RPE, prontezza, carico, VBT — con avviso "pochi dati"
 function _commentoScreening(atleta, giorni, ctx) {

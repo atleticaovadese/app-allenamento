@@ -706,7 +706,7 @@ function vistaCalendario() {
   </div>`; }).join("")}
   ${!haQualcosa ? `<div class="card"><p class="et">Nessun allenamento programmato in questa settimana. Il programma lo imposta l'allenatore.</p></div>` : ""}`;
 }
-function calSett(d) { S.calOff = (S.calOff || 0) + d; disegna(); window.scrollTo(0, 0); }
+function calSett(d) { S.calOff = (S.calOff || 0) + d; disegna(); }   // cambia settimana restando dove sei (niente salto in alto)
 
 // ---------- I miei allenamenti svolti (l'atleta rivede cosa ha fatto e tiene traccia) ----------
 function vistaMieiAllenamenti() {
