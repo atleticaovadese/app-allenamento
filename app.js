@@ -848,24 +848,43 @@ function disegnaMenu(menu) {
   }).join("");
 }
 
-// auto-aggiornamento: se il telefono ha in memoria una versione VECCHIA dell'app (capita con le PWA),
-// la ricarica UNA volta per prendere l'ultima. Così le nuove funzioni (es. bici negli extra) arrivano a tutti
-// senza dover svuotare la cache a mano. Guardia in sessionStorage per non entrare in loop.
-async function _controllaVersione() {
+// auto-aggiornamento: se il telefono ha in memoria una versione VECCHIA dell'app (capita con le PWA tenute
+// aperte in background per giorni), prende l'ultima da sola. Controlla: all'avvio, ogni volta che si TORNA
+// sull'app (visibilitychange), e ogni 15 min mentre è aperta. Non interrompe un allenamento aperto: in quel
+// caso rimanda il reload a quando l'atleta esce dalla seduta. Guardia in sessionStorage per non entrare in loop.
+let _verThrottle = 0, _verPending = null;
+async function _controllaVersione(force) {
   try {
     if (typeof fetch !== "function" || typeof CONFIG === "undefined" || !CONFIG.versione) return;
-    const r = await fetch("config.js?nc=" + Date.now(), { cache: "no-store" });
+    const now = Date.now();
+    if (!force && now - _verThrottle < 60000) return;   // max 1 controllo al minuto
+    _verThrottle = now;
+    const r = await fetch("config.js?nc=" + now, { cache: "no-store" });
     if (!r || !r.ok) return;
     const t = await r.text();
     const m = t.match(/versione:\s*["']([^"']+)["']/);
     const serverV = m && m[1];
     if (!serverV || serverV === CONFIG.versione) return;   // già aggiornato
     let gia = false; try { gia = sessionStorage.getItem("metis_reload_v") === serverV; } catch (e) { }
-    if (gia) return;                                        // ho già ricaricato per questa versione: non insisto (niente loop)
+    if (gia) return;                                        // già ricaricato per questa versione: niente loop
+    if (typeof S !== "undefined" && S.seduta) { _verPending = serverV; return; }   // allenamento aperto: rimanda
     try { sessionStorage.setItem("metis_reload_v", serverV); } catch (e) { }
     location.reload();
   } catch (e) { /* offline o errore: si resta com'è */ }
 }
+// applica un aggiornamento rimandato appena l'atleta non è più dentro un allenamento
+function _applicaAggiornamentoSeInSospeso() {
+  if (_verPending && !(typeof S !== "undefined" && S.seduta)) {
+    const v = _verPending; _verPending = null;
+    try { sessionStorage.setItem("metis_reload_v", v); } catch (e) { }
+    location.reload();
+  }
+}
+// controlla gli aggiornamenti anche quando si TORNA sull'app (senza chiuderla) e a intervalli regolari
+if (typeof document !== "undefined" && document.addEventListener) {
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { _applicaAggiornamentoSeInSospeso(); _controllaVersione(); } });
+}
+if (typeof setInterval === "function") { setInterval(() => { _controllaVersione(); }, 15 * 60 * 1000); }
 // nasconde lo splash d'avvio (logo + frase) alla prima renderizzazione reale della pagina
 function _nascondiSplash() {
   const sp = (typeof document !== "undefined") ? document.getElementById("splash") : null;

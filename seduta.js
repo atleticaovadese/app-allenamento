@@ -539,6 +539,7 @@ async function chiudiSeduta(sid) {
   // TAPPA 4: la seduta svolta va al coach (DB) → screening/andamento/VBT/carico reali
   if (typeof salvaSedutaSvoltaDB === "function") { try { await salvaSedutaSvoltaDB(s); } catch (e) { /* offline: resta in coda */ } }
   fermaTimer(); S.seduta = null;
+  if (typeof _applicaAggiornamentoSeInSospeso === "function") _applicaAggiornamentoSeInSospeso();   // aggiornamento rimandato: ora si può
   // l'atleta torna a "oggi"; il coach torna alla lista degli allenamenti svolti dell'atleta
   if (!(S.utente && S.utente.ruolo === "coach")) S.vista = "oggi";
   disegna();
@@ -602,7 +603,7 @@ function segnalaInfortunioSeduta() {
   const aid = (S.utente && S.utente.atletaId) || (DEMO.atleti[0] && DEMO.atleti[0].id) || "";
   if (typeof apriInfortunio === "function") apriInfortunio(aid, "seduta");
 }
-function tornaIndietro() { T.id = null; S.seduta = null; disegna(); }   // esce dalla seduta ma il recupero continua (galleggiante) finché non scade/stop
+function tornaIndietro() { T.id = null; S.seduta = null; if (typeof _applicaAggiornamentoSeInSospeso === "function") _applicaAggiornamentoSeInSospeso(); disegna(); }   // esce dalla seduta ma il recupero continua (galleggiante) finché non scade/stop
 
 // ============================================================================
 // MODIFICA LIVE (solo allenatore) — cambia l'allenamento di un atleta SOLO per quel giorno.
