@@ -1761,7 +1761,8 @@ function _cardSvolta(sv) {
       const f = (x.vbt || []).filter(v => v != null), vmed = f.length ? f.reduce((s, v) => s + v, 0) / f.length : null;
       const pw = (x.pesoFatto != null && x.pesoFatto !== "") ? x.pesoFatto : x.peso;   // peso usato dall'atleta se segnato
       const meta = `${x.serie || "?"}×${x.rep || "?"}${pw ? ` @${pw} kg${(x.pesoFatto != null && x.pesoFatto !== "") ? " (usato)" : ""}` : ""}`;
-      return riga(x.nome, meta, vmed != null ? `VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}` : "", "", "", x);
+      const titoloEs = (x.ss ? `🔗${x.ss} ` : "") + x.nome;
+      return riga(titoloEs, meta, vmed != null ? `VBT ${vmed.toFixed(2)} m/s${x.vbtTarget ? ` · target ${x.vbtTarget}` : ""}` : "", "", "", x);
     }).join("");
   }
   return `<div class="card">

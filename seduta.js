@@ -248,8 +248,34 @@ function vistaPalestra(s) {
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   <p class="et" style="margin:0 2px 8px">Tocca l'esercizio da cui parti</p>
-  ${s.esercizi.map(x => x.id === T.id ? esercizioAperto(s, x) : esercizioChiuso(s, x)).join("")}
+  ${eserciziConSuperset(s)}
   ${bloccoChiusura(s)}`;
+}
+
+// Lista esercizi palestra: raggruppa visivamente gli esercizi consecutivi con la stessa lettera di superset (ss),
+// così l'atleta capisce che vanno fatti uno dietro l'altro (recupero solo alla fine del giro).
+function eserciziConSuperset(s) {
+  const es = s.esercizi || [];
+  const cardOf = x => x.id === T.id ? esercizioAperto(s, x) : esercizioChiuso(s, x);
+  let out = "", i = 0;
+  while (i < es.length) {
+    const ss = (es[i].ss || "").trim();
+    if (ss) {
+      const gruppo = [];
+      while (i < es.length && (es[i].ss || "").trim() === ss) { gruppo.push(es[i]); i++; }
+      if (gruppo.length > 1) {
+        out += `<div style="border:1px solid var(--line2);border-left:3px solid var(--verde);border-radius:14px;padding:8px;margin-bottom:11px;background:var(--verde-bg)">
+          <p class="et" style="margin:2px 2px 8px;font-weight:600;color:var(--verde)">🔗 Superset ${ss} · esegui gli esercizi di fila, poi recupera</p>
+          ${gruppo.map(cardOf).join("")}
+        </div>`;
+      } else {
+        out += cardOf(gruppo[0]);   // lettera su un solo esercizio: nessun raggruppamento
+      }
+    } else {
+      out += cardOf(es[i]); i++;
+    }
+  }
+  return out;
 }
 
 function esercizioChiuso(s, x) {

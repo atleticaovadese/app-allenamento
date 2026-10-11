@@ -3,7 +3,14 @@
 // il PESO esce da solo dai massimali dell'atleta (peso = %1RM/100 × 1RM), volume(kg) = serie × rep × peso.
 // Riusa dal file pista.js: pistaCicliPiano, cicloDaLen, isoLocale, nSettimaneMeso, isScaricoIdx.
 
-function palRigaVuota() { return { esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" }; }
+function palRigaVuota() { return { esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "", ss: "" }; }
+// tendina "superset": — (nessuno) oppure una lettera A..F. Righe con la stessa lettera = stesso superset (si eseguono di fila).
+function optSuperset(val) {
+  const lettere = ["A", "B", "C", "D", "E", "F"];
+  let h = `<option value="" ${!val ? "selected" : ""}>—</option>`;
+  h += lettere.map(L => `<option value="${L}" ${String(val) === L ? "selected" : ""}>${L}</option>`).join("");
+  return h;
+}
 // libreria esercizi sala in ordine alfabetico (condivisa: editor completo + Adatta)
 function _eserciziSala() {
   return ((typeof LIBRERIE !== "undefined" && LIBRERIE.sala) ? LIBRERIE.sala.map(x => x.n) : [])
@@ -340,6 +347,7 @@ function vistaProgrammaPalestra() {
         : `<td><input inputmode="numeric" value="${r.peso || ""}" placeholder="kg" oninput="setPalRigaVal(${s},${i},'peso',this.value)" onchange="disegna()" style="min-width:56px"></td>`;
       return `<tr>
         <td>${_campoEsercizio(r.esercizio, "dl-pal", "setPalEsercizio(" + s + "," + i + ",this.value)", "min-width:150px")}</td>
+        <td><select onchange="setPalRiga(${s},${i},'ss',this.value)" style="min-width:48px;padding:7px 4px" title="Superset: stessa lettera = esercizi da fare di fila">${optSuperset(r.ss)}</select></td>
         <td>${typeof _stepCell === "function" ? _stepCell(r.serie, "s", "palStepN(" + s + "," + i + ",'serie',-1)", "palStepN(" + s + "," + i + ",'serie',1)", "setPalRigaVal(" + s + "," + i + ",'serie',this.value)", "34px") : `<input inputmode="numeric" value="${r.serie || ""}" placeholder="s" oninput="setPalRigaVal(${s},${i},'serie',this.value)" onchange="disegna()" style="min-width:48px">`}</td>
         <td>${typeof _stepCell === "function" ? _stepCell(r.rep, "r", "palStepN(" + s + "," + i + ",'rep',-1)", "palStepN(" + s + "," + i + ",'rep',1)", "setPalRigaVal(" + s + "," + i + ",'rep',this.value)", "34px") : `<input inputmode="numeric" value="${r.rep || ""}" placeholder="r" oninput="setPalRigaVal(${s},${i},'rep',this.value)" onchange="disegna()" style="min-width:48px">`}</td>
         <td><input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPalRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="min-width:48px"></td>
@@ -357,13 +365,14 @@ function vistaProgrammaPalestra() {
         ${scar ? `<span class="pill p-giallo">scarico · −${scaricoPctVal(m)}% vol</span>` : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
-        <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Rec</th><th>TUT</th><th>VBT tgt</th><th>Peso (kg)</th><th>Vol (kg)</th><th></th></tr></thead>
+        <thead><tr><th>Esercizio</th><th>SS</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Rec</th><th>TUT</th><th>VBT tgt</th><th>Peso (kg)</th><th>Vol (kg)</th><th></th></tr></thead>
         <tbody>${righe}</tbody>
       </table></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="palAddRiga(${s})">＋ esercizio</button>
         <span class="et">Volume: <b style="color:var(--verde);font-size:14px">${volumePalSett(sett).toLocaleString("it-IT")} kg</b></span>
       </div>
+      ${s === 0 ? `<p class="et" style="margin-top:6px">🔗 <b>SS</b> = superset: dai la <b>stessa lettera</b> (A, B…) a due o più esercizi vicini e l'atleta li vedrà raggruppati, da fare uno dietro l'altro.</p>` : ""}
       ${s > 0 && !scar ? `<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
         <span class="et" style="margin:0">↑ da sett. ${s}:</span>
         <select id="pgpt-${s}" onchange="progSwitch('pgpt-${s}','pgpp-${s}')" style="padding:7px 8px;width:auto;flex:none"><option value="volume">Volume</option><option value="intensita">Intensità</option></select>
