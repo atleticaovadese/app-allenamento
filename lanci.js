@@ -92,7 +92,7 @@ const LANCI_MODELLO = [
 ];
 
 let lanciState = { attrezzo: "Peso" };
-function setLanciAttrezzo(n) { lanciState.attrezzo = n; disegna(); window.scrollTo(0, 0); }
+function setLanciAttrezzo(n) { lanciState.attrezzo = n; disegna(); }
 const _lanciCatCol = c => c === "CE" ? "var(--rosso,#c00000)" : "var(--blu,#1f3864)";
 
 // ---------- render: Guida mezzi (lanci) ----------
@@ -543,7 +543,7 @@ function esVideoDi(key) {
   if (Object.prototype.hasOwnProperty.call(m, key)) return m[key] || "";
   return LANCI_VIDEO_DEFAULT[key] || "";
 }
-function setEsSpecCat(c) { S.esSpecCat = c; disegna(); window.scrollTo(0, 0); }
+function setEsSpecCat(c) { S.esSpecCat = c; disegna(); }
 // apre il video di un mezzo/esercizio (usato nella seduta dell'atleta)
 function vediVideoMezzo(mezzo) { const url = esVideoDi(mezzo); if (url && typeof apriVideo === "function") apriVideo(mezzo, url); }
 
@@ -1204,7 +1204,7 @@ const LANCI_LIVELLO = [
 ];
 
 let lanciPerState = { attr: "Peso" };
-function setLanciPerAttr(n) { lanciPerState.attr = n; disegna(); window.scrollTo(0, 0); }
+function setLanciPerAttr(n) { lanciPerState.attr = n; disegna(); }
 function _lanciTblHTML(headers, rows) {
   return `<div class="p-scroll"><table class="ptab pista-w">
     <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>

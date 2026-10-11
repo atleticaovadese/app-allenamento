@@ -59,7 +59,7 @@ function pianoDati() {
   if (S.pianoAtleta) return pianoAtletaDi(S.pianoAtleta);
   return pianoDi(S.pianoDisc || "vel");
 }
-function setPianoDisc(g) { S.pianoDisc = g; S.pianoAtleta = null; disegna(); window.scrollTo(0, 0); }
+function setPianoDisc(g) { S.pianoDisc = g; S.pianoAtleta = null; disegna(); }
 // scegli chi stai pianificando: "" = programma madre, altrimenti l'atleta (crea la sua copia dal madre)
 function setPianoAtleta(atletaId) {
   if (!atletaId) { S.pianoAtleta = null; disegna(); window.scrollTo(0, 0); return; }

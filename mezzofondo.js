@@ -1180,7 +1180,7 @@ const MZ_PERDIST = [
   }
 ];
 let pdState = { dist: "800 m", fase: "gen" };
-function setPdDist(n) { pdState.dist = n; disegna(); window.scrollTo(0, 0); }
+function setPdDist(n) { pdState.dist = n; disegna(); }
 function setPdFase(f) { pdState.fase = f; disegna(); }
 const _pdInt = v => v === "***" ? "●●●" : v === "**" ? "●●" : v === "*" ? "●" : "–";
 
@@ -1293,7 +1293,7 @@ function vistaPerDistanzaVel() {
 }
 
 // selettore disciplina — "Per disciplina": tutto in un posto (velocità · mezzofondo · lanci)
-function setPdDisc(x) { S.pdDisc = x; if (x === "vel") pdState.dist = "100 m"; else if (x === "mezzo") pdState.dist = "800 m"; disegna(); window.scrollTo(0, 0); }
+function setPdDisc(x) { S.pdDisc = x; if (x === "vel") pdState.dist = "100 m"; else if (x === "mezzo") pdState.dist = "800 m"; disegna(); }
 function _pdSelettore(disc) {
   const opt = [["vel", "Velocità"], ["mezzo", "Mezzofondo / Fondo"], ["lanci", "Lanci"]];
   return `<div class="card" style="border-color:var(--blu)"><label class="lab">Disciplina</label>

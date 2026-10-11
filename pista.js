@@ -704,8 +704,8 @@ function pistaStepPerc(s, i, delta) {
 function pistaAddRiga(s) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe.push(rigaVuota()); savePista(); disegna(); }
 function pistaDelRiga(s, i) { const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePista(); disegna(); }
 function pistaAddMeso() { pistaInit().mesocicli.push(mesoVuoto()); S.pistaMeso = pistaInit().mesocicli.length - 1; S.pistaGiorno = 0; savePista(); disegna(); window.scrollTo(0, 0); }
-function selMeso(i) { S.pistaMeso = i; S.pistaGiorno = 0; disegna(); window.scrollTo(0, 0); }
-function selGiorno(i) { S.pistaGiorno = i; disegna(); window.scrollTo(0, 0); }
+function selMeso(i) { S.pistaMeso = i; S.pistaGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei
+function selGiorno(i) { S.pistaGiorno = i; disegna(); }                  // cambia giorno restando dove sei
 function pistaAddGiorno() {
   const m = pistaInit().mesocicli[S.pistaMeso];
   if ((m.giorni || []).length >= 5) return;              // massimo 5 giorni a settimana

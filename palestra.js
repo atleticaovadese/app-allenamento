@@ -152,8 +152,8 @@ function palStepN(s, i, campo, delta) {
 function palAddRiga(s) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe.push(palRigaVuota()); savePalestra(); disegna(); }
 function palDelRiga(s, i) { const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePalestra(); disegna(); }
 function palAddMeso() { palestraInit().mesocicli.push(palMesoVuoto()); S.palMeso = palestraInit().mesocicli.length - 1; S.palGiorno = 0; savePalestra(); disegna(); window.scrollTo(0, 0); }
-function selPalMeso(i) { S.palMeso = i; S.palGiorno = 0; disegna(); window.scrollTo(0, 0); }
-function selPalGiorno(i) { S.palGiorno = i; disegna(); window.scrollTo(0, 0); }
+function selPalMeso(i) { S.palMeso = i; S.palGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei
+function selPalGiorno(i) { S.palGiorno = i; disegna(); }                // cambia giorno restando dove sei
 function palAddGiorno() {
   const m = palestraInit().mesocicli[S.palMeso];
   if ((m.giorni || []).length >= 5) return;              // massimo 5 giorni a settimana

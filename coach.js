@@ -440,27 +440,27 @@ function notificheCoach(includiVisti) {
   (DEMO.atleti || []).forEach(a => {
     // infortuni/fastidi aperti (sig = id infortunio)
     (DEMO.infortuni || []).filter(i => i.atleta === a.id && (i.stato || "") !== "Risolto").forEach(i => {
-      add(a, "infortunio", "r", i.dataInizio || i.dal || "", `Infortunio/fastidio: ${i.zona || "?"}${i.lato ? " " + i.lato : ""}${i.tipo ? " · " + i.tipo : ""} — stato ${i.stato || "attivo"}`, i.id + "|" + (i.stato || ""));
+      add(a, "infortunio", "r", i.dataInizio || i.dal || "", `Infortunio/fastidio: ${i.zona || "?"}${i.lato ? " " + i.lato : ""}${i.tipo ? " · " + i.tipo : ""} — stato ${i.stato || "attivo"}`, i.id);   // chiave stabile: una volta chiusa non ricompare
     });
     // fastidio ATTIVO dal diario (rispetta il "✓ Passato" degli Infortuni)
     const storia = ((DEMO.diariStorico || {})[a.id] || []).slice().sort((x, y) => x.data < y.data ? 1 : -1);
     const fa = fastidioAttivoAtleta(a);
-    if (fa) add(a, "fastidio", "y", fa.data, `Fastidio segnalato nel diario${fa.dove ? ": " + fa.dove : ""}`, fa.data);
+    if (fa) add(a, "fastidio", "y", fa.data, `Fastidio segnalato nel diario${fa.dove ? ": " + fa.dove : ""}`, "att");   // chiave stabile per atleta: chiusa una volta, non ricompare ogni giorno
     // warning già calcolati (sig = testo → cambia se il warning cambia)
     const m = (DEMO.mon || {})[a.id] || {};
     const haAlert = m.alert && m.alert.length;
-    (m.alert || []).forEach(([lv, t]) => { if (lv === "r" || lv === "w") add(a, "monitor", _NOTIF_LV[lv] || "y", "", t, t); });
+    (m.alert || []).forEach(([lv, t]) => { if (lv === "r" || lv === "w") add(a, "monitor", _NOTIF_LV[lv] || "y", "", t, t.replace(/[\d.,%]+/g, "").replace(/\s+/g, " ").trim()); });   // sig senza numeri: il drift del valore non la fa ricomparire
     // atleti senza warning pre-calcolati: calo condizione + ACWR (sig = valore → ricompare se peggiora)
     if (!haAlert) {
       if (storia.length) {
         const p = _notifPront(storia[0]);
-        if (p != null && p < sog.prontezzaBassa) add(a, "prontezza", "y", storia[0].data, `Prontezza bassa: ${p.toFixed(1)}/5`, p.toFixed(1));
-        else if (p != null) { const prev = storia.slice(1, 6).map(_notifPront).filter(x => x != null); if (prev.length >= 3) { const med = prev.reduce((s, x) => s + x, 0) / prev.length; if (med - p >= 1.0) add(a, "prontezza", "y", storia[0].data, `Calo di condizione: prontezza ${p.toFixed(1)} (media recente ${med.toFixed(1)})`, p.toFixed(1)); } }
+        if (p != null && p < sog.prontezzaBassa) add(a, "prontezza", "y", storia[0].data, `Prontezza bassa: ${p.toFixed(1)}/5`, "pr");
+        else if (p != null) { const prev = storia.slice(1, 6).map(_notifPront).filter(x => x != null); if (prev.length >= 3) { const med = prev.reduce((s, x) => s + x, 0) / prev.length; if (med - p >= 1.0) add(a, "prontezza", "y", storia[0].data, `Calo di condizione: prontezza ${p.toFixed(1)} (media recente ${med.toFixed(1)})`, "pr"); } }
       }
       const ac = parseFloat(String(m.acwr).replace(",", "."));
       if (!isNaN(ac)) {
-        if (ac > sog.acwrAlto) add(a, "acwr", "r", "", `ACWR alto ${ac.toFixed(2)}: picco di carico (rischio)`, "alto" + ac.toFixed(2));
-        else if (ac < 0.8) add(a, "acwr", "y", "", `ACWR basso ${ac.toFixed(2)}: carico giù / calo di condizione`, "basso" + ac.toFixed(2));
+        if (ac > sog.acwrAlto) add(a, "acwr", "r", "", `ACWR alto ${ac.toFixed(2)}: picco di carico (rischio)`, "alto");
+        else if (ac < 0.8) add(a, "acwr", "y", "", `ACWR basso ${ac.toFixed(2)}: carico giù / calo di condizione`, "basso");
       }
     }
     // sedute svolte recenti: sforzo altissimo (RPE > soglia) o lavoro NON completato (dal singolo esercizio/ripetuta)
@@ -493,7 +493,9 @@ function notificheCoach(includiVisti) {
     });
   });
   const visti = DEMO.notifVisti || {};
-  const lista = includiVisti ? out : out.filter(x => !visti[x.key]);
+  // solo le 5 categorie richieste (fastidi/infortuni, ACWR, prontezza, RPE, non chiuso): il resto non è una notifica
+  const soloCat = out.filter(x => typeof _catNotif !== "function" || _catNotif(x));
+  const lista = includiVisti ? soloCat : soloCat.filter(x => !visti[x.key]);
   const rank = { r: 0, y: 1, v: 2 };
   return lista.sort((x, y) => (rank[x.lv] - rank[y.lv]) || (x.data < y.data ? 1 : -1));
 }
@@ -547,31 +549,29 @@ async function leggiNotifTutte(soloInfo) {
 }
 // ---------- CATEGORIE delle notifiche (per raggrupparle nella vista) ----------
 const CAT_NOTIF = [
-  { k: "infortuni", nome: "Infortuni / fastidi", ico: "🩹" },
-  { k: "carico", nome: "ACWR / carico (rischio)", ico: "📈" },
+  { k: "infortuni", nome: "Fastidi / infortuni", ico: "🩹" },
+  { k: "acwr", nome: "ACWR", ico: "📈" },
   { k: "prontezza", nome: "Stato prontezza", ico: "🔋" },
   { k: "rpe", nome: "RPE alto", ico: "🥵" },
-  { k: "nonchiuso", nome: "Allenamento non chiuso", ico: "⛔" },
-  { k: "altro", nome: "Altro (monitoraggio)", ico: "⚠️" },
-  { k: "inpiu", nome: "Allenamenti in più", ico: "➕" }
+  { k: "nonchiuso", nome: "Allenamento non chiuso", ico: "⛔" }
 ];
-// a quale categoria appartiene una notifica (per 'monitor' = alert testuale, decide dalle parole chiave)
+// a quale categoria (tra le 5) appartiene una notifica; null = non si mostra (es. allenamento in più, diario/sedute saltate).
+// per 'monitor' (alert testuale) decide dalle parole chiave.
 function _catNotif(x) {
   const t = x.tipo, s = (x.testo || "").toLowerCase();
   if (t === "infortunio" || t === "fastidio") return "infortuni";
   if (t === "incompleto") return "nonchiuso";
   if (t === "sforzo") return "rpe";
   if (t === "prontezza") return "prontezza";
-  if (t === "acwr") return "carico";
-  if (t === "extra") return "inpiu";
+  if (t === "acwr") return "acwr";
   if (t === "monitor") {
-    if (/acwr|carico|forma/.test(s)) return "carico";
+    if (/acwr|carico|forma/.test(s)) return "acwr";
     if (/prontezz|condizion/.test(s)) return "prontezza";
     if (/infortun|asimmetr|fastidi|dolor/.test(s)) return "infortuni";
     if (/sforzo|rpe/.test(s)) return "rpe";
-    return "altro";
+    return null;   // es. "sedute saltate", "diario non compilato": fuori dalle 5 → non in notifiche
   }
-  return "altro";
+  return null;   // extra (allenamenti in più) e altro → non in notifiche
 }
 // "Letto" di tutta UNA categoria per un atleta (segna lette solo le notifiche di quella categoria)
 async function leggiNotifCat(atletaId, catKey) {
@@ -627,27 +627,35 @@ function _notifGruppiHTML(list, catKey) {
       </div>`;
   }).join("");
 }
+function setNotifCat(k) { S.notifCat = k || null; disegna(); }   // filtro per categoria (resta dove sei)
 function vistaNotifiche() {
   const list = notificheCoach();
   const imp = list.filter(x => x.imp);
   const crit = imp.filter(x => x.lv === "r").length, warn = imp.filter(x => x.lv === "y").length;
   const nascoste = (typeof _notifNascoste === "function") ? _notifNascoste() : 0;
+  const col = lv => lv === "r" ? "#c0392b" : "#d99000";
+  const sel = S.notifCat || null;
+  const cnt = {}; CAT_NOTIF.forEach(c => cnt[c.k] = 0);
+  list.forEach(x => { const c = _catNotif(x); if (cnt[c] != null) cnt[c]++; });
+  const chip = (k, label, n) => `<button class="${sel === (k || null) ? "on" : ""}" onclick="setNotifCat('${k || ""}')">${label}${n != null ? " · " + n : ""}</button>`;
+  const chips = `<div class="tabbar" style="margin-bottom:11px;flex-wrap:wrap">${chip(null, "Tutte", list.length)}${CAT_NOTIF.map(c => chip(c.k, c.ico + " " + c.nome, cnt[c.k])).join("")}</div>`;
   const intro = `<div class="card"><h3>🔔 Notifiche</h3>
-    <p class="et" style="margin-top:2px">Raggruppate per <b>categoria</b>: infortuni/fastidi, ACWR/carico, prontezza, RPE alto, allenamento non chiuso, altro, allenamenti in più. Il numero rosso nel menù conta gli avvisi <b>da gestire</b>.</p>
-    <p class="et" style="margin-top:8px">${imp.length ? `<b style="color:${crit ? "#c0392b" : "var(--txt)"}">${imp.length}</b> da gestire · ${crit} critici · ${warn} da tenere d'occhio` : "✓ Niente da gestire al momento."}${list.length > imp.length ? ` · <span style="color:var(--txt3)">${list.length - imp.length} informazioni</span>` : ""}</p>
-    <p class="et" style="margin-top:6px;color:var(--txt3)">Un avviso sparisce da solo quando la causa rientra. Con <b>✓ Visto</b> lo nascondi tu: torna solo se la situazione <b>peggiora o cambia</b>.</p>
+    <p class="et" style="margin-top:2px">Tocca una categoria qui sotto per filtrare. Il numero rosso nel menù conta gli avvisi <b>da gestire</b>.</p>
+    <p class="et" style="margin-top:8px">${imp.length ? `<b style="color:${crit ? "#c0392b" : "var(--txt)"}">${imp.length}</b> da gestire · ${crit} critici · ${warn} da tenere d'occhio` : "✓ Niente da gestire al momento."}</p>
+    <p class="et" style="margin-top:6px;color:var(--txt3)">Con <b>✓</b> o <b>Letto</b> chiudi l'avviso: <b>non ricompare più</b>, ma resta nello storico dell'atleta (apri la scheda). Per rivederli tutti usa «Rivedi nascosti».</p>
     ${list.length ? `<button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="leggiNotifTutte(false)">✓ Segna tutte lette</button>` : ""}
     ${nascoste ? `<button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px${list.length ? ";margin-left:8px" : ""}" onclick="riattivaNotifiche()">↺ Rivedi i ${nascoste} nascosti</button>` : ""}</div>`;
-  if (!list.length) return intro + `<div class="card" style="border-left:4px solid #3a9a5a"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Tutto tranquillo</p><p class="et" style="margin-top:2px">Nessun avviso da gestire al momento.</p></div>`;
-  let h = intro;
-  const col = lv => lv === "r" ? "#c0392b" : "#d99000";
-  CAT_NOTIF.forEach(cat => {
+  if (!list.length) return intro + `<div class="card" style="border-left:4px solid #3a9a5a"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Tutto tranquillo</p><p class="et" style="margin-top:2px">Nessun avviso al momento.</p></div>`;
+  let h = intro + chips, shown = 0;
+  (sel ? CAT_NOTIF.filter(c => c.k === sel) : CAT_NOTIF).forEach(cat => {
     const sub = list.filter(x => _catNotif(x) === cat.k);
     if (!sub.length) return;
+    shown++;
     const nR = sub.filter(x => x.lv === "r").length, nY = sub.filter(x => x.lv === "y").length;
     const badge = `${nR ? ` <span style="color:${col("r")}">● ${nR}</span>` : ""}${nY ? ` <span style="color:${col("y")}">● ${nY}</span>` : ""}`;
     h += `<p class="sez">${cat.ico} ${cat.nome} · ${sub.length}${badge}</p>` + _notifGruppiHTML(sub, cat.k);
   });
+  if (!shown) h += `<div class="card"><p class="et">Nessun avviso in questa categoria.</p></div>`;
   return h;
 }
 
