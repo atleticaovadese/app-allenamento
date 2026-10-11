@@ -902,6 +902,9 @@ function disegna() {
   const _scrollPrec = (typeof window !== "undefined") ? (window.scrollY || window.pageYOffset || 0) : 0;
   const _latoEl = (typeof $ === "function") ? $("lato") : null;   // scorrimento del menù laterale: da mantenere quando apro/chiudo un gruppo
   const _latoScroll = _latoEl ? _latoEl.scrollTop : 0;
+  // scorrimento ORIZZONTALE delle tabelle (.p-scroll, es. settimane in «Adatta»): da mantenere quando cambio un peso coi +/−
+  let _hScroll = [];
+  try { _hScroll = Array.from(document.querySelectorAll("#radice .p-scroll")).map(el => el.scrollLeft || 0); } catch (e) { }
   if (S.recupero && typeof vistaNuovaPassword === "function") { r.innerHTML = vistaNuovaPassword(); return; }
   if (!S.utente) { r.innerHTML = vistaLogin(); return; }
 
@@ -1015,6 +1018,8 @@ function disegna() {
   if (_scrollPrec > 0) { try { window.scrollTo(0, _scrollPrec); } catch (e) { } }
   // ripristino lo scorrimento del menù laterale: aprendo/chiudendo un gruppo non torna più in cima
   if (_latoScroll > 0) { try { const l = $("lato"); if (l) l.scrollTop = _latoScroll; } catch (e) { } }
+  // ripristino lo scorrimento ORIZZONTALE delle tabelle (.p-scroll): col +/− sul peso in «Adatta» non torna più a sinistra
+  if (_hScroll.length) { try { const ps = document.querySelectorAll("#radice .p-scroll"); _hScroll.forEach((x, i) => { if (x && ps[i]) ps[i].scrollLeft = x; }); } catch (e) { } }
 }
 
 if (typeof caricaCustom === "function") caricaCustom();
