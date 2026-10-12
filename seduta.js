@@ -11,7 +11,7 @@ function _bozzaKey(s) { return "metis_bozza:" + (s.atletaId || (S.utente && S.ut
 function _datiBozza(s) {
   return s.tipo === "pista"
     ? { elementi: (s.elementi || []).map(e => ({ distanza: e.distanza, ripetute: e.ripetute, mezzo: e.mezzo, tempi: e.tempi, misure: e.misure, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
-    : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, vbt: x.vbt, pesoFatto: x.pesoFatto, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
+    : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, vbt: x.vbt, fatte: x.fatte, pesoFatto: x.pesoFatto, rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
 }
 function salvaBozzaSeduta(s) {
   if (!s || s.chiusa || !s.id) return;   // chiusa = già salvata nel DB, niente bozza
@@ -49,6 +49,7 @@ function applicaBozza(s) {
       if (!dx) return;
       used[d.esercizi.indexOf(dx)] = true;
       if (dx.vbt) x.vbt = dx.vbt;
+      if (dx.fatte) x.fatte = dx.fatte;
       if (dx.pesoFatto != null) x.pesoFatto = dx.pesoFatto;
       if (dx.rpe != null) x.rpe = dx.rpe;
       if (dx.nonCompletato) { x.nonCompletato = true; x.serieFatte = dx.serieFatte; x.repFatte = dx.repFatte; x.notaAtleta = dx.notaAtleta || ""; }
@@ -295,13 +296,29 @@ function eserciziConSuperset(s) {
   return out;
 }
 
+// "fatte" = quali serie l'atleta ha spuntato come eseguite (indipendente dai m/s, che sono facoltativi).
+// Compatibilità: se il flag non c'è (sedute vecchie), una serie con m/s inseriti conta come fatta.
+function _ensureFatte(x) {
+  const n = x.serie || (x.vbt ? x.vbt.length : 0);
+  if (!Array.isArray(x.fatte) || x.fatte.length !== n) {
+    const nuovo = Array(n).fill(false);
+    if (Array.isArray(x.fatte)) x.fatte.forEach((f, i) => { if (f) nuovo[i] = true; });
+    if (Array.isArray(x.vbt)) x.vbt.forEach((v, i) => { if (v != null && i < n) nuovo[i] = true; });
+    x.fatte = nuovo;
+  }
+  return x.fatte;
+}
+function _serieFatta(x, i) { return !!_ensureFatte(x)[i]; }
+function _nSerieFatte(x) { return _ensureFatte(x).filter(Boolean).length; }
+
 function esercizioChiuso(s, x) {
-  const fatte = x.vbt.filter(v => v !== null).length;
+  const fatte = _nSerieFatte(x);
+  const nMs = (x.vbt || []).filter(v => v !== null).length;
   const finito = x.serie > 0 && fatte === x.serie;
   const vol = volumeKg(x);
   const presc = `${x.serie} × ${x.rep}${x.peso ? " · " + x.peso + " kg" : ""}${x.tut ? " · TUT " + x.tut : ""}${vol ? " · vol " + vol + " kg" : ""}`;
   let cls = "", stato = "";
-  if (finito && x.vbtTarget) {
+  if (finito && x.vbtTarget && nMs > 0) {
     const m = media(x.vbt);
     const sotto = (x.vbtTarget - m) / x.vbtTarget * 100;
     cls = sotto > CONFIG.soglie.vbtSottoPct ? "male" : "bene";
@@ -321,16 +338,21 @@ function esercizioChiuso(s, x) {
 }
 
 function esercizioAperto(s, x) {
-  const righe = x.vbt.map((v, i) => `
+  _ensureFatte(x);
+  const righe = x.vbt.map((v, i) => {
+    const fatta = _serieFatta(x, i);
+    return `
     <div class="serie">
       <span class="n">S${i + 1}</span>
       <input class="avanza" inputmode="decimal" value="${v === null ? "" : v}" placeholder="m/s"
         onchange="segnaVbt('${s.id}','${x.id}',${i},this)">
-      ${v !== null ? '<span class="ok">✓</span>' : '<span class="ok off">–</span>'}
-    </div>`).join("");
+      <button type="button" class="serie-fatta ${fatta ? "on" : ""}" aria-label="Serie ${i + 1} fatta"
+        title="Spunta quando hai fatto la serie: parte il recupero" onclick="spuntaSerie('${s.id}','${x.id}',${i})">${fatta ? "✓" : ""}</button>
+    </div>`;
+  }).join("");
 
-  const fatte = x.vbt.filter(v => v !== null).length;
-  const parziale = fatte ? `<p class="et" style="margin-top:8px">media finora <b>${media(x.vbt).toFixed(2)} m/s</b></p>` : "";
+  const nMs = x.vbt.filter(v => v !== null).length;
+  const parziale = nMs ? `<p class="et" style="margin-top:8px">media finora <b>${media(x.vbt).toFixed(2)} m/s</b></p>` : "";
 
   return `<div class="card aperto">
     <div style="display:flex;justify-content:space-between;align-items:baseline">
@@ -346,6 +368,7 @@ function esercizioAperto(s, x) {
       <input inputmode="decimal" value="${x.pesoFatto != null ? x.pesoFatto : ""}" placeholder="${x.peso ? x.peso : "kg"}" style="width:110px"
         onchange="setPesoFatto('${s.id}','${x.id}',this.value)">
     </div>
+    <p class="et" style="margin:2px 0 6px">Spunta ✓ ogni serie quando l'hai fatta: parte il recupero. I m/s sono facoltativi.</p>
     ${righe}${parziale}
     <button class="btn btn-2" style="width:auto;padding:8px 14px;font-size:13px;margin-top:8px" onclick="avviaRecupero('${s.id}','${x.id}')">⏱ Avvia recupero${x.recuperoSec > 0 ? " · " + fmtRec(x.recuperoSec) : ""}</button>
     ${bloccoSforzoEs(s.id, x)}
@@ -371,10 +394,25 @@ function segnaVbt(sid, xid, i, el) {
   const val = (el && el.value !== undefined) ? el.value : el;
   const n = parseFloat(String(val).replace(",", "."));
   x.vbt[i] = isNaN(n) ? null : n;
-  const restano = x.vbt.some(v => v === null);
-  if (!isNaN(n) && restano) avviaTimer(x.recuperoSec); else fermaTimer();
+  const f = _ensureFatte(x);
+  if (!isNaN(n)) f[i] = true;                 // inserire i m/s segna anche la serie come fatta
+  const restano = f.some(v => !v);
+  if (!isNaN(n) && restano) avviaTimer(x.recuperoSec); else if (!restano) fermaTimer();
   salvaBozzaSeduta(s);
   _avanzaCasella(el, disegna);
+}
+// Spunta/togli la spunta di una serie (anche senza m/s): se segni e restano serie → parte il recupero.
+function spuntaSerie(sid, xid, i) {
+  const s = sedutaDaId(sid), x = s && s.esercizi && s.esercizi.find(e => e.id === xid);
+  if (!x) return;
+  const f = _ensureFatte(x);
+  f[i] = !f[i];
+  const restano = f.some(v => !v);
+  if (f[i] && restano) avviaTimer(x.recuperoSec);   // serie fatta e ne restano → recupero
+  else if (!restano) fermaTimer();                   // tutte fatte → stop
+  salvaBozzaSeduta(s);
+  if (s.chiusa && typeof salvaSedutaSvoltaDB === "function") salvaSedutaSvoltaDB(s);   // correzione su seduta già chiusa
+  disegna();
 }
 // avvia il recupero a mano (senza dover segnare i m/s): usa il recupero prescritto, o 90s di default
 function avviaRecupero(sid, xid) {

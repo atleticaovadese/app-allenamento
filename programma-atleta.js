@@ -184,7 +184,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
       if (p != null) peso = p;
     }
     const recSec = _parseRecSec(r.rec);
-    return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, ss: r.ss || "", pesoFatto: null, vbt: Array(serie).fill(null) };
+    return { id: "x" + i, nome: r.esercizio, serie, rep: Number(r.rep) || 0, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), peso, tut: r.tut || "", vbtTarget: r.vbt ? Number(r.vbt) : null, recuperoSec: recSec, ss: r.ss || "", pesoFatto: null, vbt: Array(serie).fill(null), fatte: Array(serie).fill(false) };
   });
   return _cacheSeduta({
     id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
@@ -372,6 +372,7 @@ function _applicaSvolta(s) {
       if (!dx) return;
       used[d.esercizi.indexOf(dx)] = true;
       if (dx.vbt) x.vbt = dx.vbt;
+      if (dx.fatte) x.fatte = dx.fatte;
       if (dx.pesoFatto != null) x.pesoFatto = dx.pesoFatto;
       if (dx.rpe != null) x.rpe = dx.rpe;
       if (dx.nonCompletato) { x.nonCompletato = true; x.serieFatte = dx.serieFatte; x.repFatte = dx.repFatte; x.notaAtleta = dx.notaAtleta || ""; }
