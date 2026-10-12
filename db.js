@@ -303,9 +303,12 @@ async function caricaDati() {
   DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {};
   DEMO.pista = {}; DEMO.palestra = {};   // programmi per-gruppo: creati vuoti su richiesta da pistaDi/palDi(gruppo)
   DEMO.pistaAtleta = {}; DEMO.palAtleta = {};   // programmi PERSONALI per atleta (override completo del madre)
+  DEMO.atletaPro = {};   // flag "pro" per atleta (arriva dal bundle del coach)
+  DEMO.adattaSelf = {};  // auto-adattamenti del programma fatti dall'atleta pro (tabella atleta_adatta)
 
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
   await caricaDatiDB();
+  await caricaAdattaDB();   // adattamenti fatti dagli atleti pro (atleta: il proprio; coach: tutti i suoi)
 
   // stato "visto" delle notifiche: PER ALLENATORE (tabella dedicata, non condiviso tra coach)
   DEMO.notifVisti = {};
@@ -444,6 +447,38 @@ async function caricaDatiDB() {
     const { data } = await sb.from("societa_dati").select("dati").eq("societa_id", S.utente.societaId).maybeSingle();
     if (data && data.dati) applicaBundle(data.dati);
   } catch (e) { /* nessun dato nel DB: si usa demo/locale */ }
+}
+
+// ---------- auto-adattamenti del programma fatti dall'ATLETA pro (tabella atleta_adatta) ----------
+// L'atleta legge/scrive SOLO la propria riga (RLS); il coach legge quelle di tutti i suoi atleti.
+async function caricaAdattaDB() {
+  DEMO.adattaSelf = DEMO.adattaSelf || {};
+  if (!haDB()) return;
+  try {
+    const { data } = await sb.from("atleta_adatta").select("atleta_id,dati");
+    (data || []).forEach(r => { if (r && r.atleta_id && r.dati) DEMO.adattaSelf[r.atleta_id] = r.dati; });
+  } catch (e) { /* tabella assente o offline: niente adattamenti atleta */ }
+}
+// upsert della riga adatta di un atleta (lo chiama l'atleta per sé; il coach quando "prende" uno slot).
+// Debounce 1.2s per atleta: l'editor salva a ogni tasto, ma sul DB scrive una volta sola.
+const _adattaTimers = {};
+function salvaAdattaAtletaDB(aid) {
+  if (!aid || !haDB()) return;
+  clearTimeout(_adattaTimers[aid]);
+  _adattaTimers[aid] = setTimeout(async () => {
+    const dati = (DEMO.adattaSelf && DEMO.adattaSelf[aid]) || {};
+    try {
+      if (!dati || !Object.keys(dati).length) { await sb.from("atleta_adatta").delete().eq("atleta_id", aid); return; }
+      await sb.from("atleta_adatta").upsert({ atleta_id: aid, dati: dati, updated_at: new Date().toISOString() }, { onConflict: "atleta_id" });
+    } catch (e) { /* offline: resta in locale, si risincronizza al prossimo salvataggio */ }
+  }, 1200);
+}
+// il coach azzera TUTTI gli adattamenti di un atleta (torna al programma del coach/madre)
+async function azzeraAdattaAtletaDB(aid) {
+  if (!aid) return;
+  if (DEMO.adattaSelf) delete DEMO.adattaSelf[aid];
+  if (!haDB()) return;
+  try { await sb.from("atleta_adatta").delete().eq("atleta_id", aid); } catch (e) { }
 }
 
 // diario di oggi dell'atleta → DB (upsert per atleta+data). Solo l'atleta scrive il proprio (RLS).

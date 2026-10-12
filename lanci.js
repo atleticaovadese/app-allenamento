@@ -404,6 +404,7 @@ function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, p
   });
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", lanci: true, giorno: giornoNum,
+    _gi: giornoNum - 1, _wk: settIdx, _tipoAdatta: "pista",
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),

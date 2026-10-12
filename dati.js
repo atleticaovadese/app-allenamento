@@ -31,6 +31,7 @@ function bundleCustom() {
     reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {},
     pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {},
+    atletaPro: DEMO.atletaPro || {},
     modGiorno: DEMO.modGiorno || {}
   };
 }
@@ -69,6 +70,7 @@ function applicaBundle(c) {
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
   if (c.pistaAtleta) DEMO.pistaAtleta = c.pistaAtleta;
   if (c.palAtleta) DEMO.palAtleta = c.palAtleta;
+  if (c.atletaPro) DEMO.atletaPro = c.atletaPro;   // atleti "pro" (possono adattare il proprio programma) — lo decide il coach
   DEMO.modGiorno = c.modGiorno || {};   // modifiche "una tantum" per singola data (coach)
 }
 

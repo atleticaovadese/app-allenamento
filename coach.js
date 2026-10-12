@@ -425,9 +425,10 @@ function spegniFastidio(atletaId) {
 }
 // chiave stabile di una notifica: cambia se la situazione cambia (→ ricompare)
 function _notifKey(atletaId, tipo, sig) { return atletaId + "|" + tipo + "|" + sig; }
+function _hashLeggero(str) { let h = 0; for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) | 0; } return Math.abs(h).toString(36); }
 // avvisi IMPORTANTI ("Da gestire", fanno il numero rosso): infortuni/fastidi, calo condizione/prontezza, sforzo alto, carico (monitor), ACWR ALTO.
 // Informazioni (non urgenti, ripiegate, niente numero): corsa extra, lavoro non completato, ACWR basso.
-const _NOTIF_IMP = { infortunio: 1, fastidio: 1, monitor: 1, prontezza: 1, sforzo: 1 };
+const _NOTIF_IMP = { infortunio: 1, fastidio: 1, monitor: 1, prontezza: 1, sforzo: 1, adatta: 1 };
 function _notifImp(tipo, lv) {
   if (tipo === "acwr") return lv === "r";   // ACWR alto = da gestire; ACWR basso = informazione
   return !!_NOTIF_IMP[tipo];
@@ -491,6 +492,13 @@ function notificheCoach(includiVisti) {
         add(a, "incompleto", "y", sv.data, `Non completato · «${nome}»${dett}${it.notaAtleta ? " — " + it.notaAtleta : ""}`, "nc|" + sv.data + "|" + nome);
       });
     });
+    // atleta PRO che ha adattato il proprio programma → notifica al coach (ricompare se cambia qualcosa)
+    const adS = DEMO.adattaSelf && DEMO.adattaSelf[a.id];
+    if (adS && Object.keys(adS).length) {
+      let nSlot = 0;
+      try { Object.keys(adS).forEach(t => Object.keys(adS[t]).forEach(gi => { nSlot += Object.keys(adS[t][gi]).length; })); } catch (e) { }
+      if (nSlot > 0) add(a, "adatta", "y", "", `Ha adattato il proprio programma · ${nSlot} settiman${nSlot === 1 ? "a" : "e"} modificat${nSlot === 1 ? "a" : "e"}`, nSlot + "|" + _hashLeggero(JSON.stringify(adS)));
+    }
   });
   const visti = DEMO.notifVisti || {};
   // solo le 5 categorie richieste (fastidi/infortuni, ACWR, prontezza, RPE, non chiuso): il resto non è una notifica
@@ -553,7 +561,8 @@ const CAT_NOTIF = [
   { k: "acwr", nome: "ACWR", ico: "📈" },
   { k: "prontezza", nome: "Stato prontezza", ico: "🔋" },
   { k: "rpe", nome: "RPE alto", ico: "🥵" },
-  { k: "nonchiuso", nome: "Allenamento non chiuso", ico: "⛔" }
+  { k: "nonchiuso", nome: "Allenamento non chiuso", ico: "⛔" },
+  { k: "adatta", nome: "Programma adattato", ico: "✎" }
 ];
 // a quale categoria (tra le 5) appartiene una notifica; null = non si mostra (es. allenamento in più, diario/sedute saltate).
 // per 'monitor' (alert testuale) decide dalle parole chiave.
@@ -561,6 +570,7 @@ function _catNotif(x) {
   const t = x.tipo, s = (x.testo || "").toLowerCase();
   if (t === "infortunio" || t === "fastidio") return "infortuni";
   if (t === "incompleto") return "nonchiuso";
+  if (t === "adatta") return "adatta";
   if (t === "sforzo") return "rpe";
   if (t === "prontezza") return "prontezza";
   if (t === "acwr") return "acwr";
@@ -587,7 +597,7 @@ async function leggiNotifCat(atletaId, catKey) {
 function _notifGruppiHTML(list, catKey) {
   const esc = s => String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const dl = v => v ? (typeof fmtDataAnno === "function" ? fmtDataAnno(v) : v) : "";
-  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔", extra: "🏃" })[t] || "•";
+  const ico = t => ({ infortunio: "🩹", fastidio: "🩹", prontezza: "🔋", acwr: "📈", monitor: "⚠️", sforzo: "🥵", incompleto: "⛔", extra: "🏃", adatta: "✎" })[t] || "•";
   const col = lv => lv === "r" ? "#c0392b" : lv === "y" ? "#d99000" : "#3a9a5a";
   const rankLv = { r: 0, y: 1, v: 2 };
   const perAtl = {};
@@ -741,6 +751,25 @@ function vistaAtletaDettaglio() {
       : `<p class="et">Nessuna email impostata: l'atleta non può ancora accedere.</p>`}
     <button class="btn btn-2" style="margin-top:10px" onclick="cambiaEmailAtleta('${a.id}')">${a.email ? "Cambia email di accesso" : "Imposta email di accesso"}</button>
   </div>
+
+  ${(() => {
+    const pro = (typeof atletaPro === "function") && atletaPro(a.id);
+    const haAdatta = !!(DEMO.adattaSelf && DEMO.adattaSelf[a.id] && Object.keys(DEMO.adattaSelf[a.id]).length);
+    return `<div class="card">
+    <p class="et" style="margin-bottom:6px">Livello Pro</p>
+    <label class="check" style="margin:0">
+      <input type="checkbox" ${pro ? "checked" : ""} ${a.bloccato ? "disabled" : ""} onchange="togglePro('${a.id}')">
+      <span><b>Può adattare il proprio programma</b> — l'atleta cambia/aggiunge esercizi o ripetute dal telefono; tu ricevi la notifica e lo vedi qui.</span>
+    </label>
+    ${haAdatta ? `<div style="margin-top:10px;padding:9px 11px;border-radius:10px;background:var(--verde-bg);border:1px solid rgba(124,194,67,.4)">
+        <p class="et" style="margin:0;color:var(--verde)">✎ Questo atleta ha adattato il suo programma.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px" onclick="apriAdatta('${a.id}')">Vedi / modifica</button>
+          <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px" onclick="azzeraAdattaAtleta('${a.id}')">Azzera i suoi adattamenti</button>
+        </div>
+      </div>` : (pro ? `<p class="et" style="margin-top:8px;color:var(--txt3)">Attivo: l'atleta può adattare. Non ha ancora modificato nulla.</p>` : "")}
+  </div>`;
+  })()}
 
   <div class="card">
     <p class="et" style="margin-bottom:8px">Apri</p>
@@ -1428,7 +1457,61 @@ function vistaAdattaScegli() {
       <p class="et" style="margin-top:8px;color:var(--txt3)">In alternativa, per riscrivere tutto il programma di un atleta usa <b>Pista/Palestra → «Programma per» → il suo nome</b>.</p>
     </div>`;
 }
-function chiudiAdatta() { S.adatta = null; disegna(); window.scrollTo(0, 0); }
+// rigenera dal programma una seduta in cache (dopo un adattamento): così gli esercizi/ripetute nuovi compaiono subito
+function _rigeneraSeduta(sid) {
+  if (!sid) return;
+  const old = (typeof sedutaDaId === "function") ? sedutaDaId(sid) : null;
+  if (!old) return;
+  DEMO.seduteGen = (DEMO.seduteGen || []).filter(x => x.id !== sid);   // togli la versione vecchia
+  const a = DEMO.atleti.find(x => x.id === old.atletaId);
+  if (a && typeof seduteDelGiorno === "function" && old.dataISO) seduteDelGiorno(old.dataISO, false, a);   // rigenera + rimette in cache (riapplica la bozza in corso)
+}
+function chiudiAdatta() {
+  const self = _adattaSelfMode(), fromSed = S.adatta && S.adatta.fromSeduta;
+  if (fromSed) _rigeneraSeduta(fromSed);
+  S.adatta = null;
+  if (self && S.vista === "mio-programma") S.vista = "oggi";
+  disegna(); window.scrollTo(0, 0);
+}
+// ---- ATLETA PRO: adatta il PROPRIO programma ----
+// può farlo solo chi il coach ha reso "pro". Scrive su adattaSelf (tabella atleta_adatta) → il coach lo vede e riceve la notifica.
+function _puoAdattareSelf() {
+  return !!(S.utente && S.utente.ruolo === "atleta" && S.utente.atletaId && typeof atletaPro === "function" && atletaPro(S.utente.atletaId));
+}
+// apre l'editor sul PROPRIO programma (dalla voce di menu "Il mio programma")
+function apriAdattaSelf() {
+  if (!_puoAdattareSelf()) return;
+  const sch = _giorniSched("pista");
+  S.adatta = { atletaId: S.utente.atletaId, tipo: "pista", gi: sch.length ? sch[0].gi : 0, wk: 0 };
+  S.menu = false; disegna(); window.scrollTo(0, 0);
+}
+// apre l'editor sullo SLOT della seduta che l'atleta sta guardando (pulsante "Adatta la seduta")
+function apriAdattaDaSeduta(sid) {
+  const s = (typeof sedutaDaId === "function") ? sedutaDaId(sid) : null;
+  if (!s) return;
+  const aid = s.atletaId || (S.utente && S.utente.atletaId);
+  const self = (S.utente && S.utente.ruolo === "atleta");
+  if (self && !_puoAdattareSelf()) return;
+  const tipo = (s._tipoAdatta) || (s.tipo === "palestra" ? "palestra" : "pista");
+  S.adatta = { atletaId: aid, tipo: tipo, gi: (s._gi != null ? s._gi : (s.giorno ? s.giorno - 1 : 0)), wk: (s._wk != null ? s._wk : 0), fromSeduta: sid };
+  disegna(); window.scrollTo(0, 0);
+}
+// il coach rende un atleta "pro" (o toglie): lo salva nel bundle (si sincronizza all'atleta)
+function togglePro(id) {
+  if (typeof atletaBloccato === "function" && atletaBloccato(id)) { alert("🔒 Scheda dimostrativa: non modificabile."); return; }
+  DEMO.atletaPro = DEMO.atletaPro || {};
+  if (DEMO.atletaPro[id]) delete DEMO.atletaPro[id]; else DEMO.atletaPro[id] = true;
+  if (typeof salvaCustom === "function") salvaCustom();
+  disegna();
+}
+// il coach azzera gli adattamenti fatti dall'atleta (torna al programma del coach/madre)
+function azzeraAdattaAtleta(aid) {
+  const a = DEMO.atleti.find(x => x.id === aid);
+  if (typeof confirm === "function" && !confirm(`Azzerare tutti gli adattamenti che ${a ? a.nome : "l'atleta"} ha fatto al proprio programma?\nTornerà al programma che hai impostato tu.`)) return;
+  if (typeof azzeraAdattaAtletaDB === "function") azzeraAdattaAtletaDB(aid);
+  else if (DEMO.adattaSelf) delete DEMO.adattaSelf[aid];
+  disegna();
+}
 // da Adatta: apre la modifica LIVE (solo quel giorno, anche cambio pista↔palestra) per la data scelta
 function apriModDataAdatta() {
   const s = S.adatta; if (!s) return;
@@ -1442,19 +1525,48 @@ function setAdattaSel(campo, val) {
   disegna(); window.scrollTo(0, 0);
 }
 // Adatta lavora su TUTTE le settimane di un giorno insieme: ogni handler riceve la settimana (wk).
+// L'editor "Adatta" è condiviso: lo usa il COACH (scrive su overrideContenuto, nel bundle della società)
+// e l'ATLETA pro su sé stesso (scrive su adattaSelf, tabella atleta_adatta). _adattaRoot() sceglie il contenitore.
+function _adattaSelfMode() { return !!(S.utente && S.utente.ruolo === "atleta"); }
+function _adattaRoot() {
+  if (_adattaSelfMode()) { DEMO.adattaSelf = DEMO.adattaSelf || {}; return DEMO.adattaSelf; }
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {}; return DEMO.overrideContenuto;
+}
+// salva dopo una modifica nell'editor: locale + (coach) bundle via salvaCustom; se è l'atleta, sincronizza la sua riga
+function _adattaSalva() {
+  if (typeof salvaCustom === "function") salvaCustom();
+  if (_adattaSelfMode()) { const aid = S.adatta && S.adatta.atletaId; if (aid && typeof salvaAdattaAtletaDB === "function") salvaAdattaAtletaDB(aid); }
+}
+// quando è il COACH a modificare uno slot, "subentra": rimuove l'eventuale adattamento dell'atleta per quello slot
+function _coachPrendeSlot(aid, tipo, gi, wk) {
+  if (_adattaSelfMode()) return;
+  const r = DEMO.adattaSelf && DEMO.adattaSelf[aid];
+  if (r && r[tipo] && r[tipo][gi] && r[tipo][gi][wk] != null) {
+    delete r[tipo][gi][wk];
+    if (!Object.keys(r[tipo][gi]).length) delete r[tipo][gi];
+    if (!Object.keys(r[tipo]).length) delete r[tipo];
+    if (!Object.keys(r).length) delete DEMO.adattaSelf[aid];
+    if (typeof salvaAdattaAtletaDB === "function") salvaAdattaAtletaDB(aid);   // persisti la rimozione (il coach può scrivere atleta_adatta)
+  }
+}
 function _ensureAdattaRighe(wk) {
   const s = S.adatta;
-  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
-  const a = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
+  const root = _adattaRoot();
+  const a = root[s.atletaId] = root[s.atletaId] || {};
   const t = a[s.tipo] = a[s.tipo] || {};
   const d = t[s.gi] = t[s.gi] || {};
-  if (!d[wk]) d[wk] = JSON.parse(JSON.stringify(_righeMadre(s.tipo, s.gi, wk)));
+  if (!d[wk]) {
+    const atl = DEMO.atleti.find(x => x.id === s.atletaId);
+    const seed = (typeof overrideRighe === "function" && overrideRighe(atl, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk);
+    d[wk] = JSON.parse(JSON.stringify(seed || []));
+  }
+  _coachPrendeSlot(s.atletaId, s.tipo, s.gi, wk);   // se è il coach a toccare lo slot, subentra lui
   return d[wk];
 }
 function setAdattaRigaVal(wk, campo, i, val) {
   const righe = _ensureAdattaRighe(wk);
   if (righe[i]) righe[i][campo] = val;
-  if (typeof salvaCustom === "function") salvaCustom();
+  _adattaSalva();
 }
 function setAdattaRiga(wk, campo, i, val) { setAdattaRigaVal(wk, campo, i, val); disegna(); }
 // esercizio dalla tendina/campo in Adatta: "__altro__" (vecchio select) chiede il nome a mano
@@ -1488,20 +1600,20 @@ function stepAdattaPeso(wk, i, delta) {
     cur = (rif != null && !isNaN(Number(rif))) ? Number(rif) : 0;
   }
   r.peso = String(Math.max(0, Math.round((cur + delta) * 2) / 2));   // passo 2.5 → mezzi kg
-  if (typeof salvaCustom === "function") salvaCustom(); disegna();
+  _adattaSalva(); disegna();
 }
 function stepAdattaPerc(wk, i, delta) {
   const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
   const cur = parseFloat(String(r.perc).replace(",", ".")) || 0;
   r.perc = String(Math.max(0, Math.min(100, Math.round((cur + delta) * 10) / 10)));
-  if (typeof salvaCustom === "function") salvaCustom(); disegna();
+  _adattaSalva(); disegna();
 }
 // − / ＋ su un campo intero (serie, rep, n°): passo ±1, minimo 1
 function stepAdattaNum(wk, i, campo, delta) {
   const r = _ensureAdattaRighe(wk)[i]; if (!r) return;
   const cur = parseInt(String(r[campo] == null ? "" : r[campo]).replace(/[^\d-]/g, ""), 10) || 0;
   r[campo] = String(Math.max(1, cur + delta));
-  if (typeof salvaCustom === "function") salvaCustom(); disegna();
+  _adattaSalva(); disegna();
 }
 // cella con − [input] ＋ (per peso e %): si può schiacciare o scrivere
 function _stepCell(value, placeholder, minusJS, plusJS, inputJS, w) {
@@ -1513,16 +1625,16 @@ function addAdattaRiga(wk) {
   const righe = _ensureAdattaRighe(wk);
   const s = S.adatta, a = DEMO.atleti.find(x => x.id === s.atletaId);
   const gr = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
-  if (s.tipo !== "pista") righe.push({ esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "" });
+  if (s.tipo !== "pista") righe.push({ esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "", ss: "" });
   else if (gr === "mezzo") righe.push({ contenuto: "", mezzo: "", distanza: "", n: "", min: "", rec: "" });
   else righe.push({ contenuto: "", distanza: "", n: "", rec: "", perc: "" });
-  if (typeof salvaCustom === "function") salvaCustom();
+  _adattaSalva();
   disegna();
 }
 function delAdattaRiga(wk, i) {
   const righe = _ensureAdattaRighe(wk);
   righe.splice(i, 1);
-  if (typeof salvaCustom === "function") salvaCustom();
+  _adattaSalva();
   disegna();
 }
 // copia il contenuto di una settimana (di questo giorno) su TUTTE le altre settimane — per impostare in fretta
@@ -1533,12 +1645,12 @@ function copiaAdattaSuTutte(fromWk) {
   if (!src.length) { alert("La Settimana " + (fromWk + 1) + " non ha righe da copiare."); return; }
   const nSett = _nSettMeso(s.tipo);
   if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${fromWk + 1} (Giorno ${s.gi + 1}) su tutte le altre settimane di questo giorno?\nSostituisce il loro contenuto attuale.`)) return;
-  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
-  const o = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
+  const root = _adattaRoot();
+  const o = root[s.atletaId] = root[s.atletaId] || {};
   const t = o[s.tipo] = o[s.tipo] || {};
   const g = t[s.gi] = t[s.gi] || {};
-  for (let w = 0; w < nSett; w++) { if (w !== fromWk) g[w] = JSON.parse(JSON.stringify(src)); }
-  if (typeof salvaCustom === "function") salvaCustom();
+  for (let w = 0; w < nSett; w++) { if (w !== fromWk) { g[w] = JSON.parse(JSON.stringify(src)); _coachPrendeSlot(s.atletaId, s.tipo, s.gi, w); } }
+  _adattaSalva();
   disegna(); window.scrollTo(0, 0);
 }
 // copia il contenuto di UNA settimana specifica (fromWk) sulla settimana corrente (toWk) — es. "copia la Settimana 1 su questa"
@@ -1549,23 +1661,30 @@ function copiaAdattaDaSett(toWk, fromWk) {
   const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
   if (!src.length) { alert("La Settimana " + (fromWk + 1) + " non ha righe da copiare."); return; }
   if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${fromWk + 1} sulla Settimana ${toWk + 1} (Giorno ${s.gi + 1})?\nSostituisce il contenuto attuale della Settimana ${toWk + 1}.`)) return;
-  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
-  const o = DEMO.overrideContenuto[s.atletaId] = DEMO.overrideContenuto[s.atletaId] || {};
+  const root = _adattaRoot();
+  const o = root[s.atletaId] = root[s.atletaId] || {};
   const t = o[s.tipo] = o[s.tipo] || {};
   const g = t[s.gi] = t[s.gi] || {};
   g[toWk] = JSON.parse(JSON.stringify(src));
-  if (typeof salvaCustom === "function") salvaCustom();
+  _coachPrendeSlot(s.atletaId, s.tipo, s.gi, toWk);
+  _adattaSalva();
   disegna();
 }
-function ripristinaAdatta(wk) {
-  const s = S.adatta, o = DEMO.overrideContenuto && DEMO.overrideContenuto[s.atletaId];
-  if (o && o[s.tipo] && o[s.tipo][s.gi]) {
-    delete o[s.tipo][s.gi][wk];
-    if (!Object.keys(o[s.tipo][s.gi]).length) delete o[s.tipo][s.gi];
-    if (!Object.keys(o[s.tipo]).length) delete o[s.tipo];
-    if (!Object.keys(o).length) delete DEMO.overrideContenuto[s.atletaId];
+// azzera UNO slot (settimana) dal contenitore giusto; se è il coach, toglie anche l'adattamento dell'atleta per quello slot
+function _adattaCancellaSlot(root, aid, tipo, gi, wk) {
+  const o = root && root[aid];
+  if (o && o[tipo] && o[tipo][gi]) {
+    delete o[tipo][gi][wk];
+    if (!Object.keys(o[tipo][gi]).length) delete o[tipo][gi];
+    if (!Object.keys(o[tipo]).length) delete o[tipo];
+    if (!Object.keys(o).length) delete root[aid];
   }
-  if (typeof salvaCustom === "function") salvaCustom();
+}
+function ripristinaAdatta(wk) {
+  const s = S.adatta;
+  _adattaCancellaSlot(_adattaRoot(), s.atletaId, s.tipo, s.gi, wk);
+  if (!_adattaSelfMode()) _adattaCancellaSlot(DEMO.adattaSelf || {}, s.atletaId, s.tipo, s.gi, wk);   // il coach ripristina = toglie anche l'adatta dell'atleta
+  _adattaSalva();
   disegna();
 }
 function _tabellaAdattaPista(a, wk) {
@@ -1666,6 +1785,7 @@ function vistaAdatta() {
   if (!sch.length) corpo = `<div class="card"><p class="et">Nessun giorno programmato in ${s.tipo} nel madre. Imposta prima il programma.</p></div>`;
   else if (!canEditA) corpo = `<div class="card"><p class="et">Per i <b>lanciatori</b> l'adattamento fine (attrezzi, kg, tipi) si fa dall'editor completo: <b>Programma → Pista → «Programma per» → ${a.nome}</b>.</p></div>`;
   else corpo = Array.from({ length: nSett }, (_, w) => {
+    const daAtleta = !!(DEMO.adattaSelf && DEMO.adattaSelf[a.id] && DEMO.adattaSelf[a.id][s.tipo] && DEMO.adattaSelf[a.id][s.tipo][s.gi] && DEMO.adattaSelf[a.id][s.tipo][s.gi][w]);
     const hasOv = !!overrideRighe(a, s.tipo, s.gi, w);
     const scar = (typeof isScaricoIdx === "function" && mesoRif) ? isScaricoIdx(mesoRif, w) : false;
     const tab = s.tipo !== "pista" ? _tabellaAdattaPal(a, w) : grA === "mezzo" ? _tabellaAdattaMezzo(a, w) : _tabellaAdattaPista(a, w);
@@ -1677,7 +1797,7 @@ function vistaAdatta() {
       </div>` : "";
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-        <p style="font-weight:600;font-size:13px;margin:0">Settimana ${w + 1}${scar ? ` <span class="pill p-giallo">scarico</span>` : ""} ${hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`}</p>
+        <p style="font-weight:600;font-size:13px;margin:0">Settimana ${w + 1}${scar ? ` <span class="pill p-giallo">scarico</span>` : ""} ${daAtleta ? `<span class="et" style="color:var(--verde)">✎ ${_adattaSelfMode() ? "tuo" : "atleta"}</span>` : hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`}</p>
         <div style="display:flex;gap:6px">
           <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="copiaAdattaSuTutte(${w})" title="Copia questa settimana su tutte le altre">⧉ su tutte</button>
           ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="ripristinaAdatta(${w})">↺ madre</button>` : ""}
@@ -1685,15 +1805,29 @@ function vistaAdatta() {
       </div>${copiaDaUI}${tab}</div>`;
   }).join("");
   const notaPal = (s.tipo === "palestra" && sch.length && canEditA) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Peso a mano (se manca il massimale) o con − / ＋ (±2.5 kg). Scrivilo nella Settimana 1: le altre lo useranno in automatico. Con «⧉ su tutte» copi una settimana sulle altre.</p>` : "";
-  return `<button class="indietro" onclick="chiudiAdatta()">‹ Torna all'atleta</button>
-    <div class="card"><h3>Adatta contenuto · ${a.nome}</h3>
-      <p class="et" style="margin-top:2px">Cambia ripetute, %, distanze o carichi solo per ${a.nome}, senza toccare il madre. Tempi e pesi restano calcolati sui suoi PB. Si salva da solo.</p></div>
-    <div class="card" style="border-color:rgba(77,154,255,.35)">
+  const self = _adattaSelfMode();
+  const testa = self
+    ? `<button class="indietro" onclick="chiudiAdatta()">‹ Indietro</button>
+       <div class="card"><h3>Il mio programma</h3>
+         <p class="et" style="margin-top:2px">Qui puoi <b>adattare il tuo allenamento</b>: cambia esercizi/ripetute, %, distanze o carichi. Le modifiche si salvano da sole e arrivano al tuo allenatore.</p></div>`
+    : `<button class="indietro" onclick="chiudiAdatta()">‹ Torna all'atleta</button>
+       <div class="card"><h3>Adatta contenuto · ${a.nome}</h3>
+         <p class="et" style="margin-top:2px">Cambia ripetute, %, distanze o carichi solo per ${a.nome}, senza toccare il madre. Tempi e pesi restano calcolati sui suoi PB. Si salva da solo.</p></div>`;
+  // avviso al coach quando l'atleta ha adattato di suo
+  const haAdattaAtleta = !self && !!(DEMO.adattaSelf && DEMO.adattaSelf[a.id] && Object.keys(DEMO.adattaSelf[a.id]).length);
+  const bannerAtleta = haAdattaAtleta
+    ? `<div class="card" style="border-color:rgba(124,194,67,.45);background:var(--verde-bg)"><p class="et" style="margin:0;color:var(--verde)">✎ <b>${a.nome} ha adattato questo programma.</b> Vedi sotto le settimane con «✎ atleta». Se modifichi tu una settimana, prendi il controllo di quella (sostituisce la sua). «Azzera» completo dalla scheda atleta.</p></div>`
+    : "";
+  // la "modifica live singolo giorno" è una funzione da COACH: non si mostra all'atleta
+  const modLive = self ? "" : `<div class="card" style="border-color:rgba(77,154,255,.35)">
       <p class="et" style="margin:0 0 6px"><b>Modifica un singolo giorno (live)</b> — cambia il lavoro o passa <b>pista↔palestra</b> solo per una data, senza toccare il programma.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input type="date" id="modDataAdatta" value="${typeof oggiISO === "function" ? oggiISO() : ""}" style="width:auto;padding:8px">
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="apriModDataAdatta()">✏️ Modifica quel giorno →</button>
-      </div></div>
+      </div></div>`;
+  return `${testa}
+    ${bannerAtleta}
+    ${modLive}
     ${tipoTab}
     ${selGiorno}
     ${notaPal}

@@ -81,6 +81,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   });
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
+    _gi: giornoNum - 1, _wk: settIdx, _tipoAdatta: "pista",
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
@@ -188,6 +189,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   });
   return _cacheSeduta({
     id: "gen-l-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "palestra", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
+    _gi: giornoNum - 1, _wk: settIdx, _tipoAdatta: "palestra",
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
@@ -205,8 +207,15 @@ function giornoSettEff(atleta, tipo, gi, g) {
 }
 
 // TAPPA 3c — righe di contenuto personalizzate per un atleta (giorno gi, settimana wk): null se usa il madre
+// un atleta è "pro" se il coach gli ha attivato l'auto-adattamento del programma (flag nel bundle, deciso da app)
+function atletaPro(id) { return !!(id && DEMO.atletaPro && DEMO.atletaPro[id]); }
 function overrideRighe(atleta, tipo, gi, wk) {
-  const o = atleta && DEMO.overrideContenuto && DEMO.overrideContenuto[atleta.id];
+  const aid = atleta && atleta.id;
+  // precedenza: adattamento FATTO DALL'ATLETA (pro) → poi override del coach → poi madre (null)
+  const self = aid && DEMO.adattaSelf && DEMO.adattaSelf[aid];
+  const rSelf = self && self[tipo] && self[tipo][gi] && self[tipo][gi][wk];
+  if (rSelf) return rSelf;
+  const o = aid && DEMO.overrideContenuto && DEMO.overrideContenuto[aid];
   return (o && o[tipo] && o[tipo][gi] && o[tipo][gi][wk]) || null;
 }
 

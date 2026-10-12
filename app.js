@@ -836,7 +836,7 @@ function disegnaMenu(menu) {
         const n = notificheCoach().filter(x => x.imp).length;   // solo gli avvisi "Da gestire": la casella non è più sempre piena
         if (n) badge = ` <span style="background:#c0392b;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">${n}</span>`;
       }
-      return `<a class="${S.vista === m.k ? "on" : ""}" onclick="vai('${m.k}')">
+      return `<a class="${S.vista === m.k ? "on" : ""}" onclick="${m.onclick || ("vai('" + m.k + "')")}">
         <span class="ic">${m.ic}</span>${m.l}${badge}</a>`;
     }
     const aperto = !!S.gruppi[m.g] || m.subs.some(s => s[0] === S.vista);
@@ -909,7 +909,12 @@ function disegna() {
   if (!S.utente) { r.innerHTML = vistaLogin(); return; }
 
   const coach = S.utente.ruolo === "coach";
-  const menu = coach ? MENU_COACH : MENU_ATLETA;
+  let menu = coach ? MENU_COACH : MENU_ATLETA;
+  // atleta PRO: voce "Il mio programma" per auto-adattare il proprio programma
+  if (!coach && typeof _puoAdattareSelf === "function" && _puoAdattareSelf()) {
+    menu = MENU_ATLETA.slice();
+    menu.splice(2, 0, { k: "mio-programma", ic: "✎", l: "Il mio programma", onclick: "apriAdattaSelf()" });
+  }
   let corpo;
   if (S.onboarding === "tour") corpo = vistaTutorial();
   else if (S.vista === "scrivi-metis" && typeof vistaScriviMetis === "function") corpo = vistaScriviMetis();
@@ -923,6 +928,7 @@ function disegna() {
   else if (S.modEdit && typeof vistaModSeduta === "function") corpo = vistaModSeduta();
   else if (coach && S.spostaGiorni) corpo = vistaSpostaGiorni();
   else if (coach && S.adatta) corpo = vistaAdatta();
+  else if (!coach && S.adatta && typeof _puoAdattareSelf === "function" && _puoAdattareSelf()) corpo = vistaAdatta();   // atleta pro: adatta il proprio programma
   else if (coach && S.sedSvolte) corpo = vistaSeduteSvolte();
   else if (coach && S.report) corpo = vistaReportAtleta();
   else if (coach && S.stampaProg && typeof vistaStampaProgramma === "function") corpo = vistaStampaProgramma();

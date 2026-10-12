@@ -645,8 +645,18 @@ function vistaSeduta() {
     ${bloccoObiettivi(s)}
     <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>
     ${_modBtnSeduta(s)}
+    ${_adattaBtnSeduta(s)}
     ${_extraBtnSeduta()}
     ${corpo}`;
+}
+// pulsante "Adatta la seduta" — SOLO per l'atleta PRO, sul proprio allenamento non ancora chiuso:
+// apre l'editor del programma su questo giorno/settimana (può cambiare/aggiungere/togliere esercizi o ripetute).
+function _adattaBtnSeduta(s) {
+  if (!s || s.chiusa) return "";
+  if (!(S.utente && S.utente.ruolo === "atleta")) return "";
+  if (typeof _puoAdattareSelf !== "function" || !_puoAdattareSelf()) return "";
+  if (typeof apriAdattaDaSeduta !== "function") return "";
+  return `<button class="btn btn-2" style="margin-bottom:11px" onclick="apriAdattaDaSeduta('${s.id}')">✎ Adatta la seduta (cambia esercizi / ripetute)</button>`;
 }
 // pulsante "modifica live" — SOLO l'allenatore, sull'allenamento di un atleta (non su seduta già chiusa)
 function _modBtnSeduta(s) {
