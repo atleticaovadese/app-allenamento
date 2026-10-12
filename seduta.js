@@ -156,8 +156,8 @@ function vistaPista(s) {
         const peggio = (t - e.target) / e.target * 100;
         cls = peggio > CONFIG.soglie.pistaPeggioPct ? "male" : "bene";
       }
-      return `<input class="tempo ${cls}" inputmode="decimal" value="${v}" placeholder="—"
-        onchange="segnaTempo('${s.id}','${e.id}',${i},this.value)">`;
+      return `<input class="tempo avanza ${cls}" inputmode="decimal" value="${v}" placeholder="—"
+        onchange="segnaTempo('${s.id}','${e.id}',${i},this)">`;
     }).join("");
     const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
     const cont = e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "";
@@ -179,12 +179,29 @@ function vistaPista(s) {
   ${bloccoChiusura(s)}`;
 }
 
-function segnaTempo(sid, eid, i, val) {
+// Dopo aver inserito un valore in una casella (tempo/misura/VBT), ricostruisce la pagina
+// e poi sposta il focus alla casella SUCCESSIVA (classe .avanza, in ordine di pagina).
+// Così la pagina non "torna in alto" (la casella successiva viene riportata in vista) e
+// l'atleta/allenatore passa da un tempo al successivo fino all'ultimo senza riselezionare.
+function _avanzaCasella(el, render) {
+  let idx = -1;
+  if (el && el.classList && el.classList.contains("avanza")) {
+    idx = Array.prototype.indexOf.call(document.querySelectorAll("input.avanza"), el);
+  }
+  (render || disegna)();
+  if (idx < 0) return;
+  const dopo = document.querySelectorAll("input.avanza")[idx + 1];
+  if (dopo) { try { dopo.focus(); if (dopo.select) dopo.select(); } catch (_) { } }
+  else if (el) { try { el.blur(); } catch (_) { } }   // era l'ultima: chiude la tastiera
+}
+
+function segnaTempo(sid, eid, i, el) {
   const s = sedutaDaId(sid), e = s.elementi.find(x => x.id === eid);
+  const val = (el && el.value !== undefined) ? el.value : el;   // tollera vecchia firma (stringa)
   const n = parseFloat(String(val).replace(",", "."));
   e.tempi[i] = isNaN(n) ? null : n;
   salvaBozzaSeduta(s);
-  disegna();
+  _avanzaCasella(el, disegna);
 }
 
 // ---------- sforzo percepito (RPE) + "non chiuse/non completato" per singolo lavoro ----------
@@ -307,8 +324,8 @@ function esercizioAperto(s, x) {
   const righe = x.vbt.map((v, i) => `
     <div class="serie">
       <span class="n">S${i + 1}</span>
-      <input inputmode="decimal" value="${v === null ? "" : v}" placeholder="m/s"
-        onchange="segnaVbt('${s.id}','${x.id}',${i},this.value)">
+      <input class="avanza" inputmode="decimal" value="${v === null ? "" : v}" placeholder="m/s"
+        onchange="segnaVbt('${s.id}','${x.id}',${i},this)">
       ${v !== null ? '<span class="ok">✓</span>' : '<span class="ok off">–</span>'}
     </div>`).join("");
 
@@ -349,14 +366,15 @@ function media(a) { const v = a.filter(x => x !== null); return v.length ? v.red
 
 function apriEsercizio(id) { T.id = (T.id === id ? null : id); disegna(); }   // il recupero NON si ferma cambiando esercizio: continua galleggiante
 
-function segnaVbt(sid, xid, i, val) {
+function segnaVbt(sid, xid, i, el) {
   const s = sedutaDaId(sid), x = s.esercizi.find(e => e.id === xid);
+  const val = (el && el.value !== undefined) ? el.value : el;
   const n = parseFloat(String(val).replace(",", "."));
   x.vbt[i] = isNaN(n) ? null : n;
   const restano = x.vbt.some(v => v === null);
   if (!isNaN(n) && restano) avviaTimer(x.recuperoSec); else fermaTimer();
   salvaBozzaSeduta(s);
-  disegna();
+  _avanzaCasella(el, disegna);
 }
 // avvia il recupero a mano (senza dover segnare i m/s): usa il recupero prescritto, o 90s di default
 function avviaRecupero(sid, xid) {

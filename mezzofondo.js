@@ -445,13 +445,14 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
 // ---------- vista atleta: seduta pista mezzofondo (prescrizione da seguire a ritmo) ----------
 function volumePistaMezzo(s) { return (s.elementi || []).reduce((t, e) => t + (e.volume || 0), 0); }
 // l'atleta scrive il tempo di una ripetuta (mm:ss oppure secondi) → salvato in secondi
-function segnaTempoMezzo(sid, eid, i, val) {
+function segnaTempoMezzo(sid, eid, i, el) {
   const s = sedutaDaId(sid), e = s && s.elementi.find(x => x.id === eid);
   if (!e || !e.tempi) return;
+  const val = (el && el.value !== undefined) ? el.value : el;
   const sec = _mzToSec(val);
   e.tempi[i] = (sec != null && sec > 0) ? sec : null;
   if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s);
-  disegna();
+  if (typeof _avanzaCasella === "function") _avanzaCasella(el, disegna); else disegna();
 }
 function vistaPistaMezzo(s) {
   return `${bloccoRiscaldamento(s)}
@@ -471,8 +472,8 @@ function vistaPistaMezzo(s) {
       const caselle = e.tempi.map((t, i) => {
         let cls = "";
         if (t != null && e.tempoRipSec != null) cls = (t - e.tempoRipSec) / e.tempoRipSec * 100 > 4 ? "male" : "bene";
-        return `<input class="tempo ${cls}" value="${t != null ? _mzMMSSc(t) : ""}" placeholder="m:ss.cc"
-          onchange="segnaTempoMezzo('${s.id}','${e.id}',${i},this.value)">`;
+        return `<input class="tempo avanza ${cls}" value="${t != null ? _mzMMSSc(t) : ""}" placeholder="m:ss.cc"
+          onchange="segnaTempoMezzo('${s.id}','${e.id}',${i},this)">`;
       }).join("");
       bloccoTempi = `<p class="et" style="margin:8px 0 6px">Segna il tempo di ogni ripetuta${best != null ? ` · <b style="color:var(--verde)">meglio ${_mzMMSSc(best)}</b>` : ""}</p>
         <div class="tempi">${caselle}</div>`;

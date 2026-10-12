@@ -430,8 +430,8 @@ function vistaPistaLanci(s) {
     const fatte = (e.misure || []).filter(v => v !== null);
     const best = fatte.length ? Math.max(...fatte) : null;
     const caselle = (e.misure || []).map((v, i) =>
-      `<input class="tempo${best != null && v === best ? " bene" : ""}" inputmode="decimal" value="${v === null ? "" : v}" placeholder="m"
-        onchange="segnaMisura('${s.id}','${e.id}',${i},this.value)">`).join("");
+      `<input class="tempo avanza${best != null && v === best ? " bene" : ""}" inputmode="decimal" value="${v === null ? "" : v}" placeholder="m"
+        onchange="segnaMisura('${s.id}','${e.id}',${i},this)">`).join("");
     const meta = [e.kg != null ? e.kg + " kg" : "", _lanciDeltaTxt(e), e.perc != null ? e.perc + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
     const vid = (typeof esVideoDi === "function") ? esVideoDi(e.mezzo) : "";
     return `<div class="card">
@@ -453,13 +453,14 @@ function vistaPistaLanci(s) {
   </div>
   ${bloccoChiusura(s)}`;
 }
-function segnaMisura(sid, eid, i, val) {
+function segnaMisura(sid, eid, i, el) {
   const s = sedutaDaId(sid), e = s && s.elementi.find(x => x.id === eid);
   if (!e) return;
+  const val = (el && el.value !== undefined) ? el.value : el;
   const n = parseFloat(String(val).replace(",", "."));
   e.misure[i] = isNaN(n) ? null : n;
   if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s);
-  disegna();
+  if (typeof _avanzaCasella === "function") _avanzaCasella(el, disegna); else disegna();
 }
 // registro lanci: mezzo / attrezzo / n° / miglior misura → per andamento e riepilogo
 function registraLancio(atletaId, mezzo, kg, tipo, lanci, migliore) {
