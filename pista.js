@@ -338,6 +338,49 @@ function setPistaMesoDaPiano(idx) {
 }
 
 // copia la settimana 1 sulle altre; sulla settimana di scarico taglia il volume del 50% (dimezza le ripetute)
+// "finestrella" per-settimana (negli editor di programma): imposta la settimana = come il programma madre
+// (solo quando stai scrivendo il programma PERSONALE di un atleta) oppure = copia di un'altra settimana.
+// disc: "pal" (palestra) o "pista" (velocità/mezzofondo/lanci). s = indice settimana, n = n° settimane.
+function _finestrellaSett(disc, s, n) {
+  const personale = !!S.progAtleta;   // S.progAtleta = stai scrivendo il programma di UN atleta
+  const fn = disc === "pal" ? "palSettImposta" : "pistaSettImposta";
+  let altre = "";
+  for (let w = 0; w < n; w++) if (w !== s) altre += `<option value="copy:${w}">= copia Settimana ${w + 1}</option>`;
+  if (!personale && !altre) return "";
+  return `<select onchange="${fn}(${s},this.value);this.value='';" title="Imposta questa settimana"
+      style="margin-left:auto;padding:6px 8px;width:auto;flex:none;font-size:12px">
+    <option value="">⚙ Imposta…</option>
+    ${personale ? `<option value="madre">= come il programma madre</option>` : ""}
+    ${altre}
+  </select>`;
+}
+// la settimana corrispondente nel programma MADRE del gruppo dell'atleta (per "torna al madre" nei programmi personali)
+function _settMadre(tipo, wk) {
+  if (!S.progAtleta) return null;
+  const a = (DEMO.atleti || []).find(x => x.id === S.progAtleta);
+  const g = (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel";
+  const madre = tipo === "pista" ? (typeof pistaDi === "function" ? pistaDi(g) : null) : (typeof palDi === "function" ? palDi(g) : null);
+  const mi = tipo === "pista" ? S.pistaMeso : S.palMeso, gi = tipo === "pista" ? S.pistaGiorno : S.palGiorno;
+  const mm = madre && madre.mesocicli && madre.mesocicli[mi];
+  const gg = mm && mm.giorni && mm.giorni[gi];
+  return (gg && gg.settimane && gg.settimane[wk]) || null;
+}
+function _rigaNonVuota(r) { return r && Object.keys(r).some(k => k !== "nota" && r[k] !== "" && r[k] != null); }
+// applica la scelta della finestrella alla settimana `toWk` del giorno corrente (pista/mezzo/lanci)
+function pistaSettImposta(toWk, val) {
+  if (!val) return;
+  const m = pistaInit().mesocicli[S.pistaMeso], g = m.giorni[S.pistaGiorno], n = nSettimaneMeso(m);
+  while (g.settimane.length < n) g.settimane.push(settVuota());
+  const dst = g.settimane[toWk]; if (!dst) return;
+  let src = null, nomeSrc = "";
+  if (val === "madre") { src = _settMadre("pista", toWk); nomeSrc = "programma madre"; if (!src) { alert("Il programma madre non ha questa settimana."); return; } }
+  else if (val.indexOf("copy:") === 0) { src = g.settimane[Number(val.slice(5))]; nomeSrc = "Settimana " + (Number(val.slice(5)) + 1); }
+  if (!src) return;
+  if (typeof confirm === "function" && (dst.righe || []).some(_rigaNonVuota) && !confirm(`Sostituire la Settimana ${toWk + 1} con «${nomeSrc}»?\nIl contenuto attuale verrà sostituito.`)) return;
+  dst.righe = (src.righe || []).map(r => ({ ...r }));
+  dst.nota = src.nota || "";
+  savePista(); disegna();
+}
 function pistaCopiaSettimana() {
   const m = pistaInit().mesocicli[S.pistaMeso], g = m.giorni[S.pistaGiorno];
   const n = nSettimaneMeso(m);
@@ -880,9 +923,10 @@ function vistaProgrammaPista() {
       </tr>`;
     }).join("");
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
         ${scar ? `<span class="pill p-giallo">scarico −${scaricoPctVal(m)}%</span>` : ""}
+        ${typeof _finestrellaSett === "function" ? _finestrellaSett("pista", s, listaSett.length) : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Contenuto</th><th>Distanza</th><th>n°</th><th>Rec</th><th>% vel</th><th>Tempo (s)</th><th>m/s</th><th></th></tr></thead>

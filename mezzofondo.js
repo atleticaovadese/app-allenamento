@@ -382,9 +382,10 @@ function vistaProgrammaPistaMezzo() {
     }).join("");
     const volS = volumeSettMezzo(sett, p);
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
         ${scar ? `<span class="pill p-giallo">scarico −${scaricoPctVal(m)}%</span>` : ""}
+        ${typeof _finestrellaSett === "function" ? _finestrellaSett("pista", s, listaSett.length) : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Warm-up / focus</th><th>Mezzo</th><th>Dist (m)</th><th>n°</th><th>Min</th><th>Rec</th><th>Ritmo /km</th><th>Tempo/rip</th><th>Volume (m)</th><th></th></tr></thead>

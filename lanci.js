@@ -360,9 +360,10 @@ function vistaProgrammaPistaLanci() {
     }).join("");
     const nTot = volumeLanciSett(sett), nGara = lanciGaraSett(sett);
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
         ${scar ? `<span class="pill p-giallo">scarico −${scaricoPctVal(m)}%</span>` : ""}
+        ${typeof _finestrellaSett === "function" ? _finestrellaSett("pista", s, listaSett.length) : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Mezzo / contenuto</th><th>Attrezzo kg</th><th>n° lanci</th><th>Rec</th><th>% int</th><th>Tipo</th><th>Δ% gara</th><th></th></tr></thead>

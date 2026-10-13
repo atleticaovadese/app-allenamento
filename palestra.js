@@ -196,6 +196,22 @@ function setPalMesoDaPiano(idx) {
 }
 
 // copia la settimana 1 sulle altre; sullo scarico dimezza il volume (rep al 50%, intensità invariata)
+// applica la scelta della "finestrella" (= madre / = copia Settimana X) alla settimana `toWk` del giorno corrente
+function palSettImposta(toWk, val) {
+  if (!val) return;
+  const m = palestraInit().mesocicli[S.palMeso], g = m.giorni[S.palGiorno], n = nSettimaneMeso(m);
+  while (g.settimane.length < n) g.settimane.push(palSettVuota());
+  const dst = g.settimane[toWk]; if (!dst) return;
+  let src = null, nomeSrc = "";
+  if (val === "madre") { src = (typeof _settMadre === "function") ? _settMadre("palestra", toWk) : null; nomeSrc = "programma madre"; if (!src) { alert("Il programma madre non ha questa settimana."); return; } }
+  else if (val.indexOf("copy:") === 0) { src = g.settimane[Number(val.slice(5))]; nomeSrc = "Settimana " + (Number(val.slice(5)) + 1); }
+  if (!src) return;
+  const piena = (dst.righe || []).some(r => r && (r.esercizio || r.serie || r.rep || r.perc || r.peso));
+  if (piena && typeof confirm === "function" && !confirm(`Sostituire la Settimana ${toWk + 1} con «${nomeSrc}»?\nIl contenuto attuale verrà sostituito.`)) return;
+  dst.righe = (src.righe || []).map(r => ({ ...r }));
+  dst.nota = src.nota || "";
+  savePalestra(); disegna();
+}
 function palCopiaSettimana() {
   const m = palestraInit().mesocicli[S.palMeso], g = m.giorni[S.palGiorno], n = nSettimaneMeso(m);
   while (g.settimane.length < n) g.settimane.push(palSettVuota());
@@ -360,9 +376,10 @@ function vistaProgrammaPalestra() {
       </tr>`;
     }).join("");
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.55);background:rgba(240,168,60,.08)"' : ""}>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
         ${scar ? `<span class="pill p-giallo">scarico · −${scaricoPctVal(m)}% vol</span>` : ""}
+        ${typeof _finestrellaSett === "function" ? _finestrellaSett("pal", s, listaSett.length) : ""}
       </div>
       <div class="p-scroll"><table class="ptab pista-w">
         <thead><tr><th>Esercizio</th><th>SS</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Rec</th><th>TUT</th><th>VBT tgt</th><th>Peso (kg)</th><th>Vol (kg)</th><th></th></tr></thead>
