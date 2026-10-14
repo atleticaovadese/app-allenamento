@@ -1470,7 +1470,8 @@ function chiudiAdatta() {
   const self = _adattaSelfMode(), fromSed = S.adatta && S.adatta.fromSeduta;
   if (fromSed) _rigeneraSeduta(fromSed);
   S.adatta = null;
-  if (self && S.vista === "mio-programma") S.vista = "oggi";
+  if (fromSed) S.seduta = fromSed;   // torna alla seduta (rigenerata) da cui era partito
+  else if (self && S.vista === "mio-programma") S.vista = "oggi";
   disegna(); window.scrollTo(0, 0);
 }
 // ---- ATLETA PRO: adatta il PROPRIO programma ----
@@ -1483,7 +1484,7 @@ function apriAdattaSelf() {
   if (!_puoAdattareSelf()) return;
   const sch = _giorniSched("pista");
   S.adatta = { atletaId: S.utente.atletaId, tipo: "pista", gi: sch.length ? sch[0].gi : 0, wk: 0 };
-  S.menu = false; disegna(); window.scrollTo(0, 0);
+  S.seduta = null; S.menu = false; disegna(); window.scrollTo(0, 0);   // azzera la seduta: il router altrimenti resta su vistaSeduta
 }
 // apre l'editor sullo SLOT della seduta che l'atleta sta guardando (pulsante "Adatta la seduta")
 function apriAdattaDaSeduta(sid) {
@@ -1494,6 +1495,7 @@ function apriAdattaDaSeduta(sid) {
   if (self && !_puoAdattareSelf()) return;
   const tipo = (s._tipoAdatta) || (s.tipo === "palestra" ? "palestra" : "pista");
   S.adatta = { atletaId: aid, tipo: tipo, gi: (s._gi != null ? s._gi : (s.giorno ? s.giorno - 1 : 0)), wk: (s._wk != null ? s._wk : 0), fromSeduta: sid };
+  S.seduta = null;   // altrimenti il router (S.seduta prima di S.adatta) resta sulla seduta e l'editor non si apre
   disegna(); window.scrollTo(0, 0);
 }
 // il coach rende un atleta "pro" (o toglie): lo salva nel bundle (si sincronizza all'atleta)

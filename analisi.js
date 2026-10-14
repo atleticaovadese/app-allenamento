@@ -667,8 +667,17 @@ function _variazionePeriodo(serie, met, atl) {
   const pct = primo ? Math.abs(delta / primo * 100) : 0;
   const fmtV = x => met === "tempo" ? (typeof fmtTempoPista === "function" ? fmtTempoPista(x, atl) : x) : (Math.round(x * 100) / 100);
   const dstr = met === "tempo" ? Math.abs(delta).toFixed(2) + " s" : String(Math.round(Math.abs(delta) * 100) / 100);
-  const col = uguale ? "var(--txt2)" : migliorato ? "var(--verde)" : "var(--rosso)";
-  const etichetta = uguale ? "stabile" : (migliorato ? "▼ migliorato " : "▲ peggiorato ") + dstr + " (" + pct.toFixed(1) + "%)";
+  // All'ATLETA non mostriamo "peggioramento" in rosso: testo tranquillo (evita ansia da prestazione). Il miglioramento resta verde.
+  const atleta = (typeof S !== "undefined" && S.utente && S.utente.ruolo === "atleta");
+  let col, etichetta;
+  if (uguale) { col = "var(--txt2)"; etichetta = "stabile"; }
+  else if (migliorato) { col = "var(--verde)"; etichetta = "▼ migliorato " + dstr + " (" + pct.toFixed(1) + "%)"; }
+  else if (atleta) {
+    col = "var(--txt2)";
+    etichetta = (met === "tempo")
+      ? "in tenuta · tempi leggermente più lenti (normale, può dipendere dal carico o dalla fase)"
+      : "in tenuta · valori leggermente più bassi (normale, può dipendere dal carico)";
+  } else { col = "var(--rosso)"; etichetta = "▲ peggiorato " + dstr + " (" + pct.toFixed(1) + "%)"; }
   return `<div style="background:var(--card2);border-radius:12px;padding:10px 12px;margin:2px 0 10px">
     <p class="et" style="margin:0 0 2px">Variazione nel periodo · ${v.length} sedute</p>
     <p style="margin:0;font-size:15px"><b>${fmtV(primo)}</b> → <b>${fmtV(ultimo)}</b> &nbsp; <b style="color:${col}">${etichetta}</b></p>
