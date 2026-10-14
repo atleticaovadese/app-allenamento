@@ -340,8 +340,8 @@ async function caricaDati() {
           }
           const fatti = (e.tempi || []).filter(v => v != null);
           if (!fatti.length) return;
-          const tmed = fatti.reduce((a, b) => a + b, 0) / fatti.length;
-          DEMO.pistaLog.push({ data: sv.data, atletaId: sv.atleta_id, distanza: Number(e.distanza), tempo: Math.round(tmed * 100) / 100, volume: (e.ripetute || 0) * (e.distanza || 0), velocita: tmed ? Math.round(e.distanza / tmed * 100) / 100 : null });
+          const somma = fatti.reduce((a, b) => a + b, 0), tmed = somma / fatti.length, tbest = Math.min.apply(null, fatti);
+          DEMO.pistaLog.push({ data: sv.data, atletaId: sv.atleta_id, distanza: Number(e.distanza), tempo: Math.round(tmed * 100) / 100, best: Math.round(tbest * 100) / 100, somma: Math.round(somma * 100) / 100, tempi: fatti.map(t => Math.round(t * 100) / 100), volume: (e.ripetute || 0) * (e.distanza || 0), velocita: tmed ? Math.round(e.distanza / tmed * 100) / 100 : null });
         });
       } else {
         (d.esercizi || []).forEach(x => {

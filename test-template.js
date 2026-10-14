@@ -95,7 +95,7 @@ function progressioneAtleta(atl) {
   const srt = s => s.slice().sort((a, b) => (a.iso || "") < (b.iso || "") ? -1 : (a.iso || "") > (b.iso || "") ? 1 : 0);
   const byNome = voci => { const o = {}; voci.forEach(v => { if (v.nome) (o[v.nome] = o[v.nome] || []).push(v); }); return o; };
   // separa i test di velocità (lanciato / m/s) dai salti puri
-  const pb = andaVoci(atl, "pb"), salti = andaVoci(atl, "test"), mx = andaVoci(atl, "massimali"), vbt = andaVoci(atl, "vbt");
+  const pb = andaVoci(atl, "pb"), salti = andaVoci(atl, "test"), mx = andaVoci(atl, "massimali");
   const isVel = v => v.unita === "m/s" || /lanciat|vel\.?\s*max|velocit/i.test(v.nome || "");
   const velTest = salti.filter(isVel), saltiPuri = salti.filter(v => !isVel(v));
 
@@ -141,9 +141,9 @@ function progressioneAtleta(atl) {
     area("🏃 Velocità — tempi (gara e allenamento)", pb, "Tempi delle prove: più basso = meglio. Qui trovi anche la tua gara di interesse.", { tempi: true, unita: "s" }) +
     area("⚡ Velocità massima — lanciato", velTest, "Velocità del lanciato (m/s): più alto = meglio.", { unita: "m/s" }) +
     area("🏋 Forza — massimali", mx, "1RM reali o stimati (VBT).", { unita: "kg" }) +
-    area("🦘 Salti / reattività", saltiPuri, "CMJ, SJ, drop jump, RSI, broad jump…") +
-    area("📊 VBT — velocità bilanciere", vbt, "Velocità media alle alzate in palestra.", { unita: "m/s" });
-  return out || `<div class="card"><p class="et">Ancora nessun dato registrato per questo atleta. I test compaiono qui man mano che li salvi (test, scheda, Stima 1RM).</p></div>`;
+    area("🦘 Salti / reattività", saltiPuri, "CMJ, SJ, drop jump, RSI, broad jump…");
+  // NB: la VBT degli allenamenti NON si mostra qui (c'è già «Andamento palestra»); solo massimali, salti e sprint/velocità dei test.
+  return out || `<div class="card"><p class="et">Ancora nessun test registrato per questo atleta: appena esegue e salva un test (sprint, salti, massimali) compare qui con l'andamento.</p></div>`;
 }
 
 function vistaTest() {

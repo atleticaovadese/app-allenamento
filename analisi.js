@@ -573,14 +573,21 @@ function pistaLogVoci(atletaId, distanza) {
   const rows = (DEMO.pistaLog || []).filter(l => l.atletaId === atletaId && Number(l.distanza) === Number(distanza));
   const byDate = {};
   rows.forEach(r => {
-    const g = byDate[r.data] = byDate[r.data] || { data: r.data, distanza: Number(distanza), _t: [], _v: [], vol: 0 };
-    if (r.tempo != null) g._t.push(Number(r.tempo));
+    const g = byDate[r.data] = byDate[r.data] || { data: r.data, distanza: Number(distanza), _v: [], tempi: [], vol: 0 };
+    if (Array.isArray(r.tempi) && r.tempi.length) r.tempi.forEach(t => g.tempi.push(Number(t)));
+    else if (r.tempo != null) g.tempi.push(Number(r.tempo));   // sedute vecchie senza tempi[]: uso la media già salvata
     if (r.velocita != null) g._v.push(Number(r.velocita));
     g.vol += (r.volume || 0);
   });
   const media = a => a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length * 100) / 100 : null;
-  return Object.keys(byDate).map(k => { const g = byDate[k]; return { data: g.data, distanza: g.distanza, tempo: media(g._t), velocita: media(g._v), volume: g.vol || null }; })
-    .sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+  return Object.keys(byDate).map(k => {
+    const g = byDate[k];
+    const tempi = g.tempi.slice().sort((a, b) => a - b);   // crescente: il primo è il più veloce
+    const best = tempi.length ? tempi[0] : null;
+    const somma = tempi.length ? Math.round(tempi.reduce((s, x) => s + x, 0) * 100) / 100 : null;
+    const med = media(g.tempi);
+    return { data: g.data, distanza: g.distanza, tempi, best, media: med, somma, n: tempi.length, tempo: med, velocita: media(g._v), volume: g.vol || null };
+  }).sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
 }
 // quante SEDUTE distinte (date) hanno dati per ogni distanza, per un atleta
 function _distConteggio(id) {
@@ -668,19 +675,65 @@ function _variazionePeriodo(serie, met, atl) {
   </div>`;
 }
 // corpo comune (usato da coach e atleta): variazione + statistiche + grafico + tabella per una distanza
+// grafico a DUE linee per i tempi di pista: 🔵 più veloce (best) e 🔴 media
+function _chartPista2(voci, atl) {
+  const n = voci.length;
+  const blue = voci.map(v => v.best), red = voci.map(v => v.media);
+  const all = blue.concat(red).filter(x => x != null && !isNaN(x));
+  if (all.length < 2) return "";
+  let min = Math.min.apply(null, all), max = Math.max.apply(null, all);
+  if (min === max) { min -= Math.abs(min * 0.05) || 0.1; max += Math.abs(max * 0.05) || 0.1; }
+  const W = 340, H = 184, padL = 36, padR = 8, padT = 16, padB = 32;
+  const dl = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
+  const x = i => padL + (W - padL - padR) * (n <= 1 ? 0.5 : i / (n - 1));
+  const y = v => (H - padB) - (H - padT - padB) * ((v - min) / (max - min));
+  const fmt = v => Math.abs(v) >= 100 ? String(Math.round(v)) : (Math.round(v * 100) / 100).toString();
+  const yl = [min, (min + max) / 2, max].map(v => `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W - padR}" y2="${y(v).toFixed(1)}" stroke="#2c2c34"/><text x="2" y="${(y(v) + 3).toFixed(1)}" fill="#76756f" font-size="9">${fmt(v)}</text>`).join("");
+  const step = Math.max(1, Math.ceil(n / 6));
+  const xl = voci.map((v, i) => (i % step === 0 || i === n - 1) ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" fill="#76756f" font-size="8" text-anchor="middle">${String(dl(v.data)).split(" ").slice(0, 2).join(" ")}</text>` : "").join("");
+  const poly = (arr, col) => n > 1 ? `<polyline points="${arr.map((val, i) => val == null ? null : `${x(i).toFixed(1)},${y(val).toFixed(1)}`).filter(Boolean).join(" ")}" fill="none" stroke="${col}" stroke-width="2"/>` : "";
+  const dots = (arr, col) => arr.map((val, i) => val == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="3" fill="${col}"/>`).join("");
+  const legend = `<text x="${padL}" y="11" font-size="9.5" fill="#4d9aff">● più veloce</text><text x="${padL + 80}" y="11" font-size="9.5" fill="#e05a5a">● media</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${yl}${xl}${poly(red, "#e05a5a")}${poly(blue, "#4d9aff")}${dots(red, "#e05a5a")}${dots(blue, "#4d9aff")}${legend}</svg>`;
+}
 function _andaPistaCorpo(atl, dist, met) {
   const voci = pistaLogVoci(atl.id, dist);
   const metLbl = (MET_PISTA.find(m => m[0] === met) || MET_PISTA[0])[1];
   const disp = pistaLogDistanze(atl.id);
-  const serie = voci.map(v => ({ label: typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data, val: Number(v[met]) }));
   if (!voci.length) return `<div class="card"><p class="et">Nessuna seduta sui <b>${dist} m</b>${disp.length ? ` · distanze con i tuoi dati: <b>${disp.join(", ")} m</b> (scegli una di quelle)` : " — i dati compaiono quando chiudi le sedute di pista segnando i tempi delle ripetute"}.</p></div>`;
+  const dl = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
+
+  // TEMPI: doppia linea (più veloce + media), tabella con i tempi di ogni ripetuta, media e somma, commento per entrambe le linee
+  if (met === "tempo") {
+    const serieBest = voci.map(v => ({ label: dl(v.data), val: v.best }));
+    const serieMedia = voci.map(v => ({ label: dl(v.data), val: v.media }));
+    return `<div class="card">
+      <p class="et" style="margin-bottom:6px">Tempi · ${dist} m · più in basso = meglio · <span style="color:#4d9aff">🔵 più veloce</span> · <span style="color:#e05a5a">🔴 media</span></p>
+      <p style="font-weight:600;font-size:13px;margin:4px 0 0;color:#4d9aff">🔵 Tempo più veloce</p>
+      ${_variazionePeriodo(serieBest, "tempo", atl)}
+      <p style="font-weight:600;font-size:13px;margin:4px 0 0;color:#e05a5a">🔴 Media dei tempi</p>
+      ${_variazionePeriodo(serieMedia, "tempo", atl)}
+      ${voci.length >= 2 ? _chartPista2(voci, atl) : `<p class="et" style="color:var(--txt3)">Il grafico compare dalla 2ª seduta.</p>`}
+      <div class="p-scroll"><table class="ptab" style="margin-top:10px"><thead><tr><th>Data</th><th>Tempi ripetute</th><th style="color:#4d9aff">Migliore</th><th style="color:#e05a5a">Media</th><th>Somma</th><th>Vol (m)</th></tr></thead>
+        <tbody>${voci.map(v => `<tr>
+          <td>${dl(v.data)}</td>
+          <td class="et" style="white-space:normal;min-width:120px">${(v.tempi || []).map(t => fmtTempoPista(t, atl)).join(" · ") || "—"}</td>
+          <td class="pauto" style="color:#4d9aff">${v.best != null ? fmtTempoPista(v.best, atl) : "—"}</td>
+          <td class="pauto" style="color:#e05a5a">${v.media != null ? fmtTempoPista(v.media, atl) : "—"}</td>
+          <td class="pauto">${v.somma != null ? fmtTempoPista(v.somma, atl) : "—"}</td>
+          <td>${v.volume != null ? v.volume : "—"}</td></tr>`).join("")}</tbody></table></div>
+    </div>`;
+  }
+
+  // altre metriche (volume / velocità): linea singola, come prima
+  const serie = voci.map(v => ({ label: dl(v.data), val: Number(v[met]) }));
   return `<div class="card">
-      <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m${met === "tempo" ? " · più in basso = meglio" : ""}</p>
+      <p class="et" style="margin-bottom:2px">${metLbl} · ${dist} m</p>
       ${_variazionePeriodo(serie, met, atl)}
-      ${statBlocco(serie.map(s => s.val), met === "tempo" ? (x => fmtTempoPista(x, atl)) : null)}
+      ${statBlocco(serie.map(s => s.val), null)}
       ${voci.length >= 2 ? chartSerie(serie) : ""}
-      <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Tempo</th><th>Vol (m)</th><th>Vel</th></tr></thead>
-        <tbody>${voci.map(v => `<tr><td>${typeof fmtDataAnno === "function" ? fmtDataAnno(v.data) : v.data}</td><td class="pauto">${fmtTempoPista(v.tempo, atl)}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
+      <table class="ptab" style="min-width:0;margin-top:10px"><thead><tr><th>Data</th><th>Migliore</th><th>Media</th><th>Vol (m)</th><th>Vel</th></tr></thead>
+        <tbody>${voci.map(v => `<tr><td>${dl(v.data)}</td><td class="pauto">${v.best != null ? fmtTempoPista(v.best, atl) : "—"}</td><td class="pauto">${v.media != null ? fmtTempoPista(v.media, atl) : "—"}</td><td>${v.volume != null ? v.volume : "—"}</td><td>${v.velocita != null ? Number(v.velocita).toFixed(2) : "—"}</td></tr>`).join("")}</tbody></table>
     </div>`;
 }
 // selettori distanza/metrica (condivisi). soloConDati=true → mostra solo le distanze con dati (per l'atleta)
