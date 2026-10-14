@@ -89,7 +89,7 @@ function vistaVelocitaTarget() {
 }
 
 // 2) STIMA 1RM da VBT (load-velocity) — stima il massimale senza farlo.
-const LIFTS_1RM = [["Squat", 0.30], ["1/2 Squat", 0.32], ["Panca piana", 0.15], ["Stacco", 0.20], ["Bulgarian", 0.45], ["Girata/Strappo", 0.80]];
+const LIFTS_1RM = [["Squat", 0.30], ["1/2 Squat", 0.32], ["Panca piana", 0.15], ["Stacco", 0.20], ["Trap bar", 0.18], ["Military press", 0.17], ["Bulgarian", 0.45], ["Girata/Strappo", 0.80]];
 let rmState = { lift: 0, mvt: 0.30, atletaRif: "", righe: [{ c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }, { c: "", v: "" }] };
 
 function regressione(punti) {

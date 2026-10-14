@@ -222,7 +222,7 @@ function rimuoviFotoAtleta(id) {
   disegna();
 }
 
-const ESERCIZI_MASSIMALI = ["Squat", "1/2 Squat", "Panca piana", "Stacco", "Trap Bar", "Strappo (snatch)", "Girata (clean)", "Hip thrust", "Pressa"];
+const ESERCIZI_MASSIMALI = ["Squat", "1/2 Squat", "Panca piana", "Stacco", "Trap Bar", "Military press", "Strappo (snatch)", "Girata (clean)", "Hip thrust", "Pressa"];
 const TEST_SALTI = [["CMJ", "cm"], ["SJ", "cm"], ["Drop jump", "cm"], ["RSI", "index"], ["Broad jump", "cm"], ["Sprint 30 m volante", "s"],
   ["Pistol squat dx", "0-3"], ["Pistol squat sx", "0-3"],
   ["Rotazione interna anca dx", "°"], ["Rotazione interna anca sx", "°"],

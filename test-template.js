@@ -88,33 +88,62 @@ function toggleNuovoTest() { S.nuovoTest = !S.nuovoTest; disegna(); if (S.nuovoT
 let testState = { atletaRif: "" };
 function setTestAtleta(id) { testState.atletaRif = id; disegna(); }
 
-// progressione dell'atleta in tutto: salti/test, tempi/PB, massimali (riusa andaVoci/andaMetriche/chartSerie di analisi.js)
+// progressione dell'atleta in tutto, RAGGRUPPATA per area (velocità tempi, velocità massima/lanciato, forza,
+// salti/reattività, VBT) con grafico di andamento + un commento "come sta andando" per ogni area.
 function progressioneAtleta(atl) {
   if (typeof andaVoci !== "function") return "";
-  const cats = [["test", "Salti / test"], ["pb", "Tempi / PB (s)"], ["massimali", "Massimali (kg)"]];
-  let out = "";
-  cats.forEach(([cat, lbl]) => {
-    const metriche = andaMetriche(atl, cat);
-    if (!metriche.length) return;
-    out += `<p class="sez">${lbl}</p>`;
-    metriche.forEach(m => {
-      const serie = andaVoci(atl, cat).filter(v => v.nome === m)
-        .sort((a, b) => (a.iso || "") < (b.iso || "") ? -1 : (a.iso || "") > (b.iso || "") ? 1 : 0);
-      if (!serie.length) return;
-      const ultimo = serie[serie.length - 1];
-      const delta = serie.length > 1 ? (ultimo.val - serie[0].val) : null;
-      const unita = cat === "massimali" ? "kg" : cat === "pb" ? "s" : (serie[0] && serie[0].unita) || "";
-      const meglio = cat === "pb" ? (delta < 0) : (delta > 0);   // sui tempi: meno = meglio
-      out += `<div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-          <p style="font-weight:600;font-size:13px;margin:0">${m}</p>
-          <div style="text-align:right"><b style="font-size:16px">${ultimo.val} ${unita}</b>
-            ${delta != null ? `<span class="et" style="margin-left:6px;color:${meglio ? "var(--verde)" : "var(--rosso)"}">${delta > 0 ? "+" : ""}${Math.round(delta * 100) / 100}</span>` : ""}</div>
-        </div>
-        ${chartSerie(serie)}</div>`;
-    });
-  });
-  return out || `<div class="card"><p class="et">Ancora nessun dato registrato per questo atleta. I test compaiono qui man mano che li salvi (scheda / Stima 1RM).</p></div>`;
+  const srt = s => s.slice().sort((a, b) => (a.iso || "") < (b.iso || "") ? -1 : (a.iso || "") > (b.iso || "") ? 1 : 0);
+  const byNome = voci => { const o = {}; voci.forEach(v => { if (v.nome) (o[v.nome] = o[v.nome] || []).push(v); }); return o; };
+  // separa i test di velocità (lanciato / m/s) dai salti puri
+  const pb = andaVoci(atl, "pb"), salti = andaVoci(atl, "test"), mx = andaVoci(atl, "massimali"), vbt = andaVoci(atl, "vbt");
+  const isVel = v => v.unita === "m/s" || /lanciat|vel\.?\s*max|velocit/i.test(v.nome || "");
+  const velTest = salti.filter(isVel), saltiPuri = salti.filter(v => !isVel(v));
+
+  // una card-grafico per singola metrica → { html, meglio }
+  // opts.tempi = true → area dei tempi (meno = meglio, unità "s"); opts.unita = unità di fallback
+  function metrica(nome, serie0, opts) {
+    opts = opts || {};
+    const serie = srt(serie0); if (!serie.length) return null;
+    const ultimo = serie[serie.length - 1], primo = serie[0];
+    // tempi: meno = meglio — ma i salti/lanci (anche per i velocisti) sono distanze: più = meglio
+    const salto = /salto|lungo|alto|triplo|asta|peso|disco|giavellott|martello/i.test(nome || "");
+    const u = ultimo.unita || (salto ? "m" : (opts.unita || ""));
+    const lowerBetter = !!opts.tempi && !salto;
+    const delta = serie.length > 1 ? Math.round((ultimo.val - primo.val) * 100) / 100 : null;
+    const meglio = (delta == null || delta === 0) ? null : (lowerBetter ? delta < 0 : delta > 0);
+    const col = meglio == null ? "var(--txt3)" : meglio ? "var(--verde)" : "var(--rosso)";
+    const html = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <p style="font-weight:600;font-size:13px;margin:0">${nome}</p>
+        <div style="text-align:right"><b style="font-size:16px">${ultimo.val}${u ? " " + u : ""}</b>
+          ${delta != null ? `<span class="et" style="margin-left:6px;color:${col}">${delta > 0 ? "+" : ""}${delta}${u ? " " + u : ""}</span>` : ""}</div>
+      </div>${typeof chartSerie === "function" ? chartSerie(serie) : ""}</div>`;
+    return { html, meglio, nome };
+  }
+  // una sezione = area (velocità, forza…): commento "come sta andando" + le metriche
+  function area(label, voci, info, opts) {
+    const groups = byNome(voci);
+    const metr = Object.keys(groups).map(n => metrica(n, groups[n], opts)).filter(Boolean);
+    if (!metr.length) return "";
+    const su = metr.filter(m => m.meglio === true).length, giu = metr.filter(m => m.meglio === false).length;
+    let verdetto, col;
+    if (su > 0 && su >= giu * 2) { verdetto = "📈 In miglioramento"; col = "var(--verde)"; }
+    else if (giu > su) { verdetto = "📉 In calo — da attenzionare"; col = "var(--rosso)"; }
+    else if (su === 0 && giu === 0) { verdetto = "➡️ Un solo rilevamento / stabile"; col = "var(--txt3)"; }
+    else { verdetto = "➡️ Andamento misto / stabile"; col = "var(--ambra,#e6a83c)"; }
+    const dett = (su || giu) ? ` ${su} in crescita, ${giu} in calo su ${metr.length}.` : "";
+    return `<p class="sez">${label}</p>
+      <div class="card" style="border-color:${col}"><p class="et" style="margin:0;line-height:1.5"><b style="color:${col}">${verdetto}.</b>${dett} <span style="color:var(--txt3)">${info || ""}</span></p></div>
+      ${metr.map(m => m.html).join("")}`;
+  }
+
+  const out =
+    area("🏃 Velocità — tempi (gara e allenamento)", pb, "Tempi delle prove: più basso = meglio. Qui trovi anche la tua gara di interesse.", { tempi: true, unita: "s" }) +
+    area("⚡ Velocità massima — lanciato", velTest, "Velocità del lanciato (m/s): più alto = meglio.", { unita: "m/s" }) +
+    area("🏋 Forza — massimali", mx, "1RM reali o stimati (VBT).", { unita: "kg" }) +
+    area("🦘 Salti / reattività", saltiPuri, "CMJ, SJ, drop jump, RSI, broad jump…") +
+    area("📊 VBT — velocità bilanciere", vbt, "Velocità media alle alzate in palestra.", { unita: "m/s" });
+  return out || `<div class="card"><p class="et">Ancora nessun dato registrato per questo atleta. I test compaiono qui man mano che li salvi (test, scheda, Stima 1RM).</p></div>`;
 }
 
 function vistaTest() {
