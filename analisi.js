@@ -1168,3 +1168,160 @@ async function salvaFVSprint() {
   if (r.Pkg != null && typeof creaTest === "function") await creaTest(a.id, { nome: "Pmax/kg (sprint)", valore: Math.round(r.Pkg * 10) / 10, unita: "W/kg", data: oggi });
   alert(`Test F-V Sprint salvato per ${a.nome}.`); disegna();
 }
+
+// ================== TEST DEL LANCIATO (velocità massima) — per i velocisti ==================
+// L'atleta arriva lanciato (rincorsa variabile) e si cronometra un tratto a velocità piena (10-50 m).
+// Misura la VELOCITÀ MASSIMA (m/s): è la proprietà "V0 / velocità massima" del profilo Forza-Velocità (Morin-Samozino).
+const LANCIATO_DIST = ["10", "20", "30", "40", "50"];
+let lanciatoState = { atletaRif: "", dist: "30", rincorsa: "", tempi: ["", "", ""] };
+function setLanciatoAtleta(id) { lanciatoState.atletaRif = id; disegna(); }
+function setLanciatoDist(v) { lanciatoState.dist = v; disegna(); }
+function setLanciatoRincorsa(v) { lanciatoState.rincorsa = v; }
+function setLanciatoTempo(i, v) { lanciatoState.tempi[i] = v; }
+function _lnum(x) { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? null : n; }
+
+function _calcLanciato() {
+  const dist = _lnum(lanciatoState.dist) || 0;
+  const tempi = lanciatoState.tempi.map(_lnum).filter(t => t != null && t > 0);
+  if (!(dist > 0) || !tempi.length) return { ok: false };
+  const vel = tempi.map(t => dist / t);
+  const vmax = Math.max.apply(null, vel), bestT = Math.min.apply(null, tempi);
+  let cv = null, media = null;
+  if (vel.length >= 2) {
+    media = vel.reduce((s, x) => s + x, 0) / vel.length;
+    const sd = Math.sqrt(vel.reduce((s, x) => s + (x - media) * (x - media), 0) / (vel.length - 1));
+    cv = media > 0 ? sd / media * 100 : null;
+  }
+  return { ok: true, dist, tempi, vel, vmax, bestT, kmh: vmax * 3.6, cv, media, n: tempi.length };
+}
+// banda indicativa di velocità massima "sul lanciato" per velocisti allenati (tratto a velocità piena)
+function _lanciatoBanda(sesso, v) {
+  const M = [[11.5, "élite", "var(--verde)"], [10.8, "ottimo", "var(--verde)"], [10.0, "buono", "var(--blu)"], [9.0, "discreto", "var(--ambra,#e6a83c)"], [0, "base", "var(--txt3)"]];
+  const F = [[10.3, "élite", "var(--verde)"], [9.7, "ottimo", "var(--verde)"], [9.0, "buono", "var(--blu)"], [8.1, "discreto", "var(--ambra,#e6a83c)"], [0, "base", "var(--txt3)"]];
+  const tab = (sesso === "F" ? F : M);
+  for (const row of tab) if (v >= row[0]) return { lab: row[1], col: row[2] };
+  return { lab: "base", col: "var(--txt3)" };
+}
+// miglior PB (tempo) per una gara dallo storico PB dell'atleta
+function _lanciatoPB(a, nome) {
+  const p = ((a.scheda && a.scheda.pb) || []).filter(x => x[0] === nome).map(x => _lnum(x[1])).filter(x => x != null && x > 0);
+  return p.length ? Math.min.apply(null, p) : null;
+}
+// "riserva di velocità": quanto della velocità massima l'atleta esprime in gara (100 m, o 60 m)
+function _lanciatoRiserva(a, vmax) {
+  const defs = [["100 m", 100, 85], ["60 m", 60, 90]];
+  for (const [nome, metri, tipico] of defs) {
+    const t = _lanciatoPB(a, nome);
+    if (t) { const avg = metri / t; return { gara: nome, avg, ratio: avg / vmax * 100, tipico }; }
+  }
+  return null;
+}
+
+async function salvaLanciato() {
+  const a = DEMO.atleti.find(x => x.id === lanciatoState.atletaRif);
+  if (!a) { alert("Scegli un atleta."); return; }
+  const r = _calcLanciato();
+  if (!r.ok) { alert("Inserisci la distanza del tratto e almeno un tempo."); return; }
+  if (typeof salvaSessione === "function") salvaSessione(a.id, "lanciato", {
+    dist: r.dist, rincorsa: _lnum(lanciatoState.rincorsa), tempi: r.tempi, best: Math.round(r.bestT * 100) / 100,
+    vmax: Math.round(r.vmax * 100) / 100, kmh: Math.round(r.kmh * 10) / 10, cv: r.cv != null ? Math.round(r.cv * 10) / 10 : null
+  });
+  const oggi = new Date().toISOString().slice(0, 10);
+  const note = `lanciato ${r.dist} m · best ${r.bestT.toFixed(2)} s${r.cv != null ? ` · CV ${r.cv.toFixed(1)}%` : ""}`;
+  if (typeof creaTest === "function") await creaTest(a.id, { nome: `Vel. max lanciato ${r.dist} m`, valore: Math.round(r.vmax * 100) / 100, unita: "m/s", data: oggi, note });
+  alert(`Salvato: velocità max ${r.vmax.toFixed(2)} m/s (${r.kmh.toFixed(1)} km/h) per ${a.nome}.`);
+  lanciatoState.tempi = ["", "", ""]; disegna();
+}
+
+function vistaTestLanciato() {
+  const a = DEMO.atleti.find(x => x.id === lanciatoState.atletaRif);
+  const r = a ? _calcLanciato() : { ok: false };
+  const sesso = (a && typeof _waSesso === "function") ? _waSesso(a) : "M";
+
+  // tre caselle tempo
+  const inputTempi = lanciatoState.tempi.map((t, i) => `
+    <div><label class="lab">Prova ${i + 1} (s)</label>
+      <input inputmode="decimal" value="${t}" placeholder="${i === 0 ? "es. 2.60" : "opz."}" oninput="setLanciatoTempo(${i},this.value)" onchange="disegna()" style="margin-top:6px"></div>`).join("");
+
+  // risultato + lettura
+  let risultato = "";
+  if (r.ok) {
+    const b = _lanciatoBanda(sesso, r.vmax);
+    // affidabilità
+    let aff = "";
+    if (r.n >= 2 && r.cv != null) {
+      const [lab, col] = r.cv <= 2 ? ["ottima", "var(--verde)"] : r.cv <= 4 ? ["buona", "var(--blu)"] : ["bassa (rifai)", "var(--rosso)"];
+      aff = `<p class="et" style="margin-top:6px">Affidabilità: <b style="color:${col}">${lab}</b> · scarto tra le prove CV ${r.cv.toFixed(1)}% <span style="color:var(--txt3)">(buono se ≤2%)</span></p>`;
+    } else {
+      aff = `<p class="et" style="margin-top:6px;color:var(--txt3)">Metti 2-3 prove per avere l'affidabilità (CV): così sei sicuro che il dato è vero e non un errore di cronometro.</p>`;
+    }
+    const vals = r.vel.map((v, i) => `${v.toFixed(2)}`).join(" · ");
+    // trend vs ultima sessione salvata (stessa distanza)
+    let trend = "";
+    const prevAll = (typeof sessioniDi === "function") ? sessioniDi(a.id, "lanciato") : [];
+    const prevSame = prevAll.filter(s => s.dati && Number(s.dati.dist) === r.dist && s.dati.vmax != null);
+    if (prevSame.length) {
+      const d = r.vmax - prevSame[0].dati.vmax;
+      const col = d > 0.03 ? "var(--verde)" : d < -0.03 ? "var(--rosso)" : "var(--txt3)";
+      const freccia = d > 0.03 ? "↑" : d < -0.03 ? "↓" : "→";
+      trend = `<p class="et" style="margin-top:4px">Rispetto all'ultima volta (${prevSame[0].data}): <b style="color:${col}">${freccia} ${d > 0 ? "+" : ""}${d.toFixed(2)} m/s</b></p>`;
+    }
+    // riserva di velocità (gara)
+    const ris = _lanciatoRiserva(a, r.vmax);
+    let riserva = "";
+    if (ris) {
+      const basso = ris.ratio < ris.tipico - 2, alto = ris.ratio > ris.tipico + 2;
+      riserva = `<p class="et" style="margin-top:4px">In gara (${ris.gara}) viaggi a <b>${ris.avg.toFixed(2)} m/s</b> di media = <b>${ris.ratio.toFixed(0)}%</b> della tua velocità massima <span style="color:var(--txt3)">(tipico ~${ris.tipico}%)</span>. ${basso ? "Margine ampio: hai più da guadagnare da <b>accelerazione e tenuta</b> della velocità." : alto ? "Sfrutti già quasi tutto: il limite è il <b>tetto di velocità massima</b>." : "In linea."}</p>`;
+    }
+    // cosa fare
+    const vmaxBasso = (sesso === "F" ? r.vmax < 9.0 : r.vmax < 10.0);
+    const cosaFare = vmaxBasso
+      ? `<b>Priorità: alzare la velocità massima.</b> Allunghi / lanciati 20-40 m a velocità piena, sprint-float-sprint, wicket run e andature tecniche, pliometria, e forza orientata alla velocità (V0). Cura la tecnica di corsa in massima velocità (frequenza × ampiezza).`
+      : (ris && ris.ratio < ris.tipico - 2
+        ? `<b>Velocità massima buona: il margine è in gara.</b> Lavora <b>accelerazione</b> (partenze/blocchi, sled 10-20% del peso per la forza orizzontale F0) e <b>speed endurance</b> per reggere la velocità più a lungo.`
+        : `<b>Velocità massima buona.</b> Mantienila con lanciati di qualità e rifinisci accelerazione e speed endurance per esprimerla in gara. Per alzare ancora il tetto: lavoro di massima velocità + forza/pliometria.`);
+
+    risultato = `<div class="card" style="border-color:${b.col}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px">
+        <div><div class="et">Velocità massima (miglior prova)</div>
+          <div style="font-size:30px;font-weight:800;line-height:1.1">${r.vmax.toFixed(2)} <span style="font-size:16px;font-weight:600">m/s</span></div>
+          <div class="et">${r.kmh.toFixed(1)} km/h · tratto ${r.dist} m · best ${r.bestT.toFixed(2)} s</div></div>
+        <span class="pill" style="background:${b.col}22;color:${b.col};font-size:14px;align-self:center">${b.lab}</span>
+      </div>
+      <p class="et" style="margin-top:8px">Velocità per prova: ${vals} m/s</p>
+      ${aff}${trend}${riserva}
+    </div>
+    <div class="card" style="border-color:rgba(77,154,255,.35)">
+      <p style="font-weight:600;margin:0 0 6px">📌 Cosa fare / cosa guardare</p>
+      <p class="et" style="line-height:1.6;margin:0">${cosaFare}</p>
+      <p class="et" style="line-height:1.6;margin:8px 0 0;color:var(--txt3)">Questa è la tua <b>velocità massima</b> = la proprietà <b>V0</b> del profilo Forza-Velocità (Morin-Samozino). Abbinala al <b>Profilo F-V sprint</b> (F0/V0/Pmax) e al <b>30 m dai blocchi</b>: se V0 è alto ma la partenza no → lavora la <b>forza orizzontale (F0)</b>; se V0 è il limite → lavora la <b>velocità massima</b>.</p>
+    </div>`;
+  }
+
+  // storico
+  const storia = (a && typeof sessioniDi === "function") ? sessioniDi(a.id, "lanciato") : [];
+  const storiaHtml = storia.length ? `<div class="card"><p class="et" style="margin-bottom:6px">Storico lanciati · ${a.nome}</p>
+      <table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Tratto</th><th>Best (s)</th><th>Vel. max</th><th>CV</th><th></th></tr></thead>
+      <tbody>${storia.map(s => { const d = s.dati || {}; return `<tr><td>${s.data}</td><td class="pauto">${d.dist} m</td><td class="pauto">${d.best != null ? d.best : "—"}</td><td class="pauto"><b>${d.vmax != null ? d.vmax + " m/s" : "—"}</b></td><td class="pauto">${d.cv != null ? d.cv + "%" : "—"}</td><td><button class="chiudi" style="font-size:13px" onclick="eliminaSessione('${s.id}')" aria-label="Elimina">✕</button></td></tr>`; }).join("")}</tbody></table></div>` : "";
+
+  return `
+  <div class="card"><h3>Test del lanciato · velocità massima</h3>
+    <p class="et" style="margin-top:2px">L'atleta arriva <b>lanciato</b> (con una rincorsa) e cronometri un tratto a velocità piena (10-50 m). Misura la <b>velocità massima</b> e ti dice come sta andando e cosa allenare.</p></div>
+  ${typeof bloccoComeSiFa === "function" ? bloccoComeSiFa("test-lanciato") : ""}
+  <div class="card">
+    <label class="lab">Atleta</label>
+    <select onchange="setLanciatoAtleta(this.value)" style="margin-top:6px">
+      <option value="">— scegli —</option>${DEMO.atleti.map(x => `<option value="${x.id}" ${lanciatoState.atletaRif === x.id ? "selected" : ""}>${x.nome}</option>`).join("")}</select>
+    <div class="griglia2" style="margin-top:12px">
+      <div><label class="lab">Tratto cronometrato</label>
+        <select onchange="setLanciatoDist(this.value)" style="margin-top:6px">${LANCIATO_DIST.map(d => `<option value="${d}" ${lanciatoState.dist === d ? "selected" : ""}>${d} m lanciati</option>`).join("")}</select></div>
+      <div><label class="lab">Rincorsa (m) <span style="color:var(--txt3)">opz.</span></label>
+        <input inputmode="numeric" value="${lanciatoState.rincorsa}" placeholder="es. 20-30" oninput="setLanciatoRincorsa(this.value)" onchange="disegna()" style="margin-top:6px"></div>
+    </div>
+    <div class="griglia3" style="margin-top:12px">${inputTempi}</div>
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Metti 2-3 prove ben recuperate: si tiene la <b>migliore</b> e si controlla l'affidabilità. Stesse condizioni ogni volta (pista, scarpe, vento, rincorsa).</p>
+    ${a ? `<button class="btn" style="margin-top:12px" onclick="salvaLanciato()">Salva il test</button>` : `<p class="et" style="margin-top:10px">Scegli un atleta per salvare.</p>`}
+  </div>
+  ${risultato}
+  ${storiaHtml}`;
+}

@@ -90,7 +90,7 @@ const MENU_COACH = [
     ["pista", "Pista"], ["palestra", "Palestra"], ["adatta", "Adatta contenuto (per atleta)"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["per-disciplina", "Per disciplina"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
   { g: "Analisi", ic: "◭", subs: [
-    ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
+    ["test", "Test"], ["test-lanciato", "Test del lanciato (vel. max)"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["test-lattato", "Test lattato"], ["critical-speed", "Velocità critica"], ["riepilogo-test", "Riepilogo test"], ["profilo-attrezzo", "Profilo attrezzo (lanci)"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["guida-test", "Guida test mezzofondo"]] },
   { g: "Monitoraggio", ic: "◍", subs: [
@@ -107,7 +107,7 @@ const DA_EXCEL = {
   squadra: "Cruscotto", atleti: "Atleta", io: "Atleta",
   pista: "Pista", palestra: "Palestra", riscaldamento: "Riscaldamento",
   template: "Template microcicli", piano: "Piano & Picco", "per-disciplina": "Per distanza + Periodizzazione & Volumi", "guida-mezzi": "Guida mezzi", "guida-test": "Guida test", "guida-mezzi-lanci": "Guida mezzi (lanci)", "esercizi-speciali": "Esercizi speciali",
-  test: "Test", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "Test (CMJ/SJ)", "sprint-test": "Test (sprint)", stima1rm: "Stima 1RM",
+  test: "Test", "test-lanciato": "(nuovo: velocità massima dal lanciato)", fv: "Profilo F-V", "fv-sprint": "Profilo F-V Sprint", dropjump: "Drop Jump & RSI", cmj: "Test (CMJ/SJ)", "sprint-test": "Test (sprint)", stima1rm: "Stima 1RM",
   "vel-target": "Velocita target", "ritmi-mezzo": "Ritmi target (mezzofondo)", "test-lattato": "Test lattato", "critical-speed": "Critical Speed", "riepilogo-test": "Riepilogo test (mezzofondo)", "profilo-attrezzo": "Profilo attrezzo", traino: "Traino (Sled)", vbt: "Monitoraggio VBT",
   "andamento-pista": "Andamento Pista", "andamento-palestra": "Andamento Palestra", screening: "(nuovo: settimana/mesociclo)", carico: "Carico & Forma",
   infortuni: "Infortuni & Prevenzione", prevenzione: "Infortuni & Prevenzione (asimmetrie)", presenze: "Presenze", "diario-c": "Diario",
@@ -123,7 +123,7 @@ const LIB = {
   "lib-plio": ["pliometria", "Pliometria"]
 };
 
-const TITOLI_EXTRA = { cmj: "CMJ e SJ", "sprint-test": "Sprint — tempi" };
+const TITOLI_EXTRA = { cmj: "CMJ e SJ", "sprint-test": "Sprint — tempi", "test-lanciato": "Test del lanciato" };
 function titoloVista(v, menu) {
   for (const m of menu) {
     if (m.k === v) return m.l;
@@ -970,6 +970,7 @@ function disegna() {
   else if (coach && S.vista === "dropjump") corpo = vistaDropJump();
   else if (coach && S.vista === "cmj") corpo = vistaCMJ();
   else if (coach && S.vista === "sprint-test") corpo = vistaSprintTest();
+  else if (coach && S.vista === "test-lanciato") corpo = vistaTestLanciato();
   else if (coach && S.vista === "vbt") corpo = vistaMonitoraggioVBT();
   else if (coach && S.vista === "test") corpo = vistaTest();
   else if (coach && S.vista === "template") corpo = vistaTemplate();

@@ -227,6 +227,7 @@ select{padding:11px 12px;border:1px solid var(--line2);border-radius:var(--r);ba
   display:flex;align-items:center;justify-content:center;flex:none}
 .top-av{flex:none;cursor:pointer}
 .griglia2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.griglia3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
 
 /* ---- seduta ---- */
 .indietro{background:none;border:0;color:var(--blu);font-size:15px;padding:0 0 10px}
