@@ -90,7 +90,7 @@ const MENU_COACH = [
     ["pista", "Pista"], ["palestra", "Palestra"], ["adatta", "Adatta contenuto (per atleta)"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["per-disciplina", "Per disciplina"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
   { g: "Analisi", ic: "◭", subs: [
-    ["test", "Test"], ["test-lanciato", "Test del lanciato (vel. max)"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["dropjump", "Drop Jump & RSI"],
+    ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["test-lanciato", "Test del lanciato (vel. max)"], ["dropjump", "Drop Jump & RSI"],
     ["stima1rm", "Stima 1RM"], ["vel-target", "Velocità target"], ["ritmi-mezzo", "Ritmi mezzofondo"], ["test-lattato", "Test lattato"], ["critical-speed", "Velocità critica"], ["riepilogo-test", "Riepilogo test"], ["profilo-attrezzo", "Profilo attrezzo (lanci)"], ["traino", "Traino"],
     ["vbt", "Monitoraggio VBT"], ["guida-test", "Guida test mezzofondo"]] },
   { g: "Monitoraggio", ic: "◍", subs: [

@@ -30,8 +30,8 @@ const TEST_HUB = [
     ["prevenzione", "Prevenzione / asimmetrie", "peso + screening dx/sx a freddo"],
     ["cmj", "CMJ e SJ (salti verticali)", "forza esplosiva + uso dell'elastico"],
     ["sprint-test", "Sprint — tempi", "20 m blocchi, 30 m lanciato…"],
-    ["test-lanciato", "Test del lanciato (vel. max)", "10-50 m lanciati → velocità massima + cosa allenare"],
     ["fv-sprint", "Profilo F-V Sprint", "F0 / V0 / Pmax dallo sprint"],
+    ["test-lanciato", "Test del lanciato (vel. max)", "10-50 m lanciati → velocità massima + cosa allenare"],
     ["dropjump", "Drop Jump & RSI", "reattività, altezza di caduta ottimale"],
     ["traino", "Traino / Sled", "carichi per zona (per ultimo, affatica)"]
   ]],

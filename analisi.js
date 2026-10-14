@@ -1233,6 +1233,70 @@ async function salvaLanciato() {
   lanciatoState.tempi = ["", "", ""]; disegna();
 }
 
+// commento automatico: incrocia storico lanciato + PB 60 m indoor/100 m outdoor + Profilo F-V sprint
+// e dice cosa sta succedendo (miglioramenti) e dove spingere (primi 30 m / accelerazione vs lanciato / velocità max vs tenuta).
+function _commentoLanciato(a, r) {
+  const sesso = (typeof _waSesso === "function") ? _waSesso(a) : "M";
+  const vmaxBasso = (sesso === "F" ? r.vmax < 9.0 : r.vmax < 10.0);
+  const righe = [];
+  // 1) miglioramenti dallo storico lanciato
+  const stor = (typeof sessioniDi === "function" ? sessioniDi(a.id, "lanciato") : []).filter(s => s.dati && s.dati.vmax != null);
+  if (stor.length) {
+    const dLast = r.vmax - stor[0].dati.vmax, dFirst = r.vmax - stor[stor.length - 1].dati.vmax;
+    if (Math.abs(dLast) >= 0.03) righe.push(`${dLast > 0 ? "📈 <b>In crescita</b>" : "📉 <b>In calo</b>"}: ${dLast > 0 ? "+" : ""}${dLast.toFixed(2)} m/s dall'ultimo lanciato${stor.length > 1 && Math.abs(dFirst) >= 0.03 ? ` (${dFirst > 0 ? "+" : ""}${dFirst.toFixed(2)} dall'inizio)` : ""}.`);
+    else righe.push(`Velocità massima <b>stabile</b> rispetto all'ultimo test.`);
+  } else righe.push(`Primo lanciato salvato: sarà il riferimento per vedere i miglioramenti.`);
+  // 2) riferimenti di gara: 60 m indoor + 100 m outdoor
+  const t60 = _lanciatoPB(a, "60 m"), t100 = _lanciatoPB(a, "100 m");
+  const REF60 = 80, REF100 = 86;
+  let pct60 = null, pct100 = null;
+  if (t60) { pct60 = (60 / t60) / r.vmax * 100; righe.push(`<b>60 m indoor</b> ${t60.toFixed(2)} s → media ${(60 / t60).toFixed(2)} m/s = <b>${pct60.toFixed(0)}%</b> della velocità massima <span style="color:var(--txt3)">(tipico ~${REF60}%)</span>.`); }
+  if (t100) { pct100 = (100 / t100) / r.vmax * 100; righe.push(`<b>100 m outdoor</b> ${t100.toFixed(2)} s → media ${(100 / t100).toFixed(2)} m/s = <b>${pct100.toFixed(0)}%</b> della velocità massima <span style="color:var(--txt3)">(tipico ~${REF100}%)</span>.`); }
+  if (!t60 && !t100) righe.push(`<span style="color:var(--txt3)">Aggiungi i PB di <b>60 m</b> e <b>100 m</b> nella scheda atleta: così leggo accelerazione / velocità massima / tenuta.</span>`);
+  const def60 = (pct60 != null) ? REF60 - pct60 : null;
+  const def100 = (pct100 != null) ? REF100 - pct100 : null;
+  const enduranceDef = (def100 != null && def60 != null) ? def100 - def60 : null;   // perdita extra passando dal 60 al 100 = tenuta
+  // 3) incrocio col Profilo F-V sprint (se c'è)
+  const fv = (typeof sessioniDi === "function" ? sessioniDi(a.id, "fv-sprint") : [])[0];
+  if (fv && fv.dati) {
+    const d = fv.dati, pz = [];
+    if (d.V0 != null) pz.push(`V0 ${Number(d.V0).toFixed(2)}`);
+    if (d.F0kg != null) pz.push(`F0 ${Number(d.F0kg).toFixed(1)} N/kg`);
+    if (d.Pmaxkg != null) pz.push(`Pmax ${Number(d.Pmaxkg).toFixed(1)} W/kg`);
+    let confr = "";
+    if (d.V0 != null) { const gap = r.vmax - Number(d.V0); confr = Math.abs(gap) < 0.4 ? " — coerente col lanciato" : (gap < 0 ? " — nel lanciato vai <b>sotto</b> la tua V0: potenziale di velocità da esprimere" : ""); }
+    if (pz.length) righe.push(`Dal <b>Profilo F-V sprint</b>: ${pz.join(" · ")}${confr}.`);
+  }
+
+  // 4) DUE verdetti separati: per il 60 (indoor) e per il 100 (outdoor), così a seconda del momento della stagione sai dove spingere
+  // 60 m: dominano ACCELERAZIONE + VELOCITÀ MASSIMA (la tenuta non è il limite su 60 m)
+  let v60;
+  if (def60 != null && def60 >= 3) v60 = { t: `Limite: <b>accelerazione</b> — raggiungi la velocità troppo tardi.${vmaxBasso ? " Anche il tetto di velocità è basso." : ""}`, col: "var(--blu)", come: `Partenze e blocchi, forza orizzontale (F0), sled 10-20% del peso, primi 10-30 m aggressivi.${vmaxBasso ? " In parallelo lanciati per alzare la velocità massima." : ""}` };
+  else if (vmaxBasso) v60 = { t: `Parti bene: il limite è la <b>velocità massima</b> (tetto basso).`, col: "var(--ambra,#e6a83c)", come: `Lanciati 20-40 m a velocità piena, tecnica di massima velocità, pliometria, forza orientata a V0.` };
+  else if (t60) v60 = { t: `Profilo <b>equilibrato</b> per il 60: buona partenza e buon tetto.`, col: "var(--verde)", come: `Mantieni accelerazione e velocità massima di qualità; cura reazione e primi appoggi.` };
+  else v60 = { t: vmaxBasso ? `Per il 60 il limite probabile è la <b>velocità massima</b>.` : `Per il 60 contano <b>accelerazione</b> e <b>velocità massima</b>.`, col: "var(--txt3)", come: `Aggiungi il PB dei 60 m per dirti esattamente dove spingere. Intanto: partenze + lanciati di qualità.` };
+  // 100 m: ACCELERAZIONE + VELOCITÀ MASSIMA + TENUTA (speed endurance nel finale)
+  let v100;
+  if (vmaxBasso) v100 = { t: `Il <b>tetto di velocità</b> frena tutta la gara.`, col: "var(--ambra,#e6a83c)", come: `Priorità velocità massima (lanciati, tecnica, forza/pliometria); poi accelerazione e tenuta.` };
+  else if (def60 != null && def60 >= 3) v100 = { t: `Perdi già in partenza: lavora l'<b>accelerazione (primi 30 m)</b>.`, col: "var(--blu)", come: `Blocchi/partenze, F0, sled; poi cura la tenuta nel finale.` };
+  else if ((enduranceDef != null && enduranceDef >= 3) || (def100 != null && def60 == null && def100 >= 4)) v100 = { t: `Parti e vai forte ma <b>cali nel finale</b>: lavora la <b>tenuta (speed endurance)</b>.`, col: "var(--blu)", come: `Prove 80-150 m a velocità sub-max/max, speed endurance specifica (lattacido breve), finali di gara.` };
+  else if (t100 || t60) v100 = { t: `Profilo <b>equilibrato</b> per il 100.`, col: "var(--verde)", come: `Mantieni; rifinisci partenza e tenuta negli ultimi 30-40 m.` };
+  else v100 = { t: `Per il 100 contano <b>accelerazione</b>, <b>velocità massima</b> e <b>tenuta</b>.`, col: "var(--txt3)", come: `Aggiungi i PB di 60 e 100 m per separare i tre aspetti. Intanto lavoro completo.` };
+
+  const blocco = (titolo, v) => `<div style="border-top:1px solid var(--line2);padding-top:8px;margin-top:8px">
+    <p style="font-weight:600;margin:0 0 2px">${titolo}</p>
+    <p style="margin:0 0 4px;line-height:1.45;color:${v.col}">${v.t}</p>
+    <p class="et" style="margin:0;line-height:1.55"><b>Cosa fare:</b> ${v.come}</p></div>`;
+
+  return `<div class="card" style="border-color:rgba(77,154,255,.35)">
+    <p style="font-weight:700;margin:0 0 6px">💬 Cosa sta succedendo</p>
+    <div>${righe.map(x => `<p class="et" style="line-height:1.55;margin:0 0 5px">• ${x}</p>`).join("")}</div>
+    ${blocco("🏟️ Se deve correre il <u>60 m</u> (indoor)", v60)}
+    ${blocco("🏁 Se deve correre il <u>100 m</u> (outdoor)", v100)}
+    <p class="et" style="line-height:1.5;margin:8px 0 0;color:var(--txt3)">La velocità del lanciato è la proprietà <b>V0</b> (velocità massima) del profilo Forza-Velocità di Morin-Samozino: V0 alto ma partenza no → forza orizzontale (F0); V0 è il limite → velocità massima.</p>
+  </div>`;
+}
+
 function vistaTestLanciato() {
   const a = DEMO.atleti.find(x => x.id === lanciatoState.atletaRif);
   const r = a ? _calcLanciato() : { ok: false };
@@ -1255,32 +1319,7 @@ function vistaTestLanciato() {
     } else {
       aff = `<p class="et" style="margin-top:6px;color:var(--txt3)">Metti 2-3 prove per avere l'affidabilità (CV): così sei sicuro che il dato è vero e non un errore di cronometro.</p>`;
     }
-    const vals = r.vel.map((v, i) => `${v.toFixed(2)}`).join(" · ");
-    // trend vs ultima sessione salvata (stessa distanza)
-    let trend = "";
-    const prevAll = (typeof sessioniDi === "function") ? sessioniDi(a.id, "lanciato") : [];
-    const prevSame = prevAll.filter(s => s.dati && Number(s.dati.dist) === r.dist && s.dati.vmax != null);
-    if (prevSame.length) {
-      const d = r.vmax - prevSame[0].dati.vmax;
-      const col = d > 0.03 ? "var(--verde)" : d < -0.03 ? "var(--rosso)" : "var(--txt3)";
-      const freccia = d > 0.03 ? "↑" : d < -0.03 ? "↓" : "→";
-      trend = `<p class="et" style="margin-top:4px">Rispetto all'ultima volta (${prevSame[0].data}): <b style="color:${col}">${freccia} ${d > 0 ? "+" : ""}${d.toFixed(2)} m/s</b></p>`;
-    }
-    // riserva di velocità (gara)
-    const ris = _lanciatoRiserva(a, r.vmax);
-    let riserva = "";
-    if (ris) {
-      const basso = ris.ratio < ris.tipico - 2, alto = ris.ratio > ris.tipico + 2;
-      riserva = `<p class="et" style="margin-top:4px">In gara (${ris.gara}) viaggi a <b>${ris.avg.toFixed(2)} m/s</b> di media = <b>${ris.ratio.toFixed(0)}%</b> della tua velocità massima <span style="color:var(--txt3)">(tipico ~${ris.tipico}%)</span>. ${basso ? "Margine ampio: hai più da guadagnare da <b>accelerazione e tenuta</b> della velocità." : alto ? "Sfrutti già quasi tutto: il limite è il <b>tetto di velocità massima</b>." : "In linea."}</p>`;
-    }
-    // cosa fare
-    const vmaxBasso = (sesso === "F" ? r.vmax < 9.0 : r.vmax < 10.0);
-    const cosaFare = vmaxBasso
-      ? `<b>Priorità: alzare la velocità massima.</b> Allunghi / lanciati 20-40 m a velocità piena, sprint-float-sprint, wicket run e andature tecniche, pliometria, e forza orientata alla velocità (V0). Cura la tecnica di corsa in massima velocità (frequenza × ampiezza).`
-      : (ris && ris.ratio < ris.tipico - 2
-        ? `<b>Velocità massima buona: il margine è in gara.</b> Lavora <b>accelerazione</b> (partenze/blocchi, sled 10-20% del peso per la forza orizzontale F0) e <b>speed endurance</b> per reggere la velocità più a lungo.`
-        : `<b>Velocità massima buona.</b> Mantienila con lanciati di qualità e rifinisci accelerazione e speed endurance per esprimerla in gara. Per alzare ancora il tetto: lavoro di massima velocità + forza/pliometria.`);
-
+    const vals = r.vel.map((v) => `${v.toFixed(2)}`).join(" · ");
     risultato = `<div class="card" style="border-color:${b.col}">
       <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px">
         <div><div class="et">Velocità massima (miglior prova)</div>
@@ -1289,13 +1328,9 @@ function vistaTestLanciato() {
         <span class="pill" style="background:${b.col}22;color:${b.col};font-size:14px;align-self:center">${b.lab}</span>
       </div>
       <p class="et" style="margin-top:8px">Velocità per prova: ${vals} m/s</p>
-      ${aff}${trend}${riserva}
+      ${aff}
     </div>
-    <div class="card" style="border-color:rgba(77,154,255,.35)">
-      <p style="font-weight:600;margin:0 0 6px">📌 Cosa fare / cosa guardare</p>
-      <p class="et" style="line-height:1.6;margin:0">${cosaFare}</p>
-      <p class="et" style="line-height:1.6;margin:8px 0 0;color:var(--txt3)">Questa è la tua <b>velocità massima</b> = la proprietà <b>V0</b> del profilo Forza-Velocità (Morin-Samozino). Abbinala al <b>Profilo F-V sprint</b> (F0/V0/Pmax) e al <b>30 m dai blocchi</b>: se V0 è alto ma la partenza no → lavora la <b>forza orizzontale (F0)</b>; se V0 è il limite → lavora la <b>velocità massima</b>.</p>
-    </div>`;
+    ${_commentoLanciato(a, r)}`;
   }
 
   // storico
