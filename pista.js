@@ -18,6 +18,8 @@ const PISTA_COEFF = {
 // DEVE restare allineata ai filtri dei tre generatori (velocità / mezzo / lanci).
 function _rigaValidaPista(r, gruppo) {
   if (!r) return false;
+  if (r.fk) return (Array.isArray(r.fkBlocchi) && r.fkBlocchi.length > 0) || !!(r.contenuto && String(r.contenuto).trim());   // fartlek: blocchi veloce/piano a tempo
+  if (r.seg) return Number(r.segSec) > 0 || Number(r.n) > 0 || !!(r.contenuto && String(r.contenuto).trim());   // segment run: corri a TEMPO, misuri i metri
   if (gruppo === "lanci") return !!(r.mezzo && Number(r.n) > 0);
   // mezzo: minuti O distanza O anche solo del testo scritto nel "Contenuto" (es. "10x2 min forte/piano")
   if (gruppo === "mezzo") return Number(r.distanza) > 0 || Number(r.min) > 0 || !!(r.contenuto && String(r.contenuto).trim());
@@ -745,6 +747,26 @@ function pistaStepPerc(s, i, delta) {
   savePista(); disegna();
 }
 function pistaAddRiga(s) { pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe.push(rigaVuota()); savePista(); disegna(); }
+// trasforma una riga in SEGMENT RUN (corri a tempo, misuri i metri) o la riporta a riga normale
+function pistaSetSeg(s, i, on) {
+  const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i];
+  if (!r) return;
+  r.seg = !!on;
+  if (on) { r.fk = false; if (!r.segSec) r.segSec = "60"; if (!r.n) r.n = "4"; }
+  savePista(); disegna();
+}
+// ---- FARTLEK (strutturato a tempo: blocchi veloce/piano, ripetuti N volte) ----
+function _fkRiga(s, i) { return pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe[i]; }
+function pistaSetFk(s, i, on) {
+  const r = _fkRiga(s, i); if (!r) return;
+  r.fk = !!on;
+  if (on) { r.seg = false; if (!Array.isArray(r.fkBlocchi) || !r.fkBlocchi.length) r.fkBlocchi = [{ t: "V", sec: "120" }, { t: "P", sec: "60" }]; if (!r.fkRip) r.fkRip = "6"; }
+  savePista(); disegna();
+}
+function fkAddBlocco(s, i) { const r = _fkRiga(s, i); if (!r) return; r.fkBlocchi = r.fkBlocchi || []; r.fkBlocchi.push({ t: "V", sec: "60" }); savePista(); disegna(); }
+function fkDelBlocco(s, i, bi) { const r = _fkRiga(s, i); if (!r || !r.fkBlocchi) return; if (r.fkBlocchi.length > 1) r.fkBlocchi.splice(bi, 1); savePista(); disegna(); }
+function fkSetBlocco(s, i, bi, campo, val) { const r = _fkRiga(s, i); if (r && r.fkBlocchi && r.fkBlocchi[bi]) { r.fkBlocchi[bi][campo] = val; savePista(); if (campo === "t") disegna(); } }
+function fkSetRip(s, i, val) { const r = _fkRiga(s, i); if (r) { r.fkRip = val; savePista(); } }
 function pistaDelRiga(s, i) { const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePista(); disegna(); }
 function pistaAddMeso() { pistaInit().mesocicli.push(mesoVuoto()); S.pistaMeso = pistaInit().mesocicli.length - 1; S.pistaGiorno = 0; savePista(); disegna(); window.scrollTo(0, 0); }
 function selMeso(i) { S.pistaMeso = i; S.pistaGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei

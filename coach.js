@@ -1875,6 +1875,19 @@ function _cardSvolta(sv) {
   let corpo = "";
   if (sv.tipo === "pista") {
     corpo = (d.elementi || []).map(e => {
+      // segment run: corri a tempo, metri misurati per intervallo (il migliore è il più lungo)
+      if (e.seg) {
+        const mis = (e.misureSeg || []).filter(v => v != null);
+        const tot = mis.reduce((a, b) => a + Number(b), 0), best = mis.length ? Math.max.apply(null, mis) : null;
+        return riga(`🏁 ${e.contenuto || "Segment run"}`, `${e.segSec}s × ${e.intervalli || mis.length}`, mis.length ? `metri ${mis.join(" · ")}` : "—", tot ? tot + " m" : "", "var(--blu)", e);
+      }
+      // fartlek: blocchi veloce/piano, metri misurati per blocco
+      if (e.fk) {
+        const bl = (e.fkBlocchi || []), con = bl.filter(b => b && b.metri != null);
+        const tot = con.reduce((a, b) => a + Number(b.metri), 0);
+        const dett = con.length ? con.map(b => `${b.tipo === "veloce" ? "▲" : "▽"}${b.sec}s ${b.metri}m`).join(" · ") : "—";
+        return riga(`🔀 ${e.contenuto || "Fartlek"}`, `${bl.length} blocchi`, dett, tot ? tot + " m" : "", "var(--ambra,#e6a83c)", e);
+      }
       // lanci: misure in metri (il migliore è il più lungo)
       if (e.misure && e.misure.length) {
         const f = e.misure.filter(v => v != null), best = f.length ? Math.max(...f) : null;

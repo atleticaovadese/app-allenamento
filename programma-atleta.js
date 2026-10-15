@@ -364,12 +364,16 @@ function _applicaSvolta(s) {
   if (s.tipo === "pista" && d.elementi) {
     const used = [];
     (s.elementi || []).forEach((e, i) => {
-      let de = d.elementi.find((c, j) => !used[j] && Number(c.distanza) === Number(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
+      let de = (e.seg || e.fk)
+        ? d.elementi.find((c, j) => !used[j] && (!!c.seg === !!e.seg && !!c.fk === !!e.fk) && (c.contenuto || "") === (e.contenuto || ""))
+        : d.elementi.find((c, j) => !used[j] && !c.seg && !c.fk && Number(c.distanza) === Number(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
       if (!de && d.elementi[i] && !used[i]) de = d.elementi[i];
       if (!de) return;
       used[d.elementi.indexOf(de)] = true;
       if (de.tempi) e.tempi = de.tempi;
       if (de.misure) e.misure = de.misure;
+      if (de.misureSeg) e.misureSeg = de.misureSeg;
+      if (de.fkBlocchi) e.fkBlocchi = de.fkBlocchi;
       if (de.rpe != null) e.rpe = de.rpe;
       if (de.nonCompletato) { e.nonCompletato = true; e.notaAtleta = de.notaAtleta || ""; }
     });

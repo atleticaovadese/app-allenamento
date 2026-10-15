@@ -547,7 +547,7 @@ function andaMetriche(a, cat) {
 const DIST_ANDA = [10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 220, 250, 280, 300, 350, 400, 500, 600, 800, 1000, 1200, 1500, 1600, 2000, 3000, 5000, 10000];
 const MET_PISTA = [["tempo", "Tempo (s)"], ["volume", "Volume (m)"], ["velocita", "Vel (m/s)"]];
 const MET_PAL = [["serie", "Serie"], ["rep", "Rep"], ["peso", "Peso (kg)"], ["volume", "Volume (kg)"], ["rpe", "RPE"], ["vbt", "VBT (m/s)"]];
-let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo" };
+let andaPistaState = { atletaRif: "", distanza: 60, metrica: "tempo", seg: false, fk: false };
 let andaPalState = { atletaRif: "", esercizio: "", metrica: "peso", kg: "" };
 function _distPiuDati(id) {
   const c = _distConteggio(id);   // per numero di SEDUTE (date distinte): meglio per vedere l'andamento
@@ -556,12 +556,67 @@ function _distPiuDati(id) {
 }
 function setAndaPiAtleta(id) {
   andaPistaState.atletaRif = id;
+  andaPistaState.seg = false; andaPistaState.fk = false;   // nuovo atleta: riparti dalla vista tempi
   const dd = id ? pistaLogDistanze(id) : [];   // se la distanza scelta non ha dati per lui, vai su quella più ricca
   if (dd.length && !dd.includes(andaPistaState.distanza)) andaPistaState.distanza = _distPiuDati(id) || dd[0];
   disegna();
 }
 function setAndaPiDist(d) { andaPistaState.distanza = Number(d); disegna(); }
 function setAndaPiMetrica(m) { andaPistaState.metrica = m; disegna(); }
+function setAndaPiSeg(on) { andaPistaState.seg = (on === true || on === "true" || on === "on"); if (andaPistaState.seg) andaPistaState.fk = false; disegna(); }
+function setAndaPiFk(on) { andaPistaState.fk = (on === true || on === "true" || on === "on"); if (andaPistaState.fk) andaPistaState.seg = false; disegna(); }
+// segment run / fartlek di un atleta, in ordine di data
+function segLogVoci(atletaId) {
+  return (DEMO.segLog || []).filter(l => l.atletaId === atletaId)
+    .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+}
+function fkLogVoci(atletaId) {
+  return (DEMO.fkLog || []).filter(l => l.atletaId === atletaId)
+    .slice().sort((a, b) => (a.data || "") < (b.data || "") ? -1 : (a.data || "") > (b.data || "") ? 1 : 0);
+}
+// caselle "Vedi segment run / fartlek" (compaiono solo se l'atleta ne ha fatte)
+function _andaSegToggle(atl) {
+  const hasSeg = (DEMO.segLog || []).some(l => l.atletaId === atl.id);
+  const hasFk = (DEMO.fkLog || []).some(l => l.atletaId === atl.id);
+  if (!hasSeg && !hasFk) return "";
+  return `<div class="card"><div style="display:flex;gap:18px;flex-wrap:wrap">
+    ${hasSeg ? `<label class="check" style="margin:0"><input type="checkbox" ${andaPistaState.seg ? "checked" : ""} onchange="setAndaPiSeg(this.checked)"><span>🏁 Segment run</span></label>` : ""}
+    ${hasFk ? `<label class="check" style="margin:0"><input type="checkbox" ${andaPistaState.fk ? "checked" : ""} onchange="setAndaPiFk(this.checked)"><span>🔀 Fartlek</span></label>` : ""}
+  </div></div>`;
+}
+// corpo andamento FARTLEK: distanza totale (e veloce) nel tempo
+function _andaFkCorpo(atl) {
+  const voci = fkLogVoci(atl.id);
+  if (!voci.length) return `<div class="card"><p class="et">Nessun <b>fartlek</b> registrato. Compaiono qui quando si chiude una seduta con un lavoro «🔀 fartlek».</p></div>`;
+  const dl = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
+  const serie = voci.map(v => ({ label: dl(v.data), val: v.totale }));
+  return `<div class="card">
+    <p class="et" style="margin-bottom:6px">🔀 Fartlek · distanza totale (più alto = meglio)</p>
+    ${_variazionePeriodo(serie, "velocita", atl)}
+    ${voci.length >= 2 ? chartSerie(serie) : ""}
+    <div class="p-scroll"><table class="ptab" style="margin-top:10px"><thead><tr><th>Data</th><th>Blocchi</th><th>Veloce (m)</th><th>Totale</th></tr></thead>
+      <tbody>${voci.map(v => `<tr><td>${dl(v.data)}</td><td class="pauto">${v.nBlocchi}</td><td class="pauto">${v.veloce != null ? v.veloce.toLocaleString("it-IT") : "—"}</td><td class="pauto"><b>${(v.totale || 0).toLocaleString("it-IT")} m</b></td></tr>`).join("")}</tbody></table></div>
+  </div>`;
+}
+// corpo andamento SEGMENT RUN: raggruppate per durata (sec), grafico distanza totale + tabella metri per intervallo
+function _andaSegCorpo(atl) {
+  const voci = segLogVoci(atl.id);
+  if (!voci.length) return `<div class="card"><p class="et">Nessuna <b>segment run</b> registrata. Compaiono qui quando si chiude una seduta con un lavoro «🏁 segment run» (corri a tempo, segni i metri).</p></div>`;
+  const dl = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
+  const byDur = {};
+  voci.forEach(v => { (byDur[v.segSec] = byDur[v.segSec] || []).push(v); });
+  return Object.keys(byDur).sort((a, b) => Number(a) - Number(b)).map(dur => {
+    const lista = byDur[dur];
+    const serie = lista.map(v => ({ label: dl(v.data), val: v.totale }));
+    return `<div class="card">
+      <p class="et" style="margin-bottom:6px">🏁 Segment run · <b>${dur}s</b> per intervallo · distanza totale (più alto = meglio)</p>
+      ${_variazionePeriodo(serie, "velocita", atl)}
+      ${lista.length >= 2 ? chartSerie(serie) : ""}
+      <div class="p-scroll"><table class="ptab" style="margin-top:10px"><thead><tr><th>Data</th><th>Intervalli</th><th>Metri per intervallo</th><th>Totale</th></tr></thead>
+        <tbody>${lista.map(v => `<tr><td>${dl(v.data)}</td><td class="pauto">${v.intervalli}×${dur}s</td><td class="et" style="white-space:normal;min-width:120px">${(v.misure || []).join(" · ")}</td><td class="pauto"><b>${(v.totale || 0).toLocaleString("it-IT")} m</b></td></tr>`).join("")}</tbody></table></div>
+    </div>`;
+  }).join("");
+}
 function setAndaPaAtleta(id) { andaPalState.atletaRif = id; andaPalState.esercizio = ""; andaPalState.kg = ""; disegna(); }
 function setAndaPaEs(e) { andaPalState.esercizio = e; andaPalState.kg = ""; disegna(); }
 function setAndaPaMetrica(m) { andaPalState.metrica = m; disegna(); }
@@ -769,7 +824,7 @@ function vistaAndamentoPista() {
       <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${andaPistaState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
   </div>
   ${!atl ? `<div class="card"><p class="et">Scegli un atleta.</p></div>`
-    : _andaPistaSelettori(atl, dist, met, false) + _andaPistaCorpo(atl, dist, met)}`;
+    : _andaSegToggle(atl) + (andaPistaState.fk ? _andaFkCorpo(atl) : andaPistaState.seg ? _andaSegCorpo(atl) : _andaPistaSelettori(atl, dist, met, false) + _andaPistaCorpo(atl, dist, met))}`;
 }
 // vista per l'ATLETA: il suo andamento (nessun selettore atleta, solo distanze con i suoi dati)
 function vistaAndamentoAtleta() {
@@ -785,9 +840,9 @@ function vistaAndamentoAtleta() {
   return `
   <div class="card"><h3>📈 Il mio andamento</h3>
     <p class="et" style="margin-top:2px">Come cambiano i tuoi tempi in pista, seduta per seduta. Scegli la distanza e cosa vedere nel grafico.</p></div>
-  ${!disp.length
+  ${(!disp.length && !(DEMO.segLog || []).some(l => l.atletaId === atl.id) && !(DEMO.fkLog || []).some(l => l.atletaId === atl.id))
     ? `<div class="card"><p class="et">Ancora nessun tempo registrato. Compaiono qui quando chiudi le sedute di pista segnando i tempi delle ripetute.</p></div>`
-    : _andaPistaSelettori(atl, dist, met, true) + _andaPistaCorpo(atl, dist, met)}`;
+    : _andaSegToggle(atl) + (andaPistaState.fk ? _andaFkCorpo(atl) : andaPistaState.seg ? _andaSegCorpo(atl) : _andaPistaSelettori(atl, dist, met, true) + _andaPistaCorpo(atl, dist, met))}`;
 }
 
 // ANDAMENTO PALESTRA — per esercizio (Serie/Rep/Peso/Volume/RPE/VBT), si compila dalle sedute di palestra

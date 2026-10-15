@@ -362,6 +362,40 @@ function vistaProgrammaPistaMezzo() {
     const scar = isScaricoIdx(m, s);
     const nota = (sett.nota || "").trim();
     const righe = sett.righe.map((r, i) => {
+      // FARTLEK (strutturato a tempo): blocchi veloce/piano ripetuti N volte. Riga dedicata.
+      if (r.fk) {
+        const blocchi = (r.fkBlocchi || []).map((b, bi) => `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--card2);border-radius:8px;padding:3px 5px">
+            <select onchange="fkSetBlocco(${s},${i},${bi},'t',this.value)" style="width:auto;padding:4px 4px;font-size:12px"><option value="V" ${b.t === "V" ? "selected" : ""}>veloce</option><option value="P" ${b.t === "P" ? "selected" : ""}>piano</option></select>
+            <input inputmode="numeric" value="${b.sec || ""}" placeholder="sec" oninput="fkSetBlocco(${s},${i},${bi},'sec',this.value)" onchange="disegna()" style="width:48px;min-width:48px">s
+            <button class="chiudi" style="font-size:12px" onclick="fkDelBlocco(${s},${i},${bi})" aria-label="Rimuovi">✕</button></span>`).join(" ");
+        return `<tr style="background:rgba(230,168,60,.08)">
+          <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="fartlek" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:110px"></td>
+          <td colspan="8"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px">
+            <span class="pill" style="background:rgba(230,168,60,.2);color:var(--ambra,#e6a83c)">🔀 Fartlek</span>
+            ${blocchi}
+            <button class="btn btn-2" style="width:auto;padding:4px 8px;font-size:12px" onclick="fkAddBlocco(${s},${i})">＋ blocco</button>
+            <span class="et" style="margin:0">× </span><input inputmode="numeric" value="${r.fkRip || ""}" placeholder="n°" oninput="fkSetRip(${s},${i},this.value)" onchange="disegna()" style="width:44px;min-width:44px"><span class="et" style="margin:0">volte</span>
+            <button class="btn btn-2" style="width:auto;padding:4px 8px;font-size:12px" onclick="pistaSetFk(${s},${i},false)">↩ riga normale</button>
+            <span class="et" style="margin:0;color:var(--txt3)">(l'atleta segna i metri di ogni blocco)</span>
+          </div></td>
+          <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
+        </tr>`;
+      }
+      // SEGMENT RUN: corri a TEMPO (sec) per N intervalli, l'atleta misura i metri. Riga dedicata.
+      if (r.seg) {
+        return `<tr style="background:rgba(77,154,255,.07)">
+          <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="segment run" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:110px"></td>
+          <td colspan="8"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px">
+            <span class="pill p-blu" style="background:rgba(77,154,255,.15);color:var(--blu)">🏁 Segment run</span>
+            <span class="et" style="margin:0">corri</span><input inputmode="numeric" value="${r.segSec || ""}" placeholder="sec" oninput="setPistaRigaVal(${s},${i},'segSec',this.value)" onchange="disegna()" style="width:56px;min-width:56px"> <span class="et" style="margin:0">s ×</span>
+            <input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="width:48px;min-width:48px"> <span class="et" style="margin:0">intervalli · rec</span>
+            <input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="width:64px;min-width:64px">
+            <button class="btn btn-2" style="width:auto;padding:4px 8px;font-size:12px" onclick="pistaSetSeg(${s},${i},false)">↩ riga normale</button>
+            <span class="et" style="margin:0;color:var(--txt3)">(l'atleta segna i metri di ogni intervallo)</span>
+          </div></td>
+          <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
+        </tr>`;
+      }
       const sec = _mzRigaSec(p, r);
       const cont = Number(r.min) > 0;
       const ritmoKm = sec != null ? _mzMMSS(sec) : "—";
@@ -377,7 +411,7 @@ function vistaProgrammaPistaMezzo() {
         <td class="pauto"><b>${ritmoKm}</b></td>
         <td class="pauto">${tempoRip}</td>
         <td class="pauto">${vol != null ? vol.toLocaleString("it-IT") : "—"}</td>
-        <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
+        <td><div style="display:flex;gap:3px"><button class="btn btn-2" style="width:auto;padding:4px 6px;font-size:13px" title="Trasforma in segment run (corri a tempo, misuri i metri)" onclick="pistaSetSeg(${s},${i},true)">🏁</button><button class="btn btn-2" style="width:auto;padding:4px 6px;font-size:13px" title="Trasforma in fartlek (blocchi veloce/piano a tempo)" onclick="pistaSetFk(${s},${i},true)">🔀</button><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></div></td>
       </tr>`;
     }).join("");
     const volS = volumeSettMezzo(sett, p);
@@ -417,6 +451,19 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
   const aid = atleta.id;
   const opts = { obiettivo: (prog && prog.mzObiettivo) || 0, offsets: (prog && prog.mzOffsets) || {} };  // PB = quelli dell'atleta
   const elementi = righe.map((r, i) => {
+    // FARTLEK: espande i blocchi (veloce/piano) × ripetizioni; l'atleta misura i metri di ogni blocco
+    if (r.fk) {
+      const rip = Math.max(1, Number(r.fkRip) || 1);
+      const base = (r.fkBlocchi || []).filter(b => Number(b.sec) > 0);
+      const blocchi = [];
+      for (let k = 0; k < rip; k++) base.forEach(b => blocchi.push({ tipo: b.t === "P" ? "piano" : "veloce", sec: Number(b.sec), metri: null }));
+      return { id: "e" + i, contenuto: r.contenuto || "", fk: true, recupero: r.rec || "", fkBlocchi: blocchi, volume: 0, tempi: null };
+    }
+    // SEGMENT RUN: corri a tempo, l'atleta misura i metri di ogni intervallo (distanza totale automatica)
+    if (r.seg) {
+      const nInt = Number(r.n) || 1, segSec = Number(r.segSec) || 0;
+      return { id: "e" + i, contenuto: r.contenuto || "", mezzo: r.mezzo || "", seg: true, segSec: segSec, intervalli: nInt, recupero: r.rec || "", misureSeg: Array(nInt).fill(null), volume: 0, tempi: null };
+    }
     const sec = ritmoMezzo(atleta, r.mezzo, opts);
     const cont = Number(r.min) > 0;
     const dist = Number(r.distanza) || 0, n = Number(r.n) || (dist > 0 ? 1 : 0);
@@ -445,7 +492,90 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
 }
 
 // ---------- vista atleta: seduta pista mezzofondo (prescrizione da seguire a ritmo) ----------
-function volumePistaMezzo(s) { return (s.elementi || []).reduce((t, e) => t + (e.volume || 0), 0); }
+function volumePistaMezzo(s) {
+  return (s.elementi || []).reduce((t, e) => {
+    if (e.seg) return t + (e.misureSeg || []).reduce((a, b) => a + (Number(b) || 0), 0);
+    if (e.fk) return t + (e.fkBlocchi || []).reduce((a, b) => a + (Number(b.metri) || 0), 0);
+    return t + (e.volume || 0);
+  }, 0);
+}
+// l'atleta segna i METRI di un blocco di fartlek
+function segnaMetroFk(sid, eid, i, el) {
+  const s = sedutaDaId(sid), e = s && s.elementi.find(x => x.id === eid);
+  if (!e || !e.fkBlocchi || !e.fkBlocchi[i]) return;
+  const val = (el && el.value !== undefined) ? el.value : el;
+  const n = parseFloat(String(val).replace(",", "."));
+  e.fkBlocchi[i].metri = (!isNaN(n) && n > 0) ? Math.round(n) : null;
+  if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s);
+  if (typeof _avanzaCasella === "function") _avanzaCasella(el, disegna); else disegna();
+}
+// card atleta per un FARTLEK (blocchi veloce/piano a tempo, misuri i metri di ognuno)
+function _cardFkMezzo(s, e) {
+  const bl = e.fkBlocchi || [];
+  const tot = bl.reduce((a, b) => a + (Number(b.metri) || 0), 0);
+  const totVel = bl.filter(b => b.tipo === "veloce").reduce((a, b) => a + (Number(b.metri) || 0), 0);
+  const paceOf = (m, sec) => (m > 0 && sec > 0) ? _mzMMSS(sec / (m / 1000)) + "/km" : "";
+  const righe = bl.map((b, i) => {
+    const vel = b.tipo === "veloce";
+    return `<div class="serie" style="${vel ? "" : "opacity:.85"}">
+      <span class="n" style="width:88px;flex:none;color:${vel ? "var(--ambra,#e6a83c)" : "var(--txt3)"}">${vel ? "▲ veloce" : "▽ piano"} ${b.sec}s</span>
+      <input class="avanza" inputmode="numeric" value="${b.metri != null ? b.metri : ""}" placeholder="metri"
+        onchange="segnaMetroFk('${s.id}','${e.id}',${i},this)">
+      <span class="et" style="width:72px;flex:none;text-align:right">${b.metri != null ? paceOf(b.metri, b.sec) : ""}</span>
+    </div>`;
+  }).join("");
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+      <h3>${e.contenuto || "Fartlek"}</h3>
+      <span class="pill" style="background:rgba(230,168,60,.2);color:var(--ambra,#e6a83c)">🔀 fartlek</span>
+    </div>
+    <p class="et" style="margin:4px 0 8px">${bl.length} blocchi (▲ veloce / ▽ piano)${e.recupero ? " · rec " + e.recupero : ""} — segna i <b>metri</b> di ogni blocco.</p>
+    ${righe}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
+      <span class="et" style="margin:0">Distanza totale${totVel ? " · veloce " + totVel.toLocaleString("it-IT") + " m" : ""}</span>
+      <b style="font-size:17px">${tot.toLocaleString("it-IT")} m</b>
+    </div>
+    ${typeof bloccoSforzoPista === "function" ? bloccoSforzoPista(s.id, e) : ""}
+  </div>`;
+}
+// l'atleta segna i METRI di un intervallo di segment run → distanza totale automatica
+function segnaMetroSeg(sid, eid, i, el) {
+  const s = sedutaDaId(sid), e = s && s.elementi.find(x => x.id === eid);
+  if (!e || !e.misureSeg) return;
+  const val = (el && el.value !== undefined) ? el.value : el;
+  const n = parseFloat(String(val).replace(",", "."));
+  e.misureSeg[i] = (!isNaN(n) && n > 0) ? Math.round(n) : null;
+  if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s);
+  if (typeof _avanzaCasella === "function") _avanzaCasella(el, disegna); else disegna();
+}
+// card atleta per una SEGMENT RUN (corri a tempo, misuri i metri)
+function _cardSegMezzo(s, e) {
+  const n = e.intervalli || (e.misureSeg || []).length || 0;
+  const fatte = (e.misureSeg || []).filter(v => v != null);
+  const tot = fatte.reduce((a, b) => a + (Number(b) || 0), 0);
+  const best = fatte.length ? Math.max.apply(null, fatte) : null;
+  const paceOf = m => (m > 0 && e.segSec > 0) ? _mzMMSS(e.segSec / (m / 1000)) + "/km" : "—";   // ritmo su quel segmento
+  const caselle = (e.misureSeg || []).map((m, i) => `
+    <div class="serie">
+      <span class="n">${i + 1}°</span>
+      <input class="avanza" inputmode="numeric" value="${m != null ? m : ""}" placeholder="metri"
+        onchange="segnaMetroSeg('${s.id}','${e.id}',${i},this)">
+      <span class="et" style="width:72px;flex:none;text-align:right">${m != null ? paceOf(m) : ""}</span>
+    </div>`).join("");
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+      <h3>${e.contenuto || "Segment run"}</h3>
+      <span class="pill p-blu" style="background:rgba(77,154,255,.15);color:var(--blu)">🏁 segment</span>
+    </div>
+    <p class="et" style="margin:4px 0 8px">Corri <b>${e.segSec}s</b> × <b>${n}</b> intervalli${e.recupero ? " · rec " + e.recupero : ""} — segna i <b>metri</b> di ogni intervallo.</p>
+    ${caselle}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
+      <span class="et" style="margin:0">Distanza totale</span>
+      <b style="font-size:17px">${tot.toLocaleString("it-IT")} m${best != null ? ` <span class="et" style="font-weight:400">· meglio ${best} m</span>` : ""}</b>
+    </div>
+    ${typeof bloccoSforzoPista === "function" ? bloccoSforzoPista(s.id, e) : ""}
+  </div>`;
+}
 // l'atleta scrive il tempo di una ripetuta (mm:ss oppure secondi) → salvato in secondi
 function segnaTempoMezzo(sid, eid, i, el) {
   const s = sedutaDaId(sid), e = s && s.elementi.find(x => x.id === eid);
@@ -462,6 +592,8 @@ function vistaPistaMezzo(s) {
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   ${s.elementi.map(e => {
+    if (e.seg) return _cardSegMezzo(s, e);   // SEGMENT RUN
+    if (e.fk) return _cardFkMezzo(s, e);     // FARTLEK
     const cont = e.min != null;
     const prescr = cont ? `${e.min}′ in continuo` : `${e.ripetute} × ${e.distanza} m`;
     const tr = e.tempoRipSec != null ? _mzMMSS(e.tempoRipSec) : null;

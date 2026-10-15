@@ -300,7 +300,7 @@ async function caricaDati() {
   } catch (e) { /* tabella diario assente o offline: si usa il locale */ }
 
   // login reale: parto PULITO dai dati/programmi DEMO (Leonardo & co.), poi carico solo ciò che è salvato nel DB
-  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {};
+  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.segLog = []; DEMO.fkLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {};
   DEMO.pista = {}; DEMO.palestra = {};   // programmi per-gruppo: creati vuoti su richiesta da pistaDi/palDi(gruppo)
   DEMO.pistaAtleta = {}; DEMO.palAtleta = {};   // programmi PERSONALI per atleta (override completo del madre)
   DEMO.atletaPro = {};   // flag "pro" per atleta (arriva dal bundle del coach)
@@ -325,7 +325,7 @@ async function caricaDati() {
     // + le sedute ancora in coda (non sincronizzate): l'atleta le vede lo stesso come "svolte"
     const pend = _codaLeggi().map(p => ({ atleta_id: p.atleta_id, data: p.data, tipo: p.tipo, giorno: p.giorno, durata_min: p.durata_min, rpe: p.rpe, fastidi: p.fastidi, dati: p.dati, _pending: true }));
     const svolte = (svolteDb || []).concat(pend.filter(p => !(svolteDb || []).some(x => x.atleta_id === p.atleta_id && x.data === p.data && x.tipo === p.tipo && (x.giorno == null || x.giorno === p.giorno))));
-    DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.lanciLog = []; DEMO.seduteSvolte = {};
+    DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.lanciLog = []; DEMO.segLog = []; DEMO.fkLog = []; DEMO.seduteSvolte = {};
     (svolte || []).forEach(sv => {
       if (sv.rpe != null) sv.rpe = Number(sv.rpe);              // numeric dal DB torna come stringa → riporto a numero
       if (sv.durata_min != null) sv.durata_min = Number(sv.durata_min);
@@ -336,6 +336,21 @@ async function caricaDati() {
           if (Array.isArray(e.misure)) {   // elemento LANCI: ricostruisco lanciLog (niente doppioni alla ri-chiusura)
             const f = e.misure.filter(v => v != null);
             DEMO.lanciLog.push({ data: sv.data, atletaId: sv.atleta_id, mezzo: e.mezzo || "", kg: e.kg != null ? e.kg : null, tipo: e.tipo || null, lanci: e.lanci != null ? Number(e.lanci) : null, misura: f.length ? Math.round(Math.max.apply(null, f) * 100) / 100 : null });
+            return;
+          }
+          if (e.seg) {   // SEGMENT RUN: log dei metri per intervallo (per l'andamento)
+            const mis = (e.misureSeg || []).filter(v => v != null);
+            if (mis.length) { DEMO.segLog = DEMO.segLog || []; DEMO.segLog.push({ data: sv.data, atletaId: sv.atleta_id, contenuto: e.contenuto || "", segSec: Number(e.segSec) || 0, intervalli: Number(e.intervalli) || mis.length, misure: mis.map(Number), totale: mis.reduce((a, b) => a + Number(b), 0) }); }
+            return;
+          }
+          if (e.fk) {   // FARTLEK: log dei metri per blocco (per l'andamento)
+            const bl = (e.fkBlocchi || []).filter(b => b && b.metri != null);
+            if (bl.length) {
+              const tot = bl.reduce((a, b) => a + Number(b.metri), 0);
+              const totVel = bl.filter(b => b.tipo === "veloce").reduce((a, b) => a + Number(b.metri), 0);
+              DEMO.fkLog = DEMO.fkLog || [];
+              DEMO.fkLog.push({ data: sv.data, atletaId: sv.atleta_id, contenuto: e.contenuto || "", nBlocchi: (e.fkBlocchi || []).length, totale: tot, veloce: totVel });
+            }
             return;
           }
           const fatti = (e.tempi || []).filter(v => v != null);
@@ -578,7 +593,7 @@ async function salvaSedutaSvoltaDB(s) {
   if (!aid) return;
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
-    ? { elementi: (s.elementi || []).map(e => ({ contenuto: e.contenuto || "", distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
+    ? { elementi: (s.elementi || []).map(e => ({ contenuto: e.contenuto || "", distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, seg: !!e.seg, segSec: e.segSec, intervalli: e.intervalli, misureSeg: e.misureSeg, fk: !!e.fk, fkBlocchi: e.fkBlocchi, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
     : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, pesoFatto: x.pesoFatto != null ? x.pesoFatto : null, vbtTarget: x.vbtTarget, vbt: x.vbt, fatte: x.fatte || null, ss: x.ss || "", rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
   const payload = {
     atleta_id: aid, chiave: s.id, tipo: s.tipo,

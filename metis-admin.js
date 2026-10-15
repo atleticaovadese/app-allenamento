@@ -129,7 +129,7 @@ function _popolaSnapshot(snap) {
   DEMO.report = DEMO.report || {}; DEMO.report.daFare = {}; DEMO.report.positivo = null; DEMO.report.settimana = null;
   // programmi (bundle) della società curiosata — sostituisce tutto
   DEMO.pista = {}; DEMO.palestra = {}; DEMO.pistaAtleta = {}; DEMO.palAtleta = {};
-  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.lanciLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {}; DEMO.atletaPro = {}; DEMO.adattaSelf = {}; DEMO.seduteGen = [];
+  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.segLog = []; DEMO.fkLog = []; DEMO.lanciLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {}; DEMO.atletaPro = {}; DEMO.adattaSelf = {}; DEMO.seduteGen = [];
   DEMO.draftPista = {}; DEMO.draftPal = {}; DEMO.draftPistaAtleta = {}; DEMO.draftPalAtleta = {};
   if (snap.bundle && typeof applicaBundle === "function") { try { applicaBundle(snap.bundle); } catch (e) { } }
   if (typeof _applicaGare === "function") _applicaGare(snap.gare || []);
