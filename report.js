@@ -162,7 +162,7 @@ function _rProgrammaMesocicli(a, gOverride) {
       const wd = (typeof giornoSettEff === "function") ? giornoSettEff(x, tipo, gj, gio) : gio.giornoSett;
       let rows = "";
       for (let si = 0; si < nSett; si++) {
-        const ov = (typeof overrideRighe === "function") ? overrideRighe(x, tipo, gj, si) : null;
+        const ov = (typeof overrideRighe === "function") ? overrideRighe(x, tipo, mi, gj, si) : null;
         const righe = (ov || (gio.settimane && gio.settimane[si] && gio.settimane[si].righe) || []);
         const txt = righe.map(rf).filter(Boolean).map(esc).join(" · ");
         if (txt) rows += `<tr><td class="wk">Sett ${si + 1}</td><td>${txt}</td></tr>`;
@@ -962,7 +962,7 @@ function _reportStandalone(id) {
 
 // righe effettive dell'atleta per (tipo, mesociclo, giorno, settimana): override «Adatta», poi programma personale/madre
 function _rDiffRigheAtl(a, tipo, prog, madre, mi, gi, si) {
-  const ov = (typeof overrideRighe === "function") ? overrideRighe(a, tipo, gi, si) : null;
+  const ov = (typeof overrideRighe === "function") ? overrideRighe(a, tipo, mi, gi, si) : null;
   if (ov) return ov;
   const src = (prog && prog !== madre) ? prog : madre;
   const m = src && src.mesocicli && src.mesocicli[mi];

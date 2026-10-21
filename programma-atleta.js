@@ -62,7 +62,8 @@ function _invalidaSeduteGen() { if (DEMO.seduteGen) DEMO.seduteGen = DEMO.sedute
 
 function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   const sett = g.settimane && g.settimane[settIdx];
-  const ovR = overrideRighe(atleta, "pista", giornoNum - 1, settIdx);
+  const _mi = (prog && prog.mesocicli) ? prog.mesocicli.indexOf(meso) : -1;
+  const ovR = overrideRighe(atleta, "pista", _mi, giornoNum - 1, settIdx);
   const allRighe = (ovR || (sett && sett.righe) || []);
   // gruppo Mezzofondo/Fondo: seduta a mezzi/ritmi (ripetute o corsa continua)
   if (atleta && typeof gruppoDi === "function" && gruppoDi(atleta) === "mezzo" && typeof _generaSedutaPistaMezzo === "function")
@@ -167,8 +168,8 @@ function _parseRecSec(rec) {
 }
 // peso PRESCRITTO nella prima settimana (settimana 0) dello stesso giorno, per lo stesso esercizio:
 // così scrivendo il peso solo nella settimana 1 le settimane successive lo usano in automatico.
-function _pesoSett1Atleta(atleta, g, giornoNum, esercizio) {
-  const ov0 = (typeof overrideRighe === "function") ? overrideRighe(atleta, "palestra", giornoNum - 1, 0) : null;
+function _pesoSett1Atleta(atleta, g, giornoNum, esercizio, mesoIdx) {
+  const ov0 = (typeof overrideRighe === "function") ? overrideRighe(atleta, "palestra", mesoIdx != null ? mesoIdx : -1, giornoNum - 1, 0) : null;
   const righe0 = ov0 || (g && g.settimane && g.settimane[0] && g.settimane[0].righe) || [];
   const r0 = righe0.find(x => x && x.esercizio === esercizio);
   if (!r0) return null;
@@ -176,7 +177,9 @@ function _pesoSett1Atleta(atleta, g, giornoNum, esercizio) {
 }
 function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
-  const ovR = overrideRighe(atleta, "palestra", giornoNum - 1, settIdx);
+  const _progPalRef = (typeof _progPal === "function") ? _progPal(atleta) : null;
+  const _mi = (_progPalRef && _progPalRef.mesocicli) ? _progPalRef.mesocicli.indexOf(meso) : -1;
+  const ovR = overrideRighe(atleta, "palestra", _mi, giornoNum - 1, settIdx);
   const righe = (ovR || (sett && sett.righe) || []).filter(r => r.esercizio);
   if (!righe.length) return null;
   const aid = (atleta && atleta.id) || "x";
@@ -191,7 +194,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     // 3) la penultima settimana (ultima di carico) del blocco precedente.
     if (peso == null && atleta) {
       let p = _pesoFattoStorico(aid, r.esercizio, dataISO, winStart);
-      if (p == null && settIdx > 0) p = _pesoSett1Atleta(atleta, g, giornoNum, r.esercizio);
+      if (p == null && settIdx > 0) p = _pesoSett1Atleta(atleta, g, giornoNum, r.esercizio, _mi);
       if (p == null && typeof _pesoBloccoPrecedente === "function") p = _pesoBloccoPrecedente(atleta, r.esercizio, dataISO);
       if (p != null) peso = p;
     }
@@ -220,14 +223,21 @@ function giornoSettEff(atleta, tipo, gi, g) {
 // TAPPA 3c — righe di contenuto personalizzate per un atleta (giorno gi, settimana wk): null se usa il madre
 // un atleta è "pro" se il coach gli ha attivato l'auto-adattamento del programma (flag nel bundle, deciso da app)
 function atletaPro(id) { return !!(id && DEMO.atletaPro && DEMO.atletaPro[id]); }
-function overrideRighe(atleta, tipo, gi, wk) {
+// chiave giorno degli override: ora include il MESOCICLO ("<mesoIdx>_<gi>") così un adattamento di un meso
+// NON si trascina su quello successivo. Retro-compat: le chiavi vecchie (solo "<gi>") valgono SOLO per il 1° meso (indice 0).
+function _ovLook(store, aid, tipo, mesoIdx, gi, wk) {
+  const o = store && store[aid] && store[aid][tipo];
+  if (!o) return null;
+  const kNew = mesoIdx + "_" + gi;
+  if (o[kNew] && o[kNew][wk]) return o[kNew][wk];
+  if (Number(mesoIdx) === 0 && o[gi] && o[gi][wk]) return o[gi][wk];   // compat vecchi override (senza meso) → solo meso 1
+  return null;
+}
+function overrideRighe(atleta, tipo, mesoIdx, gi, wk) {
   const aid = atleta && atleta.id;
+  if (!aid) return null;
   // precedenza: adattamento FATTO DALL'ATLETA (pro) → poi override del coach → poi madre (null)
-  const self = aid && DEMO.adattaSelf && DEMO.adattaSelf[aid];
-  const rSelf = self && self[tipo] && self[tipo][gi] && self[tipo][gi][wk];
-  if (rSelf) return rSelf;
-  const o = aid && DEMO.overrideContenuto && DEMO.overrideContenuto[aid];
-  return (o && o[tipo] && o[tipo][gi] && o[tipo][gi][wk]) || null;
+  return _ovLook(DEMO.adattaSelf, aid, tipo, mesoIdx, gi, wk) || _ovLook(DEMO.overrideContenuto, aid, tipo, mesoIdx, gi, wk);
 }
 
 // TAPPA 4 — conta le sedute PROGRAMMATE per un atleta tra due date ISO (rispetta sposta-giorni + override contenuto)
@@ -282,10 +292,11 @@ function contaProgrammate(atleta, fromISO, toISO) {
     progs.forEach(([tipo, prog]) => {
       const pa = mesoAttivo(prog, dataISO, false);
       if (!pa) return;
+      const _mi = (prog.mesocicli || []).indexOf(pa.m);
       (pa.m.giorni || []).forEach((g, gi) => {
         if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
         const sett = g.settimane && g.settimane[pa.settIdx];
-        const righe = overrideRighe(atleta, tipo, gi, pa.settIdx) || (sett && sett.righe) || [];
+        const righe = overrideRighe(atleta, tipo, _mi, gi, pa.settIdx) || (sett && sett.righe) || [];
         const gr = (typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
         const ok = tipo === "pista" ? righe.some(r => _rigaValidaPista(r, gr)) : righe.some(r => r.esercizio);
         if (ok) n++;
@@ -336,10 +347,11 @@ function righeGiornoAtleta(atleta, dataISO, tipo) {
   const pa = mesoAttivo(prog, dataISO, false);
   if (!pa) return [];
   let righe = [];
+  const _mi = (prog.mesocicli || []).indexOf(pa.m);
   (pa.m.giorni || []).forEach((g, gi) => {
     if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
     const sett = g.settimane && g.settimane[pa.settIdx];
-    const r = overrideRighe(atleta, tipo, gi, pa.settIdx) || (sett && sett.righe) || [];
+    const r = overrideRighe(atleta, tipo, _mi, gi, pa.settIdx) || (sett && sett.righe) || [];
     if (r.length) righe = r;
   });
   return JSON.parse(JSON.stringify(righe || []));

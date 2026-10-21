@@ -1539,13 +1539,29 @@ function _adattaSalva() {
   if (typeof salvaCustom === "function") salvaCustom();
   if (_adattaSelfMode()) { const aid = S.adatta && S.adatta.atletaId; if (aid && typeof salvaAdattaAtletaDB === "function") salvaAdattaAtletaDB(aid); }
 }
-// quando è il COACH a modificare uno slot, "subentra": rimuove l'eventuale adattamento dell'atleta per quello slot
-function _coachPrendeSlot(aid, tipo, gi, wk) {
+// indice del mesociclo mostrato in Adatta (per la disciplina scelta): l'override è legato A QUEL meso (non si trascina sul successivo)
+function _adattaMesoIdx() {
+  const prog = (typeof _progAdatta === "function") ? _progAdatta(S.adatta.tipo) : null;
+  const m = (prog && typeof _mesoRif === "function") ? _mesoRif(prog) : null;
+  const i = (prog && prog.mesocicli) ? prog.mesocicli.indexOf(m) : -1;
+  return i >= 0 ? i : 0;
+}
+function _adattaGK() { return _adattaMesoIdx() + "_" + S.adatta.gi; }   // chiave giorno negli override: "<mesoIdx>_<gi>"
+// c'è un override nello store (adattaSelf o overrideContenuto) per il meso/giorno/settimana corrente? (con compat chiavi vecchie → solo meso 1)
+function _adattaStoreHas(store, aid, tipo, w) {
+  const o = store && store[aid] && store[aid][tipo];
+  if (!o) return false;
+  if (o[_adattaGK()] && o[_adattaGK()][w]) return true;
+  if (_adattaMesoIdx() === 0 && o[S.adatta.gi] && o[S.adatta.gi][w]) return true;
+  return false;
+}
+// quando è il COACH a modificare uno slot, "subentra": rimuove l'eventuale adattamento dell'atleta per quello slot (chiave composta)
+function _coachPrendeSlot(aid, tipo, gk, wk) {
   if (_adattaSelfMode()) return;
   const r = DEMO.adattaSelf && DEMO.adattaSelf[aid];
-  if (r && r[tipo] && r[tipo][gi] && r[tipo][gi][wk] != null) {
-    delete r[tipo][gi][wk];
-    if (!Object.keys(r[tipo][gi]).length) delete r[tipo][gi];
+  if (r && r[tipo] && r[tipo][gk] && r[tipo][gk][wk] != null) {
+    delete r[tipo][gk][wk];
+    if (!Object.keys(r[tipo][gk]).length) delete r[tipo][gk];
     if (!Object.keys(r[tipo]).length) delete r[tipo];
     if (!Object.keys(r).length) delete DEMO.adattaSelf[aid];
     if (typeof salvaAdattaAtletaDB === "function") salvaAdattaAtletaDB(aid);   // persisti la rimozione (il coach può scrivere atleta_adatta)
@@ -1553,16 +1569,16 @@ function _coachPrendeSlot(aid, tipo, gi, wk) {
 }
 function _ensureAdattaRighe(wk) {
   const s = S.adatta;
-  const root = _adattaRoot();
+  const root = _adattaRoot(), gk = _adattaGK(), mi = _adattaMesoIdx();
   const a = root[s.atletaId] = root[s.atletaId] || {};
   const t = a[s.tipo] = a[s.tipo] || {};
-  const d = t[s.gi] = t[s.gi] || {};
+  const d = t[gk] = t[gk] || {};
   if (!d[wk]) {
     const atl = DEMO.atleti.find(x => x.id === s.atletaId);
-    const seed = (typeof overrideRighe === "function" && overrideRighe(atl, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk);
+    const seed = (typeof overrideRighe === "function" && overrideRighe(atl, s.tipo, mi, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk);
     d[wk] = JSON.parse(JSON.stringify(seed || []));
   }
-  _coachPrendeSlot(s.atletaId, s.tipo, s.gi, wk);   // se è il coach a toccare lo slot, subentra lui
+  _coachPrendeSlot(s.atletaId, s.tipo, gk, wk);   // se è il coach a toccare lo slot, subentra lui
   return d[wk];
 }
 function setAdattaRigaVal(wk, campo, i, val) {
@@ -1587,7 +1603,7 @@ function _pesoRifAdatta(a, r, wk) {
   if (p == null && Number(wk) > 0 && typeof _pesoSett1Atleta === "function") {   // settimane dopo la 1: considera anche il peso prescritto nella settimana 1
     const m = (typeof _mesoRif === "function" && typeof _progAdatta === "function") ? _mesoRif(_progAdatta(s.tipo)) : null;
     const g = m && m.giorni && m.giorni[s.gi];
-    if (g) p = _pesoSett1Atleta(a, g, s.gi + 1, r.esercizio);
+    if (g) p = _pesoSett1Atleta(a, g, s.gi + 1, r.esercizio, _adattaMesoIdx());
   }
   return p;
 }
@@ -1643,15 +1659,16 @@ function delAdattaRiga(wk, i) {
 function copiaAdattaSuTutte(fromWk) {
   const s = S.adatta; fromWk = Number(fromWk);
   const a = DEMO.atleti.find(x => x.id === s.atletaId);
-  const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
+  const mi = _adattaMesoIdx(), gk = _adattaGK();
+  const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, mi, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
   if (!src.length) { alert("La Settimana " + (fromWk + 1) + " non ha righe da copiare."); return; }
   const nSett = _nSettMeso(s.tipo);
   if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${fromWk + 1} (Giorno ${s.gi + 1}) su tutte le altre settimane di questo giorno?\nSostituisce il loro contenuto attuale.`)) return;
   const root = _adattaRoot();
   const o = root[s.atletaId] = root[s.atletaId] || {};
   const t = o[s.tipo] = o[s.tipo] || {};
-  const g = t[s.gi] = t[s.gi] || {};
-  for (let w = 0; w < nSett; w++) { if (w !== fromWk) { g[w] = JSON.parse(JSON.stringify(src)); _coachPrendeSlot(s.atletaId, s.tipo, s.gi, w); } }
+  const g = t[gk] = t[gk] || {};
+  for (let w = 0; w < nSett; w++) { if (w !== fromWk) { g[w] = JSON.parse(JSON.stringify(src)); _coachPrendeSlot(s.atletaId, s.tipo, gk, w); } }
   _adattaSalva();
   disegna(); window.scrollTo(0, 0);
 }
@@ -1660,15 +1677,16 @@ function copiaAdattaDaSett(toWk, fromWk) {
   const s = S.adatta; toWk = Number(toWk); fromWk = Number(fromWk);
   if (isNaN(toWk) || isNaN(fromWk) || toWk === fromWk) return;
   const a = DEMO.atleti.find(x => x.id === s.atletaId);
-  const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
+  const mi = _adattaMesoIdx(), gk = _adattaGK();
+  const src = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, mi, s.gi, fromWk)) || _righeMadre(s.tipo, s.gi, fromWk) || [];
   if (!src.length) { alert("La Settimana " + (fromWk + 1) + " non ha righe da copiare."); return; }
   if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${fromWk + 1} sulla Settimana ${toWk + 1} (Giorno ${s.gi + 1})?\nSostituisce il contenuto attuale della Settimana ${toWk + 1}.`)) return;
   const root = _adattaRoot();
   const o = root[s.atletaId] = root[s.atletaId] || {};
   const t = o[s.tipo] = o[s.tipo] || {};
-  const g = t[s.gi] = t[s.gi] || {};
+  const g = t[gk] = t[gk] || {};
   g[toWk] = JSON.parse(JSON.stringify(src));
-  _coachPrendeSlot(s.atletaId, s.tipo, s.gi, toWk);
+  _coachPrendeSlot(s.atletaId, s.tipo, gk, toWk);
   _adattaSalva();
   disegna();
 }
@@ -1683,15 +1701,19 @@ function _adattaCancellaSlot(root, aid, tipo, gi, wk) {
   }
 }
 function ripristinaAdatta(wk) {
-  const s = S.adatta;
-  _adattaCancellaSlot(_adattaRoot(), s.atletaId, s.tipo, s.gi, wk);
-  if (!_adattaSelfMode()) _adattaCancellaSlot(DEMO.adattaSelf || {}, s.atletaId, s.tipo, s.gi, wk);   // il coach ripristina = toglie anche l'adatta dell'atleta
+  const s = S.adatta, gk = _adattaGK(), mi = _adattaMesoIdx();
+  _adattaCancellaSlot(_adattaRoot(), s.atletaId, s.tipo, gk, wk);
+  if (mi === 0) _adattaCancellaSlot(_adattaRoot(), s.atletaId, s.tipo, s.gi, wk);   // compat: togli anche la chiave vecchia (senza meso)
+  if (!_adattaSelfMode()) {   // il coach ripristina = toglie anche l'adatta dell'atleta
+    _adattaCancellaSlot(DEMO.adattaSelf || {}, s.atletaId, s.tipo, gk, wk);
+    if (mi === 0) _adattaCancellaSlot(DEMO.adattaSelf || {}, s.atletaId, s.tipo, s.gi, wk);
+  }
   _adattaSalva();
   disegna();
 }
 function _tabellaAdattaPista(a, wk) {
   const s = S.adatta;
-  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, _adattaMesoIdx(), s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
   const rows = righe.map((r, i) => {
     const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
     const percCell = _stepCell(r.perc, "%", "stepAdattaPerc(" + wk + "," + i + ",-2.5)", "stepAdattaPerc(" + wk + "," + i + ",2.5)", "setAdattaRigaVal(" + wk + ",'perc'," + i + ",this.value)", "42px");
@@ -1712,7 +1734,7 @@ function _tabellaAdattaPista(a, wk) {
 }
 function _tabellaAdattaPal(a, wk) {
   const s = S.adatta;
-  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, _adattaMesoIdx(), s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
   const oggiV = (typeof oggiISO === "function") ? oggiISO() : "";
   const rows = righe.map((r, i) => {
     const rmAtl = (typeof massimaleAtleta === "function") ? massimaleAtleta(a, r.esercizio) : null;   // massimale dell'atleta per questo esercizio
@@ -1747,7 +1769,7 @@ function _tabellaAdattaPal(a, wk) {
 // Adatta per il MEZZOFONDO: righe con Mezzo (tendina) + distanza libera + n° + minuti (corsa continua)
 function _tabellaAdattaMezzo(a, wk) {
   const s = S.adatta;
-  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, _adattaMesoIdx(), s.gi, wk)) || _righeMadre(s.tipo, s.gi, wk) || [];
   const MZ = (typeof MZ_MEZZI !== "undefined") ? MZ_MEZZI : [];
   const optMezzo = (val) => `<option value="">—</option>` + MZ.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
   const rows = righe.map((r, i) => `<tr>
@@ -1787,14 +1809,14 @@ function vistaAdatta() {
   if (!sch.length) corpo = `<div class="card"><p class="et">Nessun giorno programmato in ${s.tipo} nel madre. Imposta prima il programma.</p></div>`;
   else if (!canEditA) corpo = `<div class="card"><p class="et">Per i <b>lanciatori</b> l'adattamento fine (attrezzi, kg, tipi) si fa dall'editor completo: <b>Programma → Pista → «Programma per» → ${a.nome}</b>.</p></div>`;
   else corpo = Array.from({ length: nSett }, (_, w) => {
-    const daAtleta = !!(DEMO.adattaSelf && DEMO.adattaSelf[a.id] && DEMO.adattaSelf[a.id][s.tipo] && DEMO.adattaSelf[a.id][s.tipo][s.gi] && DEMO.adattaSelf[a.id][s.tipo][s.gi][w]);
-    const hasOv = !!overrideRighe(a, s.tipo, s.gi, w);
+    const daAtleta = _adattaStoreHas(DEMO.adattaSelf, a.id, s.tipo, w);
+    const hasOv = !!overrideRighe(a, s.tipo, _adattaMesoIdx(), s.gi, w);
     const scar = (typeof isScaricoIdx === "function" && mesoRif) ? isScaricoIdx(mesoRif, w) : false;
     const tab = s.tipo !== "pista" ? _tabellaAdattaPal(a, w) : grA === "mezzo" ? _tabellaAdattaMezzo(a, w) : _tabellaAdattaPista(a, w);
     const altre = Array.from({ length: nSett }, (_, x) => x).filter(x => x !== w);
     const copiaDaUI = altre.length ? `<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
         <span class="et" style="margin:0">Copia qui da:</span>
-        <select id="cpFrom${w}" style="width:auto;padding:6px 8px">${altre.map(x => `<option value="${x}">Settimana ${x + 1}${overrideRighe(a, s.tipo, s.gi, x) ? " ✏️" : ""}</option>`).join("")}</select>
+        <select id="cpFrom${w}" style="width:auto;padding:6px 8px">${altre.map(x => `<option value="${x}">Settimana ${x + 1}${overrideRighe(a, s.tipo, _adattaMesoIdx(), s.gi, x) ? " ✏️" : ""}</option>`).join("")}</select>
         <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="copiaAdattaDaSett(${w}, (document.getElementById('cpFrom${w}')||{}).value)">📋 copia</button>
       </div>` : "";
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
