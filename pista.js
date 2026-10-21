@@ -1010,5 +1010,9 @@ function vistaProgrammaPista() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
+  const estendiPersonali = !S.progAtleta ? `<div class="card" style="border-color:rgba(77,154,255,.4)">
+      <p class="et" style="margin:0 0 8px">Alcuni atleti hanno un <b>programma personale</b> e NON prendono in automatico i mesocicli del madre. Con questo tasto copi <b>il mesociclo mostrato</b> nei loro programmi (solo a chi non ce l'ha già) — es. un atleta col meso precedente modificato riparte col madre uguale agli altri.</p>
+      <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaEstendiAiPersonali()">📥 Estendi questo mesociclo agli atleti con programma personale</button>
+    </div>` : "";
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }

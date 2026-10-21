@@ -260,6 +260,33 @@ function _progPal(atleta) {
   const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
   return palDi(g);
 }
+// COACH — estende il mesociclo MOSTRATO del madre (gruppo corrente) ai programmi PERSONALI degli atleti
+// di quel gruppo che non ce l'hanno ancora → "rientrano nel madre" per quel blocco, senza toccare il resto
+// del loro programma personale (es. un atleta col meso 1 modificato prende il meso 2 uguale agli altri).
+function _dataItBreve(iso) { return iso ? iso.split("-").reverse().join("/") : ""; }   // "2026-10-19" → "19/10/2026"
+function estendiMesoAiPersonali(tipo) {
+  if (S.progAtleta) return;   // vale solo editando il MADRE (non il programma di un singolo atleta)
+  const pal = tipo === "palestra";
+  const prog = pal ? palestraInit() : pistaInit();
+  const mi = pal ? S.palMeso : S.pistaMeso;
+  const src = prog && prog.mesocicli && prog.mesocicli[mi];
+  if (!src) return;
+  if (!src.inizio) { alert("Imposta prima la data di inizio di questo mesociclo: serve per sapere quando parte sul calendario dell'atleta."); return; }
+  const g = S.progGruppo || "vel";
+  const store = pal ? (DEMO.palAtleta = DEMO.palAtleta || {}) : (DEMO.pistaAtleta = DEMO.pistaAtleta || {});
+  const conPerso = (DEMO.atleti || []).filter(a => a && !a.bloccato && gruppoDi(a) === g && store[a.id] && (store[a.id].mesocicli || []).length);
+  if (!conPerso.length) { alert("Nessun atleta di questo gruppo ha un programma " + (pal ? "palestra" : "pista") + " personale: seguono già tutti il madre (e prendono questo mesociclo in automatico)."); return; }
+  const dest = conPerso.filter(a => !(store[a.id].mesocicli || []).some(m => m.inizio === src.inizio));
+  if (!dest.length) { alert("Tutti gli atleti con programma personale hanno già un mesociclo che parte il " + _dataItBreve(src.inizio) + "."); return; }
+  const lista = dest.map(a => "• " + a.nome).join("\n");
+  if (typeof confirm === "function" && !confirm(`Copiare questo mesociclo (inizio ${_dataItBreve(src.inizio)}${src.focus ? " · " + src.focus : ""}) nel programma ${pal ? "palestra" : "pista"} PERSONALE di ${dest.length} atlet${dest.length === 1 ? "a" : "i"}?\n\n${lista}\n\nIl resto del loro programma personale non viene toccato.`)) return;
+  dest.forEach(a => { store[a.id].mesocicli.push(JSON.parse(JSON.stringify(src))); });
+  if (typeof salvaCustom === "function") salvaCustom();
+  alert(`Fatto ✔ Mesociclo aggiunto a ${dest.length} atlet${dest.length === 1 ? "a" : "i"}. Ora lo vedono sul calendario.`);
+  disegna();
+}
+function pistaEstendiAiPersonali() { estendiMesoAiPersonali("pista"); }
+function palEstendiAiPersonali() { estendiMesoAiPersonali("palestra"); }
 // flag on/off "questo atleta segue il madre"
 function toggleAssegna(id) {
   DEMO.programmaAssegnato = DEMO.programmaAssegnato || {};
