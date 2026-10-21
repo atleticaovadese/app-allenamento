@@ -74,10 +74,21 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
   const aid = (atleta && atleta.id) || "x";
   const profilo = prog && prog.profilo;   // il profilo velocità del programma del GRUPPO dell'atleta
   const elementi = righe.map((r, i) => {
+    const perc = (parseFloat(String(r.perc).replace(",", ".")) || null);
+    // SCALA di distanze (es. 40-50-60): l'atleta fa la sequenza × n blocchi; tempi e volume per ogni distanza
+    const scala = (typeof _scalaDist === "function") ? _scalaDist(r.distanza) : null;
+    if (scala) {
+      const blocchi = Number(r.n) || 1, distanze = [], targets = [];
+      for (let b = 0; b < blocchi; b++) scala.forEach(d => {
+        const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, d, r.perc, profilo) : (typeof pistaTempo === "function" ? pistaTempo(d, r.perc) : null);
+        distanze.push(d); targets.push(t != null ? Math.round(t * 100) / 100 : null);
+      });
+      return { id: "e" + i, contenuto: r.contenuto || "", scala: scala, blocchi: blocchi, distanza: scala.join("-"), ripetute: distanze.length, percentuale: perc, recupero: r.rec || "", distanze: distanze, targets: targets, tempi: Array(distanze.length).fill(null) };
+    }
     const n = Number(r.n);
     const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, r.distanza, r.perc, profilo)
       : (typeof pistaTempo === "function" ? pistaTempo(r.distanza, r.perc) : null);
-    return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: (parseFloat(String(r.perc).replace(",", ".")) || null), recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
+    return { id: "e" + i, contenuto: r.contenuto || "", distanza: Number(r.distanza), ripetute: n, percentuale: perc, recupero: r.rec || "", target: t != null ? Math.round(t * 100) / 100 : null, tempi: Array(n).fill(null) };
   });
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", giorno: giornoNum, quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
@@ -366,7 +377,7 @@ function _applicaSvolta(s) {
     (s.elementi || []).forEach((e, i) => {
       let de = (e.seg || e.fk)
         ? d.elementi.find((c, j) => !used[j] && (!!c.seg === !!e.seg && !!c.fk === !!e.fk) && (c.contenuto || "") === (e.contenuto || ""))
-        : d.elementi.find((c, j) => !used[j] && !c.seg && !c.fk && Number(c.distanza) === Number(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
+        : d.elementi.find((c, j) => !used[j] && !c.seg && !c.fk && String(c.distanza) === String(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
       if (!de && d.elementi[i] && !used[i]) de = d.elementi[i];
       if (!de) return;
       used[d.elementi.indexOf(de)] = true;

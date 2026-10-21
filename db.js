@@ -353,6 +353,15 @@ async function caricaDati() {
             }
             return;
           }
+          if (e.scala && Array.isArray(e.distanze)) {   // SCALA di distanze: un log per OGNI distanza (così l'andamento per distanza funziona)
+            const perDist = {};
+            (e.tempi || []).forEach((t, i) => { if (t == null) return; const d = Number(e.distanze[i]); (perDist[d] = perDist[d] || []).push(Number(t)); });
+            Object.keys(perDist).forEach(d => {
+              const ft = perDist[d], somma = ft.reduce((a, b) => a + b, 0), tmed = somma / ft.length, tbest = Math.min.apply(null, ft);
+              DEMO.pistaLog.push({ data: sv.data, atletaId: sv.atleta_id, distanza: Number(d), tempo: Math.round(tmed * 100) / 100, best: Math.round(tbest * 100) / 100, somma: Math.round(somma * 100) / 100, tempi: ft.map(t => Math.round(t * 100) / 100), volume: Number(d) * ft.length, velocita: tmed ? Math.round(Number(d) / tmed * 100) / 100 : null });
+            });
+            return;
+          }
           const fatti = (e.tempi || []).filter(v => v != null);
           if (!fatti.length) return;
           const somma = fatti.reduce((a, b) => a + b, 0), tmed = somma / fatti.length, tbest = Math.min.apply(null, fatti);
@@ -593,7 +602,7 @@ async function salvaSedutaSvoltaDB(s) {
   if (!aid) return;
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
-    ? { elementi: (s.elementi || []).map(e => ({ contenuto: e.contenuto || "", distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, seg: !!e.seg, segSec: e.segSec, intervalli: e.intervalli, misureSeg: e.misureSeg, fk: !!e.fk, fkBlocchi: e.fkBlocchi, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
+    ? { elementi: (s.elementi || []).map(e => ({ contenuto: e.contenuto || "", distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, seg: !!e.seg, segSec: e.segSec, intervalli: e.intervalli, misureSeg: e.misureSeg, fk: !!e.fk, fkBlocchi: e.fkBlocchi, scala: e.scala, blocchi: e.blocchi, distanze: e.distanze, targets: e.targets, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
     : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, pesoFatto: x.pesoFatto != null ? x.pesoFatto : null, vbtTarget: x.vbtTarget, vbt: x.vbt, fatte: x.fatte || null, ss: x.ss || "", rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
   const payload = {
     atleta_id: aid, chiave: s.id, tipo: s.tipo,

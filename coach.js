@@ -1888,6 +1888,14 @@ function _cardSvolta(sv) {
         const dett = con.length ? con.map(b => `${b.tipo === "veloce" ? "▲" : "▽"}${b.sec}s ${b.metri}m`).join(" · ") : "—";
         return riga(`🔀 ${e.contenuto || "Fartlek"}`, `${bl.length} blocchi`, dett, tot ? tot + " m" : "", "var(--ambra,#e6a83c)", e);
       }
+      // scala di distanze (40-50-60 × n): tempi raggruppati per distanza
+      if (e.scala && Array.isArray(e.distanze)) {
+        const perD = {};
+        (e.tempi || []).forEach((t, i) => { if (t == null) return; const d = Number(e.distanze[i]); (perD[d] = perD[d] || []).push(Number(t)); });
+        const dett = Object.keys(perD).map(d => `${d}m: ${perD[d].map(t => t.toFixed(2)).join("·")}`).join(" · ") || "—";
+        const titolo = (e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "") || `${e.blocchi}×(${(e.scala || []).join("-")})`;
+        return riga(titolo, `${e.blocchi}×(${(e.scala || []).join("-")}) m`, dett, "", "var(--txt2)", e);
+      }
       // lanci: misure in metri (il migliore è il più lungo)
       if (e.misure && e.misure.length) {
         const f = e.misure.filter(v => v != null), best = f.length ? Math.max(...f) : null;

@@ -34,7 +34,7 @@ function applicaBozza(s) {
     (s.elementi || []).forEach((e, i) => {
       let de = (e.seg || e.fk)
         ? d.elementi.find((c, j) => !used[j] && (!!c.seg === !!e.seg && !!c.fk === !!e.fk) && (c.contenuto || "") === (e.contenuto || ""))
-        : d.elementi.find((c, j) => !used[j] && !c.seg && !c.fk && Number(c.distanza) === Number(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
+        : d.elementi.find((c, j) => !used[j] && !c.seg && !c.fk && String(c.distanza) === String(e.distanza) && Number(c.ripetute) === Number(e.ripetute) && (c.mezzo || "") === (e.mezzo || ""));
       if (!de && d.elementi[i] && !used[i]) de = d.elementi[i];
       if (!de) return;
       used[d.elementi.indexOf(de)] = true;
@@ -143,7 +143,41 @@ function mostraSchedaEsercizio(nome) {
 // recupero in secondi -> "3'" oppure "1'30"
 function fmtRec(sec) { if (!sec) return ""; const m = Math.floor(sec / 60), s = sec % 60; return s ? m + "'" + String(s).padStart(2, "0") : m + "'"; }
 function volumeKg(x) { return x.peso ? x.serie * x.rep * x.peso : null; }
-function volumePista(s) { return (s.elementi || []).reduce((t, e) => t + e.ripetute * e.distanza, 0); }
+function volumePista(s) { return (s.elementi || []).reduce((t, e) => t + (e.scala ? (e.distanze || []).reduce((a, d) => a + Number(d), 0) : e.ripetute * e.distanza), 0); }
+
+// card per una SCALA di distanze (es. 3 × 40-50-60): un blocco per volta, ogni ripetuta con la sua distanza e il suo obiettivo
+function _cardScalaPista(s, e) {
+  const soglia = (CONFIG.soglie && CONFIG.soglie.pistaPeggioPct) || 3;
+  const vol = (e.distanze || []).reduce((a, d) => a + Number(d), 0);
+  const nSeq = (e.scala || []).length || 1;
+  let blocchiHtml = "";
+  for (let b = 0; b < (e.blocchi || 1); b++) {
+    let reps = "";
+    for (let k = 0; k < nSeq; k++) {
+      const i = b * nSeq + k, tgt = e.targets ? e.targets[i] : null, val = e.tempi[i];
+      let cls = "";
+      if (val != null && tgt != null) cls = (val - tgt) / tgt * 100 > soglia ? "male" : "bene";
+      reps += `<div class="serie">
+        <span class="n" style="width:46px;flex:none">${e.distanze[i]} m</span>
+        <input class="tempo avanza ${cls}" inputmode="decimal" value="${val == null ? "" : val}" placeholder="—" onchange="segnaTempo('${s.id}','${e.id}',${i},this)">
+        <span class="et" style="width:82px;flex:none;text-align:right">${tgt != null ? "obiett. " + tgt.toFixed(2) : ""}</span>
+      </div>`;
+    }
+    blocchiHtml += `<p class="et" style="margin:8px 0 4px;font-weight:600;color:var(--txt2)">Blocco ${b + 1}</p>${reps}`;
+  }
+  const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
+  const cont = e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "";
+  return `<div class="card">
+    ${cont ? `<p style="font-weight:600;font-size:15px;margin:0 0 6px;line-height:1.35">${cont}</p>` : ""}
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h3>${e.blocchi} × (${(e.scala || []).join("-")}) m</h3>
+      <span class="et" style="margin:0">${meta}</span>
+    </div>
+    <p class="et" style="margin:4px 0 6px">volume ${vol} m</p>
+    ${blocchiHtml}
+    ${bloccoSforzoPista(s.id, e)}
+  </div>`;
+}
 
 // ---------- PISTA ----------
 function vistaPista(s) {
@@ -154,6 +188,7 @@ function vistaPista(s) {
   ${typeof bloccoCore === "function" ? bloccoCore(s) : ""}
   ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   ${s.elementi.map(e => {
+    if (e.scala) return _cardScalaPista(s, e);   // scala di distanze (40-50-60 × n)
     const caselle = e.tempi.map((t, i) => {
       const v = t === null ? "" : t;
       let cls = "";

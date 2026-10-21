@@ -701,8 +701,18 @@ function pistaTempoAtleta(atleta, distanza, perc, profilo) {
   const pc = parseFloat(String(perc).replace(",", ".")); if (!(pc > 0)) return null;
   return base / (pc / 100);   // % di velocità: 95% → tempo = base / 0.95
 }
+// "scala" di distanze: "40-50-60" (o /,) → [40,50,60]; un solo numero → null (riga normale)
+function _scalaDist(s) {
+  if (s == null || s === "") return null;
+  const parts = String(s).split(/[-\/,]/).map(x => parseFloat(String(x).replace(",", "."))).filter(x => x > 0);
+  return parts.length > 1 ? parts : null;
+}
 function volumeSett(sett) {
-  return (sett.righe || []).reduce((t, r) => t + (Number(r.distanza) || 0) * (Number(r.n) || 0), 0);
+  return (sett.righe || []).reduce((t, r) => {
+    const sc = _scalaDist(r.distanza);
+    if (sc) return t + sc.reduce((a, d) => a + d, 0) * (Number(r.n) || 0);   // scala: (40+50+60) × blocchi
+    return t + (Number(r.distanza) || 0) * (Number(r.n) || 0);
+  }, 0);
 }
 
 // ---------- handlers ----------
@@ -955,11 +965,13 @@ function vistaProgrammaPista() {
     const scar = isScaricoIdx(m, s);
     const nota = (sett.nota || "").trim();
     const righe = sett.righe.map((r, i) => {
-      const t = pistaTempo(r.distanza, r.perc);
+      const sc = _scalaDist(r.distanza);
+      const t = sc ? null : pistaTempo(r.distanza, r.perc);
       const ms = t && r.distanza ? (Number(r.distanza) / t) : null;
+      const tCell = sc ? sc.map(d => { const tt = pistaTempo(d, r.perc); return tt != null ? tt.toFixed(2) : "—"; }).join("·") : (t != null ? t.toFixed(2) : "—");
       return `<tr>
         <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
-        <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px"></td>
+        <td><input value="${r.distanza || ""}" placeholder="m · o 40-50-60" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px" title="Un numero (60) o una scala di distanze: 40-50-60"></td>
         <td>${typeof _stepCell === "function" ? _stepCell(r.n, "n°", "pistaStepN(" + s + "," + i + ",-1)", "pistaStepN(" + s + "," + i + ",1)", "setPistaRigaVal(" + s + "," + i + ",'n',this.value)", "40px") : `<input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px">`}</td>
         <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
         <td><div style="display:flex;align-items:center;gap:2px">
@@ -967,8 +979,8 @@ function vistaProgrammaPista() {
           <input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="width:42px;min-width:42px;text-align:center">
           <button type="button" onclick="pistaStepPerc(${s},${i},2.5)" title="+2.5%" style="width:24px;height:30px;flex:none;padding:0;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">＋</button>
         </div></td>
-        <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
-        <td class="pauto">${ms != null ? ms.toFixed(2) : "—"}</td>
+        <td class="pauto">${tCell}</td>
+        <td class="pauto">${sc ? "scala" : (ms != null ? ms.toFixed(2) : "—")}</td>
         <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
       </tr>`;
     }).join("");
@@ -986,6 +998,7 @@ function vistaProgrammaPista() {
         <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaAddRiga(${s})">＋ riga</button>
         <span class="et">Volume: <b style="color:var(--verde);font-size:14px">${volumeSett(sett).toLocaleString("it-IT")} m</b></span>
       </div>
+      ${s === 0 ? `<p class="et" style="margin-top:6px">💡 In <b>Distanza</b> puoi scrivere una <b>scala</b>, es. <b>40-50-60</b>: con n°=3 l'atleta fa 40-50-60 ripetuto 3 volte (volume e tempi calcolati per ogni distanza).</p>` : ""}
       ${s > 0 && !scar ? `<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
         <span class="et" style="margin:0">↑ da sett. ${s}:</span>
         <select id="pgt-${s}" onchange="progSwitch('pgt-${s}','pgp-${s}')" style="padding:7px 8px;width:auto;flex:none"><option value="volume">Volume</option><option value="intensita">Intensità</option></select>
