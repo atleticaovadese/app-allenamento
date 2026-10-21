@@ -304,6 +304,24 @@ function isScaricoIdx(m, s) {
   if (m.ciclo === "1") return true;                 // ciclo "1" = tutto scarico
   return s === nSettimaneMeso(m) - 1;               // ultima settimana del ciclo
 }
+// indice dell'ultima settimana di CARICO (non scarico) di un mesociclo — serve a copiare il blocco successivo
+// partendo dal picco di carico (così continuità con 3+1, 2+1, 1+1, ecc.)
+function _ultimaSettCarico(m) {
+  const n = nSettimaneMeso(m);
+  let last = 0;
+  for (let s = 0; s < n; s++) if (!isScaricoIdx(m, s)) last = s;
+  return last;
+}
+// clona un mesociclo per il blocco successivo: azzera l'inizio e mette come 1ª settimana l'ULTIMA di carico del precedente
+function _cloneMesoPerSuccessivo(src) {
+  const clone = JSON.parse(JSON.stringify(src));
+  clone.inizio = "";   // il nuovo blocco avrà la sua data d'inizio
+  const li = _ultimaSettCarico(src);
+  if (li > 0) (clone.giorni || []).forEach(g => {
+    if (g.settimane && g.settimane[li]) g.settimane[0] = JSON.parse(JSON.stringify(g.settimane[li]));
+  });
+  return clone;
+}
 function settimaneDelGiorno(m, g) {
   const n = nSettimaneMeso(m);
   while (g.settimane.length < n) g.settimane.push(settVuota());
@@ -769,6 +787,15 @@ function fkSetBlocco(s, i, bi, campo, val) { const r = _fkRiga(s, i); if (r && r
 function fkSetRip(s, i, val) { const r = _fkRiga(s, i); if (r) { r.fkRip = val; savePista(); } }
 function pistaDelRiga(s, i) { const r = pistaInit().mesocicli[S.pistaMeso].giorni[S.pistaGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePista(); disegna(); }
 function pistaAddMeso() { pistaInit().mesocicli.push(mesoVuoto()); S.pistaMeso = pistaInit().mesocicli.length - 1; S.pistaGiorno = 0; savePista(); disegna(); window.scrollTo(0, 0); }
+// nuovo mesociclo = COPIA di quello mostrato (così si costruisce in fretta il blocco successivo). La data d'inizio si azzera.
+function pistaCopiaMesoPrec() {
+  const p = pistaInit(), mc = p.mesocicli || [];
+  const src = mc[S.pistaMeso] || mc[mc.length - 1];
+  if (!src) { pistaAddMeso(); return; }
+  mc.push(_cloneMesoPerSuccessivo(src));
+  S.pistaMeso = mc.length - 1; S.pistaGiorno = 0;
+  savePista(); disegna(); window.scrollTo(0, 0);
+}
 function selMeso(i) { S.pistaMeso = i; S.pistaGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei
 function selGiorno(i) { S.pistaGiorno = i; disegna(); }                  // cambia giorno restando dove sei
 function pistaAddGiorno() {
@@ -875,7 +902,8 @@ function vistaProgrammaPista() {
   // selettore mesociclo
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>
     `<button class="${i === S.pistaMeso ? "on" : ""}" onclick="selMeso(${i})">Meso ${i + 1}</button>`).join("")}
-    <button onclick="pistaAddMeso()">＋</button></div>`;
+    <button onclick="pistaAddMeso()" title="Nuovo mesociclo vuoto">＋</button>
+    <button onclick="pistaCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>`;
 
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);

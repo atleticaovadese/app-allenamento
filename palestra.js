@@ -159,6 +159,15 @@ function palStepN(s, i, campo, delta) {
 function palAddRiga(s) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe.push(palRigaVuota()); savePalestra(); disegna(); }
 function palDelRiga(s, i) { const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePalestra(); disegna(); }
 function palAddMeso() { palestraInit().mesocicli.push(palMesoVuoto()); S.palMeso = palestraInit().mesocicli.length - 1; S.palGiorno = 0; savePalestra(); disegna(); window.scrollTo(0, 0); }
+// nuovo mesociclo = COPIA di quello mostrato (così si costruisce in fretta il blocco successivo). La data d'inizio si azzera.
+function palCopiaMesoPrec() {
+  const p = palestraInit(), mc = p.mesocicli || [];
+  const src = mc[S.palMeso] || mc[mc.length - 1];
+  if (!src) { palAddMeso(); return; }
+  mc.push(_cloneMesoPerSuccessivo(src));   // 1ª settimana = ultima di carico del precedente (continuità 3+1/2+1/1+1…)
+  S.palMeso = mc.length - 1; S.palGiorno = 0;
+  savePalestra(); disegna(); window.scrollTo(0, 0);
+}
 function selPalMeso(i) { S.palMeso = i; S.palGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei
 function selPalGiorno(i) { S.palGiorno = i; disegna(); }                // cambia giorno restando dove sei
 function palAddGiorno() {
@@ -304,7 +313,8 @@ function vistaProgrammaPalestra() {
 
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>
     `<button class="${i === S.palMeso ? "on" : ""}" onclick="selPalMeso(${i})">Meso ${i + 1}</button>`).join("")}
-    <button onclick="palAddMeso()">＋</button></div>`;
+    <button onclick="palAddMeso()" title="Nuovo mesociclo vuoto">＋</button>
+    <button onclick="palCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>`;
 
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);

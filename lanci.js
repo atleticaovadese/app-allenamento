@@ -295,7 +295,8 @@ function vistaProgrammaPistaLanci() {
 
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>
     `<button class="${i === S.pistaMeso ? "on" : ""}" onclick="selMeso(${i})">Meso ${i + 1}</button>`).join("")}
-    <button onclick="pistaAddMeso()">＋</button></div>`;
+    <button onclick="pistaAddMeso()" title="Nuovo mesociclo vuoto">＋</button>
+    <button onclick="pistaCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>`;
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);
   const testaMeso = `${typeof _avvisoInizioMeso === "function" ? _avvisoInizioMeso(m) : ""}<div class="card">
