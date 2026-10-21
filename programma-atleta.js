@@ -260,9 +260,9 @@ function _progPal(atleta) {
   const g = (atleta && typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
   return palDi(g);
 }
-// COACH — estende il mesociclo MOSTRATO del madre (gruppo corrente) ai programmi PERSONALI degli atleti
-// di quel gruppo che non ce l'hanno ancora → "rientrano nel madre" per quel blocco, senza toccare il resto
-// del loro programma personale (es. un atleta col meso 1 modificato prende il meso 2 uguale agli altri).
+// COACH — estende il mesociclo MOSTRATO del madre (gruppo corrente) ai programmi PERSONALI di atleti SCELTI
+// → "rientrano nel madre" per quel blocco, senza toccare il resto del loro programma (es. meso 1 modificato,
+// meso 2 uguale agli altri). Apre una finestra con le caselline per scegliere chi includere.
 function _dataItBreve(iso) { return iso ? iso.split("-").reverse().join("/") : ""; }   // "2026-10-19" → "19/10/2026"
 function estendiMesoAiPersonali(tipo) {
   if (S.progAtleta) return;   // vale solo editando il MADRE (non il programma di un singolo atleta)
@@ -276,13 +276,58 @@ function estendiMesoAiPersonali(tipo) {
   const store = pal ? (DEMO.palAtleta = DEMO.palAtleta || {}) : (DEMO.pistaAtleta = DEMO.pistaAtleta || {});
   const conPerso = (DEMO.atleti || []).filter(a => a && !a.bloccato && gruppoDi(a) === g && store[a.id] && (store[a.id].mesocicli || []).length);
   if (!conPerso.length) { alert("Nessun atleta di questo gruppo ha un programma " + (pal ? "palestra" : "pista") + " personale: seguono già tutti il madre (e prendono questo mesociclo in automatico)."); return; }
-  const dest = conPerso.filter(a => !(store[a.id].mesocicli || []).some(m => m.inizio === src.inizio));
-  if (!dest.length) { alert("Tutti gli atleti con programma personale hanno già un mesociclo che parte il " + _dataItBreve(src.inizio) + "."); return; }
-  const lista = dest.map(a => "• " + a.nome).join("\n");
-  if (typeof confirm === "function" && !confirm(`Copiare questo mesociclo (inizio ${_dataItBreve(src.inizio)}${src.focus ? " · " + src.focus : ""}) nel programma ${pal ? "palestra" : "pista"} PERSONALE di ${dest.length} atlet${dest.length === 1 ? "a" : "i"}?\n\n${lista}\n\nIl resto del loro programma personale non viene toccato.`)) return;
-  dest.forEach(a => { store[a.id].mesocicli.push(JSON.parse(JSON.stringify(src))); });
+  // ordina: prima chi lo può ricevere (checkato), poi chi ce l'ha già (disabilitato)
+  const righe = conPerso.map(a => ({ a, giaHa: (store[a.id].mesocicli || []).some(m => m.inizio === src.inizio) }))
+    .sort((x, y) => (x.giaHa ? 1 : 0) - (y.giaHa ? 1 : 0) || x.a.nome.localeCompare(y.a.nome));
+  const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const body = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+      <h3 style="margin:0">Estendi mesociclo</h3>
+      <button class="chiudi" style="font-size:18px" onclick="_estendiChiudi()" aria-label="Chiudi">✕</button>
+    </div>
+    <p class="et" style="margin:0 0 12px;color:var(--txt3)">Copio il mesociclo <b style="color:var(--txt)">${esc(src.focus) || "(senza focus)"}</b> · inizio <b style="color:var(--txt)">${_dataItBreve(src.inizio)}</b> nel programma ${pal ? "palestra" : "pista"} personale degli atleti selezionati. Il resto del loro programma non viene toccato.</p>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:12px" onclick="_estendiTutti(true)">Seleziona tutti</button>
+      <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:12px" onclick="_estendiTutti(false)">Nessuno</button>
+    </div>
+    <div id="estendiLista" style="margin-bottom:4px">
+      ${righe.map(r => `<label style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--line)${r.giaHa ? ";opacity:.5" : ""}">
+        <input type="checkbox" class="estCk" value="${r.a.id}" ${r.giaHa ? "disabled" : "checked"} style="width:19px;height:19px;flex:none">
+        <span>${esc(r.a.nome)}${r.giaHa ? ` <span class="et" style="color:var(--txt3)">— ce l'ha già</span>` : ""}</span>
+      </label>`).join("")}
+    </div>
+    <button class="btn" style="margin-top:12px" onclick="_estendiApplica('${tipo}','${src.inizio}')">📥 Applica ai selezionati</button>`;
+  _estendiApri(body);
+}
+// finestra (bottom sheet) sul #velo — niente router, si legge lo stato delle caselline al momento dell'Applica
+function _estendiApri(html) {
+  const v = document.getElementById("velo");
+  if (!v) return;
+  v.innerHTML = `<div style="background:var(--card);color:var(--txt);width:100%;max-height:84vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px 22px;box-sizing:border-box">${html}</div>`;
+  v.classList.add("on");
+  v.onclick = e => { if (e.target === v) _estendiChiudi(); };   // tocco fuori = chiudi
+}
+function _estendiChiudi() { const v = document.getElementById("velo"); if (v) { v.classList.remove("on"); v.innerHTML = ""; v.onclick = null; } }
+function _estendiTutti(val) { document.querySelectorAll("#estendiLista .estCk:not(:disabled)").forEach(c => { c.checked = val; }); }
+function _estendiApplica(tipo, inizio) {
+  const pal = tipo === "palestra";
+  const prog = pal ? palestraInit() : pistaInit();
+  const mi = pal ? S.palMeso : S.pistaMeso;
+  const src = prog && prog.mesocicli && prog.mesocicli[mi];
+  if (!src || src.inizio !== inizio) { _estendiChiudi(); disegna(); return; }   // il meso sotto è cambiato: annulla
+  const store = pal ? (DEMO.palAtleta = DEMO.palAtleta || {}) : (DEMO.pistaAtleta = DEMO.pistaAtleta || {});
+  const ids = Array.from(document.querySelectorAll(".estCk:checked")).map(c => c.value);
+  if (!ids.length) { alert("Non hai selezionato nessun atleta."); return; }
+  let n = 0;
+  ids.forEach(id => {
+    if (!store[id] || !(store[id].mesocicli || []).length) return;
+    if ((store[id].mesocicli).some(m => m.inizio === src.inizio)) return;   // dedup di sicurezza
+    store[id].mesocicli.push(JSON.parse(JSON.stringify(src)));
+    n++;
+  });
   if (typeof salvaCustom === "function") salvaCustom();
-  alert(`Fatto ✔ Mesociclo aggiunto a ${dest.length} atlet${dest.length === 1 ? "a" : "i"}. Ora lo vedono sul calendario.`);
+  _estendiChiudi();
+  alert(`Fatto ✔ Mesociclo aggiunto a ${n} atlet${n === 1 ? "a" : "i"}. Ora lo vedono sul calendario.`);
   disegna();
 }
 function pistaEstendiAiPersonali() { estendiMesoAiPersonali("pista"); }
