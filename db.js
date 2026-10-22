@@ -401,6 +401,7 @@ async function caricaDati() {
       // barra "ultima settimana" (scheda atleta) + calendario squadra: dai dati REALI (programma + svolte)
       if (DEMO.mon[a.id]) { const wk = _settimanaMonReale(a); DEMO.mon[a.id].settimana = wk.settimana; DEMO.mon[a.id].done = wk.done; DEMO.mon[a.id].extra = wk.extra; DEMO.mon[a.id].extraKm = wk.extraKm; }
     });
+    if (typeof _alertAsimmetriaAtleti === "function") _alertAsimmetriaAtleti();   // reminder asimmetrie nello stato atleta
   } catch (e) { /* tabella seduta_svolta assente o offline */ }
 
   // super-admin (Alessandro): carica l'elenco società e i messaggi "Scrivi a Metis"

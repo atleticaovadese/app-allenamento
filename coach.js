@@ -306,7 +306,7 @@ function listaAtleti(lista) {
       <span class="dot" style="background:${col}"></span>
       <div style="flex:1;min-width:0">
         <h3>${a.nome}</h3>
-        <p class="et" style="margin-top:2px">${a.specialita}${met ? " · " + met : ""} · ${s.ultimo} · aderenza ${s.aderenza}%</p>
+        <p class="et" style="margin-top:2px">${a.specialita}${met ? " · " + met : ""} · ${s.ultimo} · aderenza ${s.aderenza}%${_haAsimmetria(a.id) ? ` · <span style="color:var(--ambra,#e6a83c)">🦵 asimmetria</span>` : ""}</p>
       </div>
       <span class="freccia">›</span>
     </div>`;
@@ -1274,6 +1274,7 @@ function salvaPrevenzione() {
     salvaSessione(a.id, "prevenzione", dati, data);
     alert(`Test di prevenzione salvato per ${a.nome} (${(typeof fmtDataAnno === "function") ? fmtDataAnno(data) : data}).`);
   }
+  if (typeof _alertAsimmetriaAtleti === "function") _alertAsimmetriaAtleti();   // aggiorna subito il reminder nello stato
   disegna();
 }
 // blocco "storico prevenzione" per un atleta: ultimo test + selettore per vedere l'andamento di un singolo test.
@@ -1289,17 +1290,61 @@ function blkPrevStorico(atletaId) {
   const rigaU = Object.keys(ud).map(k => { const o = ud[k]; return o ? `<tr><td style="text-align:left">${nomeDi(k)}</td><td class="pauto">${o.dx}/${o.sx}</td><td class="pauto" style="color:${col(o.asym)};font-weight:600">${o.asym != null ? Number(o.asym).toFixed(1) + "%" : "—"}</td></tr>` : ""; }).join("");
   const chiavi = Array.from(new Set(ss.flatMap(s => Object.keys(s.dati || {}))));
   const sel = (S.prevVediTest && chiavi.indexOf(S.prevVediTest) >= 0) ? S.prevVediTest : chiavi[0];
-  const storico = ss.slice().reverse().filter(s => s.dati && s.dati[sel]).map(s => { const o = s.dati[sel]; return `<tr><td>${dt(s.data)}</td><td class="pauto">${o.dx}</td><td class="pauto">${o.sx}</td><td class="pauto" style="color:${col(o.asym)};font-weight:600">${o.asym != null ? Number(o.asym).toFixed(1) + "%" : "—"}</td></tr>`; }).join("");
+  const seq = ss.slice().reverse().filter(s => s.dati && s.dati[sel]);   // dal più vecchio al più recente
+  const storico = seq.slice().reverse().map(s => { const o = s.dati[sel]; return `<tr><td>${dt(s.data)}</td><td class="pauto">${o.dx}</td><td class="pauto">${o.sx}</td><td class="pauto" style="color:${col(o.asym)};font-weight:600">${o.asym != null ? Number(o.asym).toFixed(1) + "%" : "—"}</td></tr>`; }).join("");
+  // grafico dell'asimmetria nel tempo (scende = migliora) + "quanto è cambiata" dx/sx incluse
+  const pts = seq.map(s => ({ label: dt(s.data), val: s.dati[sel].asym })).filter(p => p.val != null);
+  const grafico = (pts.length >= 2 && typeof chartSerie === "function") ? `<p class="et" style="margin:10px 0 2px">Asimmetria nel tempo (meno = meglio)</p>${chartSerie(pts)}` : "";
+  let verdetto = "";
+  if (seq.length >= 2) {
+    const o0 = seq[0].dati[sel], oN = seq[seq.length - 1].dati[sel];
+    if (o0.asym != null && oN.asym != null) {
+      const d = oN.asym - o0.asym;   // <0 = asimmetria ridotta = meglio
+      const dxsx = `dx ${o0.dx}→${oN.dx} · sx ${o0.sx}→${oN.sx}`;
+      const range = `${o0.asym.toFixed(1)}% → ${oN.asym.toFixed(1)}%`;
+      if (Math.abs(d) < 1) verdetto = `<p class="et" style="margin-top:8px">➡️ Asimmetria <b>stabile</b> intorno al ${oN.asym.toFixed(1)}% · <span style="color:var(--txt3)">${dxsx}</span></p>`;
+      else if (d < 0) verdetto = `<p class="et" style="margin-top:8px;color:var(--verde)">✓ Asimmetria <b>ridotta di ${Math.abs(d).toFixed(1)} punti</b> (${range}) · <span style="color:var(--txt3)">${dxsx}</span></p>`;
+      else verdetto = `<p class="et" style="margin-top:8px;color:var(--ambra,#e6a83c)">Asimmetria <b>aumentata di ${d.toFixed(1)} punti</b> (${range}) — da tenere d'occhio · <span style="color:var(--txt3)">${dxsx}</span></p>`;
+    }
+  }
   return `<div class="card">
     <p class="et" style="margin-bottom:8px">🩹 Prevenzione — asimmetrie dx/sx · ultimo test ${dt(ultima.data)}</p>
     <div class="p-scroll"><table class="ptab" style="min-width:0"><thead><tr><th style="text-align:left">Test</th><th>Dx/Sx</th><th>Asimm.</th></tr></thead><tbody>${rigaU}</tbody></table></div>
     ${chiavi.length ? `<label class="lab" style="display:block;margin-top:12px">Andamento nel tempo di un test</label>
     <select onchange="setPrevVediTest(this.value)" style="margin-top:6px">${chiavi.map(k => `<option value="${k}" ${k === sel ? "selected" : ""}>${nomeDi(k)}</option>`).join("")}</select>
+    ${grafico}${verdetto}
     <div class="p-scroll" style="margin-top:8px"><table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Dx</th><th>Sx</th><th>Asimm.</th></tr></thead><tbody>${storico}</tbody></table></div>` : ""}
     <p class="et" style="margin-top:6px;color:var(--txt3)">&gt;15% 🔴 · 10–15% 🟡 · &lt;10% 🟢 (Limb Symmetry Index)</p>
   </div>`;
 }
 function setPrevVediTest(k) { S.prevVediTest = k; disegna(); }
+// REMINDER asimmetrie: se l'ULTIMO test di prevenzione di un atleta ha asimmetrie (≥10%), lo ricorda nello
+// STATO dell'atleta scrivendolo in mon.alert → compare da solo nel cruscotto, nelle notifiche (categoria
+// infortuni/prevenzione) e, col pallino, nella home. Idempotente: toglie il vecchio reminder e lo rimette.
+function _alertAsimmetriaAtleti() {
+  if (!DEMO.mon || !DEMO.atleti) return;
+  DEMO.atleti.forEach(a => {
+    const m = DEMO.mon[a.id]; if (!m) return;
+    m.alert = (m.alert || []).filter(x => !(x && x[2] === "asimmetria"));   // via l'eventuale reminder precedente
+    const ss = (typeof sessioniDi === "function") ? sessioniDi(a.id, "prevenzione") : [];
+    if (!ss.length) return;
+    const d = ss[0].dati || {};
+    const asy = Object.keys(d).map(k => d[k] && d[k].asym).filter(x => x != null);
+    const rosse = asy.filter(x => x > 15).length, gialle = asy.filter(x => x >= 10 && x <= 15).length;
+    if (!rosse && !gialle) return;
+    const dl = (typeof fmtDataAnno === "function") ? fmtDataAnno(ss[0].data) : ss[0].data;
+    const txt = rosse
+      ? `🦵 Asimmetria da correggere: ${rosse} test oltre il 15% (prevenzione, ${dl}) — monitora e lavora sul lato debole`
+      : `🦵 Asimmetria da tenere d'occhio: ${gialle} test 10–15% (prevenzione, ${dl})`;
+    m.alert.push(["w", txt, "asimmetria"]);   // "w" = attenzione (giallo); 3° elem = tag per dedup/categoria
+    if (rosse && m.stato === "v") m.stato = "w";   // porta il semaforo ad "attenzione" sulla home (mai oltre)
+  });
+}
+// true se l'atleta ha il reminder asimmetria attivo (per mostrarlo nella lista home)
+function _haAsimmetria(atletaId) {
+  const m = DEMO.mon && DEMO.mon[atletaId];
+  return !!(m && (m.alert || []).some(x => x && x[2] === "asimmetria"));
+}
 // ---------- prevenzione: aggiungi/elimina test e esercizi personalizzati ----------
 function apriAddPrevTest() {
   mostraFoglio(`<div class="foglio-top"><h3>Nuovo test di prevenzione</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
