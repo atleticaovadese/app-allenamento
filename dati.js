@@ -92,10 +92,20 @@ function salvaCustom() {
 }
 
 // --- sessioni di test complete (snapshot per data): si rivedono per intero ---
-function salvaSessione(atletaId, tipo, dati) {
+// data opzionale: se omessa usa oggi; così si possono anche retrodatare i test (tracciamento nel lungo periodo).
+function salvaSessione(atletaId, tipo, dati, data) {
   if (!atletaId) return false;
   DEMO.testSessioni = DEMO.testSessioni || [];
-  DEMO.testSessioni.push({ id: "ts" + Date.now(), atletaId, tipo, data: new Date().toISOString().slice(0, 10), dati });
+  DEMO.testSessioni.push({ id: "ts" + Date.now(), atletaId, tipo, data: data || new Date().toISOString().slice(0, 10), dati });
+  salvaCustom();
+  return true;
+}
+// aggiorna una sessione già salvata (modifica di una giornata di test) senza crearne una nuova
+function aggiornaSessione(id, dati, data) {
+  const s = (DEMO.testSessioni || []).find(x => x.id === id);
+  if (!s) return false;
+  s.dati = dati;
+  if (data) s.data = data;
   salvaCustom();
   return true;
 }
@@ -107,16 +117,16 @@ function eliminaSessione(id) {
   DEMO.testSessioni = (DEMO.testSessioni || []).filter(s => s.id !== id);
   salvaCustom(); disegna();
 }
-// lista delle sessioni salvate di un test (card riapribile per data)
-function bloccoSessioni(atletaId, tipo, titolo) {
+// lista delle sessioni salvate di un test (card riapribile per data). editFn = nome funzione per "✎ modifica" (opz.)
+function bloccoSessioni(atletaId, tipo, titolo, editFn) {
   if (!atletaId) return "";
   const ss = sessioniDi(atletaId, tipo);
   const dt = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
   return `<div class="card"><p class="et" style="margin-bottom:8px">${titolo || "Test salvati"}</p>
     ${ss.length ? ss.map(s => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
         <b style="font-size:14px">${dt(s.data)}</b>
-        <button class="link-indietro" style="color:var(--rosso)" onclick="eliminaSessione('${s.id}')">elimina</button></div>
+        <span style="display:flex;gap:12px">${editFn ? `<button class="link-indietro" style="color:var(--blu)" onclick="${editFn}('${s.id}')">✎ modifica</button>` : ""}<button class="link-indietro" style="color:var(--rosso)" onclick="eliminaSessione('${s.id}')">elimina</button></span></div>
       ${formatSessione(s.tipo, s.dati)}</div>`).join("")
       : `<p class="et">Nessun test salvato ancora. Salva e lo rivedi qui, completo, per data.</p>`}
   </div>`;
@@ -125,8 +135,11 @@ function bloccoSessioni(atletaId, tipo, titolo) {
 function formatSessione(tipo, d) {
   const col = a => a == null ? "var(--txt3)" : a > 15 ? "var(--rosso)" : a >= 10 ? "var(--giallo)" : "var(--verde)";
   if (tipo === "prevenzione") {
-    const row = (lbl, o) => o ? `<tr><td>${lbl}</td><td class="pauto">${o.dx}/${o.sx}</td><td class="pauto" style="color:${col(o.asym)}">${o.asym != null ? o.asym.toFixed(1) + "%" : "—"}</td></tr>` : "";
-    return `<table class="ptab" style="min-width:0;margin-top:6px"><thead><tr><th>Test</th><th>Dx/Sx</th><th>Asimm.</th></tr></thead><tbody>${row("Caviglia KTW", d.ktw)}${row("Hamstring AKE", d.ake)}${row("Rot. anca", d.hip)}${row("Salto monop.", d.hop)}</tbody></table>`;
+    // mostra TUTTI i test salvati (fissi + custom): nome dal registro prevenzione, altrimenti la chiave
+    const tutti = (typeof prevTestsAll === "function") ? prevTestsAll() : [];
+    const nomeDi = k => { const t = tutti.find(x => x.k === k); return t ? t.nome : k; };
+    const rows = Object.keys(d || {}).map(k => { const o = d[k]; return o ? `<tr><td>${nomeDi(k)}</td><td class="pauto">${o.dx}/${o.sx}</td><td class="pauto" style="color:${col(o.asym)}">${o.asym != null ? Number(o.asym).toFixed(1) + "%" : "—"}</td></tr>` : ""; }).join("");
+    return `<table class="ptab" style="min-width:0;margin-top:6px"><thead><tr><th>Test</th><th>Dx/Sx</th><th>Asimm.</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   if (tipo === "dropjump") {
     return `<table class="ptab" style="min-width:0;margin-top:6px"><thead><tr><th>Caduta</th><th>Cont.</th><th>Salto</th><th>RSI</th></tr></thead><tbody>${(d.righe || []).map(r => { const best = d.bestH != null && Number(r.caduta) === Number(d.bestH); return `<tr><td>${r.caduta} cm</td><td class="pauto">${r.ct}</td><td class="pauto">${r.h}</td><td class="pauto"${best ? ' style="color:var(--verde);font-weight:600"' : ""}>${r.rsi != null ? Number(r.rsi).toFixed(2) : "—"}${best ? " ★" : ""}</td></tr>`; }).join("")}</tbody></table>${d.bestRsi != null ? `<p class="et" style="margin-top:4px">Ottimale: ${d.bestH} cm · RSI ${Number(d.bestRsi).toFixed(2)}</p>` : ""}`;

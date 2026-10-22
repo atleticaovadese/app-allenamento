@@ -143,16 +143,18 @@ function progressioneAtleta(atl) {
     area("🏋 Forza — massimali", mx, "1RM reali o stimati (VBT).", { unita: "kg" }) +
     area("🦘 Salti / reattività", saltiPuri, "CMJ, SJ, drop jump, RSI, broad jump…");
   // NB: la VBT degli allenamenti NON si mostra qui (c'è già «Andamento palestra»); solo massimali, salti e sprint/velocità dei test.
-  return out || `<div class="card"><p class="et">Ancora nessun test registrato per questo atleta: appena esegue e salva un test (sprint, salti, massimali) compare qui con l'andamento.</p></div>`;
+  const prev = (typeof blkPrevStorico === "function") ? blkPrevStorico(atl.id) : "";
+  const prevSez = prev ? `<p class="sez">🩹 Prevenzione / asimmetrie</p>${prev}` : "";
+  return (out + prevSez) || `<div class="card"><p class="et">Ancora nessun test registrato per questo atleta: appena esegue e salva un test (sprint, salti, massimali, prevenzione) compare qui con l'andamento.</p></div>`;
 }
 
 function vistaTest() {
   const atl = DEMO.atleti.find(x => x.id === testState.atletaRif);
   const picker = TEST_HUB.map(([blocco, tests]) => `
     <p class="sez">${blocco}</p>
-    ${tests.map(([r, nome, info]) => `<div class="lib-row" onclick="vai('${r}')">
+    ${tests.map(([r, nome, info]) => { const click = r === "prevenzione" ? "vaiPrevDaTest()" : `vai('${r}')`; return `<div class="lib-row" onclick="${click}">
       <div style="flex:1;min-width:0"><div style="font-weight:500">${nome}</div><div class="et" style="margin-top:1px">${info}</div></div>
-      <span class="freccia">›</span></div>`).join("")}`).join("");
+      <span class="freccia">›</span></div>`; }).join("")}`).join("");
 
   return `
   <div class="card"><h3>Test periodici</h3>

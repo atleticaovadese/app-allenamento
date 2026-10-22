@@ -1128,11 +1128,40 @@ const PREV_NOTE = {
   hop: "Forza e potenza monopodalica sul lato debole (split squat, step-up, progressione di balzi) finché la simmetria torna sotto il 10%."
 };
 // esempio pre-compilato su Leonardo (at1): 2 ok, 1 attenzione, 1 bandiera
-let prevState = { atletaRif: "at1", val: {
+let prevState = { atletaRif: "at1", editId: null, data: "", val: {
   ktw: { dx: "11", sx: "10" }, ake: { dx: "72", sx: "68" },
   hip: { dx: "38", sx: "30" }, hop: { dx: "185", sx: "165" }
 } };
-function setPrevAtleta(id) { prevState.atletaRif = id; disegna(); }
+// cambio atleta: azzera l'eventuale modifica in corso e i valori (si ricaricano vuoti), e tiene in sync i Test
+function setPrevAtleta(id) {
+  prevState.atletaRif = id; prevState.editId = null; prevState.val = {};
+  prevState.data = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  if (typeof testState !== "undefined") testState.atletaRif = id;   // stesso atleta anche nella pagina Test
+  disegna();
+}
+function setPrevData(v) { prevState.data = v; }
+// dalla pagina Test ("＋ Nuovo test" → Prevenzione): entra in prevenzione CON l'atleta già scelto nei Test
+function vaiPrevDaTest() {
+  if (typeof testState !== "undefined" && testState.atletaRif) {
+    if (prevState.atletaRif !== testState.atletaRif) { prevState.atletaRif = testState.atletaRif; prevState.val = {}; }
+    prevState.editId = null;
+  }
+  if (typeof vai === "function") vai("prevenzione");
+}
+// riapre una giornata di test salvata per MODIFICARLA (stesso id → il salvataggio aggiorna, non duplica)
+function modificaPrevSessione(id) {
+  const s = (DEMO.testSessioni || []).find(x => x.id === id);
+  if (!s) return;
+  prevState.atletaRif = s.atletaId; prevState.editId = id; prevState.data = s.data; prevState.val = {};
+  Object.keys(s.dati || {}).forEach(k => { prevState.val[k] = { dx: s.dati[k].dx, sx: s.dati[k].sx }; });
+  if (typeof testState !== "undefined") testState.atletaRif = s.atletaId;
+  S.vista = "prevenzione"; disegna(); window.scrollTo(0, 0);
+}
+function annullaModificaPrev() {
+  prevState.editId = null; prevState.val = {};
+  prevState.data = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+  disegna();
+}
 function setPrevVal(k, lato, v) { prevState.val[k][lato] = v; }
 function prevAsym(k) {
   const d = parseFloat(String(prevState.val[k].dx).replace(",", "."));
@@ -1145,6 +1174,7 @@ function prevFlag(a) { return a == null ? "—" : a > 15 ? "🔴 asimmetria" : a
 
 function vistaPrevenzione() {
   const atl = DEMO.atleti.find(x => x.id === prevState.atletaRif);
+  if (!prevState.data) prevState.data = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
   prevEnsure();
   const righe = prevTestsAll().map(t => {
     const a = atl ? prevAsym(t.k) : null;
@@ -1169,9 +1199,14 @@ function vistaPrevenzione() {
     <p class="et" style="margin-top:2px">Confronto destra/sinistra (Limb Symmetry Index). Per ogni test inserisci dx e sx: la % di asimmetria si calcola da sola. Rif.: &gt;15% 🔴 bandiera · 10–15% 🟡 attenzione · &lt;10% 🟢 ok.</p></div>
 
   <div class="card">
-    <label class="lab">Atleta</label>
-    <select onchange="setPrevAtleta(this.value)" style="margin-top:6px">
-      <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${prevState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select>
+    <div class="griglia2">
+      <div><label class="lab">Atleta</label>
+        <select onchange="setPrevAtleta(this.value)" style="margin-top:6px">
+          <option value="">— scegli —</option>${DEMO.atleti.map(a => `<option value="${a.id}" ${prevState.atletaRif === a.id ? "selected" : ""}>${a.nome}</option>`).join("")}</select></div>
+      <div><label class="lab">Data del test</label>
+        <input type="date" value="${prevState.data || ""}" onchange="setPrevData(this.value)" style="margin-top:6px"></div>
+    </div>
+    ${prevState.editId ? `<p class="et" style="margin-top:10px;color:var(--blu)">✎ Stai <b>modificando</b> il test del ${(typeof fmtDataAnno === "function") ? fmtDataAnno(prevState.data) : prevState.data}. <button class="link-indietro" style="color:var(--txt3)" onclick="annullaModificaPrev()">annulla e fai un test nuovo</button></p>` : ""}
   </div>
 
   <div class="card">
@@ -1181,7 +1216,7 @@ function vistaPrevenzione() {
     </table></div>
     ${stato ? `<p style="margin-top:12px;font-weight:600">${stato}</p>` : ""}
     <p class="et" style="margin-top:6px">Misura KTW e salto in cm, AKE e rotazione anca in gradi. Ricontrolla ogni ~8 settimane e confronta.</p>
-    ${atl && flags.length ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaPrevenzione()">💾 Salva il test</button>` : (atl ? `<p class="et" style="margin-top:8px">Inserisci i test (dx e sx) per salvarli.</p>` : "")}
+    ${atl && flags.length ? `<button class="btn btn-2" style="margin-top:12px" onclick="salvaPrevenzione()">${prevState.editId ? "💾 Aggiorna il test" : "💾 Salva il test"}</button>` : (atl ? `<p class="et" style="margin-top:8px">Inserisci i test (dx e sx) per salvarli.</p>` : "")}
     <button class="btn btn-2" style="margin-top:8px;width:auto;padding:8px 14px" onclick="apriAddPrevTest()">＋ Aggiungi test</button>
   </div>
 
@@ -1221,18 +1256,50 @@ function vistaPrevenzione() {
     <button class="btn btn-2" style="margin-top:10px;width:auto;padding:8px 14px" onclick="apriAddPrevEs()">＋ Aggiungi esercizio di prevenzione</button>
     <p class="et" style="margin-top:10px">Rif.: ACWR (Gabbett) 0.8–1.3 · asimmetria &gt;10–15% = bandiera (Limb Symmetry Index) · Nordic hamstring (meta-analisi van Dyk / Al Attar).</p>
   </div>
-  ${atl && typeof bloccoSessioni === "function" ? bloccoSessioni(atl.id, "prevenzione", "Test di prevenzione salvati") : ""}`;
+  ${atl && typeof bloccoSessioni === "function" ? bloccoSessioni(atl.id, "prevenzione", "Test di prevenzione salvati (tocca ✎ per modificarne uno)", "modificaPrevSessione") : ""}`;
 }
 function salvaPrevenzione() {
   const a = DEMO.atleti.find(x => x.id === prevState.atletaRif);
   if (!a) { alert("Scegli un atleta."); return; }
   if (typeof atletaBloccato === "function" && atletaBloccato(a.id)) { alert("🔒 Scheda bloccata (esempio dimostrativo): non modificabile."); return; }
   const dati = {}; let n = 0;
-  prevTestsAll().forEach(t => { const asym = prevAsym(t.k); if (asym != null) { dati[t.k] = { dx: prevState.val[t.k].dx, sx: prevState.val[t.k].sx, asym }; n++; } });
+  Object.keys(prevState.val || {}).forEach(k => { const asym = prevAsym(k); if (asym != null) { dati[k] = { dx: prevState.val[k].dx, sx: prevState.val[k].sx, asym }; n++; } });
   if (!n) { alert("Inserisci almeno un test (dx e sx)."); return; }
-  if (typeof salvaSessione === "function") salvaSessione(a.id, "prevenzione", dati);
-  alert(`Test di prevenzione salvato per ${a.nome}.`); disegna();
+  const data = prevState.data || ((typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10));
+  if (prevState.editId && typeof aggiornaSessione === "function") {
+    aggiornaSessione(prevState.editId, dati, data);
+    prevState.editId = null;
+    alert(`Test di prevenzione aggiornato per ${a.nome}.`);
+  } else if (typeof salvaSessione === "function") {
+    salvaSessione(a.id, "prevenzione", dati, data);
+    alert(`Test di prevenzione salvato per ${a.nome} (${(typeof fmtDataAnno === "function") ? fmtDataAnno(data) : data}).`);
+  }
+  disegna();
 }
+// blocco "storico prevenzione" per un atleta: ultimo test + selettore per vedere l'andamento di un singolo test.
+// Riusato in Analisi→Test (atleta selezionato) e nella scheda Dati/PB. Ritorna "" se non ci sono test salvati.
+function blkPrevStorico(atletaId) {
+  const ss = (typeof sessioniDi === "function") ? sessioniDi(atletaId, "prevenzione") : [];
+  if (!ss.length) return "";
+  const tutti = (typeof prevTestsAll === "function") ? prevTestsAll() : [];
+  const nomeDi = k => { const t = tutti.find(x => x.k === k); return t ? t.nome : k; };
+  const col = a => a == null ? "var(--txt3)" : a > 15 ? "var(--rosso)" : a >= 10 ? "var(--giallo)" : "var(--verde)";
+  const dt = d => typeof fmtDataAnno === "function" ? fmtDataAnno(d) : d;
+  const ultima = ss[0], ud = ultima.dati || {};
+  const rigaU = Object.keys(ud).map(k => { const o = ud[k]; return o ? `<tr><td style="text-align:left">${nomeDi(k)}</td><td class="pauto">${o.dx}/${o.sx}</td><td class="pauto" style="color:${col(o.asym)};font-weight:600">${o.asym != null ? Number(o.asym).toFixed(1) + "%" : "—"}</td></tr>` : ""; }).join("");
+  const chiavi = Array.from(new Set(ss.flatMap(s => Object.keys(s.dati || {}))));
+  const sel = (S.prevVediTest && chiavi.indexOf(S.prevVediTest) >= 0) ? S.prevVediTest : chiavi[0];
+  const storico = ss.slice().reverse().filter(s => s.dati && s.dati[sel]).map(s => { const o = s.dati[sel]; return `<tr><td>${dt(s.data)}</td><td class="pauto">${o.dx}</td><td class="pauto">${o.sx}</td><td class="pauto" style="color:${col(o.asym)};font-weight:600">${o.asym != null ? Number(o.asym).toFixed(1) + "%" : "—"}</td></tr>`; }).join("");
+  return `<div class="card">
+    <p class="et" style="margin-bottom:8px">🩹 Prevenzione — asimmetrie dx/sx · ultimo test ${dt(ultima.data)}</p>
+    <div class="p-scroll"><table class="ptab" style="min-width:0"><thead><tr><th style="text-align:left">Test</th><th>Dx/Sx</th><th>Asimm.</th></tr></thead><tbody>${rigaU}</tbody></table></div>
+    ${chiavi.length ? `<label class="lab" style="display:block;margin-top:12px">Andamento nel tempo di un test</label>
+    <select onchange="setPrevVediTest(this.value)" style="margin-top:6px">${chiavi.map(k => `<option value="${k}" ${k === sel ? "selected" : ""}>${nomeDi(k)}</option>`).join("")}</select>
+    <div class="p-scroll" style="margin-top:8px"><table class="ptab" style="min-width:0"><thead><tr><th>Data</th><th>Dx</th><th>Sx</th><th>Asimm.</th></tr></thead><tbody>${storico}</tbody></table></div>` : ""}
+    <p class="et" style="margin-top:6px;color:var(--txt3)">&gt;15% 🔴 · 10–15% 🟡 · &lt;10% 🟢 (Limb Symmetry Index)</p>
+  </div>`;
+}
+function setPrevVediTest(k) { S.prevVediTest = k; disegna(); }
 // ---------- prevenzione: aggiungi/elimina test e esercizi personalizzati ----------
 function apriAddPrevTest() {
   mostraFoglio(`<div class="foglio-top"><h3>Nuovo test di prevenzione</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>

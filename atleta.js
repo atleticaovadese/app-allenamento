@@ -92,7 +92,8 @@ function schedaAtleta(a, mod) {
     <p class="et" style="margin-bottom:6px">Salti e test</p>
     ${salti || `<p class="et">Nessun test inserito.</p>`}
     ${agg("test", "Aggiungi test")}
-  </div>`;
+  </div>
+  ${typeof blkPrevStorico === "function" ? blkPrevStorico(a.id) : ""}`;
 }
 
 // Voci del foglio Atleta (per i menù a tendina).
