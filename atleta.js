@@ -840,6 +840,7 @@ function _recTxt(min, sec) {
 }
 function apriExtraGen() {
   if (!S._extraG) S._extraG = { ambito: "pista", km: "", dislivello: "", durata: "", rpe: "", note: "", righe: [_rigaExtraVuota()], eser: [_eserExtraVuoto()] };
+  if (!S._extraG.data) S._extraG.data = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
   mostraFoglio(_foglioExtraGen());
 }
 function setExtraGenAmbito(v) { (S._extraG = S._extraG || {}).ambito = v; mostraFoglio(_foglioExtraGen()); }
@@ -903,6 +904,8 @@ function _foglioExtraGen() {
     <div class="foglio-top"><h3>➕ Allenamento in più</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     <p class="et" style="margin-bottom:10px">Un allenamento fatto <b>in più</b> rispetto al programma. Lo scrivi come i tuoi allenamenti (con tempi/distanze/peso), l'allenatore lo vede come «in più» e le distanze restano tracciate. (Non toglie e non aggiunge presenze.)</p>
+    <label class="lab">Quando l'hai fatto</label>
+    <input type="date" value="${esc(e.data)}" onchange="S._extraG.data=this.value" style="margin-top:6px;margin-bottom:12px">
     <label class="lab">Dove</label>
     <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">${seg("pista", "🏃 Pista")}${seg("palestra", "🏋 Palestra")}${seg("bici", "🚴 Bici")}${seg("nuoto", "🏊 Nuoto")}</div>
     ${corpo}
@@ -924,7 +927,7 @@ function salvaExtraGen() {
   const rpe = (e.rpe !== "" && e.rpe != null) ? _exNum(e.rpe) : null;
   const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
   if (!aid) { alert("Atleta non trovato."); return; }
-  const ex = { ambito, durata, rpe, note: e.note };
+  const ex = { ambito, durata, rpe, note: e.note, data: e.data || null };
   if (ambito === "palestra") {
     ex.esercizi = (e.eser || []).filter(x => (x.nome || "").trim()).map(x => ({ nome: x.nome.trim(), serie: _exInt(x.serie), rep: _exInt(x.rep), recupero: _recTxt(x.recMin, x.recSec), peso: _exNum(x.peso) }));
     if (!ex.esercizi.length) { alert("Aggiungi almeno un esercizio (nome)."); return; }

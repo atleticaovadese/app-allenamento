@@ -1402,7 +1402,10 @@ function vistaDiarioCoach() {
     <p class="et" style="margin-top:8px"><b style="color:${nOggi === lista.length ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${nOggi}/${lista.length}</b> hanno compilato il diario <b>oggi</b>.</p></div>
     ${righe}`;
 }
-function apriDiarioAtleta(id) { S.diarioAtleta = id; disegna(); window.scrollTo(0, 0); }
+async function apriDiarioAtleta(id) {
+  S.diarioAtleta = id; disegna(); window.scrollTo(0, 0);
+  if (typeof caricaDiarioCompleto === "function") { const ok = await caricaDiarioCompleto(id); if (ok) disegna(); }   // carica tutta la cronologia dell'atleta
+}
 function chiudiDiarioAtleta() { S.diarioAtleta = null; S.vista = "diario-c"; disegna(); window.scrollTo(0, 0); }
 function vistaDiarioAtleta() {
   const a = DEMO.atleti.find(x => x.id === S.diarioAtleta);

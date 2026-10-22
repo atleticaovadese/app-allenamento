@@ -94,18 +94,29 @@ function _sonnoRiepilogo(storia) {
     <p class="et" style="margin-top:9px;color:${notaCol}">Ultima notte: <b>${nota}</b>. ${media < 7 ? "Media sotto le 7 h: prova a dormire di più." : "Buona media di sonno 👍"}</p>
   </div>`;
 }
-// storia diario per l'ATLETA (senza prontezza, che non deve vedere); evidenzia il ciclo
+// storia diario per l'ATLETA (senza prontezza, che non deve vedere); evidenzia il ciclo.
+// Di default gli ultimi 21 giorni; con il tasto si vede TUTTA la cronologia (tutto l'anno).
+async function toggleDiarioTutto() {
+  S.diarioTuttoMio = !S.diarioTuttoMio;
+  disegna();
+  if (S.diarioTuttoMio && typeof caricaDiarioCompleto === "function") {
+    const aid = (S.utente && S.utente.atletaId);
+    if (aid) { const ok = await caricaDiarioCompleto(aid); if (ok) disegna(); }   // tira giù l'anno intero e ridisegna
+  }
+}
 function _diarioStoriaAtleta(storia) {
   if (!storia || !storia.length) return "";
   const dl = v => (typeof fmtDataAnno === "function") ? fmtDataAnno(v) : v;
-  const rows = storia.slice(0, 21).map(v => `<div style="padding:8px 0;border-bottom:1px solid var(--line)${v.ciclo ? ";background:rgba(214,74,120,.08);border-radius:8px;padding:8px 9px;border-bottom:0;margin-bottom:2px" : ""}">
+  const tutto = !!S.diarioTuttoMio;
+  const mostra = tutto ? storia : storia.slice(0, 21);
+  const rows = mostra.map(v => `<div style="padding:8px 0;border-bottom:1px solid var(--line)${v.ciclo ? ";background:rgba(214,74,120,.08);border-radius:8px;padding:8px 9px;border-bottom:0;margin-bottom:2px" : ""}">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <b style="font-size:13px">${dl(v.data)}${v.ciclo ? ' <span style="color:#c74a78">🩸</span>' : ""}</b>
         <span class="et" style="margin:0">${v.oreSonno != null ? v.oreSonno + " h sonno" : ""}</span></div>
       <div class="et" style="margin-top:3px">qualità ${v.sonno_qualita ?? "—"} · stress ${v.stress ?? "—"} · dolori ${v.dolori ?? "—"} · energia ${v.energia ?? "—"}${v.fastidi ? ' · <span style="color:var(--rosso)">fastidio</span>' : ""}</div>
     </div>`).join("");
-  return `<div class="card"><p class="et" style="margin-bottom:6px">📅 Come stavo — i miei giorni</p>${rows}
-    ${storia.length > 21 ? `<p class="et" style="margin-top:8px;color:var(--txt3)">mostrati gli ultimi 21 giorni</p>` : ""}</div>`;
+  return `<div class="card"><p class="et" style="margin-bottom:6px">📅 Come stavo — i miei giorni${tutto ? ` (tutti · ${storia.length})` : ""}</p>${rows}
+    ${storia.length > 21 ? `<button class="btn btn-2" style="margin-top:10px;width:auto;padding:8px 14px" onclick="toggleDiarioTutto()">${tutto ? "Mostra solo gli ultimi 21 giorni" : `📅 Vedi tutta la cronologia (${storia.length} giorni)`}</button>` : ""}</div>`;
 }
 
 function vistaDiario() {

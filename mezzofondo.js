@@ -1754,11 +1754,14 @@ function kmExtraMese(a) {
 // form: l'atleta segna una corsa fatta in più (km, passo, rpe)
 function apriExtra() {
   S._extra = S._extra || { km: "", passoMin: "", passoSec: "", rpe: "", note: "", dislivello: "" };
+  if (!S._extra.data) S._extra.data = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
   const e = S._extra;
   mostraFoglio(`
     <div class="foglio-top"><h3>➕ Allenamento extra (corsa)</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     <p class="et" style="margin-bottom:10px">Una corsa fatta <b>in più</b> rispetto al programma. Si aggiunge ai tuoi km (settimana e mese) e l'allenatore riceve una notifica.</p>
+    <label class="lab">Quando l'hai fatta</label>
+    <input type="date" value="${e.data || ""}" onchange="S._extra.data=this.value" style="margin-top:6px;margin-bottom:12px">
     <label class="lab">Km percorsi</label>
     <input inputmode="decimal" value="${e.km}" placeholder="es. 10" oninput="S._extra.km=this.value" style="margin-top:6px;max-width:140px">
     <label class="lab" style="display:block;margin-top:12px">Passo medio (min : sec / km)</label>
@@ -1788,7 +1791,7 @@ function salvaExtra() {
   const durata = passoSec ? Math.round(km * passoSec / 60) : null;   // minuti stimati (per il carico)
   const aid = (S.utente && S.utente.atletaId) || (typeof atletaCorrente === "function" && atletaCorrente() ? atletaCorrente().id : null);
   if (!aid) { alert("Atleta non trovato."); return; }
-  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { km, passoSec, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note, dislivello });
+  if (typeof salvaExtraDB === "function") salvaExtraDB(aid, { km, passoSec, rpe: (rpe != null && !isNaN(rpe)) ? rpe : null, durata, note: e.note, dislivello, data: e.data || null });
   S._extra = null;
   if (typeof chiudiScheda === "function") chiudiScheda();
   if (typeof alert === "function") alert("✓ Corsa aggiunta: " + km + " km. È nei tuoi km e l'allenatore riceve la notifica.");

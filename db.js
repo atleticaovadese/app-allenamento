@@ -505,6 +505,33 @@ async function azzeraAdattaAtletaDB(aid) {
   try { await sb.from("atleta_adatta").delete().eq("atleta_id", aid); } catch (e) { }
 }
 
+// carica TUTTA la cronologia diario di UN atleta (ultimi ~400 giorni) su richiesta — per "vedi tutta la cronologia".
+// Il caricamento normale (caricaDati) prende solo ~60 giorni, per restare leggero ed evitare il limite di righe;
+// qui si approfondisce un singolo atleta (max ~1 anno di righe, ben sotto il limite).
+async function caricaDiarioCompleto(atletaId) {
+  if (!atletaId || !haDB()) return false;
+  DEMO._diarioFull = DEMO._diarioFull || {};
+  if (DEMO._diarioFull[atletaId]) return true;   // già caricato in questa sessione
+  const dd = new Date(Date.now() - 400 * 86400000);
+  const dalISO = dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0") + "-" + String(dd.getDate()).padStart(2, "0");
+  try {
+    const { data: diari, error } = await sb.from("diario")
+      .select("atleta_id,data,ore_sonno,sonno_qualita,stress,dolori,energia,peso,ciclo,fastidi,dove_fastidi,note")
+      .eq("atleta_id", atletaId).gte("data", dalISO).order("data", { ascending: false });
+    if (error) return false;
+    const arr = (diari || []).map(r => {
+      const vc = { data: r.data, sonno_qualita: r.sonno_qualita, stress: r.stress, dolori: r.dolori, energia: r.energia, oreSonno: r.ore_sonno, peso: r.peso, ciclo: r.ciclo, fastidi: r.fastidi, doveFastidi: r.dove_fastidi || "", note: r.note || "" };
+      const p = (typeof prontezza === "function") ? prontezza(vc) : null;
+      vc.prontezza = p == null ? null : Math.round(p * 100) / 100;
+      return vc;
+    });
+    DEMO.diariStorico = DEMO.diariStorico || {};
+    DEMO.diariStorico[atletaId] = arr;   // sostituisce il sottoinsieme a 60 giorni con la cronologia più lunga
+    DEMO._diarioFull[atletaId] = true;
+    return true;
+  } catch (e) { return false; }
+}
+
 // diario di oggi dell'atleta → DB (upsert per atleta+data). Solo l'atleta scrive il proprio (RLS).
 async function salvaDiarioDB(dataISO, d) {
   const aid = S.utente && S.utente.atletaId;
