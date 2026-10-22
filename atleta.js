@@ -13,6 +13,9 @@ function schedaAtleta(a, mod) {
   const canEdit = (tipo) => mod === true || mod === "full" || mod === tipo;
   const del = (tab, key, id, i) => canEdit(key === "massimali" ? "massimale" : key === "salti" ? "test" : "pb")
     ? `<button class="chiudi" style="font-size:15px" onclick="eliminaVoce('${tab}','${a.id}','${id}','${key}',${i})" aria-label="Elimina">✕</button>` : "";
+  // ✎ modifica una voce già inserita (correzione di valore/data): riapre il foglio precompilato
+  const edi = (tipo, id) => canEdit(tipo)
+    ? `<button class="chiudi" style="font-size:14px;color:var(--blu)" onclick="apriAggiungi('${tipo}','${a.id}','${id}')" aria-label="Modifica">✎</button>` : "";
   const agg = (tipo, label) => canEdit(tipo)
     ? `<button class="btn btn-2" style="margin-top:10px" onclick="apriAggiungi('${tipo}','${a.id}')">＋ ${label}</button>` : "";
 
@@ -27,7 +30,7 @@ function schedaAtleta(a, mod) {
         <div class="et" style="margin-top:1px">${data ? "fatto il " + data : "—"}${ventoTxt}${(stag != null && stag !== "") ? " · miglior stagione " + fmtMisura(disc, stag, d) + suff : ""}</div>
         ${(ob != null && ob !== "") ? `<div style="font-size:12px;color:var(--blu);margin-top:2px">obiettivo ${fmtMisura(disc, ob, d) + suff}</div>` : ""}
       </div>
-      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${fmtMisura(disc, t, d)}${pbEDistanza(disc, d) ? " m" : ""}</b>${del("pb", "pb", id, i)}</div></div>`;
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${fmtMisura(disc, t, d)}${pbEDistanza(disc, d) ? " m" : ""}</b>${edi("pb", id)}${del("pb", "pb", id, i)}</div></div>`;
   };
   const gruppoPb = (origine) => {
     const filt = (s.pb || []).map((r, i) => [r, i]).filter(x => (x[0][7] || "gara") === origine);
@@ -48,13 +51,13 @@ function schedaAtleta(a, mod) {
     return `<div class="riga">
       <div><div style="font-weight:500">${n}</div>
         <div class="et">${[data, note].filter(Boolean).join(" · ") || "—"}</div></div>
-      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${kg} <span style="font-size:13px;color:var(--txt2)">kg</span></b>${del("massimale", "massimali", id, i)}</div></div>`;
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:17px">${kg} <span style="font-size:13px;color:var(--txt2)">kg</span></b>${edi("massimale", id)}${del("massimale", "massimali", id, i)}</div></div>`;
   }).join("");
   const salti = (s.salti || []).map((r, i) => {
     const [n, v, u, data, id] = r;
     return `<div class="riga">
       <div><div style="font-weight:500">${n}</div><div class="et">${data || "—"}</div></div>
-      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:16px">${v} <span style="font-size:13px;color:var(--txt2)">${u}</span></b>${del("test", "salti", id, i)}</div></div>`;
+      <div style="display:flex;align-items:center;gap:10px"><b style="font-size:16px">${v} <span style="font-size:13px;color:var(--txt2)">${u}</span></b>${edi("test", id)}${del("test", "salti", id, i)}</div></div>`;
   }).join("");
 
   return `
@@ -323,11 +326,19 @@ function aggiornaMisuraPB(disc) {
   if (box) box.innerHTML = M.html;
 }
 
-// Foglio per aggiungere una voce alla scheda (solo allenatore).
-function apriAggiungi(tipo, atletaId) {
+// trova la riga di scheda (pb/massimale/test) per id — per precompilare la modifica
+function _schedaRowVoce(atletaId, tipo, id) {
+  const a = DEMO.atleti.find(x => x.id === atletaId); if (!a || !a.scheda) return null;
+  const key = tipo === "massimale" ? "massimali" : tipo === "test" ? "salti" : "pb";
+  const idIdx = tipo === "pb" ? 5 : 4;
+  return (a.scheda[key] || []).find(r => String(r[idIdx]) === String(id)) || null;
+}
+// Foglio per aggiungere o MODIFICARE (editId) una voce della scheda (solo allenatore).
+function apriAggiungi(tipo, atletaId, editId) {
   let campi, tit;
+  const mod = editId ? " (modifica)" : "";
   if (tipo === "pb") {
-    tit = "Nuovo PB";
+    tit = (editId ? "Modifica PB" : "Nuovo PB");
     const at = DEMO.atleti.find(x => x.id === atletaId);
     const disc = at ? at.disciplina : "velocita";
     const L = labelPB(disc);
@@ -340,13 +351,13 @@ function apriAggiungi(tipo, atletaId) {
       <div class="griglia2" style="margin-top:12px"><div><label class="lab">${L.val2}</label><input id="f4" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:38" : L.ph}" style="margin-top:6px"></div>
         <div><label class="lab">${L.ob}</label><input id="f5" inputmode="${L.mode}" placeholder="${isTempo ? "es. 2:35" : L.ph}" style="margin-top:6px"></div></div>`;
   } else if (tipo === "massimale") {
-    tit = "Nuovo massimale";
+    tit = (editId ? "Modifica massimale" : "Nuovo massimale");
     campi = `<label class="lab">Esercizio</label>${tendina("f1", ESERCIZI_MASSIMALI)}
       <label class="lab" style="display:block;margin-top:12px">1RM (kg)</label><input id="f2" inputmode="numeric" placeholder="120" style="margin-top:6px">
       <label class="lab" style="display:block;margin-top:12px">Data</label><input id="f3" type="date" style="margin-top:6px">
       <label class="lab" style="display:block;margin-top:12px">Note</label><input id="f4" placeholder="opzionale" style="margin-top:6px">`;
   } else {
-    tit = "Nuovo test";
+    tit = (editId ? "Modifica test" : "Nuovo test");
     campi = `<label class="lab">Test</label>
       <select id="f1" onchange="toggleAltro('f1');autoUnita()">
         ${TEST_SALTI.map(([n, u]) => `<option value="${n}" data-u="${u}">${n}</option>`).join("")}
@@ -361,10 +372,39 @@ function apriAggiungi(tipo, atletaId) {
     <div class="foglio-top"><h3>${tit}</h3>
       <button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
     ${campi}
-    <button class="btn" style="margin-top:16px" onclick="salvaVoce('${tipo}','${atletaId}')">Salva</button>`);
+    <button class="btn" style="margin-top:16px" onclick="salvaVoce('${tipo}','${atletaId}','${editId || ""}')">${editId ? "Salva le modifiche" : "Salva"}</button>`);
+  if (editId) _prefillVoce(tipo, atletaId, editId);
+}
+// precompila i campi del foglio con i valori della voce da modificare (il foglio è già nel DOM)
+function _prefillVoce(tipo, atletaId, id) {
+  const row = _schedaRowVoce(atletaId, tipo, id); if (!row) return;
+  const set = (fid, v) => { const el = document.getElementById(fid); if (el != null && v != null) el.value = v; };
+  if (tipo === "massimale") {
+    set("f1", row[0]); set("f2", row[1]); set("f3", row[5] || ""); set("f4", row[3] || "");
+  } else if (tipo === "test") {
+    const known = (typeof TEST_SALTI !== "undefined") && TEST_SALTI.some(x => x[0] === row[0]);
+    if (known) { set("f1", row[0]); } else { set("f1", "__altro__"); if (typeof toggleAltro === "function") toggleAltro("f1"); set("f1b", row[0]); }
+    set("f2", row[1]); set("f3", row[2] || ""); set("f4", row[5] || "");
+  } else {   // pb: evento + misura scomposta per tipo + data + stagione/obiettivo + vento
+    const at = DEMO.atleti.find(x => x.id === atletaId); const disc = at ? at.disciplina : "velocita";
+    const ev = row[0], tempo = row[1];
+    set("f1", ev); if (typeof aggiornaMisuraPB === "function") aggiornaMisuraPB(disc);   // ricostruisce i campi misura per l'evento
+    const t = (typeof _pbTipo === "function") ? _pbTipo(disc, ev) : "velocita";
+    if (tempo != null && tempo !== "") {
+      const nTot = Number(tempo);
+      if (t === "mezzo") { const o = Math.floor(nTot / 3600), rem = nTot - o * 3600, m = Math.floor(rem / 60), s = rem - m * 60, w = Math.floor(s + 1e-6), cc = Math.round((s - w) * 100); set("f2o", o || 0); set("f2m", m); set("f2s", w); set("f2c", cc); }
+      else if (t === "distanza") { const me = Math.floor(nTot + 1e-9), cm = Math.round((nTot - me) * 100); set("f2me", me); set("f2cm", String(cm).padStart(2, "0")); }
+      else { const s = Math.floor(nTot + 1e-9), cc = Math.round((nTot - s) * 100); set("f2s", s); set("f2c", String(cc).padStart(2, "0")); }
+    }
+    set("f3", row[6] || "");
+    if (row[3] != null && row[3] !== "") set("f4", fmtMisura(disc, row[3], ev));
+    if (row[4] != null && row[4] !== "") set("f5", fmtMisura(disc, row[4], ev));
+    if (row[8] != null && row[8] !== "") set("f2v", (Number(row[8]) > 0 ? "+" : "") + Number(row[8]));
+  }
 }
 
-async function salvaVoce(tipo, atletaId) {
+async function salvaVoce(tipo, atletaId, editId) {
+  editId = editId || null;
   const v = id => ((document.getElementById(id) || {}).value || "").trim();
   const num = x => {
     if (x === "" || x == null) return null;
@@ -396,13 +436,17 @@ async function salvaVoce(tipo, atletaId) {
       tempoNum = sec + cc / 100;
       vento = parseVento();
     }
-    ok = await creaPB(atletaId, { distanza: n1, tempo: tempoNum, vento, data: v("f3") || null, stagione: parseMisura(disc, v("f4"), n1), obiettivo: parseMisura(disc, v("f5"), n1), origine: "gara" });
+    const dPB = { distanza: n1, tempo: tempoNum, vento, data: v("f3") || null, stagione: parseMisura(disc, v("f4"), n1), obiettivo: parseMisura(disc, v("f5"), n1), origine: "gara" };
+    if (editId) { const old = _schedaRowVoce(atletaId, "pb", editId); if (old && old[7]) dPB.origine = old[7]; ok = await aggiornaPB(atletaId, editId, dPB); }
+    else ok = await creaPB(atletaId, dPB);
   } else if (tipo === "massimale") {
     if (!n1 || !v("f2")) { alert("Esercizio e kg sono obbligatori."); return; }
-    ok = await creaMassimale(atletaId, { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") });
+    const dM = { esercizio: n1, kg: num(v("f2")), data: v("f3") || null, note: v("f4") };
+    ok = editId ? await aggiornaMassimale(atletaId, editId, dM) : await creaMassimale(atletaId, dM);
   } else {
     if (!n1 || !v("f2")) { alert("Test e valore sono obbligatori."); return; }
-    ok = await creaTest(atletaId, { nome: n1, valore: num(v("f2")), unita: v("f3"), data: v("f4") || null });
+    const dT = { nome: n1, valore: num(v("f2")), unita: v("f3"), data: v("f4") || null };
+    ok = editId ? await aggiornaTest(atletaId, editId, dT) : await creaTest(atletaId, dT);
   }
   if (ok) { chiudiScheda(); disegna(); window.scrollTo(0, 0); }
 }

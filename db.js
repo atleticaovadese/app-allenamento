@@ -864,6 +864,53 @@ async function creaTest(atletaId, d) {
   return true;
 }
 
+// ---------- MODIFICA di una voce di scheda già esistente (correzione: valore / data / note) ----------
+async function aggiornaPB(atletaId, id, d) {
+  if (_bloccatoStop(atletaId)) return false;
+  const tempo = _numOrNull(d.tempo), stagione = _numOrNull(d.stagione), obiettivo = _numOrNull(d.obiettivo), vento = _numOrNull(d.vento);
+  const origine = d.origine || "gara";
+  if (haDB() && id && !String(id).startsWith("loc")) {
+    const rec = { distanza: d.distanza, tempo, data: d.data || null, stagione, obiettivo, origine, vento: vento != null ? vento : null };
+    const { error } = await sb.from("pb").update(rec).eq("id", id);
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+  }
+  const a = _atl(atletaId);
+  if (a && a.scheda.pb) {
+    const row = a.scheda.pb.find(r => String(r[5]) === String(id));
+    if (row) { row[0] = d.distanza; row[1] = tempo; row[2] = fmtDataAnno(d.data); row[3] = stagione; row[4] = obiettivo; row[6] = d.data || ""; row[7] = origine; row[8] = vento; }
+    a.scheda.pb.sort((x, y) => rankDist(x[0]) - rankDist(y[0]));
+    a.pb = a.scheda.pb.map(r => [r[0], r[1]]);
+  }
+  return true;
+}
+async function aggiornaMassimale(atletaId, id, d) {
+  if (_bloccatoStop(atletaId)) return false;
+  if (haDB() && id && !String(id).startsWith("loc")) {
+    const { error } = await sb.from("massimale").update({ esercizio: d.esercizio, kg: d.kg, data: d.data || null, note: d.note || null }).eq("id", id);
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+  }
+  const a = _atl(atletaId);
+  if (a && a.scheda.massimali) {
+    const row = a.scheda.massimali.find(r => String(r[4]) === String(id));
+    if (row) { row[0] = d.esercizio; row[1] = d.kg; row[2] = fmtDataAnno(d.data); row[3] = d.note || ""; row[5] = d.data || ""; }
+    a.massimali = a.scheda.massimali.map(r => [r[0], r[1]]);
+  }
+  return true;
+}
+async function aggiornaTest(atletaId, id, d) {
+  if (_bloccatoStop(atletaId)) return false;
+  if (haDB() && id && !String(id).startsWith("loc")) {
+    const { error } = await sb.from("test").update({ nome: d.nome, valore: d.valore, unita: d.unita || null, data: d.data || null }).eq("id", id);
+    if (error) { alert("Errore nel salvataggio: " + error.message); return false; }
+  }
+  const a = _atl(atletaId);
+  if (a && a.scheda.salti) {
+    const row = a.scheda.salti.find(r => String(r[4]) === String(id));
+    if (row) { row[0] = d.nome; row[1] = d.valore; row[2] = d.unita || ""; row[3] = fmtDataAnno(d.data); row[5] = d.data || ""; }
+  }
+  return true;
+}
+
 async function creaInfortunio(atletaId, d) {
   if (_bloccatoStop(atletaId)) return false;
   let id = "loc" + Date.now();
