@@ -629,6 +629,7 @@ function salvaProgMadre(tipo) {
     if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
     if (typeof salvaCustom === "function") salvaCustom();
   }
+  S.progSbloccato = false;   // ri-blocca dopo il salvataggio: per modificare ancora serve di nuovo la password
   disegna(); window.scrollTo(0, 0);
   if (typeof alert === "function") alert((c.perso ? "✓ Programma di " + c.nome + " salvato: ora lo vede lui." : "✓ Programma salvato: ora è attivo per gli atleti del gruppo che lo seguono.") + "\nPuoi tornare indietro con «↩️ Annulla l'ultimo salvataggio».");
 }
@@ -654,17 +655,48 @@ function annullaProgMadre(tipo) {
 // barra in fondo all'editor: stato + Salva / Annulla / Annulla-ultimo-salvataggio — sia madre sia personale
 function _barraSalvaMadre(tipo) {
   const c = _progCtx(tipo);
+  // LUCCHETTO: se il programma è bloccato, non si salva (né si modifica): prima si Sblocca con la password.
+  if (typeof progBloccato === "function" && progBloccato()) {
+    return `<div class="card" style="position:sticky;bottom:8px;border-color:rgba(240,168,60,.6);box-shadow:0 -2px 10px rgba(0,0,0,.15)">
+      <p class="et" style="margin:0 0 8px;color:var(--ambra,#e6a83c)">🔒 Programma <b>bloccato</b>: per modificarlo e salvarlo, sbloccalo con la password.</p>
+      <button class="btn" style="width:100%" onclick="sbloccaProg()">🔓 Sblocca per modificare</button>
+    </div>`;
+  }
   const mod = _bozzaModificata(tipo);
   const undo = _haUndo(tipo);
   const chi = c.perso ? ("il programma di <b>" + String(c.nome).replace(/</g, "&lt;") + "</b>") : "il programma madre del gruppo";
   return `<div class="card" style="position:sticky;bottom:8px;${mod ? "border-color:var(--verde)" : ""};box-shadow:0 -2px 10px rgba(0,0,0,.15)">
-    <p class="et" style="margin:0 0 8px;${mod ? "color:var(--ambra,#e6a83c)" : "color:var(--txt3)"}">${mod ? `✏️ Hai <b>modifiche non salvate</b>: valgono ${c.perso ? "per l'atleta" : "per il gruppo"} solo dopo «Salva».` : `Le modifiche a ${chi} si applicano solo quando premi «Salva».`}</p>
+    <p class="et" style="margin:0 0 8px;${mod ? "color:var(--ambra,#e6a83c)" : "color:var(--txt3)"}">${mod ? `✏️ Hai <b>modifiche non salvate</b>: valgono ${c.perso ? "per l'atleta" : "per il gruppo"} solo dopo «Salva». <span style="color:var(--txt3)">(dopo il salvataggio si ri-blocca)</span>` : `Le modifiche a ${chi} si applicano solo quando premi «Salva».`}</p>
     <div style="display:flex;gap:8px">
       <button class="btn" style="flex:1${mod ? "" : ";opacity:.55"}" onclick="salvaProgMadre('${tipo}')">💾 Salva programma</button>
       ${mod ? `<button class="btn btn-2" style="width:auto;padding:10px 14px" onclick="annullaProgMadre('${tipo}')">Annulla</button>` : ""}
     </div>
     ${undo ? `<button class="btn btn-2" style="width:100%;margin-top:8px" onclick="annullaUltimoSalvataggio('${tipo}')">↩️ Annulla l'ultimo salvataggio (torna a prima)</button>` : ""}
   </div>`;
+}
+// ---- LUCCHETTO dei programmi: un programma è bloccato finché non si inserisce la password (1111).
+// Dopo ogni salvataggio si ri-blocca da solo, così non si cambia per sbaglio il programma sbagliato. ----
+function progBloccato() { return !S.progSbloccato; }
+function _lk(html) { return progBloccato() ? `<div style="pointer-events:none;opacity:.5;filter:grayscale(.35)" aria-disabled="true">${html}</div>` : html; }
+function sbloccaProg() {
+  const pw = (typeof prompt === "function") ? prompt("Password per modificare il programma:", "") : "";
+  if (pw == null) return;
+  if (String(pw).trim() === "1111") { S.progSbloccato = true; disegna(); window.scrollTo(0, 0); }
+  else if (typeof alert === "function") alert("Password errata.");
+}
+function bloccaProg() { S.progSbloccato = false; disegna(); }
+function _barraLock() {
+  return progBloccato()
+    ? `<div class="card" style="border-color:rgba(240,168,60,.6);background:rgba(240,168,60,.08);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:20px">🔒</span>
+        <p class="et" style="margin:0;flex:1;min-width:150px;color:var(--ambra,#e6a83c)"><b>Programma bloccato</b> — così non lo cambi per sbaglio. Sblocca per modificare.</p>
+        <button class="btn" style="width:auto;padding:8px 16px" onclick="sbloccaProg()">🔓 Sblocca</button>
+      </div>`
+    : `<div class="card" style="border-color:rgba(124,194,67,.4);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:18px">🔓</span>
+        <p class="et" style="margin:0;flex:1;min-width:150px;color:var(--verde)"><b>Sbloccato</b>: puoi modificare (si ri-blocca dopo il salvataggio).</p>
+        <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px" onclick="bloccaProg()">🔒 Blocca ora</button>
+      </div>`;
 }
 
 // PB di riferimento: dall'atleta scelto (in base al profilo) oppure scritto a mano.
@@ -1103,5 +1135,5 @@ function vistaProgrammaPista() {
       <p class="et" style="margin:0 0 8px">Alcuni atleti hanno un <b>programma personale</b> e NON prendono in automatico i mesocicli del madre. Con questo tasto copi <b>il mesociclo mostrato</b> nei loro programmi — <b>scegli tu quali atleti</b> includere — es. un atleta col meso precedente modificato riparte col madre uguale agli altri.</p>
       <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaEstendiAiPersonali()">📥 Estendi questo mesociclo agli atleti con programma personale</button>
     </div>` : "";
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + (typeof _barraLock === "function" ? _barraLock() : "") + _lk(testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + settimane) + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }

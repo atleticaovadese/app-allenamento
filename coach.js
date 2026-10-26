@@ -1527,9 +1527,9 @@ function vistaSpostaGiorni() {
   if (!a) { S.spostaGiorni = null; return typeof vistaAtletaDettaglio === "function" ? vistaAtletaDettaglio() : ""; }
   return `<button class="indietro" onclick="chiudiSpostaGiorni()">‹ Torna all'atleta</button>
     <div class="card"><h3>Sposta giorni · ${a.nome}</h3>
-      <p class="et" style="margin-top:2px">A sinistra i giorni di allenamento (come nel madre), a destra scegli in che giorno della settimana ${a.nome} li fa davvero. Non cambia il programma madre: vale solo per lui. "Come il madre" = giorno standard. Si salva da solo.</p></div>
-    ${bloccoSposta(a.id, "pista", typeof pistaDi === "function" ? pistaDi(gruppoDi(a)) : DEMO.pista)}
-    ${bloccoSposta(a.id, "palestra", typeof palDi === "function" ? palDi(gruppoDi(a)) : DEMO.palestra)}`;
+      <p class="et" style="margin-top:2px">A sinistra i giorni di allenamento dell'atleta, a destra scegli in che giorno della settimana ${a.nome} li fa davvero. Non cambia il programma madre: vale solo per lui. "Come il madre" = giorno standard. Si salva da solo.</p></div>
+    ${bloccoSposta(a.id, "pista", typeof _progPista === "function" ? _progPista(a) : (typeof pistaDi === "function" ? pistaDi(gruppoDi(a)) : DEMO.pista))}
+    ${bloccoSposta(a.id, "palestra", typeof _progPal === "function" ? _progPal(a) : (typeof palDi === "function" ? palDi(gruppoDi(a)) : DEMO.palestra))}`;
 }
 
 // ---------- TAPPA 3c: adatta il CONTENUTO di una seduta per un atleta (override sul madre) ----------

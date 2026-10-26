@@ -461,7 +461,7 @@ function vistaProgrammaPistaMezzo() {
       <p class="et" style="margin:0 0 8px">Alcuni atleti hanno un <b>programma personale</b> e NON prendono in automatico i mesocicli del madre. Con questo tasto copi <b>il mesociclo mostrato</b> nei loro programmi — <b>scegli tu quali atleti</b> includere.</p>
       <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaEstendiAiPersonali()">📥 Estendi questo mesociclo agli atleti con programma personale</button>
     </div>` : "";
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + hintSet + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + (typeof _barraLock === "function" ? _barraLock() : "") + _lk(testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + hintSet + settimane) + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }
 
 // ---------- generazione seduta mezzofondo per l'atleta (dal madre del gruppo "mezzo") ----------
