@@ -276,24 +276,24 @@ function estendiMesoAiPersonali(tipo) {
   const store = pal ? (DEMO.palAtleta = DEMO.palAtleta || {}) : (DEMO.pistaAtleta = DEMO.pistaAtleta || {});
   const conPerso = (DEMO.atleti || []).filter(a => a && !a.bloccato && gruppoDi(a) === g && store[a.id] && (store[a.id].mesocicli || []).length);
   if (!conPerso.length) { alert("Nessun atleta di questo gruppo ha un programma " + (pal ? "palestra" : "pista") + " personale: seguono già tutti il madre (e prendono questo mesociclo in automatico)."); return; }
-  // ordina: prima chi lo può ricevere (checkato), poi chi ce l'ha già (disabilitato)
+  // chi ce l'ha già verrà AGGIORNATO (sovrascritto) col madre; chi non ce l'ha lo riceve nuovo. Tutti selezionabili.
   const righe = conPerso.map(a => ({ a, giaHa: (store[a.id].mesocicli || []).some(m => m.inizio === src.inizio) }))
-    .sort((x, y) => (x.giaHa ? 1 : 0) - (y.giaHa ? 1 : 0) || x.a.nome.localeCompare(y.a.nome));
+    .sort((x, y) => x.a.nome.localeCompare(y.a.nome));
   const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   const body = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
       <h3 style="margin:0">Estendi mesociclo</h3>
       <button class="chiudi" style="font-size:18px" onclick="_estendiChiudi()" aria-label="Chiudi">✕</button>
     </div>
-    <p class="et" style="margin:0 0 12px;color:var(--txt3)">Copio il mesociclo <b style="color:var(--txt)">${esc(src.focus) || "(senza focus)"}</b> · inizio <b style="color:var(--txt)">${_dataItBreve(src.inizio)}</b> nel programma ${pal ? "palestra" : "pista"} personale degli atleti selezionati. Il resto del loro programma non viene toccato.</p>
+    <p class="et" style="margin:0 0 12px;color:var(--txt3)">Copio il mesociclo <b style="color:var(--txt)">${esc(src.focus) || "(senza focus)"}</b> · inizio <b style="color:var(--txt)">${_dataItBreve(src.inizio)}</b> nel programma ${pal ? "palestra" : "pista"} personale degli atleti selezionati. Chi ha già un mesociclo che parte il ${_dataItBreve(src.inizio)} viene <b style="color:var(--ambra,#e6a83c)">aggiornato</b> (sovrascritto) con questo; gli altri giorni non si toccano.</p>
     <div style="display:flex;gap:8px;margin-bottom:6px">
       <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:12px" onclick="_estendiTutti(true)">Seleziona tutti</button>
       <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:12px" onclick="_estendiTutti(false)">Nessuno</button>
     </div>
     <div id="estendiLista" style="margin-bottom:4px">
-      ${righe.map(r => `<label style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--line)${r.giaHa ? ";opacity:.5" : ""}">
-        <input type="checkbox" class="estCk" value="${r.a.id}" ${r.giaHa ? "disabled" : "checked"} style="width:19px;height:19px;flex:none">
-        <span>${esc(r.a.nome)}${r.giaHa ? ` <span class="et" style="color:var(--txt3)">— ce l'ha già</span>` : ""}</span>
+      ${righe.map(r => `<label style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--line)">
+        <input type="checkbox" class="estCk" value="${r.a.id}" checked style="width:19px;height:19px;flex:none">
+        <span>${esc(r.a.nome)}${r.giaHa ? ` <span class="et" style="color:var(--ambra,#e6a83c)">— aggiorna (ha una versione vecchia)</span>` : ` <span class="et" style="color:var(--verde)">— nuovo</span>`}</span>
       </label>`).join("")}
     </div>
     <button class="btn" style="margin-top:12px" onclick="_estendiApplica('${tipo}','${src.inizio}')">📥 Applica ai selezionati</button>`;
@@ -318,16 +318,17 @@ function _estendiApplica(tipo, inizio) {
   const store = pal ? (DEMO.palAtleta = DEMO.palAtleta || {}) : (DEMO.pistaAtleta = DEMO.pistaAtleta || {});
   const ids = Array.from(document.querySelectorAll(".estCk:checked")).map(c => c.value);
   if (!ids.length) { alert("Non hai selezionato nessun atleta."); return; }
-  let n = 0;
+  let nNew = 0, nAgg = 0;
   ids.forEach(id => {
-    if (!store[id] || !(store[id].mesocicli || []).length) return;
-    if ((store[id].mesocicli).some(m => m.inizio === src.inizio)) return;   // dedup di sicurezza
-    store[id].mesocicli.push(JSON.parse(JSON.stringify(src)));
-    n++;
+    const p2 = store[id]; if (!p2 || !(p2.mesocicli || []).length) return;
+    const clone = JSON.parse(JSON.stringify(src));
+    const idx = p2.mesocicli.findIndex(m => m.inizio === src.inizio);
+    if (idx >= 0) { p2.mesocicli[idx] = clone; nAgg++; }   // AGGIORNA il meso già presente (stessa data)
+    else { p2.mesocicli.push(clone); nNew++; }             // oppure lo aggiunge nuovo
   });
   if (typeof salvaCustom === "function") salvaCustom();
   _estendiChiudi();
-  alert(`Fatto ✔ Mesociclo aggiunto a ${n} atlet${n === 1 ? "a" : "i"}. Ora lo vedono sul calendario.`);
+  alert(`Fatto ✔ ${nNew} aggiunt${nNew === 1 ? "o" : "i"} · ${nAgg} aggiornat${nAgg === 1 ? "o" : "i"}. Ora vedono questo mesociclo sul calendario.`);
   disegna();
 }
 function pistaEstendiAiPersonali() { estendiMesoAiPersonali("pista"); }
