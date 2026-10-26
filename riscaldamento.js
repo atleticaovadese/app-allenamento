@@ -124,13 +124,15 @@ function editorRoutine() {
       <div class="segm" style="margin:6px 0 10px">
         ${RISC_TIPI.map(t => `<button class="${r.tipo === t ? "on" : ""}" onclick="setTipoRisc('${t}')">${t}</button>`).join("")}
       </div>
-      <label class="lab">Esercizio (${nTot} in «${r.tipo}»)</label>
-      <input id="esSel" list="dl-routine" placeholder="scrivi o scegli…" autocomplete="off" spellcheck="false" style="margin-top:6px;width:100%">
-      ${(typeof _datalistEsercizi === "function") ? _datalistEsercizi("dl-routine", gruppi.reduce((a, g) => a.concat(g.items.map(x => x.n)), [])) : ""}
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="doseEs" placeholder="dose (opz.) es. 2×20 m" style="flex:1">
-        <button class="btn" style="width:auto;padding:0 16px" onclick="aggiungiDaTipo()">＋ Aggiungi</button>
+      <label class="lab">Esercizi di «${r.tipo}» (${nTot}) — spunta quelli che vuoi</label>
+      <div style="display:flex;gap:8px;margin:6px 0 2px">
+        <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="rcTutti(true)">Seleziona tutti</button>
+        <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="rcTutti(false)">Nessuno</button>
       </div>
+      <div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px">
+        ${nTot ? _checklistRisc(gruppi, r.voci) : `<p class="et" style="margin:8px 2px">Nessun esercizio in questo tipo.</p>`}
+      </div>
+      <button class="btn" style="margin-top:10px" onclick="aggiungiSelezionati()">＋ Aggiungi i selezionati</button>
 
       <p class="et" style="margin-top:14px;margin-bottom:6px">Oppure scrivi a mano</p>
       <div style="display:flex;gap:8px">
@@ -143,12 +145,36 @@ function editorRoutine() {
     ${r.orig ? `<button class="btn btn-2" style="margin-top:8px" onclick="eliminaRoutine()">Elimina routine</button>` : ""}`;
 }
 
+// lista a caselle degli esercizi di un tipo, raggruppati per categoria (quelli già in routine: spuntati e disabilitati)
+function _checklistRisc(gruppi, voci) {
+  const giaIn = nome => (voci || []).some(v => v === nome || String(v).indexOf(nome) === 0);
+  return gruppi.map(g => {
+    const items = g.items.map(x => {
+      const gia = giaIn(x.n);
+      const nm = String(x.n).replace(/"/g, "&quot;");
+      return `<label style="display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line)${gia ? ";opacity:.5" : ""}">`
+        + `<input type="checkbox" class="rcEx" value="${nm}" ${gia ? "disabled checked" : ""} style="width:18px;height:18px;flex:none">`
+        + `<span>${x.n}${gia ? ' <span class="et">· già in routine</span>' : ""}</span></label>`;
+    }).join("");
+    return `<p class="et" style="margin:10px 0 2px;color:var(--txt3)">${g.cat}</p>${items}`;
+  }).join("");
+}
 function setTipoRisc(t) { S.routineEdit.tipo = t; disegna(); }
 function aggiungiDaTipo() {
   const sel = document.getElementById("esSel");
   const nome = sel ? sel.value : "";
   const dose = ((document.getElementById("doseEs") || {}).value || "").trim();
   if (nome) { S.routineEdit.voci.push(dose ? nome + " " + dose : nome); disegna(); }
+}
+// seleziona/deseleziona tutte le caselle della lista esercizi (escluse quelle già in routine, disabilitate)
+function rcTutti(v) { document.querySelectorAll(".rcEx:not(:disabled)").forEach(c => { c.checked = v; }); }
+// aggiunge in un colpo solo TUTTI gli esercizi spuntati (metodo veloce)
+function aggiungiSelezionati() {
+  const sel = Array.from(document.querySelectorAll(".rcEx:checked:not(:disabled)")).map(c => c.value);
+  if (!sel.length) { alert("Spunta almeno un esercizio."); return; }
+  const r = S.routineEdit;
+  sel.forEach(n => { if (!r.voci.some(v => v === n || String(v).indexOf(n) === 0)) r.voci.push(n); });
+  disegna(); window.scrollTo(0, 0);
 }
 function aggiungiVoce() {
   const el = document.getElementById("nuovaVoce");

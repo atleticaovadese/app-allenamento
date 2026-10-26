@@ -1329,15 +1329,19 @@ function _alertAsimmetriaAtleti() {
     const ss = (typeof sessioniDi === "function") ? sessioniDi(a.id, "prevenzione") : [];
     if (!ss.length) return;
     const d = ss[0].dati || {};
-    const asy = Object.keys(d).map(k => d[k] && d[k].asym).filter(x => x != null);
-    const rosse = asy.filter(x => x > 15).length, gialle = asy.filter(x => x >= 10 && x <= 15).length;
-    if (!rosse && !gialle) return;
+    const tutti = (typeof prevTestsAll === "function") ? prevTestsAll() : [];
+    const nomeDi = k => { const t = tutti.find(x => x.k === k); return t ? t.nome : k; };
+    // test con asimmetria (nome + %), più gravi prima
+    const flagged = Object.keys(d).map(k => ({ k, asym: d[k] && d[k].asym })).filter(x => x.asym != null && x.asym >= 10).sort((x, y) => y.asym - x.asym);
+    if (!flagged.length) return;
+    const rosse = flagged.filter(x => x.asym > 15), gialle = flagged.filter(x => x.asym >= 10 && x.asym <= 15);
     const dl = (typeof fmtDataAnno === "function") ? fmtDataAnno(ss[0].data) : ss[0].data;
-    const txt = rosse
-      ? `🦵 Asimmetria da correggere: ${rosse} test oltre il 15% (prevenzione, ${dl}) — monitora e lavora sul lato debole`
-      : `🦵 Asimmetria da tenere d'occhio: ${gialle} test 10–15% (prevenzione, ${dl})`;
+    const elenco = arr => { const l = arr.map(x => `${nomeDi(x.k)} ${Math.round(x.asym)}%`); return l.length > 3 ? l.slice(0, 3).join(", ") + ` e altri ${l.length - 3}` : l.join(", "); };
+    const txt = rosse.length
+      ? `🦵 Asimmetria da correggere: ${elenco(rosse)}${gialle.length ? ` · da tenere d'occhio: ${elenco(gialle)}` : ""} (prevenzione, ${dl}) — monitora e lavora sul lato debole`
+      : `🦵 Asimmetria da tenere d'occhio: ${elenco(gialle)} (prevenzione, ${dl})`;
     m.alert.push(["w", txt, "asimmetria"]);   // "w" = attenzione (giallo); 3° elem = tag per dedup/categoria
-    if (rosse && m.stato === "v") m.stato = "w";   // porta il semaforo ad "attenzione" sulla home (mai oltre)
+    if (rosse.length && m.stato === "v") m.stato = "w";   // porta il semaforo ad "attenzione" sulla home (mai oltre)
   });
 }
 // true se l'atleta ha il reminder asimmetria attivo (per mostrarlo nella lista home)
