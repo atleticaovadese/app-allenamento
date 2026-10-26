@@ -4,8 +4,12 @@
 // Tempo = PB × coeff(distanza) / (%vel/100)   ·   m/s = distanza / tempo
 // Volume seduta = somma(distanza × n°).
 
-const PISTA_PROFILI = ["100m M", "100m F", "100m F Master", "200m M", "200m F", "400m"];
+const PISTA_PROFILI = ["60m M", "60m F", "100m M", "100m F", "100m F Master", "200m M", "200m F", "400m"];
 const PISTA_COEFF = {
+  // profili 60 m: stessa curva velocità dei 100 m, ma RI-RIFERITA ai 60 m (coeff 1.0 a 60) → le % di lavoro
+  // si calcolano sul PB dei 60 m. (60m M = curva "100m M" ÷ 0.6565 · 60m F = curva "100m F" ÷ 0.6419)
+  "60m M": { 20: 0.4494, 30: 0.6073, 40: 0.7415, 50: 0.8723, 60: 1.0, 70: 1.1279, 80: 1.2574, 90: 1.3887, 100: 1.5232, 120: 1.7805, 150: 2.1709 },
+  "60m F": { 20: 0.4387, 30: 0.5928, 40: 0.7303, 50: 0.8666, 60: 1.0, 70: 1.1362, 80: 1.2753, 90: 1.4158, 100: 1.5579, 120: 1.9068, 150: 2.4303 },
   "100m M": { 20: 0.295, 30: 0.3987, 40: 0.4868, 50: 0.5727, 60: 0.6565, 70: 0.7405, 80: 0.8255, 90: 0.9117, 100: 1.0, 120: 1.1689, 150: 1.4252 },
   "100m F": { 20: 0.2816, 30: 0.3805, 40: 0.4688, 50: 0.5563, 60: 0.6419, 70: 0.7293, 80: 0.8186, 90: 0.9088, 100: 1.0, 120: 1.224, 150: 1.56, 180: 1.896, 200: 2.12, 220: 2.2838, 250: 2.592, 300: 3.1057 },
   "100m F Master": { 20: 0.2654, 30: 0.3587, 40: 0.4478, 50: 0.5365, 60: 0.6253, 70: 0.7156, 80: 0.8067, 90: 0.8997, 100: 1.0, 120: 1.1747, 150: 1.4479 },
@@ -624,7 +628,7 @@ function pistaPB() {
   if (p.atletaRif) {
     const a = DEMO.atleti.find(x => x.id === p.atletaRif);
     if (a && a.scheda) {
-      const md = p.profilo.indexOf("400") === 0 ? "400 m" : p.profilo.indexOf("200") === 0 ? "200 m" : "100 m";
+      const md = p.profilo.indexOf("400") === 0 ? "400 m" : p.profilo.indexOf("200") === 0 ? "200 m" : p.profilo.indexOf("60") === 0 ? "60 m" : "100 m";
       const row = (a.scheda.pb || []).find(r => r[0] === md);
       if (row && row[1]) return parseFloat(String(row[1]).replace(",", "."));
     }
@@ -685,7 +689,7 @@ function baseAtletaDist(atleta, D, profilo) {
   const co = profilo ? PISTA_COEFF[profilo] : null;
   const cD = co ? _coeffDist(co, D) : null;
   if (cD == null) return null;
-  const refDist = profilo.indexOf("400") === 0 ? 400 : profilo.indexOf("200") === 0 ? 200 : 100;
+  const refDist = profilo.indexOf("400") === 0 ? 400 : profilo.indexOf("200") === 0 ? 200 : profilo.indexOf("60") === 0 ? 60 : 100;
   const ancore = (D <= 60 ? [60, 100, refDist] : [100, refDist, 60]).filter((v, i, a) => a.indexOf(v) === i);
   for (const anc of ancore) {
     const pbAnc = pbAtletaDist(atleta, anc);
