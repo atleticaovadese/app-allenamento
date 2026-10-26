@@ -212,12 +212,22 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   });
 }
 
-// giorno-settimana EFFETTIVO di un giorno del programma per un atleta:
-// se il coach ha spostato quel giorno per lui (override) usa quello, altrimenti quello del madre.
-function giornoSettEff(atleta, tipo, gi, g) {
-  const ov = atleta && DEMO.overrideGiorni && DEMO.overrideGiorni[atleta.id];
-  const w = ov && ov[tipo] && ov[tipo][gi];
-  return w || g.giornoSett;
+// giorno-settimana EFFETTIVO di un giorno del programma per un atleta, in una certa settimana:
+// precedenza: override PER-SETTIMANA (overrideGiorniSett[aid][tipo][gi][weekIdx]) → override globale
+// (overrideGiorni[aid][tipo][gi], vale per tutte le settimane) → giorno del madre.
+function giornoSettEff(atleta, tipo, gi, g, weekIdx) {
+  const aid = atleta && atleta.id;
+  if (aid) {
+    if (weekIdx != null) {
+      const s = DEMO.overrideGiorniSett && DEMO.overrideGiorniSett[aid] && DEMO.overrideGiorniSett[aid][tipo] && DEMO.overrideGiorniSett[aid][tipo][gi];
+      const ws = s && s[weekIdx];
+      if (ws) return ws === "_madre_" ? g.giornoSett : ws;   // "_madre_" = esplicitamente il giorno del madre per quella settimana
+    }
+    const ov = DEMO.overrideGiorni && DEMO.overrideGiorni[aid];
+    const w = ov && ov[tipo] && ov[tipo][gi];
+    if (w) return w;
+  }
+  return g.giornoSett;
 }
 
 // TAPPA 3c — righe di contenuto personalizzate per un atleta (giorno gi, settimana wk): null se usa il madre
@@ -367,7 +377,7 @@ function contaProgrammate(atleta, fromISO, toISO) {
       if (!pa) return;
       const _mi = (prog.mesocicli || []).indexOf(pa.m);
       (pa.m.giorni || []).forEach((g, gi) => {
-        if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
+        if (giornoSettEff(atleta, tipo, gi, g, pa.settIdx) !== wd) return;
         const sett = g.settimane && g.settimane[pa.settIdx];
         const righe = overrideRighe(atleta, tipo, _mi, gi, pa.settIdx) || (sett && sett.righe) || [];
         const gr = (typeof gruppoDi === "function") ? gruppoDi(atleta) : "vel";
@@ -390,9 +400,9 @@ function seduteDelGiorno(dataISO, clamp, atleta) {
   const wd = GG_ISO[wdIdx(dataISO)], out = [];
   const progP = _progPista(atleta), progL = _progPal(atleta);
   const pa = mesoAttivo(progP, dataISO, clamp);
-  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta, progP); if (s) out.push(_applicaSvolta(s)); } });
+  if (pa) (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "pista", gi, g, pa.settIdx) === wd) { const s = generaSedutaPista(g, gi + 1, pa.settIdx, dataISO, pa.m, atleta, progP); if (s) out.push(_applicaSvolta(s)); } });
   const pl = mesoAttivo(progL, dataISO, clamp);
-  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(_applicaSvolta(s)); } });
+  if (pl) (pl.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, "palestra", gi, g, pl.settIdx) === wd) { const s = generaSedutaPal(g, gi + 1, pl.settIdx, dataISO, pl.m, atleta); if (s) out.push(_applicaSvolta(s)); } });
   return out;
 }
 // ── Modifiche seduta "una tantum" (per singola data), fatte dal COACH — solo quel giorno ──
@@ -422,7 +432,7 @@ function righeGiornoAtleta(atleta, dataISO, tipo) {
   let righe = [];
   const _mi = (prog.mesocicli || []).indexOf(pa.m);
   (pa.m.giorni || []).forEach((g, gi) => {
-    if (giornoSettEff(atleta, tipo, gi, g) !== wd) return;
+    if (giornoSettEff(atleta, tipo, gi, g, pa.settIdx) !== wd) return;
     const sett = g.settimane && g.settimane[pa.settIdx];
     const r = overrideRighe(atleta, tipo, _mi, gi, pa.settIdx) || (sett && sett.righe) || [];
     if (r.length) righe = r;
@@ -436,7 +446,7 @@ function giornoDataAtleta(atleta, dataISO, tipo) {
   const prog = tipo === "palestra" ? _progPal(atleta) : _progPista(atleta);
   const pa = mesoAttivo(prog, dataISO, false); if (!pa) return 1;
   let gio = 1;
-  (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, tipo, gi, g) === wd) gio = gi + 1; });
+  (pa.m.giorni || []).forEach((g, gi) => { if (giornoSettEff(atleta, tipo, gi, g, pa.settIdx) === wd) gio = gi + 1; });
   return gio;
 }
 // se per quel giorno esiste già una seduta_svolta (chiusa dall'atleta), rimetti i dati e marcala chiusa:

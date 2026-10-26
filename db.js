@@ -300,7 +300,7 @@ async function caricaDati() {
   } catch (e) { /* tabella diario assente o offline: si usa il locale */ }
 
   // login reale: parto PULITO dai dati/programmi DEMO (Leonardo & co.), poi carico solo ciò che è salvato nel DB
-  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.segLog = []; DEMO.fkLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideContenuto = {};
+  DEMO.vbtLog = []; DEMO.pistaLog = []; DEMO.segLog = []; DEMO.fkLog = []; DEMO.testSessioni = []; DEMO.risultatiGara = []; DEMO.overrideGiorni = {}; DEMO.overrideGiorniSett = {}; DEMO.overrideContenuto = {};
   DEMO.pista = {}; DEMO.palestra = {};   // programmi per-gruppo: creati vuoti su richiesta da pistaDi/palDi(gruppo)
   DEMO.pistaAtleta = {}; DEMO.palAtleta = {};   // programmi PERSONALI per atleta (override completo del madre)
   DEMO.atletaPro = {};   // flag "pro" per atleta (arriva dal bundle del coach)

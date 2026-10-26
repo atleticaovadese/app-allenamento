@@ -29,7 +29,7 @@ function bundleCustom() {
     fastidiRisolti: DEMO.fastidiRisolti || {},
     prevTestCustom: DEMO.prevTestCustom || [], prevEserciziCustom: DEMO.prevEserciziCustom || [],
     reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
-    overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {},
+    overrideGiorni: DEMO.overrideGiorni || {}, overrideGiorniSett: DEMO.overrideGiorniSett || {}, overrideContenuto: DEMO.overrideContenuto || {},
     pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {},
     atletaPro: DEMO.atletaPro || {},
     coreRoutine: DEMO.coreRoutine || {},
@@ -68,6 +68,7 @@ function applicaBundle(c) {
   if (c.atletaAntropo) DEMO.atletaAntropo = c.atletaAntropo;
   if (c.programmaAssegnato) DEMO.programmaAssegnato = c.programmaAssegnato;
   if (c.overrideGiorni) DEMO.overrideGiorni = c.overrideGiorni;
+  if (c.overrideGiorniSett) DEMO.overrideGiorniSett = c.overrideGiorniSett;   // spostamenti giorni PER-SETTIMANA
   if (c.overrideContenuto) DEMO.overrideContenuto = c.overrideContenuto;
   if (c.pistaAtleta) DEMO.pistaAtleta = c.pistaAtleta;
   if (c.palAtleta) DEMO.palAtleta = c.palAtleta;
