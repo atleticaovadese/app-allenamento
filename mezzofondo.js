@@ -248,10 +248,24 @@ const MZ_BLOCCHI = ["Prep. generale (base)", "Prep. speciale", "Pre-competitiva"
 function _mzPistaOpts(p) { return { obiettivo: Number(p.mzObiettivo) || 0, offsets: p.mzOffsets || {}, pb: p.mzPb || {} }; }
 function _mzPistaRef(p) { return p.atletaRif ? DEMO.atleti.find(x => x.id === p.atletaRif) : null; }
 function _mzRigaSec(p, r) { return r.mezzo ? ritmoMezzo(_mzPistaRef(p), r.mezzo, _mzPistaOpts(p)) : null; }
-// volume (m) della settimana per il mezzo: continuo = min×ritmo→metri, ripetute = dist×n°
+// notazione compatta di una serie di ripetute scritta nel campo Distanza:
+// "2x4x150" → 2 serie × 4 ripetute × 150 m (totale 8×150) · "4x150" → 4 × 150 · un solo numero → null (riga normale)
+function _mzSet(s) {
+  if (s == null || s === "") return null;
+  const parts = String(s).toLowerCase().replace(/×/g, "x").split("x").map(x => parseFloat(String(x).replace(",", "."))).filter(x => x > 0);
+  if (parts.length < 2) return null;
+  const dist = parts[parts.length - 1], fattori = parts.slice(0, -1);
+  const totReps = fattori.reduce((a, b) => a * b, 1);
+  const sets = fattori.length >= 2 ? fattori[0] : 1;
+  const reps = fattori.length >= 2 ? fattori.slice(1).reduce((a, b) => a * b, 1) : fattori[0];
+  return { sets, reps, dist, totReps, label: fattori.concat(dist).join("×") };
+}
+// volume (m) della settimana per il mezzo: continuo = min×ritmo→metri, ripetute = dist×n° (o serie compatta SxRxD)
 function volumeSettMezzo(sett, p) {
   return (sett.righe || []).reduce((t, r) => {
     if (Number(r.min) > 0) { const s = _mzRigaSec(p, r); return t + (s != null ? Math.round(Number(r.min) * 60000 / s) : 0); }
+    const set = _mzSet(r.distanza);
+    if (set) return t + set.totReps * set.dist;
     if (r.distanza && r.n) return t + Number(r.distanza) * Number(r.n);
     return t;
   }, 0);
@@ -399,16 +413,18 @@ function vistaProgrammaPistaMezzo() {
       }
       const sec = _mzRigaSec(p, r);
       const cont = Number(r.min) > 0;
+      const set = _mzSet(r.distanza);   // serie compatta "2x4x150" nel campo distanza
       const ritmoKm = sec != null ? _mzMMSS(sec) : "—";
-      const tempoRip = cont ? (r.min + "′") : (r.distanza && sec != null ? _mzMMSS((Number(r.distanza) / 1000) * sec) : "—");
-      const vol = cont ? (sec != null ? Math.round(Number(r.min) * 60000 / sec) : null) : ((r.distanza && r.n) ? Number(r.distanza) * Number(r.n) : null);
+      const dTempo = set ? set.dist : Number(r.distanza);
+      const tempoRip = cont ? (r.min + "′") : (dTempo && sec != null ? _mzMMSS((dTempo / 1000) * sec) : "—");
+      const vol = cont ? (sec != null ? Math.round(Number(r.min) * 60000 / sec) : null) : (set ? set.totReps * set.dist : ((r.distanza && r.n) ? Number(r.distanza) * Number(r.n) : null));
       return `<tr>
         <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="warm-up / focus" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:110px"></td>
         <td><select onchange="setPistaRiga(${s},${i},'mezzo',this.value)"><option value="">—</option>${optSel(r.mezzo, MZ_MEZZI)}</select></td>
-        <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px"></td>
-        <td><input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:46px"></td>
+        <td><input value="${(r.distanza || "").toString().replace(/"/g, "&quot;")}" placeholder="m · o 2x4x150" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:72px"></td>
+        <td><input inputmode="numeric" value="${set ? "" : (r.n || "")}" placeholder="${set ? "—" : "n°"}" ${set ? "disabled title=\"n° incluso in " + set.label + "\"" : ""} oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:46px${set ? ";opacity:.4" : ""}"></td>
         <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setPistaRigaVal(${s},${i},'min',this.value)" onchange="disegna()" style="min-width:50px"></td>
-        <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:58px"></td>
+        <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="${set ? "rec rip" : "rec"}" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:58px">${set ? `<input value="${(r.recSerie || "").replace(/"/g, "&quot;")}" placeholder="rec serie" title="Recupero tra una serie e l'altra" oninput="setPistaRigaVal(${s},${i},'recSerie',this.value)" style="min-width:58px;margin-top:4px">` : ""}</td>
         <td class="pauto"><b>${ritmoKm}</b></td>
         <td class="pauto">${tempoRip}</td>
         <td class="pauto">${vol != null ? vol.toLocaleString("it-IT") : "—"}</td>
@@ -440,7 +456,12 @@ function vistaProgrammaPistaMezzo() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
+  const hintSet = `<div class="card" style="padding:10px 12px"><p class="et" style="margin:0;color:var(--txt3)">💡 Nel campo <b>Dist</b> puoi scrivere una <b>serie compatta</b> in una riga sola: <b>2x4x150</b> = 2 serie × 4 × 150 m (totale 8×150). Anche <b>4x150</b> = 4 × 150. Volume, ritmo e tempi escono da soli.</p></div>`;
+  const estendiPersonali = !S.progAtleta ? `<div class="card" style="border-color:rgba(77,154,255,.4)">
+      <p class="et" style="margin:0 0 8px">Alcuni atleti hanno un <b>programma personale</b> e NON prendono in automatico i mesocicli del madre. Con questo tasto copi <b>il mesociclo mostrato</b> nei loro programmi — <b>scegli tu quali atleti</b> includere.</p>
+      <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaEstendiAiPersonali()">📥 Estendi questo mesociclo agli atleti con programma personale</button>
+    </div>` : "";
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + hintSet + settimane + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }
 
 // ---------- generazione seduta mezzofondo per l'atleta (dal madre del gruppo "mezzo") ----------
@@ -467,15 +488,18 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
     }
     const sec = ritmoMezzo(atleta, r.mezzo, opts);
     const cont = Number(r.min) > 0;
-    const dist = Number(r.distanza) || 0, n = Number(r.n) || (dist > 0 ? 1 : 0);
+    const set = (typeof _mzSet === "function") ? _mzSet(r.distanza) : null;   // serie compatta "2x4x150"
+    const dist = set ? set.dist : (Number(r.distanza) || 0);
+    const n = set ? set.totReps : (Number(r.n) || (dist > 0 ? 1 : 0));
     // riga di SOLO TESTO: nessun numero (né minuti né distanza) ma un contenuto scritto (es. "10x2 min forte/piano")
     const soloTesto = !cont && dist === 0;
     const vol = cont ? (sec != null ? Math.round(Number(r.min) * 60000 / sec) : 0) : dist * n;
     const tempoRip = cont ? null : (sec != null && dist ? Math.round((dist / 1000) * sec) : null);
     return {
       id: "e" + i, contenuto: r.contenuto || "", mezzo: r.mezzo, distanza: dist, ripetute: n, soloTesto: soloTesto,
+      set: set ? { sets: set.sets, reps: set.reps } : null,
       min: cont ? Number(r.min) : null, ritmoSecKm: sec, ritmoKm: sec != null ? _mzMMSS(sec) : "—",
-      tempoRipSec: tempoRip, recupero: r.rec || "", volume: vol,
+      tempoRipSec: tempoRip, recupero: r.rec || "", recuperoSerie: (set && r.recSerie) ? r.recSerie : "", volume: vol,
       // ripetute: l'atleta segna il tempo reale di ognuna (mm:ss). Continuo / solo testo: niente caselle.
       tempi: (cont || soloTesto) ? null : Array(n).fill(null)
     };
@@ -596,7 +620,7 @@ function vistaPistaMezzo(s) {
     if (e.seg) return _cardSegMezzo(s, e);   // SEGMENT RUN
     if (e.fk) return _cardFkMezzo(s, e);     // FARTLEK
     const cont = e.min != null;
-    const prescr = cont ? `${e.min}′ in continuo` : `${e.ripetute} × ${e.distanza} m`;
+    const prescr = cont ? `${e.min}′ in continuo` : (e.set ? `${e.set.sets} × ${e.set.reps} × ${e.distanza} m` : `${e.ripetute} × ${e.distanza} m`);
     const tr = e.tempoRipSec != null ? _mzMMSS(e.tempoRipSec) : null;
     const km = e.volume ? Math.round(e.volume / 100) / 10 : 0;
     // caselle per i tempi reali delle ripetute (mm:ss). Verde/rosso vs il tempo target a ripetuta.
@@ -630,7 +654,7 @@ function vistaPistaMezzo(s) {
         <h3>${prescr}</h3>
         <span class="et" style="margin:0">${e.mezzo || ""}</span>
       </div>
-      <p class="et" style="margin:4px 0 2px">ritmo <b>${e.ritmoKm}/km</b>${tr ? " · ~" + tr + " a ripetuta" : ""}${e.recupero ? " · rec " + e.recupero : ""}</p>
+      <p class="et" style="margin:4px 0 2px">ritmo <b>${e.ritmoKm}/km</b>${tr ? " · ~" + tr + " a ripetuta" : ""}${e.recupero ? " · rec " + e.recupero + (e.recuperoSerie ? " tra rip." : "") : ""}${e.recuperoSerie ? " · rec " + e.recuperoSerie + " tra serie" : ""}</p>
       <p class="et" style="margin:0">volume ${(e.volume || 0).toLocaleString("it-IT")} m${km ? " · " + km + " km" : ""}</p>
       ${e.contenuto ? `<p class="et" style="margin:6px 0 0">${e.contenuto}</p>` : ""}
       ${bloccoTempi}

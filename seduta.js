@@ -164,8 +164,9 @@ function _cardScalaPista(s, e) {
       </div>`;
     }
     blocchiHtml += `<p class="et" style="margin:8px 0 4px;font-weight:600;color:var(--txt2)">Blocco ${b + 1}</p>${reps}`;
+    if (e.recuperoSerie && b < (e.blocchi || 1) - 1) blocchiHtml += `<p class="et" style="margin:2px 0 0;color:var(--blu)">⏸ rec ${e.recuperoSerie} prima del blocco ${b + 2}</p>`;
   }
-  const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
+  const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero + (e.recuperoSerie ? " tra rip." : "") : "", e.recuperoSerie ? "rec " + e.recuperoSerie + " tra blocchi" : ""].filter(Boolean).join(" · ");
   const cont = e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "";
   return `<div class="card">
     ${cont ? `<p style="font-weight:600;font-size:15px;margin:0 0 6px;line-height:1.35">${cont}</p>` : ""}

@@ -158,6 +158,14 @@ function palStepN(s, i, campo, delta) {
 }
 function palAddRiga(s) { palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe.push(palRigaVuota()); savePalestra(); disegna(); }
 function palDelRiga(s, i) { const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe; if (r.length > 1) r.splice(i, 1); savePalestra(); disegna(); }
+// sposta una riga esercizio su (-1) o giù (+1) nella settimana s
+function palSpostaRiga(s, i, dir) {
+  const r = palestraInit().mesocicli[S.palMeso].giorni[S.palGiorno].settimane[s].righe;
+  const j = i + dir;
+  if (j < 0 || j >= r.length) return;
+  const tmp = r[i]; r[i] = r[j]; r[j] = tmp;
+  savePalestra(); disegna();
+}
 function palAddMeso() { palestraInit().mesocicli.push(palMesoVuoto()); S.palMeso = palestraInit().mesocicli.length - 1; S.palGiorno = 0; savePalestra(); disegna(); window.scrollTo(0, 0); }
 // nuovo mesociclo = COPIA di quello mostrato (così si costruisce in fretta il blocco successivo). La data d'inizio si azzera.
 function palCopiaMesoPrec() {
@@ -382,7 +390,11 @@ function vistaProgrammaPalestra() {
         <td><input inputmode="decimal" value="${r.vbt || ""}" placeholder="m/s" oninput="setPalRigaVal(${s},${i},'vbt',this.value)" style="min-width:56px"></td>
         ${pesoCell}
         <td class="pauto">${vol ? vol.toLocaleString("it-IT") : "—"}</td>
-        <td><button class="chiudi" style="font-size:14px" onclick="palDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
+        <td><div style="display:flex;gap:3px;align-items:center">
+          <button class="btn btn-2" ${i === 0 ? "disabled" : ""} style="width:auto;padding:3px 7px;font-size:12px${i === 0 ? ";opacity:.35" : ""}" onclick="palSpostaRiga(${s},${i},-1)" title="Sposta su" aria-label="Sposta su">▲</button>
+          <button class="btn btn-2" ${i === sett.righe.length - 1 ? "disabled" : ""} style="width:auto;padding:3px 7px;font-size:12px${i === sett.righe.length - 1 ? ";opacity:.35" : ""}" onclick="palSpostaRiga(${s},${i},1)" title="Sposta giù" aria-label="Sposta giù">▼</button>
+          <button class="chiudi" style="font-size:14px" onclick="palDelRiga(${s},${i})" aria-label="Rimuovi">✕</button>
+        </div></td>
       </tr>`;
     }).join("");
     return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.55);background:rgba(240,168,60,.08)"' : ""}>

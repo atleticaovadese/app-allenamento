@@ -25,9 +25,11 @@ function _rigaValidaPista(r, gruppo) {
   if (r.fk) return (Array.isArray(r.fkBlocchi) && r.fkBlocchi.length > 0) || !!(r.contenuto && String(r.contenuto).trim());   // fartlek: blocchi veloce/piano a tempo
   if (r.seg) return Number(r.segSec) > 0 || Number(r.n) > 0 || !!(r.contenuto && String(r.contenuto).trim());   // segment run: corri a TEMPO, misuri i metri
   if (gruppo === "lanci") return !!(r.mezzo && Number(r.n) > 0);
-  // mezzo: minuti O distanza O anche solo del testo scritto nel "Contenuto" (es. "10x2 min forte/piano")
-  if (gruppo === "mezzo") return Number(r.distanza) > 0 || Number(r.min) > 0 || !!(r.contenuto && String(r.contenuto).trim());
-  return !!(r.distanza && Number(r.n) > 0);   // velocità / salti
+  // mezzo: minuti O distanza (anche serie compatta "2x4x150") O anche solo del testo nel "Contenuto"
+  if (gruppo === "mezzo") return Number(r.distanza) > 0 || (typeof _mzSet === "function" && !!_mzSet(r.distanza)) || Number(r.min) > 0 || !!(r.contenuto && String(r.contenuto).trim());
+  // scala di distanze (es. 50-60 / 40-50-60): è lavoro esplicito, vale anche senza n° (= 1 blocco)
+  if (typeof _scalaDist === "function" && _scalaDist(r.distanza)) return true;
+  return !!(r.distanza && Number(r.n) > 0);   // velocità / salti (distanza singola: serve il n°)
 }
 function rigaVuota() { return { contenuto: "", distanza: "", n: "", rec: "", perc: "" }; }
 function settVuota() { return { righe: [rigaVuota()], nota: "" }; }
@@ -205,9 +207,21 @@ function apriCore() {
       <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setCoreRigaVal(${i},'rec',this.value)" style="min-width:56px"></td>
       <td><button class="chiudi" style="font-size:14px" onclick="coreDelRiga(${i})" aria-label="Rimuovi">✕</button></td>
     </tr>`).join("");
+  const esc = x => String(x == null ? "" : x).replace(/"/g, "&quot;");
+  const nomiR = Object.keys(DEMO.coreRoutine || {});
+  const barraRoutine = `<div class="card" style="padding:10px 12px;margin-bottom:10px;border-color:rgba(77,154,255,.4)">
+      <label class="lab">Routine di core salvate <span style="color:var(--txt3)">(creale una volta, riusale)</span></label>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
+        <select onchange="if(this.value){caricaCoreRoutine(this.value);}" style="flex:1;min-width:150px">
+          <option value="">＋ Carica una routine…</option>${nomiR.map(n => `<option value="${esc(n)}">${n}</option>`).join("")}</select>
+        <button class="btn btn-2" style="width:auto;padding:8px 12px" onclick="salvaCoreRoutine()">💾 Salva come routine</button>
+      </div>
+      ${nomiR.length ? `<p class="et" style="margin:8px 0 0">Salvate: ${nomiR.map((n, i) => `<b>${n}</b> <button class="chiudi" style="font-size:11px" onclick="eliminaCoreRoutine(${i})" aria-label="Elimina">✕</button>`).join(" · ")}</p>` : ""}
+    </div>`;
   mostraFoglio(`
     <div class="foglio-top"><h3>Core stability</h3>
       <button class="chiudi" onclick="chiudiCore()" aria-label="Chiudi">✕</button></div>
+    ${barraRoutine}
     <p class="et" style="margin-bottom:8px">Addominali, isometrie, anti-rotazioni… Scegli l'esercizio dalla tendina, poi <b>serie</b> e <b>quantità</b> (ripetizioni, <b>secondi</b> di tenuta per le isometrie, o <b>per lato</b>).<br>Es: <i>Plank 3 × 40 sec · Pallof press 3 × 12 per lato · Crunch 4 × 15 rip</i></p>
     <div class="p-scroll"><table class="ptab pista-w">
       <thead><tr><th>Esercizio</th><th>Serie</th><th>Quantità</th><th>Tipo</th><th>Rec</th><th></th></tr></thead>
@@ -224,6 +238,37 @@ function setCoreEsercizio(i, val) {
   coreInit(riscGiorno())[i].es = val; if (typeof salvaCustom === "function") salvaCustom(); apriCore();
 }
 function chiudiCore() { chiudiScheda(); disegna(); }
+// ---- ROUTINE di CORE riusabili (DEMO.coreRoutine = { nome: [ {es,serie,q,modo,rec}, ... ] }) ----
+// così non si ricercano gli esercizi ogni volta: si costruisce una volta, si salva, si ricarica nei giorni.
+function salvaCoreRoutine() {
+  const g = riscGiorno();
+  const righe = (coreInit(g) || []).filter(r => r.es && String(r.es).trim());
+  if (!righe.length) { alert("Aggiungi almeno un esercizio prima di salvare la routine."); return; }
+  const nome = (typeof prompt === "function") ? (prompt("Nome della routine di core (es. «Core base», «Anti-rotazione»):", "") || "").trim() : "";
+  if (!nome) return;
+  DEMO.coreRoutine = DEMO.coreRoutine || {};
+  if (DEMO.coreRoutine[nome] && typeof confirm === "function" && !confirm(`Esiste già «${nome}». Sovrascrivere?`)) return;
+  DEMO.coreRoutine[nome] = JSON.parse(JSON.stringify(righe));
+  if (typeof salvaCustom === "function") salvaCustom();
+  alert(`Routine di core «${nome}» salvata. La ritrovi nel menu «Carica una routine».`);
+  apriCore();
+}
+function caricaCoreRoutine(nome) {
+  const src = DEMO.coreRoutine && DEMO.coreRoutine[nome];
+  if (!src) return;
+  const g = riscGiorno();
+  g.core = JSON.parse(JSON.stringify(src));
+  if (typeof salvaCustom === "function") salvaCustom();
+  apriCore();
+}
+function eliminaCoreRoutine(i) {
+  const nomi = Object.keys(DEMO.coreRoutine || {});
+  const nome = nomi[i]; if (!nome) return;
+  if (typeof confirm === "function" && !confirm(`Eliminare la routine di core «${nome}»? (i giorni dove l'hai già usata non cambiano)`)) return;
+  delete DEMO.coreRoutine[nome];
+  if (typeof salvaCustom === "function") salvaCustom();
+  apriCore();
+}
 function bloccoCore(s) {
   const p = (s.core || []).filter(r => r.es);
   if (!p.length) return "";
@@ -660,13 +705,40 @@ function optDistPista(val, profilo) {
   arr.sort((a, b) => a - b);
   return `<option value="">—</option>` + arr.map(x => `<option value="${x}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
 }
+// DOPPIO PB: tempo "al 100%" su QUALSIASI distanza da due PB reali (60 e 100), più fedele dei coefficienti sui 150+.
+// D>60: ritmo reale del tratto 60→100 (include il decadimento) → lineare oltre il 100. D≤60: forma della curva ancorata al 60.
+function _tempoDoppioPB(D, t60, t100, co) {
+  if (!(t60 > 0) || !(t100 > 0) || !(t100 > t60) || !(D > 0)) return null;
+  const v = 40 / (t100 - t60);   // m/s medi nel tratto 60→100
+  if (!(v > 0)) return null;
+  if (D > 60) return t100 + (D - 100) / v;
+  const c = co ? _coeffDist(co, D) : null, c60 = co ? _coeffDist(co, 60) : null;
+  return (c != null && c60 > 0) ? t60 * c / c60 : t60 * D / 60;
+}
+// PB 60 e 100 di riferimento del madre: dall'atleta scelto (atletaRif), altrimenti i due manuali pb60/pb100
+function _pbDoppiMadre() {
+  const p = pistaInit();
+  if (p.atletaRif) {
+    const a = DEMO.atleti.find(x => x.id === p.atletaRif);
+    if (a && typeof pbAtletaDist === "function") { const t60 = pbAtletaDist(a, 60), t100 = pbAtletaDist(a, 100); if (t60 != null && t100 != null) return { t60, t100 }; }
+    return null;
+  }
+  const t60 = parseFloat(String(p.pb60).replace(",", ".")), t100 = parseFloat(String(p.pb100).replace(",", "."));
+  return (t60 > 0 && t100 > 0) ? { t60, t100 } : null;
+}
 function pistaTempo(distanza, perc) {
-  const p = pistaInit(), pb = pistaPB();
-  if (!p.profilo || !pb || !distanza || !perc) return null;
-  const co = PISTA_COEFF[p.profilo]; if (!co) return null;
-  const coeff = _coeffDist(co, Number(distanza)); if (coeff == null) return null;
+  const p = pistaInit();
+  if (!p.profilo || !distanza || !perc) return null;
   const pc = parseFloat(String(perc).replace(",", ".")); if (!(pc > 0)) return null;
-  return pb * coeff / (pc / 100);
+  const co = PISTA_COEFF[p.profilo];
+  const dp = _pbDoppiMadre();
+  let base = dp ? _tempoDoppioPB(Number(distanza), dp.t60, dp.t100, co) : null;   // doppio PB se disponibile
+  if (base == null) {                                                             // altrimenti: PB singolo × coeff (come prima)
+    const pb = pistaPB(); if (!pb || !co) return null;
+    const coeff = _coeffDist(co, Number(distanza)); if (coeff == null) return null;
+    base = pb * coeff;
+  }
+  return base / (pc / 100);
 }
 
 // --- PER ATLETA: il tempo target si calcola sul PB del singolo atleta ---
@@ -687,6 +759,9 @@ function baseAtletaDist(atleta, D, profilo) {
   if (diretto != null) return diretto;                 // PB reale su quella distanza
   if (profilo == null) profilo = pistaInit().profilo;  // fallback (editor); in generazione arriva dal programma del gruppo
   const co = profilo ? PISTA_COEFF[profilo] : null;
+  // DOPPIO PB: se l'atleta ha SIA il 60 SIA il 100, calcola dal ritmo reale 60→100 (preciso sui 150 e oltre)
+  const t60 = pbAtletaDist(atleta, 60), t100 = pbAtletaDist(atleta, 100);
+  if (t60 != null && t100 != null && t100 > t60) { const b = _tempoDoppioPB(D, t60, t100, co); if (b != null) return b; }
   const cD = co ? _coeffDist(co, D) : null;
   if (cD == null) return null;
   const refDist = profilo.indexOf("400") === 0 ? 400 : profilo.indexOf("200") === 0 ? 200 : profilo.indexOf("60") === 0 ? 60 : 100;
@@ -714,7 +789,7 @@ function _scalaDist(s) {
 function volumeSett(sett) {
   return (sett.righe || []).reduce((t, r) => {
     const sc = _scalaDist(r.distanza);
-    if (sc) return t + sc.reduce((a, d) => a + d, 0) * (Number(r.n) || 0);   // scala: (40+50+60) × blocchi
+    if (sc) return t + sc.reduce((a, d) => a + d, 0) * (Number(r.n) || 1);   // scala: (40+50+60) × blocchi (n° vuoto = 1 blocco)
     return t + (Number(r.distanza) || 0) * (Number(r.n) || 0);
   }, 0);
 }
@@ -832,7 +907,7 @@ function pistaDelGiorno(i) {
 function _giornoNonVuoto(g) {
   if (!g) return false;
   if (["plio", "core", "speciali"].some(k => Array.isArray(g[k]) && g[k].some(r => r && r.es))) return true;
-  const campi = ["contenuto", "distanza", "n", "mezzo", "perc", "kg", "min", "esercizio", "serie", "rep", "peso", "vbt", "tut", "rec"];
+  const campi = ["contenuto", "distanza", "n", "mezzo", "perc", "kg", "min", "esercizio", "serie", "rep", "peso", "vbt", "tut", "rec", "recSerie"];
   return (g.settimane || []).some(s => (s.righe || []).some(r => r && campi.some(k => r[k] !== undefined && r[k] !== "" && r[k] !== null)));
 }
 // menu «copia questo giorno su…» (condiviso da pista vel/mezzo/lanci e palestra)
@@ -910,7 +985,17 @@ function vistaProgrammaPista() {
         <input inputmode="decimal" value="${p.atletaRif ? (pb != null ? pb : "") : (p.pbManuale || "")}" ${p.atletaRif ? "disabled" : ""}
           placeholder="es. 10.90" oninput="setPistaTopVal('pbManuale',this.value)" onchange="disegna()" style="margin-top:6px">
       </div>
-      <p class="et" style="margin-top:8px">${p.profilo ? (pb != null ? `Tempi target calcolati sul PB ${pb} s.` : "Manca il PB: scrivilo o scegli un atleta.") : "Scegli il profilo velocità per calcolare i tempi."}</p>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+        <label class="lab">🎯 Taratura fine sui 150+ <span style="color:var(--txt3)">(opzionale)</span></label>
+        ${p.atletaRif
+          ? `<p class="et" style="margin-top:4px">Se l'atleta ha i PB di <b>60 m</b> e <b>100 m</b>, i tempi di ogni distanza (150 compreso) si calcolano sul <b>ritmo reale</b> tra quei due PB — più fedeli dei coefficienti.</p>`
+          : `<div class="griglia2" style="margin-top:6px">
+              <input inputmode="decimal" value="${p.pb60 || ""}" placeholder="PB 60 m (s)" oninput="setPistaTopVal('pb60',this.value)" onchange="disegna()">
+              <input inputmode="decimal" value="${p.pb100 || ""}" placeholder="PB 100 m (s)" oninput="setPistaTopVal('pb100',this.value)" onchange="disegna()">
+            </div>
+            <p class="et" style="margin-top:6px;color:var(--txt3)">Metti <b>sia 60 che 100</b>: i tempi (150 e oltre) si calcolano sul ritmo reale tra i due → combaciano coi PB. Se lasci vuoto, vale il PB singolo sopra.</p>`}
+      </div>
+      <p class="et" style="margin-top:8px">${p.profilo ? (_pbDoppiMadre() ? "Tempi calcolati sui <b>due PB (60 + 100)</b>." : (pb != null ? `Tempi target calcolati sul PB ${pb} s.` : "Manca il PB: scrivilo o scegli un atleta.")) : "Scegli il profilo velocità per calcolare i tempi."}</p>
     </div>`;
 
   // selettore mesociclo
@@ -977,7 +1062,7 @@ function vistaProgrammaPista() {
         <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
         <td><input value="${r.distanza || ""}" placeholder="m · o 40-50-60" oninput="setPistaRigaVal(${s},${i},'distanza',this.value)" onchange="disegna()" style="min-width:58px" title="Un numero (60) o una scala di distanze: 40-50-60"></td>
         <td>${typeof _stepCell === "function" ? _stepCell(r.n, "n°", "pistaStepN(" + s + "," + i + ",-1)", "pistaStepN(" + s + "," + i + ",1)", "setPistaRigaVal(" + s + "," + i + ",'n',this.value)", "40px") : `<input inputmode="numeric" value="${r.n || ""}" placeholder="n°" oninput="setPistaRigaVal(${s},${i},'n',this.value)" onchange="disegna()" style="min-width:52px">`}</td>
-        <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px"></td>
+        <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="${sc ? "rec rip" : "rec"}" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="min-width:66px">${sc ? `<input value="${(r.recSerie || "").replace(/"/g, "&quot;")}" placeholder="rec blocco" title="Recupero tra un blocco e l'altro" oninput="setPistaRigaVal(${s},${i},'recSerie',this.value)" style="min-width:66px;margin-top:4px">` : ""}</td>
         <td><div style="display:flex;align-items:center;gap:2px">
           <button type="button" onclick="pistaStepPerc(${s},${i},-2.5)" title="−2.5%" style="width:24px;height:30px;flex:none;padding:0;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">−</button>
           <input inputmode="decimal" value="${r.perc || ""}" placeholder="%" oninput="setPistaRigaVal(${s},${i},'perc',this.value)" onchange="disegna()" style="width:42px;min-width:42px;text-align:center">

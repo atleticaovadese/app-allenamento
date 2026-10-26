@@ -630,7 +630,7 @@ async function salvaSedutaSvoltaDB(s) {
   if (!aid) return;
   if (atletaBloccato(aid)) return;
   const dati = s.tipo === "pista"
-    ? { elementi: (s.elementi || []).map(e => ({ contenuto: e.contenuto || "", distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, seg: !!e.seg, segSec: e.segSec, intervalli: e.intervalli, misureSeg: e.misureSeg, fk: !!e.fk, fkBlocchi: e.fkBlocchi, scala: e.scala, blocchi: e.blocchi, distanze: e.distanze, targets: e.targets, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
+    ? { elementi: (s.elementi || []).map(e => ({ contenuto: e.contenuto || "", distanza: e.distanza, ripetute: e.ripetute, percentuale: e.percentuale, target: e.target, tempi: e.tempi, misure: e.misure, min: e.min, mezzo: e.mezzo, lanci: e.lanci, kg: e.kg, tipo: e.tipo, perc: e.perc, seg: !!e.seg, segSec: e.segSec, intervalli: e.intervalli, misureSeg: e.misureSeg, fk: !!e.fk, fkBlocchi: e.fkBlocchi, scala: e.scala, blocchi: e.blocchi, distanze: e.distanze, targets: e.targets, set: e.set, recuperoSerie: e.recuperoSerie, rpe: e.rpe, nonCompletato: !!e.nonCompletato, notaAtleta: e.notaAtleta || "" })) }
     : { esercizi: (s.esercizi || []).map(x => ({ nome: x.nome, serie: x.serie, rep: x.rep, percentuale: x.percentuale, peso: x.peso, pesoFatto: x.pesoFatto != null ? x.pesoFatto : null, vbtTarget: x.vbtTarget, vbt: x.vbt, fatte: x.fatte || null, ss: x.ss || "", rpe: x.rpe, nonCompletato: !!x.nonCompletato, serieFatte: x.serieFatte, repFatte: x.repFatte, notaAtleta: x.notaAtleta || "" })) };
   const payload = {
     atleta_id: aid, chiave: s.id, tipo: s.tipo,

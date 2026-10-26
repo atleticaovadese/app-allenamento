@@ -32,6 +32,7 @@ function bundleCustom() {
     overrideGiorni: DEMO.overrideGiorni || {}, overrideContenuto: DEMO.overrideContenuto || {},
     pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {},
     atletaPro: DEMO.atletaPro || {},
+    coreRoutine: DEMO.coreRoutine || {},
     modGiorno: DEMO.modGiorno || {}
   };
 }
@@ -71,6 +72,7 @@ function applicaBundle(c) {
   if (c.pistaAtleta) DEMO.pistaAtleta = c.pistaAtleta;
   if (c.palAtleta) DEMO.palAtleta = c.palAtleta;
   if (c.atletaPro) DEMO.atletaPro = c.atletaPro;   // atleti "pro" (possono adattare il proprio programma) — lo decide il coach
+  if (c.coreRoutine) DEMO.coreRoutine = c.coreRoutine;   // routine di core salvate (riusabili nei giorni)
   DEMO.modGiorno = c.modGiorno || {};   // modifiche "una tantum" per singola data (coach)
 }
 

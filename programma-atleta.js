@@ -84,7 +84,7 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
         const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, d, r.perc, profilo) : (typeof pistaTempo === "function" ? pistaTempo(d, r.perc) : null);
         distanze.push(d); targets.push(t != null ? Math.round(t * 100) / 100 : null);
       });
-      return { id: "e" + i, contenuto: r.contenuto || "", scala: scala, blocchi: blocchi, distanza: scala.join("-"), ripetute: distanze.length, percentuale: perc, recupero: r.rec || "", distanze: distanze, targets: targets, tempi: Array(distanze.length).fill(null) };
+      return { id: "e" + i, contenuto: r.contenuto || "", scala: scala, blocchi: blocchi, distanza: scala.join("-"), ripetute: distanze.length, percentuale: perc, recupero: r.rec || "", recuperoSerie: r.recSerie || "", distanze: distanze, targets: targets, tempi: Array(distanze.length).fill(null) };
     }
     const n = Number(r.n);
     const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, r.distanza, r.perc, profilo)
