@@ -455,6 +455,7 @@ function _applicaSvolta(s) {
   if (sv.rpe != null) s.rpe = sv.rpe;
   s.fastidi = !!sv.fastidi;
   const d = sv.dati || {};
+  if (d.notaSessione) s.notaSessione = d.notaSessione;   // sensazioni dell'atleta su quella seduta
   // overlay per IDENTITÀ (non solo per indice): se il coach riordina/aggiunge righe dopo la chiusura,
   // i dati salvati restano sull'elemento giusto. Ripiego sull'indice se non trovo un match.
   if (s.tipo === "pista" && d.elementi) {

@@ -2069,6 +2069,7 @@ function _cardSvolta(sv) {
       <span class="et">${sv.durata_min ? sv.durata_min + "′" : ""}${sv.rpe ? " · RPE " + sv.rpe : ""}</span></div>
     ${sv.fastidi ? `<p class="et" style="color:var(--rosso);margin-top:4px">⚠ fastidio segnalato</p>` : ""}
     <div style="margin-top:8px">${corpo || `<span class="et">Nessun dato inserito.</span>`}</div>
+    ${d.notaSessione ? `<div style="margin-top:8px;padding:9px 11px;border-radius:10px;background:var(--blu-bg);border:1px solid rgba(77,154,255,.3)"><p class="et" style="margin:0 0 3px;color:var(--blu)">💬 Sensazioni dell'atleta</p><p style="margin:0;font-size:14px;line-height:1.5">${String(sv.dati.notaSessione).replace(/</g, "&lt;")}</p></div>` : ""}
   </div>`;
 }
 function vistaSeduteSvolte() {

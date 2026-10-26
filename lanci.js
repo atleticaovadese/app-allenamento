@@ -384,7 +384,7 @@ function vistaProgrammaPistaLanci() {
     </div>`;
   }).join("");
 
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + (typeof _barraLock === "function" ? _barraLock() : "") + (typeof _lk === "function" ? _lk(testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane) : (testa + tabMeso + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane)) + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + (typeof _barraLock === "function" ? _barraLock() : "") + tabMeso + (typeof _lk === "function" ? _lk(testa + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane) : (testa + testaMeso + tabGiorno + testaGiorno + copiaBtn + settimane)) + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }
 
 // ---------- generazione seduta lanci per l'atleta (dal madre del gruppo "lanci") ----------

@@ -15,7 +15,7 @@ function _datiBozza(s) {
 }
 function salvaBozzaSeduta(s) {
   if (!s || s.chiusa || !s.id) return;   // chiusa = già salvata nel DB, niente bozza
-  try { localStorage.setItem(_bozzaKey(s), JSON.stringify({ ts: Date.now(), tipo: s.tipo, durata: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, notaCoach: s.notaCoach || "", dati: _datiBozza(s) })); } catch (e) { }
+  try { localStorage.setItem(_bozzaKey(s), JSON.stringify({ ts: Date.now(), tipo: s.tipo, durata: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, notaCoach: s.notaCoach || "", notaSessione: s.notaSessione || "", dati: _datiBozza(s) })); } catch (e) { }
 }
 function _rimuoviBozza(s) { if (s) { try { localStorage.removeItem(_bozzaKey(s)); } catch (e) { } } }
 function applicaBozza(s) {
@@ -28,6 +28,7 @@ function applicaBozza(s) {
   if (b.rpe != null) s.rpe = b.rpe;
   if (b.fastidi) s.fastidi = true;
   if (b.notaCoach) s.notaCoach = b.notaCoach;
+  if (b.notaSessione) s.notaSessione = b.notaSessione;
   const d = b.dati || {};
   if (s.tipo === "pista" && d.elementi) {
     const used = [];
@@ -599,6 +600,15 @@ function bloccoChiusura(s) {
         onchange="segnaChiusura('${s.id}','fastidi',this.checked)">
       <span>Ho avuto un fastidio durante l'allenamento</span>
     </label>
+    ${S.utente.ruolo !== "coach"
+      ? `<div style="margin-top:14px">
+           <label class="lab">Come ti sei sentito? Sensazioni sull'allenamento <span style="color:var(--txt3)">(le vede il coach)</span></label>
+           <textarea rows="3" style="margin-top:6px" placeholder="Es. gambe pesanti all'inizio poi meglio · buone sensazioni sui 60 · un po' stanco..."
+             onchange="segnaTestoSeduta('${s.id}','notaSessione',this.value)">${(s.notaSessione || "").replace(/</g, "&lt;")}</textarea>
+         </div>`
+      : (s.notaSessione ? `<div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--blu-bg);border:1px solid rgba(77,154,255,.3)">
+           <p class="et" style="margin:0 0 3px;color:var(--blu)">💬 Sensazioni dell'atleta</p>
+           <p style="margin:0;font-size:14px;line-height:1.5">${String(s.notaSessione).replace(/</g, "&lt;")}</p></div>` : "")}
     ${S.utente.ruolo === "coach"
       ? `<div style="margin-top:14px">
            <label class="lab">Nota dell'allenatore — promemoria su cosa lavorare <span style="color:var(--txt3)">(la vedi solo tu)</span></label>

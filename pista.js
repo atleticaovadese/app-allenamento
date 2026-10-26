@@ -676,7 +676,32 @@ function _barraSalvaMadre(tipo) {
 }
 // ---- LUCCHETTO dei programmi: un programma è bloccato finché non si inserisce la password (1111).
 // Dopo ogni salvataggio si ri-blocca da solo, così non si cambia per sbaglio il programma sbagliato. ----
-function progBloccato() { return !S.progSbloccato; }
+// mesociclo mostrato nell'editor corrente (pista vel/mezzo/lanci o palestra)
+function _mesoShown() {
+  const pal = (typeof S !== "undefined" && S.vista === "palestra");
+  const prog = pal ? (typeof palestraInit === "function" ? palestraInit() : null) : (typeof pistaInit === "function" ? pistaInit() : null);
+  const mi = pal ? S.palMeso : S.pistaMeso;
+  return (prog && prog.mesocicli) ? prog.mesocicli[mi || 0] : null;
+}
+// un mesociclo è "finito" quando l'ultimo allenamento è passato (oggi ≥ inizio + settimane×7)
+function _mesoFinito(m) {
+  if (!m || !m.inizio) return false;
+  const nS = (typeof nSettDi === "function") ? nSettDi(m) : 4;
+  const fine = new Date(m.inizio + "T00:00:00"); fine.setDate(fine.getDate() + nS * 7);
+  const oggi = new Date(((typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  return oggi >= fine;
+}
+// data dell'ULTIMO allenamento del mesociclo (per il messaggio del lucchetto)
+function _mesoUltimoGiorno(m) {
+  if (!m || !m.inizio) return "";
+  const nS = (typeof nSettDi === "function") ? nSettDi(m) : 4;
+  const d = new Date(m.inizio + "T00:00:00"); d.setDate(d.getDate() + nS * 7 - 1);
+  const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  return (typeof _dataItBreve === "function") ? _dataItBreve(iso) : iso;
+}
+// LUCCHETTO: scatta SOLO sui mesocicli FINITI (così la password si usa il meno possibile).
+// Quelli in corso/futuri si modificano liberamente. Un finito si sblocca con la password (1111).
+function progBloccato() { return !S.progSbloccato && _mesoFinito(_mesoShown()); }
 function _lk(html) { return progBloccato() ? `<div style="pointer-events:none;opacity:.5;filter:grayscale(.35)" aria-disabled="true">${html}</div>` : html; }
 function sbloccaProg() {
   const pw = (typeof prompt === "function") ? prompt("Password per modificare il programma:", "") : "";
@@ -686,15 +711,18 @@ function sbloccaProg() {
 }
 function bloccaProg() { S.progSbloccato = false; disegna(); }
 function _barraLock() {
+  const m = _mesoShown();
+  if (!_mesoFinito(m)) return "";   // mesociclo in corso/futuro: modificabile liberamente, nessun lucchetto
+  const ug = _mesoUltimoGiorno(m);
   return progBloccato()
     ? `<div class="card" style="border-color:rgba(240,168,60,.6);background:rgba(240,168,60,.08);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:20px">🔒</span>
-        <p class="et" style="margin:0;flex:1;min-width:150px;color:var(--ambra,#e6a83c)"><b>Programma bloccato</b> — così non lo cambi per sbaglio. Sblocca per modificare.</p>
+        <p class="et" style="margin:0;flex:1;min-width:150px;color:var(--ambra,#e6a83c)"><b>Mesociclo finito${ug ? ` (ultimo allenamento ${ug})` : ""}</b>: bloccato per non cambiarlo per sbaglio. Sblocca per modificare.</p>
         <button class="btn" style="width:auto;padding:8px 16px" onclick="sbloccaProg()">🔓 Sblocca</button>
       </div>`
     : `<div class="card" style="border-color:rgba(124,194,67,.4);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:18px">🔓</span>
-        <p class="et" style="margin:0;flex:1;min-width:150px;color:var(--verde)"><b>Sbloccato</b>: puoi modificare (si ri-blocca dopo il salvataggio).</p>
+        <p class="et" style="margin:0;flex:1;min-width:150px;color:var(--verde)"><b>Mesociclo finito — sbloccato</b>: puoi modificare (si ri-blocca dopo il salvataggio).</p>
         <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px" onclick="bloccaProg()">🔒 Blocca ora</button>
       </div>`;
 }
@@ -1135,5 +1163,5 @@ function vistaProgrammaPista() {
       <p class="et" style="margin:0 0 8px">Alcuni atleti hanno un <b>programma personale</b> e NON prendono in automatico i mesocicli del madre. Con questo tasto copi <b>il mesociclo mostrato</b> nei loro programmi — <b>scegli tu quali atleti</b> includere — es. un atleta col meso precedente modificato riparte col madre uguale agli altri.</p>
       <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="pistaEstendiAiPersonali()">📥 Estendi questo mesociclo agli atleti con programma personale</button>
     </div>` : "";
-  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + (typeof _barraLock === "function" ? _barraLock() : "") + _lk(testa + tabMeso + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + settimane) + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
+  return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + (typeof _barraLock === "function" ? _barraLock() : "") + tabMeso + _lk(testa + testaMeso + estendiPersonali + tabGiorno + testaGiorno + copiaBtn + settimane) + (typeof _barraSalvaMadre === "function" ? _barraSalvaMadre("pista") : "");
 }

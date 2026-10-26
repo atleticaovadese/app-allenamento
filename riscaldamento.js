@@ -15,7 +15,19 @@ function vistaRiscaldamento() {
       <div style="flex:1;min-width:0"><div style="font-weight:500">${n}</div>
         <div class="et" style="margin-top:1px">${DEMO.schede[n].length} esercizi</div></div>
       <span class="freccia">›</span></div>`).join("");
+  const nomiCore = Object.keys(DEMO.coreRoutine || {});
+  if (nomiCore.length) h += `<p class="sez">🧱 Routine di core</p>` + nomiCore.map((n, i) => `<div class="lib-row" onclick="modificaRoutineCore(${i})">
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${n}</div>
+        <div class="et" style="margin-top:1px">${DEMO.coreRoutine[n].length} esercizi · core</div></div>
+      <span class="freccia">›</span></div>`).join("");
   return h;
+}
+// apre una routine di CORE (store a parte, con parametri serie/q) nell'editor routine
+function modificaRoutineCore(i) {
+  const nome = Object.keys(DEMO.coreRoutine || {})[i]; if (!nome) return;
+  const rows = DEMO.coreRoutine[nome] || [];
+  S.routineEdit = { nome: nome, voci: rows.map(x => x.es), orig: nome, origCore: true, tipo: "Core" };
+  disegna(); window.scrollTo(0, 0);
 }
 
 // ---------- nuovo esercizio (non arriva dall'Excel) ----------
@@ -67,7 +79,7 @@ function salvaEsercizio() {
   alert("Esercizio aggiunto alla libreria. ✓");
 }
 
-const RISC_TIPI = ["Attivazione", "Mobilità", "Andature", "Ostacoli"];
+const RISC_TIPI = ["Attivazione", "Mobilità", "Andature", "Ostacoli", "Core"];
 
 // Esercizi disponibili per tipo, RAGGRUPPATI: [{cat, items:[{n,v}]}] → la tendina usa gli <optgroup>.
 function eserciziTipo(tipo) {
@@ -92,6 +104,12 @@ function eserciziTipo(tipo) {
   }
   if (tipo === "Ostacoli")
     return [{ cat: "Ostacoli", items: cat("Ostacoli") }];
+  if (tipo === "Core") {   // esercizi di core (dalla libreria sala, gruppi "CORE…"), raggruppati per zona
+    const voci = (typeof _coreLibVoci === "function") ? _coreLibVoci() : [];
+    const zone = [];
+    voci.forEach(x => { let z = zone.find(g => g.cat === (x.g || "Core")); if (!z) { z = { cat: x.g || "Core", items: [] }; zone.push(z); } z.items.push({ n: x.n, v: x.v }); });
+    return zone.filter(g => g.items.length);
+  }
   return [];
 }
 
@@ -188,6 +206,19 @@ function salvaRoutine() {
   const r = S.routineEdit, nome = (r.nome || "").trim();
   if (!nome) { alert("Dai un nome alla routine."); return; }
   if (!r.voci.length) { alert("Aggiungi almeno un esercizio."); return; }
+  // ROUTINE DI CORE: va nello store delle routine core (DEMO.coreRoutine), con righe {es,serie,q,modo,rec}.
+  // Preserva i parametri (serie/q/modo/rec) degli esercizi invariati (match per nome); i nuovi partono vuoti.
+  if (r.tipo === "Core") {
+    DEMO.coreRoutine = DEMO.coreRoutine || {};
+    const prev = (r.origCore && DEMO.coreRoutine[r.orig]) ? DEMO.coreRoutine[r.orig] : [];
+    const byName = {}; prev.forEach(x => { byName[x.es] = x; });
+    const rows = r.voci.map(v => { const n = String(v).trim(); return byName[n] ? byName[n] : { es: n, serie: "", q: "", modo: "rip", rec: "" }; });
+    if (r.origCore && r.orig && r.orig !== nome) delete DEMO.coreRoutine[r.orig];   // rinominata
+    DEMO.coreRoutine[nome] = rows;
+    if (typeof salvaCustom === "function") salvaCustom();
+    S.routineEdit = null; disegna(); window.scrollTo(0, 0);
+    return;
+  }
   DEMO.schedeTipo = DEMO.schedeTipo || {};
   if (r.orig && r.orig !== nome) { delete DEMO.schede[r.orig]; delete DEMO.schedeTipo[r.orig]; }  // rinominata
   DEMO.schede[nome] = [...r.voci];
@@ -197,8 +228,13 @@ function salvaRoutine() {
 }
 function eliminaRoutine() {
   const r = S.routineEdit;
-  if (r.orig && confirm("Eliminare questa routine?")) { delete DEMO.schede[r.orig]; if (DEMO.schedeTipo) delete DEMO.schedeTipo[r.orig]; }
-  else if (r.orig) return;
+  if (r.origCore) {   // routine di core: sta nello store a parte
+    if (r.orig && confirm("Eliminare questa routine di core?")) { if (DEMO.coreRoutine) delete DEMO.coreRoutine[r.orig]; }
+    else if (r.orig) return;
+  } else {
+    if (r.orig && confirm("Eliminare questa routine?")) { delete DEMO.schede[r.orig]; if (DEMO.schedeTipo) delete DEMO.schedeTipo[r.orig]; }
+    else if (r.orig) return;
+  }
   if (typeof salvaCustom === "function") salvaCustom();
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);
 }
