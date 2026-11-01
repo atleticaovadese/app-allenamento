@@ -45,10 +45,10 @@ const _REPORT_CSS = `
   #app-report .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #app-report th,#app-report .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #app-report .print-footer{display:block;position:fixed;bottom:4mm;left:0;right:0;text-align:center;font-size:8.5px;color:#8a94a3}
-  h2{page-break-after:avoid}
-  tr{page-break-inside:avoid}
-  table,svg,.kpi{page-break-inside:avoid}
-  @page{margin:14mm}
+  h2{page-break-after:avoid;break-after:avoid}
+  tr{page-break-inside:avoid;break-inside:avoid}
+  svg,.kpi{page-break-inside:avoid;break-inside:avoid}
+  @page{margin:12mm}
 }
 `;
 
@@ -80,8 +80,9 @@ function _rFmtMis(disc, raw, evento) {
 
 // programma per mesociclo (Pista/Campo + Palestra): settimana-tipo per giorno.
 // gOverride = per stampare il programma MADRE di un gruppo (a può essere null → niente grafico salute)
-function _rProgrammaMesocicli(a, gOverride) {
+function _rProgrammaMesocicli(a, gOverride, soloMeso) {
   const g = gOverride || ((typeof gruppoDi === "function" && a) ? gruppoDi(a) : "vel");
+  const unSoloMeso = (soloMeso != null && soloMeso !== "");   // stampa di un singolo mesociclo
   const pista = (typeof pistaDi === "function") ? pistaDi(g) : (DEMO.pista || null);
   const pal = (typeof palDi === "function") ? palDi(g) : (DEMO.palestra || null);
   const esc = t => String(t == null ? "" : t);
@@ -194,6 +195,7 @@ function _rProgrammaMesocicli(a, gOverride) {
     if (!prog || !prog.mesocicli || !prog.mesocicli.length) return "";
     let s = "";
     prog.mesocicli.forEach((m, mi) => {
+      if (unSoloMeso && mi !== Number(soloMeso)) return;   // stampa solo il mesociclo scelto
       const testa = ["Mesociclo " + (mi + 1), m.blocco || m.ciclo || "", m.inizio ? "dal " + _rDataL(m.inizio) : "", m.focus ? "focus: " + m.focus : ""].filter(Boolean).join(" · ");
       const giorni = (m.giorni || []).map((gi, idx) => giornoCard(gi, idx, rigaFn, colLavoro, m, tipo, mi)).filter(Boolean).join("");
       // atleti con giorni DIVERSI dal madre (es. chi fa pista in altri giorni): blocco «su misura» a parte, col giorno vero
@@ -209,11 +211,11 @@ function _rProgrammaMesocicli(a, gOverride) {
     return s ? `<h2>${titolo}</h2>${s}` : "";
   };
   const css = `<style>
-    .gmeso{page-break-inside:avoid;margin-bottom:14px}
-    .gmt{margin:12px 0 6px;font-size:12px}
-    .gday{page-break-inside:avoid;border:1px solid #d8dde6;border-radius:8px;padding:9px 11px;margin:8px 0}
-    .gtit{margin:0 0 6px;font-size:14px}
-    .gsec{margin:6px 0}
+    .gmeso{margin-bottom:14px}
+    .gmt{margin:12px 0 6px;font-size:12px;break-after:avoid;page-break-after:avoid}
+    .gday{break-inside:avoid;page-break-inside:avoid;border:1px solid #d8dde6;border-radius:8px;padding:9px 11px;margin:8px 0}
+    .gtit{margin:0 0 6px;font-size:14px;break-after:avoid;page-break-after:avoid}
+    .gsec{margin:6px 0;break-inside:avoid;page-break-inside:avoid}
     .gk{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#7a8496;margin-bottom:2px}
     .rz{font-size:12px;line-height:1.45;margin:1px 0}
     .rzes{font-size:11px;color:#5a6472;margin:1px 0 3px 8px}
@@ -971,28 +973,55 @@ function _rDiffRigheAtl(a, tipo, prog, madre, mi, gi, si) {
   return (s2 && s2.righe) || [];
 }
 // ---------- Stampa del programma MADRE di un gruppo (PDF, stesso stile del report) ----------
-function apriStampaProgramma(g) { S.stampaProg = g || (S.progGruppo || "vel"); disegna(); window.scrollTo(0, 0); }
-function chiudiStampaProgramma() { S.stampaProg = null; disegna(); window.scrollTo(0, 0); }
+function apriStampaProgramma(g) { S.stampaProg = g || (S.progGruppo || "vel"); S.stampaProgMeso = null; disegna(); window.scrollTo(0, 0); }
+function chiudiStampaProgramma() { S.stampaProg = null; S.stampaProgMeso = null; disegna(); window.scrollTo(0, 0); }
+function setStampaProgMeso(i) { S.stampaProgMeso = (i === "" || i == null) ? null : Number(i); disegna(); window.scrollTo(0, 0); }
+// elenco mesocicli di un gruppo (unione pista+palestra, stessi indici del rendering)
+function _mesocicliGruppo(g) {
+  const pista = (typeof pistaDi === "function") ? pistaDi(g) : null;
+  const pal = (typeof palDi === "function") ? palDi(g) : null;
+  const mp = (pista && pista.mesocicli) || [], ml = (pal && pal.mesocicli) || [];
+  const n = Math.max(mp.length, ml.length);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const a = mp[i], b = ml[i], m = a || b || {};
+    out.push({ idx: i, nome: m.blocco || m.ciclo || m.focus || "", inizio: (a && a.inizio) || (b && b.inizio) || "" });
+  }
+  return out;
+}
 function vistaStampaProgramma() {
   const g = S.stampaProg || "vel";
   const grp = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
   const nomeG = (grp.find(x => x[0] === g) || [])[1] || g;
   const brand = (typeof CONFIG !== "undefined" && CONFIG.nome) ? CONFIG.nome : "Metis";
   const oggi = new Date().toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  const mesos = _mesocicliGruppo(g);
+  let mi = S.stampaProgMeso;                                   // null = tutti i mesocicli
+  if (mi != null && (mi < 0 || mi >= mesos.length)) mi = null; // indice non valido → tutti
+  const mSel = (mi != null) ? mesos[mi] : null;
+  const sottotit = mSel
+    ? `Mesociclo ${mi + 1}${mSel.nome ? " · " + mSel.nome : ""}${mSel.inizio ? " · dal " + _rDataL(mSel.inizio) : ""}`
+    : "tutti i mesocicli";
   const body = `<h1>Programma madre — ${nomeG}</h1>
-    <p class="sub muted">${brand} · settimana-tipo per giorno di ogni mesociclo · stampato il ${oggi}</p>
-    ${(typeof _rProgrammaMesocicli === "function") ? _rProgrammaMesocicli(null, g) : ""}
+    <p class="sub muted">${brand} · ${sottotit} · stampato il ${oggi}</p>
+    ${(typeof _rProgrammaMesocicli === "function") ? _rProgrammaMesocicli(null, g, mi) : ""}
     <div class="foot">${brand} · «Chi non pianifica è destinato a fallire.»</div>
-    <div class="print-footer">${brand} · programma ${nomeG} · ${oggi}</div>`;
+    <div class="print-footer">${brand} · programma ${nomeG}${mSel ? " · meso " + (mi + 1) : ""} · ${oggi}</div>`;
+  const mesoPill = m => `<button class="btn ${mi === m.idx ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setStampaProgMeso(${m.idx})">Meso ${m.idx + 1}${m.nome ? " · " + m.nome : ""}</button>`;
   return `<style>${_REPORT_CSS}</style>
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-2" style="width:auto;padding:9px 14px" onclick="chiudiStampaProgramma()">‹ Indietro</button>
       <button class="btn" style="width:auto;padding:9px 16px" onclick="window.print()">🖨 Stampa / Salva PDF</button>
     </div>
-    <div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <span class="et" style="margin:0 4px 0 0">Disciplina:</span>
       ${grp.map(([k, l]) => `<button class="btn ${g === k ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="apriStampaProgramma('${k}')">${l}</button>`).join("")}
     </div>
-    <p class="no-print et" style="margin-bottom:12px">Anteprima del programma madre <b>+ le differenze di ogni atleta</b> (programmi personali e adattamenti). Premi <b>Stampa</b> → <b>«Salva come PDF»</b>.</p>
+    <div class="no-print" style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <span class="et" style="margin:0 4px 0 0">Mesociclo:</span>
+      <button class="btn ${mi == null ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setStampaProgMeso('')">Tutti</button>
+      ${mesos.length ? mesos.map(mesoPill).join("") : `<span class="et" style="color:var(--muted,#8a94a3)">nessun mesociclo impostato</span>`}
+    </div>
+    <p class="no-print et" style="margin-bottom:12px">Anteprima del programma madre <b>+ le differenze di ogni atleta</b>. Scegli un <b>mesociclo</b> per stampare solo quello, poi <b>Stampa</b> → <b>«Salva come PDF»</b>.</p>
     <div id="app-report">${body}</div>`;
 }
