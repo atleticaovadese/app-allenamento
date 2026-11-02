@@ -1042,6 +1042,31 @@ function _atletiDiffGruppo(g, soloMeso) {
   };
   return atletiDelGruppo(g).filter(x => !x.bloccato).filter(x => diffInTipo(x, "pista", pista) || diffInTipo(x, "palestra", pal));
 }
+// Stile dedicato alla stampa del programma (brand Metis: tile scuro del logo + accento blu→verde).
+// Selettori con #app-report davanti per battere le regole condivise; color-adjust:exact per stampare gli sfondi.
+const _PROG_PRINT_CSS = `
+#app-report .prog-print{color:#1a1f2b}
+#app-report .prog-print .phead{display:flex;align-items:flex-start;gap:15px}
+#app-report .prog-print .phead-logo{width:54px;height:54px;border-radius:14px;background:#0f1115;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 3px 10px rgba(15,17,21,.22);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print .phead-logo img{width:38px;height:38px;display:block}
+#app-report .prog-print .phead-txt{flex:1;min-width:0;padding-top:2px}
+#app-report .prog-print .phead-brand{font-size:10.5px;letter-spacing:.24em;font-weight:700;color:#4d8df0;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print .phead-title{font-size:23px;font-weight:800;color:#13233d;line-height:1.12;margin-top:4px;letter-spacing:-.01em}
+#app-report .prog-print .phead-sub{font-size:12.5px;color:#5a6472;margin-top:4px}
+#app-report .prog-print .phead-date{font-size:10px;color:#9aa3b1;text-align:right;line-height:1.6;flex:none;text-transform:uppercase;letter-spacing:.04em}
+#app-report .prog-print .phead-date b{display:block;color:#2b4c7e;font-size:12px;text-transform:none;letter-spacing:0;margin-top:1px}
+#app-report .prog-print .phead-rule{height:4px;border-radius:3px;margin:13px 0 4px;background:linear-gradient(90deg,#4d8df0,#4d8df0 42%,#7bc043);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print h2{font-size:13px;color:#13233d;border:0;border-left:4px solid #4d8df0;background:linear-gradient(90deg,rgba(77,141,240,.09),rgba(77,141,240,0));padding:4px 0 4px 11px;margin:22px 0 10px;text-transform:uppercase;letter-spacing:.07em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print .gmt{display:inline-block;background:#eef3fb;color:#2b4c7e;border:1px solid #dce7f6;border-radius:999px;padding:3px 13px;font-size:11px;font-weight:700;letter-spacing:.02em;margin:12px 0 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print .gday{border:1px solid #e3e8f0;border-radius:11px;padding:11px 13px;margin:9px 0;box-shadow:0 1px 3px rgba(20,35,61,.05)}
+#app-report .prog-print .gtit{font-size:13.5px;color:#13233d;font-weight:700;margin:0 0 7px}
+#app-report .prog-print .gk{color:#8893a6;font-size:9.5px;letter-spacing:.08em}
+#app-report .prog-print .lavtab td{border:1px solid #eceff4;padding:4px 9px;font-size:12px}
+#app-report .prog-print .lavtab td.wk{background:#f6f9fd;color:#2b4c7e;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print .diff-atl{background:#fff8ef;border-left:3px solid #e0a63a;border-radius:0 5px 5px 0;padding:3px 9px;margin-top:5px;color:#8a5a12;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#app-report .prog-print .foot{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:28px;padding-top:11px;border-top:1px solid #e6eaf1;color:#9aa3b1;font-size:11px}
+#app-report .prog-print .foot-logo{width:16px;height:16px;border-radius:4px}
+`;
 function vistaStampaProgramma() {
   const g = S.stampaProg || "vel";
   const grp = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
@@ -1062,11 +1087,21 @@ function vistaStampaProgramma() {
   const isSel = id => selAll || (Array.isArray(S.stampaProgAtleti) && S.stampaProgAtleti.includes(id));
   const escN = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const nSel = selAll ? diffAtleti.length : diffAtleti.filter(x => isSel(x.id)).length;
-  const body = `<h1>Programma madre — ${nomeG}</h1>
-    <p class="sub muted">${brand} · ${sottotit} · stampato il ${oggi}</p>
+  const header = `<div class="phead">
+      <div class="phead-logo"><img src="icon-192.png" alt="" onerror="this.parentNode.style.display='none'"></div>
+      <div class="phead-txt">
+        <div class="phead-brand">${brand}</div>
+        <div class="phead-title">Programma — ${nomeG}</div>
+        <div class="phead-sub">${sottotit}</div>
+      </div>
+      <div class="phead-date">stampato il<b>${oggi}</b></div>
+    </div>
+    <div class="phead-rule"></div>`;
+  const body = `<div class="prog-print">${header}
     ${(typeof _rProgrammaMesocicli === "function") ? _rProgrammaMesocicli(null, g, mi, inclusi) : ""}
-    <div class="foot">${brand} · «Chi non pianifica è destinato a fallire.»</div>
-    <div class="print-footer">${brand} · programma ${nomeG}${mSel ? " · meso " + (mi + 1) : ""} · ${oggi}</div>`;
+    <div class="foot"><img src="icon-192.png" class="foot-logo" alt="" onerror="this.style.display='none'"><span>${brand} · «Chi non pianifica è destinato a fallire.»</span></div>
+    <div class="print-footer">${brand} · programma ${nomeG}${mSel ? " · meso " + (mi + 1) : ""} · ${oggi}</div>
+    </div>`;
   const mesoPill = m => `<button class="btn ${mi === m.idx ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setStampaProgMeso(${m.idx})">Meso ${m.idx + 1}${m.nome ? " · " + m.nome : ""}</button>`;
   const atlChip = x => `<button class="btn ${isSel(x.id) ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="toggleStampaProgAtleta('${x.id}')">${isSel(x.id) ? "✓ " : ""}${escN(x.nome)}</button>`;
   const barraAtleti = diffAtleti.length
@@ -1078,7 +1113,7 @@ function vistaStampaProgramma() {
         <span class="et" style="margin:0 0 0 6px;color:var(--muted,#8a94a3)">${nSel} di ${diffAtleti.length} nella stampa</span>
       </div>`
     : `<div class="no-print" style="margin-bottom:12px"><span class="et" style="color:var(--muted,#8a94a3)">Nessun atleta con programma diverso dal madre${mSel ? " in questo mesociclo" : ""}.</span></div>`;
-  return `<style>${_REPORT_CSS}</style>
+  return `<style>${_REPORT_CSS}${_PROG_PRINT_CSS}</style>
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-2" style="width:auto;padding:9px 14px" onclick="chiudiStampaProgramma()">‹ Indietro</button>
       <button class="btn" style="width:auto;padding:9px 16px" onclick="window.print()">🖨 Stampa / Salva PDF</button>
