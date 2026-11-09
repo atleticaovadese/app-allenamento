@@ -1016,7 +1016,8 @@ function disegna() {
 
     <div class="top">
       <button class="hamb" onclick="apriMenu()" aria-label="Menù"><i></i><i></i><i></i></button>
-      <div style="flex:1"><div class="nome">Ciao ${String((S.utente && S.utente.nome) || "").split(" ")[0]}</div><div class="data">${oggi}</div></div>
+      <div style="flex:1;min-width:0"><div class="nome">Ciao ${String((S.utente && S.utente.nome) || "").split(" ")[0]}</div><div class="data">${oggi}</div></div>
+      ${!S.utente.superAdmin && typeof apriScriviMetis === "function" ? `<button onclick="apriScriviMetis()" title="Segnala un problema o una miglioria a Metis" style="flex:none;height:40px;border-radius:10px;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);font-size:13px;font-weight:600;cursor:pointer;margin-left:8px;padding:0 11px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap">✉️<span>Segnala</span></button>` : ""}
       <button onclick="aggiornaDati()" title="Aggiorna i dati" aria-label="Aggiorna i dati" style="flex:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--line2,#2a3550);background:var(--card2,#171c28);color:var(--txt,#e6ebf5);font-size:18px;cursor:pointer;margin-left:8px${S._aggiornando ? ";opacity:.5;pointer-events:none" : ""}">${S._aggiornando ? "⏳" : "🔄"}</button>
       ${!coach && typeof atletaCorrente === "function" && typeof avatarAtleta === "function" ? `<div class="top-av" onclick="vai('io')">${avatarAtleta(atletaCorrente(), 38)}</div>` : ""}
     </div>

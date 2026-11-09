@@ -18,17 +18,25 @@ async function caricaMessaggiMetis() {
 function _nMsgMetisNonLetti() { return (DEMO.messaggiMetis || []).filter(m => !m.letto).length; }
 
 // ---------- SCRIVI A METIS (atleti e allenatori) ----------
+const METIS_TIPI = [["problema", "🐞 Problema / bug"], ["miglioria", "💡 Miglioria / idea"], ["dubbio", "❓ Dubbio"], ["saluto", "👋 Saluto"]];
+function _metisTipoLabel(k) { const t = METIS_TIPI.find(x => x[0] === k); return t ? t[1] : ""; }
+// apre la schermata "Scrivi a Metis" (dal tastino in alto o dal menu), con un tipo già selezionato
+function apriScriviMetis(tipo) { S._metisTipo = tipo || S._metisTipo || "problema"; S.menu = false; if (typeof vai === "function") vai("scrivi-metis"); else { S.vista = "scrivi-metis"; disegna(); } }
+function setMetisTipo(k) { S._metisTipo = k; disegna(); }
 async function inviaMessaggioMetis(testo) {
   testo = String(testo || "").trim();
   if (!testo) { alert("Scrivi prima un messaggio."); return; }
   if (typeof sb === "undefined" || !sb || !(S.utente && S.utente.id)) { alert("Devi essere connesso per scrivere."); return; }
+  const tipo = S._metisTipo || "problema";
+  const lab = _metisTipoLabel(tipo);
+  const full = (lab ? lab + "\n\n" : "") + testo;   // il tipo scelto va in testa al messaggio (niente colonna nuova sul DB)
   try {
     const { error } = await sb.from("messaggio_metis").insert({
       profilo_id: S.utente.id, nome: S.utente.nome || "", ruolo: S.utente.ruolo || "",
-      societa_id: S.utente.societaMadre || S.utente.societaId || null, societa_nome: DEMO._societaNomeMia || "", testo
+      societa_id: S.utente.societaMadre || S.utente.societaId || null, societa_nome: DEMO._societaNomeMia || "", testo: full
     });
     if (error) { alert("Non è stato possibile inviare: " + (error.message || "riprova")); return; }
-    S._metisInviato = true; S._metisBozza = ""; disegna(); window.scrollTo(0, 0);
+    S._metisInviato = true; S._metisBozza = ""; S._metisTipo = null; disegna(); window.scrollTo(0, 0);
   } catch (e) { alert("Non è stato possibile inviare: " + ((e && e.message) || "riprova")); }
 }
 function vistaScriviMetis() {
@@ -38,11 +46,20 @@ function vistaScriviMetis() {
       <p class="et" style="margin-top:6px">Messaggio inviato ad <b>Alessandro</b>. Ti risponderà appena può. 🙌</p>
       <button class="btn" style="margin-top:10px" onclick="S._metisInviato=false;vai('${home}')">Torna alla home</button></div>`;
   }
+  const tipo = S._metisTipo || "problema";
   const bozza = (S._metisBozza || "").replace(/</g, "&lt;");
+  const chips = METIS_TIPI.map(([k, l]) => `<button class="btn ${tipo === k ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setMetisTipo('${k}')">${l}</button>`).join("");
+  const ph = tipo === "problema" ? "Cosa non va? (schermata, cosa stavi facendo, cosa ti aspettavi…)"
+    : tipo === "miglioria" ? "Che cosa miglioreresti? Come lo vorresti?"
+      : tipo === "dubbio" ? "Qual è il tuo dubbio?" : "Scrivi pure… 👋";
   return `<div class="card"><h3>✉️ Scrivi a Metis</h3>
       <p class="et" style="margin-top:6px">Scrivi direttamente ad <b>Alessandro Senelli</b>: un <b>bug</b> dell'app, una cosa da <b>migliorare</b>, un <b>dubbio</b>… o anche solo un <b>saluto</b> 👋 <span class="et">(in caso di saluto, inviate anche del cibo 🍝😄)</span>.</p></div>
     <div class="card">
-      <textarea id="metisTxt" rows="6" placeholder="Scrivi qui il tuo messaggio…" oninput="S._metisBozza=this.value" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;line-height:1.5;padding:10px;border:1px solid var(--line2,#cdd6e4);border-radius:8px;resize:vertical">${bozza}</textarea>
+      <label class="lab">Di cosa si tratta?</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${chips}</div>
+    </div>
+    <div class="card">
+      <textarea id="metisTxt" rows="6" placeholder="${ph}" oninput="S._metisBozza=this.value" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;line-height:1.5;padding:10px;border:1px solid var(--line2,#cdd6e4);border-radius:8px;resize:vertical">${bozza}</textarea>
       <button class="btn" style="margin-top:10px" onclick="inviaMessaggioMetis((document.getElementById('metisTxt')||{}).value)">📨 Invia a Metis</button>
     </div>`;
 }
