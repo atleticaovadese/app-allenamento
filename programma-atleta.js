@@ -176,6 +176,20 @@ function _pesoSett1Atleta(atleta, g, giornoNum, esercizio, mesoIdx) {
   if (!r0) return null;
   return (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r0) : (typeof palPeso === "function" ? palPeso(r0) : null);
 }
+// peso prescritto nell'ULTIMA settimana PRECEDENTE (a scendere da settIdx-1 fino alla 1) che ha un peso esplicito,
+// per lo stesso esercizio/giorno: scrivi il peso nella settimana 1 → vale per le successive; cambialo nella 2 → vale
+// dalla 3 in poi, ecc. (solo esercizi SENZA % di carico: con la % il peso esce dal massimale settimana per settimana).
+function _pesoSettPrecAtleta(atleta, g, giornoNum, esercizio, mesoIdx, settIdx) {
+  for (let w = Number(settIdx) - 1; w >= 0; w--) {
+    const ov = (typeof overrideRighe === "function") ? overrideRighe(atleta, "palestra", mesoIdx != null ? mesoIdx : -1, giornoNum - 1, w) : null;
+    const righe = ov || (g && g.settimane && g.settimane[w] && g.settimane[w].righe) || [];
+    const r0 = righe.find(x => x && x.esercizio === esercizio);
+    if (!r0) continue;
+    const p = (atleta && typeof palPesoAtleta === "function") ? palPesoAtleta(atleta, r0) : (typeof palPeso === "function" ? palPeso(r0) : null);
+    if (p != null) return p;
+  }
+  return null;
+}
 function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
   const sett = g.settimane && g.settimane[settIdx];
   const _progPalRef = (typeof _progPal === "function") ? _progPal(atleta) : null;
@@ -195,7 +209,7 @@ function generaSedutaPal(g, giornoNum, settIdx, dataISO, meso, atleta) {
     // 3) la penultima settimana (ultima di carico) del blocco precedente.
     if (peso == null && atleta) {
       let p = _pesoFattoStorico(aid, r.esercizio, dataISO, winStart);
-      if (p == null && settIdx > 0) p = _pesoSett1Atleta(atleta, g, giornoNum, r.esercizio, _mi);
+      if (p == null && settIdx > 0) p = _pesoSettPrecAtleta(atleta, g, giornoNum, r.esercizio, _mi, settIdx);   // cascata: eredita dall'ultima settimana precedente col peso
       if (p == null && typeof _pesoBloccoPrecedente === "function") p = _pesoBloccoPrecedente(atleta, r.esercizio, dataISO);
       if (p != null) peso = p;
     }

@@ -1735,10 +1735,10 @@ function setAdattaEsercizio(wk, i, val) {
 function _pesoRifAdatta(a, r, wk) {
   const s = S.adatta;
   let p = (a && typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, (typeof oggiISO === "function" ? oggiISO() : "")) : null;
-  if (p == null && Number(wk) > 0 && typeof _pesoSett1Atleta === "function") {   // settimane dopo la 1: considera anche il peso prescritto nella settimana 1
+  if (p == null && Number(wk) > 0 && typeof _pesoSettPrecAtleta === "function") {   // settimane dopo la 1: eredita dall'ultima settimana precedente col peso
     const m = (typeof _mesoRif === "function" && typeof _progAdatta === "function") ? _mesoRif(_progAdatta(s.tipo)) : null;
     const g = m && m.giorni && m.giorni[s.gi];
-    if (g) p = _pesoSett1Atleta(a, g, s.gi + 1, r.esercizio, _adattaMesoIdx());
+    if (g) p = _pesoSettPrecAtleta(a, g, s.gi + 1, r.esercizio, _adattaMesoIdx(), wk);
   }
   return p;
 }
@@ -2003,6 +2003,13 @@ function _agMeso() { const p = _agProg(); return p && p.mesocicli && p.mesocicli
 function _agGiorniSched() { const m = _agMeso(); return (m && m.giorni || []).map((g, gi) => ({ g, gi })).filter(x => x.g.giornoSett); }
 function _agNSett() { const m = _agMeso(); if (!m) return 4; return (typeof nSettimaneMeso === "function") ? nSettimaneMeso(m) : ((m.giorni[0] && m.giorni[0].settimane.length) || 4); }
 function _agRigheMadre(gi, wk) { const m = _agMeso(); return (m && m.giorni[gi] && m.giorni[gi].settimane[wk] && m.giorni[gi].settimane[wk].righe) || []; }
+// righe BASE di un atleta per lo slot: il suo programma personale se ce l'ha, altrimenti il madre del gruppo
+function _agRigheBase(a, gi, wk) {
+  const s = S.adattaGruppo;
+  const prog = s.tipo === "palestra" ? (typeof _progPal === "function" ? _progPal(a) : _agProg()) : (typeof _progPista === "function" ? _progPista(a) : _agProg());
+  const m = prog && prog.mesocicli && prog.mesocicli[s.mi];
+  return (m && m.giorni && m.giorni[gi] && m.giorni[gi].settimane && m.giorni[gi].settimane[wk] && m.giorni[gi].settimane[wk].righe) || [];
+}
 function _agGK() { const s = S.adattaGruppo; return s.mi + "_" + s.gi; }
 // l'atleta segue il madre per questo tipo? (no programma personale, ed è assegnato al madre)
 function _agSeguiMadre(a, tipo) {
@@ -2038,7 +2045,7 @@ function _agEnsure(aid) {
   const o = root[aid] = root[aid] || {}, t = o[s.tipo] = o[s.tipo] || {}, d = t[gk] = t[gk] || {};
   if (!d[wk]) {
     const atl = DEMO.atleti.find(x => x.id === aid);
-    const seed = (typeof overrideRighe === "function" && overrideRighe(atl, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk);
+    const seed = (typeof overrideRighe === "function" && overrideRighe(atl, s.tipo, s.mi, s.gi, wk)) || _agRigheBase(atl, s.gi, wk);
     d[wk] = JSON.parse(JSON.stringify(seed || []));
   }
   if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(aid, s.tipo, gk, wk);   // il coach subentra sull'adattamento dell'atleta
@@ -2053,9 +2060,9 @@ function setAgEsercizio(aid, i, val) {
 function _agPesoRif(a, r) {
   const s = S.adattaGruppo;
   let p = (a && typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, (typeof oggiISO === "function" ? oggiISO() : "")) : null;
-  if (p == null && Number(s.wk) > 0 && typeof _pesoSett1Atleta === "function") {
+  if (p == null && Number(s.wk) > 0 && typeof _pesoSettPrecAtleta === "function") {
     const m = _agMeso(), g = m && m.giorni && m.giorni[s.gi];
-    if (g) p = _pesoSett1Atleta(a, g, s.gi + 1, r.esercizio, s.mi);
+    if (g) p = _pesoSettPrecAtleta(a, g, s.gi + 1, r.esercizio, s.mi, s.wk);
   }
   return p;
 }
@@ -2099,7 +2106,7 @@ function copiaAgSuTutte(aid) {
 // tabelle per atleta (scrivono su overrideContenuto[aid] per lo slot corrente)
 function _agTabPal(a) {
   const s = S.adattaGruppo, wk = s.wk;
-  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk) || [];
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheBase(a, s.gi, wk) || [];
   const rows = righe.map((r, i) => {
     const rmAtl = (typeof massimaleAtleta === "function") ? massimaleAtleta(a, r.esercizio) : null;
     let pesoCell;
@@ -2120,7 +2127,7 @@ function _agTabPal(a) {
 }
 function _agTabPista(a) {
   const s = S.adattaGruppo, wk = s.wk;
-  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk) || [];
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheBase(a, s.gi, wk) || [];
   const rows = righe.map((r, i) => {
     const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
     const percCell = _stepCell(r.perc, "%", "stepAgPerc('" + a.id + "'," + i + ",-2.5)", "stepAgPerc('" + a.id + "'," + i + ",2.5)", "setAgRigaVal('" + a.id + "','perc'," + i + ",this.value)", "42px");
@@ -2140,7 +2147,7 @@ function _agTabPista(a) {
 }
 function _agTabMezzo(a) {
   const s = S.adattaGruppo, wk = s.wk;
-  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk) || [];
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheBase(a, s.gi, wk) || [];
   const MZ = (typeof MZ_MEZZI !== "undefined") ? MZ_MEZZI : [];
   const optMezzo = (val) => `<option value="">—</option>` + MZ.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
   const rows = righe.map((r, i) => `<tr>
@@ -2177,27 +2184,32 @@ function vistaAdattaGruppo() {
   else if (!canEdit) corpo = `<div class="card"><p class="et">Per i <b>lanciatori</b> la pista (attrezzi, kg, tipi) si modifica dall'editor completo: <b>Programma → Pista → «Programma per» → atleta</b>. Qui puoi sistemare la <b>Palestra</b> (cambia tipo sopra).</p></div>`;
   else {
     const tabFn = s.tipo !== "pista" ? _agTabPal : (s.gruppo === "mezzo" ? _agTabMezzo : _agTabPista);
-    const cards = seguono.length ? seguono.map(a => {
+    // prima chi segue il madre, poi (riquadro GIALLO) chi ha un programma personale
+    const ordinati = seguono.concat(personali);
+    const cardAtleta = a => {
+      const pers = _agHaPersonale(a, s.tipo);
       const hasOv = !!(typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, s.wk));
-      return `<div class="card">
+      const badge = pers
+        ? `<span class="et" style="color:#b45309">◆ programma personale${hasOv ? " · ✏️ ritoccato" : ""}</span>`
+        : (hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`);
+      const stile = pers ? ' style="border-color:rgba(240,168,60,.55);background:rgba(240,168,60,.06)"' : "";
+      return `<div class="card"${stile}>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-          <p style="font-weight:600;font-size:14px;margin:0">${a.nome} ${hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`}</p>
+          <p style="font-weight:600;font-size:14px;margin:0">${a.nome} ${badge}</p>
           <div style="display:flex;gap:6px">
             <button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgSuTutte('${a.id}')" title="Copia questa settimana su tutte le settimane del giorno">⧉ su tutte</button>
-            ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="ripristinaAg('${a.id}')">↺ madre</button>` : ""}
+            ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="ripristinaAg('${a.id}')">↺ ${pers ? "suo prog." : "madre"}</button>` : ""}
           </div>
         </div>${tabFn(a)}</div>`;
-    }).join("") : `<div class="card"><p class="et">Nessun atleta di questo gruppo segue il programma madre in ${s.tipo}.</p></div>`;
-    const persBlock = personali.length ? `<div class="card" style="border-color:rgba(240,168,60,.4)">
-      <p class="et" style="margin:0 0 6px">⚠️ <b>${personali.length} atlet${personali.length === 1 ? "a" : "i"} con programma personale</b> (non dal madre): modificali dal loro Adatta.</p>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${personali.map(a => `<button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="apriAdatta('${a.id}')">✎ ${a.nome}</button>`).join("")}</div></div>` : "";
+    };
+    const cards = ordinati.length ? ordinati.map(cardAtleta).join("") : `<div class="card"><p class="et">Nessun atleta in questo gruppo.</p></div>`;
     const dl = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function" && s.tipo === "palestra") ? _datalistEsercizi("dl-pal-g", _eserciziSala()) : "";
-    corpo = cards + persBlock + dl;
+    corpo = cards + dl;
   }
-  const notaPal = (s.tipo === "palestra" && canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Se l'atleta ha il massimale, il peso esce da %1RM (non modificabile qui: cambia la %). Senza massimale: peso a mano con − / ＋. «⧉ su tutte» copia la settimana sulle altre.</p>` : "";
+  const notaPal = (s.tipo === "palestra" && canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Se l'atleta ha il massimale, il peso esce da %1RM (non modificabile qui: cambia la %). Senza massimale: scrivi il peso a mano (− / ＋) — <b>vale anche per le settimane dopo</b> finché non lo cambi. «⧉ su tutte» copia la settimana sulle altre.</p>` : "";
   return `<button class="indietro" onclick="vai('adatta')">‹ Indietro</button>
     <div class="card"><h3>Adatta di gruppo</h3>
-      <p class="et" style="margin-top:2px">Scegli <b>gruppo · tipo · mesociclo · giorno · settimana</b>: sotto compaiono <b>tutti gli atleti</b> con quel lavoro, uno per riga. Modifica carichi/esercizi di ognuno (override personale, non tocca il madre). Si salva da solo.</p></div>
+      <p class="et" style="margin-top:2px">Scegli <b>gruppo · tipo · mesociclo · giorno · settimana</b>: sotto compaiono <b>tutti gli atleti</b> con quel lavoro, uno per riga. Chi ha un <b style="color:#b45309">programma personale</b> è nel riquadro <b style="color:#b45309">giallo</b>. Modifica carichi/esercizi di ognuno (override personale, non tocca il madre). Si salva da solo.</p></div>
     <div class="card" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="et" style="margin:0 4px 0 0">Gruppo:</span>${grpBtns}</div>
     ${tipoTab}
     <div class="card">
