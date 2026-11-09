@@ -324,7 +324,7 @@ async function caricaDati() {
     const { data: svolteDb } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,giorno,durata_min,rpe,fastidi,dati").eq("chiusa", true).gte("data", isoL(sv0)).order("data", { ascending: false });
     // + le sedute ancora in coda (non sincronizzate): l'atleta le vede lo stesso come "svolte"
     const pend = _codaLeggi().map(p => ({ atleta_id: p.atleta_id, data: p.data, tipo: p.tipo, giorno: p.giorno, durata_min: p.durata_min, rpe: p.rpe, fastidi: p.fastidi, dati: p.dati, _pending: true }));
-    const svolte = (svolteDb || []).concat(pend.filter(p => !(svolteDb || []).some(x => x.atleta_id === p.atleta_id && x.data === p.data && x.tipo === p.tipo && (x.giorno == null || x.giorno === p.giorno))));
+    const svolte = _dedupSvolte((svolteDb || []).concat(pend.filter(p => !(svolteDb || []).some(x => x.atleta_id === p.atleta_id && x.data === p.data && x.tipo === p.tipo && (x.giorno == null || x.giorno === p.giorno)))));
     DEMO.pistaLog = []; DEMO.vbtLog = []; DEMO.lanciLog = []; DEMO.segLog = []; DEMO.fkLog = []; DEMO.seduteSvolte = {};
     (svolte || []).forEach(sv => {
       if (sv.rpe != null) sv.rpe = Number(sv.rpe);              // numeric dal DB torna come stringa → riporto a numero
@@ -623,6 +623,31 @@ async function inviaCodaOra() {
   disegna();
 }
 
+// Doppioni di seduta_svolta: la STESSA seduta salvata con una CHIAVE diversa (es. "Modifica allenamento"
+// cambia l'id del giorno g_n → g_900n, oppure un ri-salvataggio) crea due righe per lo stesso
+// (atleta, data, tipo, giorno) → in lettura venivano SOMMATE entrambe (volume/presenze/km RADDOPPIATI).
+// Qui ne tengo UNA sola per (atleta,data,tipo,giorno): la più "completa" (più tempi/pesi/misure segnati).
+// Due sedute dello stesso giorno ma con GIORNO diverso (seconda seduta legittima) restano distinte.
+function _dedupSvolte(list) {
+  const _compl = sv => {
+    const d = sv.dati || {}; let n = 0;
+    (d.elementi || []).forEach(e => {
+      (e.tempi || []).forEach(v => { if (v != null) n++; });
+      (e.misure || []).forEach(v => { if (v != null) n++; });
+      (e.misureSeg || []).forEach(v => { if (v != null) n++; });
+    });
+    (d.esercizi || []).forEach(x => { (x.vbt || []).forEach(v => { if (v != null) n++; }); if (x.pesoFatto != null && x.pesoFatto !== "") n++; });
+    return n + (sv.rpe != null ? 1 : 0) + (sv.durata_min != null ? 1 : 0);
+  };
+  const by = {}, extra = [];
+  (list || []).forEach(sv => {
+    if (sv.tipo === "extra") { extra.push(sv); return; }   // gli allenamenti in più sono sempre distinti
+    const k = sv.atleta_id + "|" + sv.data + "|" + sv.tipo + "|" + (sv.giorno == null ? "_" : sv.giorno);
+    if (!by[k] || _compl(sv) > _compl(by[k])) by[k] = sv;
+  });
+  return Object.keys(by).map(k => by[k]).concat(extra);
+}
+
 // TAPPA 4 — seduta svolta dall'atleta → DB (upsert per atleta+chiave). Solo l'atleta scrive la propria (RLS).
 async function salvaSedutaSvoltaDB(s) {
   if (!s) return;
@@ -642,13 +667,22 @@ async function salvaSedutaSvoltaDB(s) {
   DEMO.seduteSvolte = DEMO.seduteSvolte || {};
   const _lst = DEMO.seduteSvolte[aid] = DEMO.seduteSvolte[aid] || [];
   const _sv = { atleta_id: aid, data: payload.data, tipo: payload.tipo, giorno: payload.giorno, durata_min: payload.durata_min, rpe: payload.rpe, fastidi: payload.fastidi, dati: payload.dati };
-  const _ix = _lst.findIndex(x => x.data === payload.data && x.tipo === payload.tipo && (x.giorno == null || x.giorno === payload.giorno));
-  if (_ix >= 0) _lst[_ix] = _sv; else _lst.push(_sv);
+  // togli TUTTE le versioni vecchie della stessa seduta (anche se salvate con una chiave diversa, es. "Modifica
+  // allenamento"): stesso (data, tipo, giorno) → una sola, così il volume non si raddoppia.
+  const _same = x => x.data === payload.data && x.tipo === payload.tipo && (x.giorno == null || payload.giorno == null || x.giorno === payload.giorno);
+  for (let k = _lst.length - 1; k >= 0; k--) if (_same(_lst[k])) _lst.splice(k, 1);
+  _lst.push(_sv);
   if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();   // settimane future non ancora fatte → si rigenerano col nuovo carico
   if (!haDB()) { _codaAggiungi(payload); return; }   // nessun DB al momento: metti in coda
   try {
     const { error } = await sb.from("seduta_svolta").upsert(payload, { onConflict: "atleta_id,chiave" });
     if (error) { _codaAggiungi(payload); return; }
+    // elimina gli eventuali DOPPIONI nel DB: stessa seduta (atleta/data/tipo/giorno) salvata con un'altra chiave.
+    try {
+      let dq = sb.from("seduta_svolta").delete().eq("atleta_id", aid).eq("data", payload.data).eq("tipo", payload.tipo).neq("chiave", payload.chiave);
+      dq = (payload.giorno == null) ? dq.is("giorno", null) : dq.eq("giorno", payload.giorno);
+      await dq;
+    } catch (e2) { /* pulizia non critica: se fallisce, ci pensa il dedup in lettura */ }
     _codaFlush();   // salvataggio ok → tento di svuotare eventuale arretrato
   } catch (e) { _codaAggiungi(payload); }   // offline / errore rete: resta in coda, si reinvia da sola
 }

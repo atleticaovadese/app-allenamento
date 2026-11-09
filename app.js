@@ -87,7 +87,7 @@ const MENU_COACH = [
   { k: "cal-squadra", ic: "▦", l: "Calendario squadra" },
   { k: "notifiche", ic: "🔔", l: "Notifiche" },
   { g: "Programma", ic: "▦", subs: [
-    ["pista", "Pista"], ["palestra", "Palestra"], ["adatta", "Adatta contenuto (per atleta)"], ["riscaldamento", "Riscaldamento"],
+    ["pista", "Pista"], ["palestra", "Palestra"], ["adatta", "Adatta contenuto (per atleta)"], ["adatta-gruppo", "Adatta di gruppo"], ["riscaldamento", "Riscaldamento"],
     ["template", "Template microcicli"], ["piano", "Piano e picco"], ["per-disciplina", "Per disciplina"], ["guida-mezzi", "Guida mezzi (mezzo)"], ["guida-mezzi-lanci", "Guida mezzi (lanci)"]] },
   { g: "Analisi", ic: "◭", subs: [
     ["test", "Test"], ["fv", "Profilo F-V"], ["fv-sprint", "Profilo F-V sprint"], ["test-lanciato", "Test del lanciato (vel. max)"], ["dropjump", "Drop Jump & RSI"],
@@ -248,7 +248,7 @@ function aggiornaMenu() {
   $("ombra").classList.toggle("on", S.menu);
 }
 function apriGruppo(g) { S.gruppi[g] = !S.gruppi[g]; disegna(); }
-function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.stampaProgMeso = null; S.stampaProgAtleti = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.libQuery = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.coachData = null; S.notifApri = null; S.modEdit = null; S.riepMeso = null; S._metisInviato = null; S.progSbloccato = false; S.menu = false; disegna(); window.scrollTo(0, 0); }
+function vai(v) { S.vista = v; S.seduta = null; S.share = null; S.stampaProg = null; S.stampaProgMeso = null; S.stampaProgAtleti = null; S.atletaSel = null; S.diarioAtleta = null; S.spostaGiorni = null; S.adatta = null; S.adattaGruppo = null; S.sedSvolte = null; S.report = null; S.libCat = null; S.libQuery = null; S.routineEdit = null; S.esercizioEdit = null; S.mostraScheda = false; S.nuovoAtleta = null; S.infortunio = null; S.risultatoGara = null; S.modificaDati = null; S.nuovoTest = false; S.calOff = 0; S.pianoGrafici = false; S.pistaMeso = 0; S.pistaGiorno = 0; S.palMeso = 0; S.palGiorno = 0; S.coachData = null; S.notifApri = null; S.modEdit = null; S.riepMeso = null; S._metisInviato = null; S.progSbloccato = false; S.menu = false; disegna(); window.scrollTo(0, 0); }
 
 // atleta attualmente loggato (o il primo, in anteprima)
 function atletaCorrente() {
@@ -948,6 +948,7 @@ function disegna() {
   else if (coach && S.vista === "pista") corpo = vistaProgrammaPista();
   else if (coach && S.vista === "palestra") corpo = vistaProgrammaPalestra();
   else if (coach && S.vista === "adatta") corpo = vistaAdattaScegli();
+  else if (coach && S.vista === "adatta-gruppo" && typeof vistaAdattaGruppo === "function") corpo = vistaAdattaGruppo();
   else if (coach && S.vista === "vel-target") corpo = vistaVelocitaTarget();
   else if (coach && S.vista === "ritmi-mezzo") corpo = vistaRitmiMezzofondo();
   else if (coach && S.vista === "test-lattato") corpo = vistaTestLattato();

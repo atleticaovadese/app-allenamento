@@ -841,15 +841,29 @@ function pistaTempoAtleta(atleta, distanza, perc, profilo) {
   return base / (pc / 100);   // % di velocità: 95% → tempo = base / 0.95
 }
 // "scala" di distanze: "40-50-60" (o /,) → [40,50,60]; un solo numero → null (riga normale)
+// scala di distanze: "40-50-60" → [40,50,60]. Accetta anche un moltiplicatore davanti
+// ("2x250-180" = 2 blocchi della scala 250-180): il "2x" lo toglie qui e lo gestisce _scalaMult.
 function _scalaDist(s) {
   if (s == null || s === "") return null;
-  const parts = String(s).split(/[-\/,]/).map(x => parseFloat(String(x).replace(",", "."))).filter(x => x > 0);
+  s = String(s).trim();
+  const mm = s.match(/^(\d+)\s*[x×]\s*\(?([\d.,\s/-]+?)\)?$/);   // "Nx<scala>" → tieni solo la scala
+  if (mm) s = mm[2];
+  const parts = s.split(/[-\/,]/).map(x => parseFloat(String(x).replace(",", "."))).filter(x => x > 0);
   return parts.length > 1 ? parts : null;
+}
+// moltiplicatore "Nx" davanti a una scala (es. "2x250-180" → 2); se non c'è, o non è una scala, → 1.
+function _scalaMult(s) {
+  if (s == null) return 1;
+  const mm = String(s).trim().match(/^(\d+)\s*[x×]\s*\(?([\d.,\s/-]+?)\)?$/);
+  if (!mm) return 1;
+  const mult = parseInt(mm[1], 10);
+  const parts = String(mm[2]).split(/[-\/,]/).map(x => parseFloat(String(x).replace(",", "."))).filter(x => x > 0);
+  return (mult > 1 && parts.length > 1) ? mult : 1;
 }
 function volumeSett(sett) {
   return (sett.righe || []).reduce((t, r) => {
     const sc = _scalaDist(r.distanza);
-    if (sc) return t + sc.reduce((a, d) => a + d, 0) * (Number(r.n) || 1);   // scala: (40+50+60) × blocchi (n° vuoto = 1 blocco)
+    if (sc) return t + sc.reduce((a, d) => a + d, 0) * (Number(r.n) || 1) * _scalaMult(r.distanza);   // scala: (40+50+60) × blocchi × moltiplicatore
     return t + (Number(r.distanza) || 0) * (Number(r.n) || 0);
   }, 0);
 }

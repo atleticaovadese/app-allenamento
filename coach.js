@@ -1993,6 +1993,224 @@ function vistaAdatta() {
     ${corpo}`;
 }
 
+// ===========================================================================
+// ADATTA DI GRUPPO — una riga per atleta, per uno slot (gruppo · tipo · meso · giorno · settimana).
+// Scrive un OVERRIDE PERSONALE per ogni atleta (overrideContenuto), come l'Adatta, ma tutti nella stessa schermata.
+// Vale per gli atleti che SEGUONO il madre (chi ha un programma personale si modifica dal suo Adatta).
+// ===========================================================================
+function _agProg() { const s = S.adattaGruppo; return s.tipo === "palestra" ? (typeof palDi === "function" ? palDi(s.gruppo) : DEMO.palestra) : (typeof pistaDi === "function" ? pistaDi(s.gruppo) : DEMO.pista); }
+function _agMeso() { const p = _agProg(); return p && p.mesocicli && p.mesocicli[S.adattaGruppo.mi]; }
+function _agGiorniSched() { const m = _agMeso(); return (m && m.giorni || []).map((g, gi) => ({ g, gi })).filter(x => x.g.giornoSett); }
+function _agNSett() { const m = _agMeso(); if (!m) return 4; return (typeof nSettimaneMeso === "function") ? nSettimaneMeso(m) : ((m.giorni[0] && m.giorni[0].settimane.length) || 4); }
+function _agRigheMadre(gi, wk) { const m = _agMeso(); return (m && m.giorni[gi] && m.giorni[gi].settimane[wk] && m.giorni[gi].settimane[wk].righe) || []; }
+function _agGK() { const s = S.adattaGruppo; return s.mi + "_" + s.gi; }
+// l'atleta segue il madre per questo tipo? (no programma personale, ed è assegnato al madre)
+function _agSeguiMadre(a, tipo) {
+  if (typeof programmaAssegnatoA === "function" && !programmaAssegnatoA(a.id)) return false;
+  return !_agHaPersonale(a, tipo);
+}
+function _agHaPersonale(a, tipo) {
+  return tipo === "palestra"
+    ? !!(DEMO.palAtleta && DEMO.palAtleta[a.id] && (DEMO.palAtleta[a.id].mesocicli || []).length)
+    : !!(DEMO.pistaAtleta && DEMO.pistaAtleta[a.id] && (DEMO.pistaAtleta[a.id].mesocicli || []).length);
+}
+function _agInit() {
+  if (!S.adattaGruppo) S.adattaGruppo = { gruppo: (S.gruppo || "vel"), tipo: "palestra", mi: 0, gi: 0, wk: 0 };
+  const s = S.adattaGruppo, prog = _agProg(), nM = (prog && prog.mesocicli || []).length;
+  if (s.mi >= nM) s.mi = Math.max(0, nM - 1);
+  const sch = _agGiorniSched();
+  if (sch.length && !sch.some(x => x.gi === s.gi)) s.gi = sch[0].gi;
+  const nS = _agNSett(); if (s.wk >= nS) s.wk = 0;
+}
+function setAg(campo, val) {
+  const s = S.adattaGruppo;
+  if (campo === "gruppo") { s.gruppo = val; s.mi = 0; s.gi = 0; s.wk = 0; }
+  else if (campo === "tipo") { s.tipo = val; s.gi = 0; s.wk = 0; }
+  else s[campo] = Number(val);
+  _agInit();
+  disegna(); window.scrollTo(0, 0);
+}
+function _agSalva() { if (typeof salvaCustom === "function") salvaCustom(); }
+function _agEnsure(aid) {
+  const s = S.adattaGruppo, wk = s.wk, gk = _agGK();
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
+  const root = DEMO.overrideContenuto;
+  const o = root[aid] = root[aid] || {}, t = o[s.tipo] = o[s.tipo] || {}, d = t[gk] = t[gk] || {};
+  if (!d[wk]) {
+    const atl = DEMO.atleti.find(x => x.id === aid);
+    const seed = (typeof overrideRighe === "function" && overrideRighe(atl, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk);
+    d[wk] = JSON.parse(JSON.stringify(seed || []));
+  }
+  if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(aid, s.tipo, gk, wk);   // il coach subentra sull'adattamento dell'atleta
+  return d[wk];
+}
+function setAgRigaVal(aid, campo, i, val) { const r = _agEnsure(aid); if (r[i]) r[i][campo] = val; _agSalva(); }
+function setAgRiga(aid, campo, i, val) { setAgRigaVal(aid, campo, i, val); disegna(); }
+function setAgEsercizio(aid, i, val) {
+  if (val === "__altro__") { const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio (scrivilo a mano):", "") : ""; if (t && t.trim()) setAgRiga(aid, "esercizio", i, t.trim()); else disegna(); return; }
+  setAgRiga(aid, "esercizio", i, val);
+}
+function _agPesoRif(a, r) {
+  const s = S.adattaGruppo;
+  let p = (a && typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, (typeof oggiISO === "function" ? oggiISO() : "")) : null;
+  if (p == null && Number(s.wk) > 0 && typeof _pesoSett1Atleta === "function") {
+    const m = _agMeso(), g = m && m.giorni && m.giorni[s.gi];
+    if (g) p = _pesoSett1Atleta(a, g, s.gi + 1, r.esercizio, s.mi);
+  }
+  return p;
+}
+function stepAgPeso(aid, i, delta) {
+  const r = _agEnsure(aid)[i]; if (!r) return;
+  let cur = parseFloat(String(r.peso).replace(",", "."));
+  if (isNaN(cur) || cur === 0) { const a = DEMO.atleti.find(x => x.id === aid); const rif = _agPesoRif(a, r); cur = (rif != null && !isNaN(Number(rif))) ? Number(rif) : 0; }
+  r.peso = String(Math.max(0, Math.round((cur + delta) * 2) / 2));
+  _agSalva(); disegna();
+}
+function stepAgPerc(aid, i, delta) { const r = _agEnsure(aid)[i]; if (!r) return; const cur = parseFloat(String(r.perc).replace(",", ".")) || 0; r.perc = String(Math.max(0, Math.min(100, Math.round((cur + delta) * 10) / 10))); _agSalva(); disegna(); }
+function stepAgNum(aid, campo, i, delta) { const r = _agEnsure(aid)[i]; if (!r) return; const cur = parseInt(String(r[campo] == null ? "" : r[campo]).replace(/[^\d-]/g, ""), 10) || 0; r[campo] = String(Math.max(1, cur + delta)); _agSalva(); disegna(); }
+function addAgRiga(aid) {
+  const s = S.adattaGruppo, righe = _agEnsure(aid);
+  if (s.tipo !== "pista") righe.push({ esercizio: "", serie: "", rep: "", perc: "", rec: "", tut: "", vbt: "", peso: "", ss: "" });
+  else if (s.gruppo === "mezzo") righe.push({ contenuto: "", mezzo: "", distanza: "", n: "", min: "", rec: "" });
+  else righe.push({ contenuto: "", distanza: "", n: "", rec: "", perc: "" });
+  _agSalva(); disegna();
+}
+function delAgRiga(aid, i) { const righe = _agEnsure(aid); righe.splice(i, 1); _agSalva(); disegna(); }
+function ripristinaAg(aid) {
+  const s = S.adattaGruppo, gk = _agGK();
+  if (typeof _adattaCancellaSlot === "function") {
+    _adattaCancellaSlot(DEMO.overrideContenuto || {}, aid, s.tipo, gk, s.wk);
+    if (s.mi === 0) _adattaCancellaSlot(DEMO.overrideContenuto || {}, aid, s.tipo, s.gi, s.wk);   // compat chiave vecchia (solo meso 1)
+    _adattaCancellaSlot(DEMO.adattaSelf || {}, aid, s.tipo, gk, s.wk);
+    if (s.mi === 0) _adattaCancellaSlot(DEMO.adattaSelf || {}, aid, s.tipo, s.gi, s.wk);
+    if (typeof salvaAdattaAtletaDB === "function") salvaAdattaAtletaDB(aid);
+  }
+  _agSalva(); disegna();
+}
+function copiaAgSuTutte(aid) {
+  const s = S.adattaGruppo, gk = _agGK(), nSett = _agNSett();
+  const src = _agEnsure(aid);
+  if (!src.length) { alert("Nessuna riga da copiare in questa settimana."); return; }
+  if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${s.wk + 1} di ${(DEMO.atleti.find(x => x.id === aid) || {}).nome || "questo atleta"} su TUTTE le settimane di questo giorno?`)) return;
+  const g = DEMO.overrideContenuto[aid][s.tipo][gk];
+  for (let w = 0; w < nSett; w++) { if (w !== s.wk) { g[w] = JSON.parse(JSON.stringify(src)); if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(aid, s.tipo, gk, w); } }
+  _agSalva(); disegna();
+}
+// tabelle per atleta (scrivono su overrideContenuto[aid] per lo slot corrente)
+function _agTabPal(a) {
+  const s = S.adattaGruppo, wk = s.wk;
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk) || [];
+  const rows = righe.map((r, i) => {
+    const rmAtl = (typeof massimaleAtleta === "function") ? massimaleAtleta(a, r.esercizio) : null;
+    let pesoCell;
+    if (rmAtl != null) { const w = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : null; pesoCell = `<td class="pauto" title="dal massimale ${rmAtl} kg">${w != null ? w + " kg" : "—"}</td>`; }
+    else { const rif = _agPesoRif(a, r); pesoCell = `<td>${_stepCell(r.peso, rif != null ? "~" + rif : "kg", "stepAgPeso('" + a.id + "'," + i + ",-2.5)", "stepAgPeso('" + a.id + "'," + i + ",2.5)", "setAgRigaVal('" + a.id + "','peso'," + i + ",this.value)", "50px")}</td>`; }
+    const percCell = _stepCell(r.perc, "%", "stepAgPerc('" + a.id + "'," + i + ",-2.5)", "stepAgPerc('" + a.id + "'," + i + ",2.5)", "setAgRigaVal('" + a.id + "','perc'," + i + ",this.value)", "44px");
+    const serieCell = _stepCell(r.serie, "s", "stepAgNum('" + a.id + "','serie'," + i + ",-1)", "stepAgNum('" + a.id + "','serie'," + i + ",1)", "setAgRigaVal('" + a.id + "','serie'," + i + ",this.value)", "34px");
+    const repCell = _stepCell(r.rep, "r", "stepAgNum('" + a.id + "','rep'," + i + ",-1)", "stepAgNum('" + a.id + "','rep'," + i + ",1)", "setAgRigaVal('" + a.id + "','rep'," + i + ",this.value)", "34px");
+    return `<tr>
+      <td>${typeof _campoEsercizio === "function" ? _campoEsercizio(r.esercizio, "dl-pal-g", "setAgEsercizio('" + a.id + "'," + i + ",this.value)", "min-width:150px") : `<select onchange="setAgEsercizio('${a.id}',${i},this.value)" style="min-width:150px">${typeof optEsercizioPal === "function" ? optEsercizioPal(r.esercizio) : ""}</select>`}</td>
+      <td>${serieCell}</td><td>${repCell}</td><td>${percCell}</td>${pesoCell}
+      <td><button class="chiudi" style="font-size:14px" onclick="delAgRiga('${a.id}',${i})" aria-label="Rimuovi">✕</button></td></tr>`;
+  }).join("");
+  return `<div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Esercizio</th><th>Serie</th><th>Rep</th><th>%1RM</th><th>Peso</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="6"><span class="et">Nessuna riga.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:7px 12px;margin-top:6px" onclick="addAgRiga('${a.id}')">＋ riga</button>`;
+}
+function _agTabPista(a) {
+  const s = S.adattaGruppo, wk = s.wk;
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk) || [];
+  const rows = righe.map((r, i) => {
+    const t = (typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(a, r.distanza, r.perc) : null;
+    const percCell = _stepCell(r.perc, "%", "stepAgPerc('" + a.id + "'," + i + ",-2.5)", "stepAgPerc('" + a.id + "'," + i + ",2.5)", "setAgRigaVal('" + a.id + "','perc'," + i + ",this.value)", "42px");
+    return `<tr>
+      <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="lavoro" oninput="setAgRigaVal('${a.id}','contenuto',${i},this.value)" style="min-width:110px"></td>
+      <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAgRigaVal('${a.id}','distanza',${i},this.value)" onchange="disegna()" style="min-width:58px"></td>
+      <td>${_stepCell(r.n, "n°", "stepAgNum('" + a.id + "','n'," + i + ",-1)", "stepAgNum('" + a.id + "','n'," + i + ",1)", "setAgRigaVal('" + a.id + "','n'," + i + ",this.value)", "40px")}</td>
+      <td>${percCell}</td>
+      <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAgRigaVal('${a.id}','rec',${i},this.value)" style="min-width:60px"></td>
+      <td class="pauto">${t != null ? t.toFixed(2) : "—"}</td>
+      <td><button class="chiudi" style="font-size:14px" onclick="delAgRiga('${a.id}',${i})" aria-label="Rimuovi">✕</button></td></tr>`;
+  }).join("");
+  return `<div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Contenuto</th><th>Dist.</th><th>n°</th><th>% vel</th><th>Rec</th><th>Tempo</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:7px 12px;margin-top:6px" onclick="addAgRiga('${a.id}')">＋ riga</button>`;
+}
+function _agTabMezzo(a) {
+  const s = S.adattaGruppo, wk = s.wk;
+  const righe = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, wk)) || _agRigheMadre(s.gi, wk) || [];
+  const MZ = (typeof MZ_MEZZI !== "undefined") ? MZ_MEZZI : [];
+  const optMezzo = (val) => `<option value="">—</option>` + MZ.map(x => `<option value="${String(x).replace(/"/g, "&quot;")}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  const rows = righe.map((r, i) => `<tr>
+    <td><input value="${(r.contenuto || "").replace(/"/g, "&quot;")}" placeholder="focus" oninput="setAgRigaVal('${a.id}','contenuto',${i},this.value)" style="min-width:100px"></td>
+    <td><select onchange="setAgRiga('${a.id}','mezzo',${i},this.value)">${optMezzo(r.mezzo)}</select></td>
+    <td><input inputmode="numeric" value="${r.distanza || ""}" placeholder="m" oninput="setAgRigaVal('${a.id}','distanza',${i},this.value)" onchange="disegna()" style="min-width:56px"></td>
+    <td>${_stepCell(r.n, "n°", "stepAgNum('" + a.id + "','n'," + i + ",-1)", "stepAgNum('" + a.id + "','n'," + i + ",1)", "setAgRigaVal('" + a.id + "','n'," + i + ",this.value)", "40px")}</td>
+    <td><input inputmode="numeric" value="${r.min || ""}" placeholder="min" oninput="setAgRigaVal('${a.id}','min',${i},this.value)" onchange="disegna()" style="min-width:48px"></td>
+    <td><input value="${(r.rec || "").replace(/"/g, "&quot;")}" placeholder="rec" oninput="setAgRigaVal('${a.id}','rec',${i},this.value)" style="min-width:56px"></td>
+    <td><button class="chiudi" style="font-size:14px" onclick="delAgRiga('${a.id}',${i})" aria-label="Rimuovi">✕</button></td></tr>`).join("");
+  return `<div class="p-scroll"><table class="ptab pista-w">
+    <thead><tr><th>Focus</th><th>Mezzo</th><th>Dist (m)</th><th>n°</th><th>Min</th><th>Rec</th><th></th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="7"><span class="et">Nessuna riga.</span></td></tr>`}</tbody></table></div>
+    <button class="btn btn-2" style="width:auto;padding:7px 12px;margin-top:6px" onclick="addAgRiga('${a.id}')">＋ riga</button>`;
+}
+function vistaAdattaGruppo() {
+  _agInit();
+  const s = S.adattaGruppo;
+  const GR = (typeof GRUPPI_PROG !== "undefined") ? GRUPPI_PROG : [["vel", "Velocisti / Saltatori"], ["lanci", "Lanciatori"], ["mezzo", "Mezzofondo / Fondo"]];
+  const prog = _agProg(), mesos = (prog && prog.mesocicli) || [];
+  const sch = _agGiorniSched(), nSett = _agNSett();
+  const canEdit = !(s.tipo === "pista" && s.gruppo === "lanci");
+  const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(s.gruppo).filter(a => !a.bloccato) : [];
+  const seguono = atl.filter(a => _agSeguiMadre(a, s.tipo));
+  const personali = atl.filter(a => _agHaPersonale(a, s.tipo));
+  const grpBtns = GR.map(([k, l]) => `<button class="btn ${s.gruppo === k ? "" : "btn-2"}" style="width:auto;padding:7px 12px;font-size:13px" onclick="setAg('gruppo','${k}')">${l}</button>`).join("");
+  const tipoTab = `<div class="tabbar"><button class="${s.tipo === "pista" ? "on" : ""}" onclick="setAg('tipo','pista')">Pista</button><button class="${s.tipo === "palestra" ? "on" : ""}" onclick="setAg('tipo','palestra')">Palestra</button></div>`;
+  const mesoSel = mesos.length ? `<select onchange="setAg('mi',this.value)">${mesos.map((m, i) => `<option value="${i}" ${i === s.mi ? "selected" : ""}>Meso ${i + 1}${(m.blocco || m.ciclo) ? " · " + (m.blocco || m.ciclo) : ""}</option>`).join("")}</select>` : `<span class="et">nessun mesociclo</span>`;
+  const giornoSel = sch.length ? `<select onchange="setAg('gi',this.value)">${sch.map(x => `<option value="${x.gi}" ${x.gi === s.gi ? "selected" : ""}>Giorno ${x.gi + 1}${x.g.giornoSett ? " · " + (GG_LABEL[x.g.giornoSett] || x.g.giornoSett) : ""}</option>`).join("")}</select>` : `<span class="et">nessun giorno</span>`;
+  const settPills = Array.from({ length: nSett }, (_, w) => `<button class="btn ${w === s.wk ? "" : "btn-2"}" style="width:auto;padding:6px 11px;font-size:13px" onclick="setAg('wk',${w})">Sett ${w + 1}${(typeof isScaricoIdx === "function" && _agMeso() && isScaricoIdx(_agMeso(), w)) ? " ⬇" : ""}</button>`).join("");
+  let corpo;
+  if (!mesos.length) corpo = `<div class="card"><p class="et">Nessun mesociclo impostato in ${s.tipo} per questo gruppo. Crealo prima da <b>Programma → ${s.tipo === "palestra" ? "Palestra" : "Pista"}</b>.</p></div>`;
+  else if (!sch.length) corpo = `<div class="card"><p class="et">Nessun giorno programmato in questo mesociclo.</p></div>`;
+  else if (!canEdit) corpo = `<div class="card"><p class="et">Per i <b>lanciatori</b> la pista (attrezzi, kg, tipi) si modifica dall'editor completo: <b>Programma → Pista → «Programma per» → atleta</b>. Qui puoi sistemare la <b>Palestra</b> (cambia tipo sopra).</p></div>`;
+  else {
+    const tabFn = s.tipo !== "pista" ? _agTabPal : (s.gruppo === "mezzo" ? _agTabMezzo : _agTabPista);
+    const cards = seguono.length ? seguono.map(a => {
+      const hasOv = !!(typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, s.wk));
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+          <p style="font-weight:600;font-size:14px;margin:0">${a.nome} ${hasOv ? `<span class="et" style="color:var(--blu)">✏️ personalizzato</span>` : `<span class="et" style="color:var(--txt3)">come il madre</span>`}</p>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgSuTutte('${a.id}')" title="Copia questa settimana su tutte le settimane del giorno">⧉ su tutte</button>
+            ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="ripristinaAg('${a.id}')">↺ madre</button>` : ""}
+          </div>
+        </div>${tabFn(a)}</div>`;
+    }).join("") : `<div class="card"><p class="et">Nessun atleta di questo gruppo segue il programma madre in ${s.tipo}.</p></div>`;
+    const persBlock = personali.length ? `<div class="card" style="border-color:rgba(240,168,60,.4)">
+      <p class="et" style="margin:0 0 6px">⚠️ <b>${personali.length} atlet${personali.length === 1 ? "a" : "i"} con programma personale</b> (non dal madre): modificali dal loro Adatta.</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${personali.map(a => `<button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="apriAdatta('${a.id}')">✎ ${a.nome}</button>`).join("")}</div></div>` : "";
+    const dl = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function" && s.tipo === "palestra") ? _datalistEsercizi("dl-pal-g", _eserciziSala()) : "";
+    corpo = cards + persBlock + dl;
+  }
+  const notaPal = (s.tipo === "palestra" && canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Se l'atleta ha il massimale, il peso esce da %1RM (non modificabile qui: cambia la %). Senza massimale: peso a mano con − / ＋. «⧉ su tutte» copia la settimana sulle altre.</p>` : "";
+  return `<button class="indietro" onclick="vai('adatta')">‹ Indietro</button>
+    <div class="card"><h3>Adatta di gruppo</h3>
+      <p class="et" style="margin-top:2px">Scegli <b>gruppo · tipo · mesociclo · giorno · settimana</b>: sotto compaiono <b>tutti gli atleti</b> con quel lavoro, uno per riga. Modifica carichi/esercizi di ognuno (override personale, non tocca il madre). Si salva da solo.</p></div>
+    <div class="card" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="et" style="margin:0 4px 0 0">Gruppo:</span>${grpBtns}</div>
+    ${tipoTab}
+    <div class="card">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="lab">Mesociclo</label><div style="margin-top:4px">${mesoSel}</div></div>
+        <div><label class="lab">Giorno</label><div style="margin-top:4px">${giornoSel}</div></div>
+      </div>
+      <div style="margin-top:10px"><label class="lab">Settimana</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${settPills}</div></div>
+    </div>
+    ${notaPal}
+    ${corpo}`;
+}
+
 // ---------- TAPPA 4: allenamenti SVOLTI da un atleta (cronologia) ----------
 function apriSeduteSvolte(id) { S.sedSvolte = id; disegna(); window.scrollTo(0, 0); }
 function chiudiSeduteSvolte() { S.sedSvolte = null; disegna(); window.scrollTo(0, 0); }

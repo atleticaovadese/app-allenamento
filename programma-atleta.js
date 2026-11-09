@@ -79,7 +79,8 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     // SCALA di distanze (es. 40-50-60): l'atleta fa la sequenza × n blocchi; tempi e volume per ogni distanza
     const scala = (typeof _scalaDist === "function") ? _scalaDist(r.distanza) : null;
     if (scala) {
-      const blocchi = Number(r.n) || 1, distanze = [], targets = [];
+      const mult = (typeof _scalaMult === "function") ? _scalaMult(r.distanza) : 1;   // "2x250-180" → 2 blocchi
+      const blocchi = (Number(r.n) || 1) * mult, distanze = [], targets = [];
       for (let b = 0; b < blocchi; b++) scala.forEach(d => {
         const t = (atleta && typeof pistaTempoAtleta === "function") ? pistaTempoAtleta(atleta, d, r.perc, profilo) : (typeof pistaTempo === "function" ? pistaTempo(d, r.perc) : null);
         distanze.push(d); targets.push(t != null ? Math.round(t * 100) / 100 : null);
