@@ -2103,6 +2103,40 @@ function copiaAgSuTutte(aid) {
   for (let w = 0; w < nSett; w++) { if (w !== s.wk) { g[w] = JSON.parse(JSON.stringify(src)); if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(aid, s.tipo, gk, w); } }
   _agSalva(); disegna();
 }
+// copia nella settimana corrente le righe della settimana PRECEDENTE (per un atleta): riporta lo stesso lavoro/carico,
+// poi basta ritoccare i pesi. Riempie davvero le caselle (non è il grigio automatico). Niente da fare nella settimana 1.
+function copiaAgDaPrec(aid) {
+  const s = S.adattaGruppo;
+  if (Number(s.wk) <= 0) { alert("Sei nella Settimana 1: non c'è una precedente da copiare."); return; }
+  const a = DEMO.atleti.find(x => x.id === aid);
+  const prev = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, s.wk - 1)) || _agRigheBase(a, s.gi, s.wk - 1) || [];
+  if (!prev.length) { alert("La Settimana " + s.wk + " (precedente) non ha righe da copiare."); return; }
+  const gk = _agGK();
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
+  const root = DEMO.overrideContenuto;
+  const o = root[aid] = root[aid] || {}, t = o[s.tipo] = o[s.tipo] || {}, d = t[gk] = t[gk] || {};
+  d[s.wk] = JSON.parse(JSON.stringify(prev));
+  if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(aid, s.tipo, gk, s.wk);
+  _agSalva(); disegna();
+}
+// come sopra ma per TUTTI gli atleti mostrati (segue-madre + personali): comodo per "parti dalla precedente e poi alzo i pesi"
+function copiaAgDaPrecTutti() {
+  const s = S.adattaGruppo;
+  if (Number(s.wk) <= 0) { alert("Sei nella Settimana 1: non c'è una precedente da copiare."); return; }
+  const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(s.gruppo).filter(a => !a.bloccato && (_agSeguiMadre(a, s.tipo) || _agHaPersonale(a, s.tipo))) : [];
+  if (!atl.length) return;
+  if (typeof confirm === "function" && !confirm(`Copiare la Settimana ${s.wk} (precedente) nella Settimana ${s.wk + 1} per TUTTI gli atleti (${atl.length})?\nSostituisce il contenuto attuale della Settimana ${s.wk + 1}.`)) return;
+  const gk = _agGK();
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
+  atl.forEach(a => {
+    const prev = (typeof overrideRighe === "function" && overrideRighe(a, s.tipo, s.mi, s.gi, s.wk - 1)) || _agRigheBase(a, s.gi, s.wk - 1) || [];
+    if (!prev.length) return;
+    const root = DEMO.overrideContenuto, o = root[a.id] = root[a.id] || {}, t = o[s.tipo] = o[s.tipo] || {}, dd = t[gk] = t[gk] || {};
+    dd[s.wk] = JSON.parse(JSON.stringify(prev));
+    if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(a.id, s.tipo, gk, s.wk);
+  });
+  _agSalva(); disegna();
+}
 // tabelle per atleta (scrivono su overrideContenuto[aid] per lo slot corrente)
 function _agTabPal(a) {
   const s = S.adattaGruppo, wk = s.wk;
@@ -2196,7 +2230,8 @@ function vistaAdattaGruppo() {
       return `<div class="card"${stile}>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
           <p style="font-weight:600;font-size:14px;margin:0">${a.nome} ${badge}</p>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${s.wk > 0 ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgDaPrec('${a.id}')" title="Riporta qui il lavoro della settimana precedente, poi ritocca i pesi">📋 ← sett. prec.</button>` : ""}
             <button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgSuTutte('${a.id}')" title="Copia questa settimana su tutte le settimane del giorno">⧉ su tutte</button>
             ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="ripristinaAg('${a.id}')">↺ ${pers ? "suo prog." : "madre"}</button>` : ""}
           </div>
@@ -2206,7 +2241,8 @@ function vistaAdattaGruppo() {
     const dl = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function" && s.tipo === "palestra") ? _datalistEsercizi("dl-pal-g", _eserciziSala()) : "";
     corpo = cards + dl;
   }
-  const notaPal = (s.tipo === "palestra" && canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Se l'atleta ha il massimale, il peso esce da %1RM (non modificabile qui: cambia la %). Senza massimale: scrivi il peso a mano (− / ＋) — <b>vale anche per le settimane dopo</b> finché non lo cambi. «⧉ su tutte» copia la settimana sulle altre.</p>` : "";
+  const notaPal = (canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Con <b>«📋 ← sett. prec.»</b> (dalla Settimana 2 in poi) riporti nell'atleta il lavoro della settimana prima: poi ti basta <b>alzare i pesi</b>. «⧉ su tutte» copia la settimana su tutte. ${s.tipo === "palestra" ? "Se l'atleta ha il massimale il peso esce da %1RM (cambia la %); senò peso a mano con − / ＋." : ""}</p>` : "";
+  const copiaTuttiBtn = (canEdit && sch.length && s.wk > 0) ? `<button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px;margin-top:8px" onclick="copiaAgDaPrecTutti()" title="Riporta la settimana precedente in questa, per tutti gli atleti">📋 Copia la Settimana ${s.wk} in tutti → poi ritocco i pesi</button>` : "";
   return `<button class="indietro" onclick="vai('adatta')">‹ Indietro</button>
     <div class="card"><h3>Adatta di gruppo</h3>
       <p class="et" style="margin-top:2px">Scegli <b>gruppo · tipo · mesociclo · giorno · settimana</b>: sotto compaiono <b>tutti gli atleti</b> con quel lavoro, uno per riga. Chi ha un <b style="color:#b45309">programma personale</b> è nel riquadro <b style="color:#b45309">giallo</b>. Modifica carichi/esercizi di ognuno (override personale, non tocca il madre). Si salva da solo.</p></div>
@@ -2218,6 +2254,7 @@ function vistaAdattaGruppo() {
         <div><label class="lab">Giorno</label><div style="margin-top:4px">${giornoSel}</div></div>
       </div>
       <div style="margin-top:10px"><label class="lab">Settimana</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${settPills}</div></div>
+      ${copiaTuttiBtn}
     </div>
     ${notaPal}
     ${corpo}`;
