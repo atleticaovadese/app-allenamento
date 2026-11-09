@@ -2057,14 +2057,22 @@ function setAgEsercizio(aid, i, val) {
   if (val === "__altro__") { const t = (typeof prompt === "function") ? prompt("Nome dell'esercizio (scrivilo a mano):", "") : ""; if (t && t.trim()) setAgRiga(aid, "esercizio", i, t.trim()); else disegna(); return; }
   setAgRiga(aid, "esercizio", i, val);
 }
-function _agPesoRif(a, r) {
+function _agPesoRif(a, r, wk) {
   const s = S.adattaGruppo;
+  wk = (wk == null) ? s.wk : wk;
   let p = (a && typeof pesoRifAtleta === "function") ? pesoRifAtleta(a, r, (typeof oggiISO === "function" ? oggiISO() : "")) : null;
-  if (p == null && Number(s.wk) > 0 && typeof _pesoSettPrecAtleta === "function") {
+  if (p == null && Number(wk) > 0 && typeof _pesoSettPrecAtleta === "function") {
     const m = _agMeso(), g = m && m.giorni && m.giorni[s.gi];
-    if (g) p = _pesoSettPrecAtleta(a, g, s.gi + 1, r.esercizio, s.mi, s.wk);
+    if (g) p = _pesoSettPrecAtleta(a, g, s.gi + 1, r.esercizio, s.mi, wk);
   }
   return p;
+}
+// peso EFFETTIVO usato da un atleta in una settimana per un esercizio: % → massimale×%, peso scritto a mano,
+// altrimenti il riferimento grigio (ultimo peso usato / settimana precedente / blocco prec.). Per «copia pesi».
+function _agPesoEffWk(a, r, wk) {
+  let p = (typeof palPesoAtleta === "function") ? palPesoAtleta(a, r) : (typeof palPeso === "function" ? palPeso(r) : null);
+  if (p != null) return p;
+  return _agPesoRif(a, r, wk);
 }
 function stepAgPeso(aid, i, delta) {
   const r = _agEnsure(aid)[i]; if (!r) return;
@@ -2135,6 +2143,49 @@ function copiaAgDaPrecTutti() {
     dd[s.wk] = JSON.parse(JSON.stringify(prev));
     if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(a.id, s.tipo, gk, s.wk);
   });
+  _agSalva(); disegna();
+}
+// COPIA PESI dalla settimana precedente (solo PALESTRA, solo esercizi SENZA %): mantiene serie/rep/% della
+// settimana corrente e aggiorna SOLO il peso con quello EFFETTIVO usato la settimana prima (bianco se scritto,
+// grigio se ereditato). La % resta calcolata dal madre (priorità alla %). Ritorna quanti pesi ha copiato.
+function _copiaPesiUno(a) {
+  const s = S.adattaGruppo, prevWk = s.wk - 1;
+  const prevRighe = (typeof overrideRighe === "function" && overrideRighe(a, "palestra", s.mi, s.gi, prevWk)) || _agRigheBase(a, s.gi, prevWk) || [];
+  const curBase = (typeof overrideRighe === "function" && overrideRighe(a, "palestra", s.mi, s.gi, s.wk)) || _agRigheBase(a, s.gi, s.wk) || [];
+  const cur = JSON.parse(JSON.stringify(curBase));
+  let n = 0;
+  cur.forEach(r => {
+    if ((parseFloat(String(r.perc).replace(",", ".")) || 0) > 0) return;   // ha la % → non la tocco
+    const rp = prevRighe.find(x => x && (x.esercizio || "") === (r.esercizio || ""));
+    if (!rp) return;
+    const eff = _agPesoEffWk(a, rp, prevWk);
+    if (eff != null) { r.peso = String(eff); n++; }
+  });
+  if (!n) return 0;
+  const gk = _agGK();
+  DEMO.overrideContenuto = DEMO.overrideContenuto || {};
+  const root = DEMO.overrideContenuto, o = root[a.id] = root[a.id] || {}, t = o["palestra"] = o["palestra"] || {}, d = t[gk] = t[gk] || {};
+  d[s.wk] = cur;
+  if (typeof _coachPrendeSlot === "function") _coachPrendeSlot(a.id, "palestra", gk, s.wk);
+  return n;
+}
+function copiaAgPesi(aid) {
+  const s = S.adattaGruppo;
+  if (s.tipo !== "palestra") { copiaAgDaPrec(aid); return; }           // in pista non ci sono pesi → copia tutto il lavoro
+  if (Number(s.wk) <= 0) { alert("Sei nella Settimana 1: non c'è una precedente."); return; }
+  const a = DEMO.atleti.find(x => x.id === aid);
+  const n = _copiaPesiUno(a);
+  if (!n) { alert("Nessun peso da copiare: gli esercizi hanno la % (resta calcolata) o manca un peso di riferimento nella settimana precedente."); return; }
+  _agSalva(); disegna();
+}
+function copiaAgPesiTutti() {
+  const s = S.adattaGruppo;
+  if (s.tipo !== "palestra") { copiaAgDaPrecTutti(); return; }
+  if (Number(s.wk) <= 0) { alert("Sei nella Settimana 1: non c'è una precedente."); return; }
+  const atl = (typeof atletiDelGruppo === "function") ? atletiDelGruppo(s.gruppo).filter(a => !a.bloccato && (_agSeguiMadre(a, "palestra") || _agHaPersonale(a, "palestra"))) : [];
+  if (!atl.length) return;
+  if (typeof confirm === "function" && !confirm(`Copiare i PESI (solo esercizi senza %) dalla Settimana ${s.wk} alla Settimana ${s.wk + 1}, per tutti gli atleti (${atl.length})?\nSerie, ripetizioni e % restano come sono.`)) return;
+  atl.forEach(a => _copiaPesiUno(a));
   _agSalva(); disegna();
 }
 // tabelle per atleta (scrivono su overrideContenuto[aid] per lo slot corrente)
@@ -2231,7 +2282,9 @@ function vistaAdattaGruppo() {
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
           <p style="font-weight:600;font-size:14px;margin:0">${a.nome} ${badge}</p>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${s.wk > 0 ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgDaPrec('${a.id}')" title="Riporta qui il lavoro della settimana precedente, poi ritocca i pesi">📋 ← sett. prec.</button>` : ""}
+            ${s.wk > 0 ? (s.tipo === "palestra"
+              ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgPesi('${a.id}')" title="Copia i PESI della settimana precedente, solo dove non c'è %. Serie, rip. e % non si toccano.">📋 copia pesi ←</button>`
+              : `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgDaPrec('${a.id}')" title="Riporta qui il lavoro della settimana precedente, poi ritocca">📋 ← sett. prec.</button>`) : ""}
             <button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="copiaAgSuTutte('${a.id}')" title="Copia questa settimana su tutte le settimane del giorno">⧉ su tutte</button>
             ${hasOv ? `<button class="btn btn-2" style="width:auto;padding:5px 9px;font-size:12px" onclick="ripristinaAg('${a.id}')">↺ ${pers ? "suo prog." : "madre"}</button>` : ""}
           </div>
@@ -2241,8 +2294,10 @@ function vistaAdattaGruppo() {
     const dl = (typeof _datalistEsercizi === "function" && typeof _eserciziSala === "function" && s.tipo === "palestra") ? _datalistEsercizi("dl-pal-g", _eserciziSala()) : "";
     corpo = cards + dl;
   }
-  const notaPal = (canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 Con <b>«📋 ← sett. prec.»</b> (dalla Settimana 2 in poi) riporti nell'atleta il lavoro della settimana prima: poi ti basta <b>alzare i pesi</b>. «⧉ su tutte» copia la settimana su tutte. ${s.tipo === "palestra" ? "Se l'atleta ha il massimale il peso esce da %1RM (cambia la %); senò peso a mano con − / ＋." : ""}</p>` : "";
-  const copiaTuttiBtn = (canEdit && sch.length && s.wk > 0) ? `<button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px;margin-top:8px" onclick="copiaAgDaPrecTutti()" title="Riporta la settimana precedente in questa, per tutti gli atleti">📋 Copia la Settimana ${s.wk} in tutti → poi ritocco i pesi</button>` : "";
+  const notaPal = (canEdit && sch.length) ? `<p class="et" style="margin:0 0 4px;color:var(--txt3)">💡 ${s.tipo === "palestra"
+    ? `Con <b>«📋 copia pesi ←»</b> (dalla Settimana 2) riporti i <b>pesi</b> della settimana prima <b>solo dove non c'è la %</b> (la % resta calcolata dal madre; serie e ripetizioni non si toccano): poi ti basta <b>alzare i carichi</b>.`
+    : `Con <b>«📋 ← sett. prec.»</b> (dalla Settimana 2) riporti il lavoro della settimana prima, poi ritocchi.`} «⧉ su tutte» copia la settimana su tutte.</p>` : "";
+  const copiaTuttiBtn = (canEdit && sch.length && s.wk > 0) ? `<button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px;margin-top:8px" onclick="${s.tipo === "palestra" ? "copiaAgPesiTutti()" : "copiaAgDaPrecTutti()"}" title="${s.tipo === "palestra" ? "Copia i pesi (senza %) della settimana precedente, per tutti gli atleti" : "Riporta la settimana precedente in questa, per tutti gli atleti"}">📋 ${s.tipo === "palestra" ? `Copia i pesi della Settimana ${s.wk} in tutti` : `Copia la Settimana ${s.wk} in tutti`} → poi ritocco</button>` : "";
   return `<button class="indietro" onclick="vai('adatta')">‹ Indietro</button>
     <div class="card"><h3>Adatta di gruppo</h3>
       <p class="et" style="margin-top:2px">Scegli <b>gruppo · tipo · mesociclo · giorno · settimana</b>: sotto compaiono <b>tutti gli atleti</b> con quel lavoro, uno per riga. Chi ha un <b style="color:#b45309">programma personale</b> è nel riquadro <b style="color:#b45309">giallo</b>. Modifica carichi/esercizi di ognuno (override personale, non tocca il madre). Si salva da solo.</p></div>
