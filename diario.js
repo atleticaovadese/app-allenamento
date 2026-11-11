@@ -31,7 +31,7 @@ function _promemoriaDiario() {
   return `<div class="card" style="border-color:var(--ambra,#e6a83c);background:var(--giallo-bg);display:flex;align-items:center;gap:11px;cursor:pointer" onclick="vai('diario')">
     <span style="font-size:22px;flex:none">📝</span>
     <div style="flex:1;min-width:0"><b style="color:#8a6d00">Non hai ancora compilato il diario di oggi</b>
-      <div class="et" style="margin-top:2px">Bastano 30 secondi: sonno, stress, dolori, energia. Tocca qui per farlo →</div></div>
+      <div class="et" style="margin-top:2px">Bastano 30 secondi: sonno, serenità, dolori, energia. Tocca qui per farlo →</div></div>
   </div>`;
 }
 
@@ -113,7 +113,7 @@ function _diarioStoriaAtleta(storia) {
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <b style="font-size:13px">${dl(v.data)}${v.ciclo ? ' <span style="color:#c74a78">🩸</span>' : ""}</b>
         <span class="et" style="margin:0">${v.oreSonno != null ? v.oreSonno + " h sonno" : ""}</span></div>
-      <div class="et" style="margin-top:3px">qualità ${v.sonno_qualita ?? "—"} · stress ${v.stress ?? "—"} · dolori ${v.dolori ?? "—"} · energia ${v.energia ?? "—"}${v.fastidi ? ' · <span style="color:var(--rosso)">fastidio</span>' : ""}</div>
+      <div class="et" style="margin-top:3px">qualità ${v.sonno_qualita ?? "—"} · serenità ${v.stress ?? "—"} · dolori ${v.dolori ?? "—"} · energia ${v.energia ?? "—"}${v.fastidi ? ' · <span style="color:var(--rosso)">fastidio</span>' : ""}</div>
     </div>`).join("");
   return `<div class="card"><p class="et" style="margin-bottom:6px">📅 Come stavo — i miei giorni${tutto ? ` (tutti · ${storia.length})` : ""}</p>${rows}
     ${storia.length > 21 ? `<button class="btn btn-2" style="margin-top:10px;width:auto;padding:8px 14px" onclick="toggleDiarioTutto()">${tutto ? "Mostra solo gli ultimi 21 giorni" : `📅 Vedi tutta la cronologia (${storia.length} giorni)`}</button>` : ""}</div>`;

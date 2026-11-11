@@ -58,8 +58,8 @@ input,select,textarea{font:inherit;width:100%;color:var(--txt)}
 .ore{display:flex;align-items:center;gap:14px;margin-top:8px}
 .tondo{width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:var(--card2);
   font-size:22px;line-height:1;flex:none}
-.ore-v{flex:1;text-align:center;font-size:30px;font-weight:600}
-.ore-v span{font-size:15px;color:var(--txt2);font-weight:400}
+.ore-v{flex:1;text-align:center;font-size:46px;font-weight:800;letter-spacing:-.01em;color:var(--blu);line-height:1}
+.ore-v span{font-size:17px;color:var(--txt2);font-weight:600}
 .scala{display:flex;gap:7px}
 .sc{flex:1;height:46px;border-radius:var(--r);border:1px solid var(--line2);background:var(--card2);
   color:var(--txt2);font-size:16px}

@@ -687,7 +687,7 @@ function _reportBodyHTML(id) {
   h += `<h2>Stato di salute</h2>`;
   if (storia.length) {
     const ult = storia[0];
-    h += `<p class="sub">Ultimo diario (${_rDataL(ult.data)}): prontezza <b class="${_rClsPront(ult.prontezza)}">${ult.prontezza != null ? ult.prontezza : "—"}</b> · sonno ${ult.oreSonno != null ? ult.oreSonno + " h" : "—"} · qualità ${ult.sonno_qualita ?? "—"}/5 · stress ${ult.stress ?? "—"}/5 · dolori ${ult.dolori ?? "—"}/5 · energia ${ult.energia ?? "—"}/5</p>`;
+    h += `<p class="sub">Ultimo diario (${_rDataL(ult.data)}): prontezza <b class="${_rClsPront(ult.prontezza)}">${ult.prontezza != null ? ult.prontezza : "—"}</b> · sonno ${ult.oreSonno != null ? ult.oreSonno + " h" : "—"} · qualità ${ult.sonno_qualita ?? "—"}/5 · serenità ${ult.stress ?? "—"}/5 · dolori ${ult.dolori ?? "—"}/5 · energia ${ult.energia ?? "—"}/5</p>`;
     if (ult.note) h += `<p class="note">"${ult.note}"</p>`;
     const bars = storia.slice(0, 8).reverse().map(v => ({ v: v.prontezza != null ? Math.round(v.prontezza * 10) / 10 : 0, lab: (v.data || "").slice(8, 10) + "/" + (v.data || "").slice(5, 7) }));
     if (bars.length) h += `<p class="sub" style="margin-top:8px"><b>Prontezza — ultimi giorni</b></p>${_svgBars(bars)}`;

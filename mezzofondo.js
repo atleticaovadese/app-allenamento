@@ -1835,5 +1835,28 @@ function cardProfiloMezzo(a) {
     ${(RC && RC.srr != null) ? riga("Tipo di atleta", tipo + " (SRR " + RC.srr.toFixed(2) + ")") : ""}
   </div>`;
 }
+// elenco COMPLETO dei ritmi target dell'atleta (soglia, medi, VO2max, gara, lattacidi…) — per curiosare dalla scheda.
+// Usa i PB dell'atleta + obiettivo/offset del suo programma (gli stessi ritmi che trova nelle sedute).
+function cardRitmiMezzo(a) {
+  if (typeof ritmiTarget !== "function") return "";
+  const prog = (typeof _progPista === "function") ? _progPista(a) : ((typeof pistaDi === "function") ? pistaDi("mezzo") : null);
+  const opts = { obiettivo: (prog && prog.mzObiettivo) || 0, offsets: (prog && prog.mzOffsets) || {} };
+  const R = ritmiTarget(a, opts);
+  const conRitmo = R.filter(r => r.secKm != null);
+  if (!conRitmo.length) return `<div class="card"><p class="et" style="margin:0">🏃 Ritmi target — servono i <b>PB mezzofondo</b> dell'atleta (Scheda → PB): poi qui compaiono tutti i ritmi.</p></div>`;
+  const usaTest = !!(DEMO.lattato && DEMO.lattato[a.id] && DEMO.lattato[a.id].usaLT2 !== false && typeof vLT2diAtleta === "function" && vLT2diAtleta(a) != null);
+  const riga = r => `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)">
+      <span style="font-size:13px">${r.mezzo}${r.zona ? ` <span class="et" style="color:var(--txt3)">· ${r.zona}</span>` : ""}</span>
+      <b style="font-size:15px;white-space:nowrap">${r.mmss}<span class="et" style="font-weight:400;color:var(--txt3)"> /km</span></b>
+    </div>`;
+  return `<details class="card">
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span class="et" style="margin:0">🏃 Tutti i ritmi target${usaTest ? " · soglia dal Test lattato" : ""}</span>
+      <span class="et" style="margin:0;color:var(--blu)">apri ▾</span>
+    </summary>
+    <div style="margin-top:8px">${conRitmo.map(riga).join("")}</div>
+    <p class="et" style="margin-top:9px;color:var(--txt3)">Dai PB dell'atleta${usaTest ? " e dal vLT2 del Test lattato" : " (soglia stimata dai PB finché non fai il Test lattato)"}. Per modificarli: <b>Analisi → Ritmi mezzofondo</b>.</p>
+  </details>`;
+}
 
 

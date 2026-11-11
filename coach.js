@@ -741,6 +741,7 @@ function vistaAtletaDettaglio() {
   </div>`; })()}
 
   ${(typeof gruppoDi === "function" && gruppoDi(a) === "mezzo" && typeof cardProfiloMezzo === "function") ? cardProfiloMezzo(a) : ""}
+  ${(typeof gruppoDi === "function" && gruppoDi(a) === "mezzo" && typeof cardRitmiMezzo === "function") ? cardRitmiMezzo(a) : ""}
   ${(typeof gruppoDi === "function" && gruppoDi(a) === "lanci" && typeof cardProfiloLanci === "function") ? cardProfiloLanci(a) : ""}
 
   <div class="card">
@@ -1466,7 +1467,7 @@ function vistaDiarioAtleta() {
         <h3 style="font-size:16px">${dl(v.data)}${v.ciclo ? ' <span style="color:#c74a78;font-size:13px;font-weight:600">🩸 ciclo</span>' : ""}</h3>
         <div style="text-align:right"><span class="et" style="margin:0">prontezza</span>
           <b style="font-size:17px;margin-left:6px;color:${colProntezza(v.prontezza)}">${v.prontezza != null ? v.prontezza : "—"}</b></div></div>
-      <p class="et" style="margin-top:6px">sonno ${v.oreSonno != null ? v.oreSonno + " h" : "—"} · qualità ${v.sonno_qualita ?? "—"}/5 · stress ${v.stress ?? "—"}/5 · dolori ${v.dolori ?? "—"}/5 · energia ${v.energia ?? "—"}/5</p>
+      <p class="et" style="margin-top:6px">sonno ${v.oreSonno != null ? v.oreSonno + " h" : "—"} · qualità ${v.sonno_qualita ?? "—"}/5 · serenità ${v.stress ?? "—"}/5 · dolori ${v.dolori ?? "—"}/5 · energia ${v.energia ?? "—"}/5</p>
       ${v.fastidi ? `<p class="et" style="color:var(--rosso);margin-top:3px">⚠ fastidio${v.doveFastidi ? ": " + v.doveFastidi : ""}</p>` : ""}
       ${v.peso ? `<p class="et" style="margin-top:3px">peso ${v.peso} kg</p>` : ""}
       ${v.note ? `<p style="font-size:14px;line-height:1.5;margin-top:6px">${v.note}</p>` : ""}

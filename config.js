@@ -3,7 +3,7 @@
 const CONFIG = {
   nome: "Metis Performance",
   nomeBreve: "Metis",
-  versione: "2.91 · 9 nov",
+  versione: "2.92 · 12 nov",
 
   // Soglie per gli avvisi all'allenatore (decise con l'utente)
   soglie: {
@@ -21,7 +21,7 @@ const CONFIG = {
   diario: {
     voci: [
       { id: "sonno_qualita", label: "Qualità del sonno", basso: "pessima", alto: "ottima" },
-      { id: "stress", label: "Stress", basso: "molto stressato", alto: "tranquillo" },
+      { id: "stress", label: "Serenità", basso: "molto stressato", alto: "molto sereno" },
       { id: "dolori", label: "Dolori muscolari", basso: "molti dolori", alto: "nessun dolore" },
       { id: "energia", label: "Energia", basso: "a terra", alto: "pieno di energia" }
     ]
