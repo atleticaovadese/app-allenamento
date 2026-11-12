@@ -628,12 +628,9 @@ function vistaPistaMezzo(s) {
     if (e.tempi) {
       const fatte = e.tempi.filter(v => v != null);
       const best = fatte.length ? Math.min(...fatte) : null;
-      const caselle = e.tempi.map((t, i) => {
-        let cls = "";
-        if (t != null && e.tempoRipSec != null) cls = (t - e.tempoRipSec) / e.tempoRipSec * 100 > 4 ? "male" : "bene";
-        return `<input class="tempo avanza ${cls}" value="${t != null ? _mzMMSSc(t) : ""}" placeholder="m:ss.cc"
-          onchange="segnaTempoMezzo('${s.id}','${e.id}',${i},this)">`;
-      }).join("");
+      const caselle = e.tempi.map((t, i) => (typeof _tbox === "function")
+        ? _tbox(s.id, e.id, i, t, e.distanza, e.tempoRipSec)
+        : `<input class="tempo avanza" value="${t != null ? _mzMMSSc(t) : ""}" placeholder="m:ss.cc" onchange="segnaTempoMezzo('${s.id}','${e.id}',${i},this)">`).join("");
       bloccoTempi = `<p class="et" style="margin:8px 0 6px">Segna il tempo di ogni ripetuta${best != null ? ` · <b style="color:var(--verde)">meglio ${_mzMMSSc(best)}</b>` : ""}</p>
         <div class="tempi">${caselle}</div>`;
     }

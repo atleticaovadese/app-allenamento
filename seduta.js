@@ -156,12 +156,10 @@ function _cardScalaPista(s, e) {
     let reps = "";
     for (let k = 0; k < nSeq; k++) {
       const i = b * nSeq + k, tgt = e.targets ? e.targets[i] : null, val = e.tempi[i];
-      let cls = "";
-      if (val != null && tgt != null) cls = (val - tgt) / tgt * 100 > soglia ? "male" : "bene";
-      reps += `<div class="serie">
-        <span class="n" style="width:46px;flex:none">${e.distanze[i]} m</span>
-        <input class="tempo avanza ${cls}" inputmode="decimal" value="${val == null ? "" : val}" placeholder="—" onchange="segnaTempo('${s.id}','${e.id}',${i},this)">
-        <span class="et" style="width:82px;flex:none;text-align:right">${tgt != null ? "obiett. " + tgt.toFixed(2) : ""}</span>
+      reps += `<div class="serie" style="align-items:flex-end">
+        <span class="n" style="width:46px;flex:none;padding-bottom:12px">${e.distanze[i]} m</span>
+        ${_tbox(s.id, e.id, i, val, e.distanze[i], tgt)}
+        <span class="et" style="flex:1;text-align:right;padding-bottom:12px">${tgt != null ? "obiett. " + tgt.toFixed(2) : ""}</span>
       </div>`;
     }
     blocchiHtml += `<p class="et" style="margin:8px 0 4px;font-weight:600;color:var(--txt2)">Blocco ${b + 1}</p>${reps}`;
@@ -191,16 +189,7 @@ function vistaPista(s) {
   ${typeof bloccoSpeciali === "function" ? bloccoSpeciali(s) : ""}
   ${s.elementi.map(e => {
     if (e.scala) return _cardScalaPista(s, e);   // scala di distanze (40-50-60 × n)
-    const caselle = e.tempi.map((t, i) => {
-      const v = t === null ? "" : t;
-      let cls = "";
-      if (t !== null && e.target != null) {
-        const peggio = (t - e.target) / e.target * 100;
-        cls = peggio > CONFIG.soglie.pistaPeggioPct ? "male" : "bene";
-      }
-      return `<input class="tempo avanza ${cls}" inputmode="decimal" value="${v}" placeholder="—"
-        onchange="segnaTempo('${s.id}','${e.id}',${i},this)">`;
-    }).join("");
+    const caselle = e.tempi.map((t, i) => _tbox(s.id, e.id, i, t, e.distanza, e.target)).join("");
     const meta = [e.percentuale != null ? e.percentuale + "%" : "", e.recupero ? "rec " + e.recupero : ""].filter(Boolean).join(" · ");
     const cont = e.contenuto ? String(e.contenuto).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "";
     return `<div class="card">
@@ -244,6 +233,60 @@ function segnaTempo(sid, eid, i, el) {
   e.tempi[i] = isNaN(n) ? null : n;
   salvaBozzaSeduta(s);
   _avanzaCasella(el, disegna);
+}
+
+// ---------- TEMPI a caselle separate (min · sec · cent), adattive alla distanza, con salto automatico ----------
+// Sostituisce la vecchia casella decimale/«m:ss.cc»: più immediato per tecnici e atleti.
+// sec = valore attuale in secondi (null se vuoto); dist = metri della ripetuta (decide se serve "min"); target = obiettivo (s).
+function _tbox(sid, eid, i, sec, dist, target) {
+  const grp = eid + "_" + i;
+  const base = Math.max(Number(target) || 0, Number(sec) || 0);
+  const d = Number(dist) || 0;
+  const needHour = base >= 3300;
+  const needMin = needHour || base >= 38 || d >= 300;   // 400m & oltre (o ~≥38s) mostrano i minuti
+  const units = needHour ? ["h", "m", "s", "cc"] : needMin ? ["m", "s", "cc"] : ["s", "cc"];
+  const V = {};
+  if (sec != null && !isNaN(sec)) {
+    let tc = Math.round(Number(sec) * 100);
+    V.cc = tc % 100; let ts = Math.floor(tc / 100);
+    V.s = ts % 60; let tm = Math.floor(ts / 60);
+    V.m = tm % 60; V.h = Math.floor(tm / 60);
+  }
+  const LAB = { h: "h", m: "min", s: "sec", cc: "cent" }, PH = { h: "h", m: "mm", s: "ss", cc: "cc" };
+  const cells = units.map((u, k) => {
+    const raw = V[u];
+    const val = raw == null ? "" : (k === 0 ? String(raw) : String(raw).padStart(2, "0"));
+    const sep = (k < units.length - 1) ? `<span class="tsep">${units[k + 1] === "cc" ? "″" : ":"}</span>` : "";
+    return `<div class="tcell">
+        <input class="tbox" inputmode="numeric" maxlength="2" value="${val}" placeholder="${PH[u]}"
+          data-sid="${sid}" data-grp="${grp}" data-u="${u}"${target != null ? ` data-tgt="${target}"` : ""}
+          oninput="setTempoBox(this)" onfocus="try{this.select()}catch(e){}"><span class="tlab">${LAB[u]}</span>
+      </div>${sep}`;
+  }).join("");
+  let cls = "";
+  if (sec != null && target != null && target > 0) { const p = (sec - target) / target * 100; cls = p > ((CONFIG.soglie && CONFIG.soglie.pistaPeggioPct) || 3) ? "male" : "bene"; }
+  return `<div class="trow ${cls}"><span class="tnum">${Number(i) + 1}</span>${cells}</div>`;
+}
+// scrive il tempo assemblando le caselle del gruppo → secondi, salva la bozza, colora e salta alla casella dopo.
+// NON ri-disegna (così la digitazione resta fluida e il focus non salta).
+function setTempoBox(el) {
+  const sid = el.getAttribute("data-sid"), grp = el.getAttribute("data-grp");
+  const parts = grp.split("_"); const i = Number(parts.pop()); const eid = parts.join("_");
+  const boxes = Array.prototype.filter.call(document.querySelectorAll("input.tbox"), b => b.getAttribute("data-grp") === grp && b.getAttribute("data-sid") === sid);
+  let hh = 0, mm = 0, ss = 0, cc = 0, any = false;
+  boxes.forEach(b => { const u = b.getAttribute("data-u"); const raw = (b.value || "").replace(/\D/g, ""); if (raw !== "") any = true; const v = parseInt(raw, 10) || 0; if (u === "h") hh = v; else if (u === "m") mm = v; else if (u === "s") ss = v; else if (u === "cc") cc = v; });
+  const sec = any ? (hh * 3600 + mm * 60 + ss + cc / 100) : null;
+  const s = (typeof sedutaDaId === "function") ? sedutaDaId(sid) : null;
+  const e = s && s.elementi && s.elementi.find(x => x.id === eid);
+  if (e && e.tempi) { e.tempi[i] = sec; if (typeof salvaBozzaSeduta === "function") salvaBozzaSeduta(s); }
+  const tgt = parseFloat(el.getAttribute("data-tgt")), row = el.closest(".trow");
+  if (row) { row.classList.remove("bene", "male"); if (sec != null && !isNaN(tgt) && tgt > 0) { const p = (sec - tgt) / tgt * 100; row.classList.add(p > ((CONFIG.soglie && CONFIG.soglie.pistaPeggioPct) || 3) ? "male" : "bene"); } }
+  const raw = (el.value || "").replace(/\D/g, "");
+  if (raw.length >= parseInt(el.getAttribute("maxlength") || "2", 10)) {   // casella piena → vai alla prossima
+    const all = Array.prototype.slice.call(document.querySelectorAll("input.tbox"));
+    const nx = all[all.indexOf(el) + 1];
+    if (nx) { try { nx.focus(); nx.select && nx.select(); } catch (_) { } } else { try { el.blur(); } catch (_) { } }
+  }
 }
 
 // ---------- sforzo percepito (RPE) + "non chiuse/non completato" per singolo lavoro ----------

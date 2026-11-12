@@ -240,10 +240,20 @@ input::placeholder{color:var(--txt3)}
 .check{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--txt2)}
 .check input{width:19px;height:19px;flex:none;accent-color:var(--blu)}
 
-.tempi{display:grid;grid-template-columns:repeat(auto-fit,minmax(66px,1fr));gap:7px}
+.tempi{display:flex;flex-wrap:wrap;gap:10px 12px}
 .tempo{text-align:center;padding:11px 4px;font-size:15px}
 .tempo.bene{border-color:var(--verde);background:var(--verde-bg);color:var(--verde);font-weight:600}
 .tempo.male{border-color:var(--giallo);background:var(--giallo-bg);color:var(--giallo);font-weight:600}
+/* tempi a caselle separate (min · sec · cent) con salto automatico */
+.trow{display:inline-flex;align-items:flex-end;gap:3px;padding:6px 8px;border-radius:12px;background:var(--card2);border:1px solid var(--line2)}
+.trow.bene{border-color:var(--verde);background:var(--verde-bg)}
+.trow.male{border-color:var(--rosso);background:var(--rosso-bg)}
+.tnum{align-self:center;font-size:11px;font-weight:700;color:var(--txt3);min-width:14px;text-align:center}
+.tcell{display:flex;flex-direction:column;align-items:center;gap:2px}
+input.tbox{width:44px;height:46px;box-sizing:border-box;text-align:center;font-size:18px;font-weight:700;border-radius:9px;border:1px solid var(--line2);background:var(--card);color:var(--txt);padding:0}
+input.tbox:focus{border-color:var(--blu);outline:2px solid var(--blu);outline-offset:-1px;box-shadow:0 0 0 2px rgba(77,154,255,.2)}
+.tlab{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.02em}
+.tsep{align-self:flex-end;font-weight:800;color:var(--txt3);padding-bottom:17px}
 
 .es{cursor:pointer}
 .es.bene{border-color:rgba(124,194,67,.5)}
