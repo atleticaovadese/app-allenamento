@@ -839,6 +839,39 @@ function latAddStep() { const t = _latTest(latState.atletaRif); t.steps.push({ m
 function latDelStep(i) { const t = _latTest(latState.atletaRif); if (t.steps.length > 1) t.steps.splice(i, 1); _latSave(); disegna(); }
 function toggleLatGuida() { S.latGuida = !S.latGuida; disegna(); }
 
+// ritmi-step CONSIGLIATI per il test lattato di un atleta: step 1 = Lungo (facile), poi a scendere fino alla VAM
+// (= zona VO2max/3000), così la curva copre sotto e sopra soglia. Si calcola dai PB dell'atleta.
+function _latRitmiConsigliati(a, distM) {
+  if (typeof ritmiTarget !== "function") return "";
+  const R = ritmiTarget(a, {});   // ritmi dai PB ATTUALI (senza obiettivo): è un test, non una proiezione
+  const g = m => { const r = R.find(x => x.mezzo === m); return r && r.secKm != null ? r.secKm : null; };
+  const vam = g("VO2max");         // = ritmo 3000 ≈ VAM/vVO2max (ancora dei PB)
+  if (vam == null) {
+    return `<div class="card"><p class="et" style="margin:0"><b>🎯 Ritmi consigliati</b>: servono i <b>PB mezzofondo</b> dell'atleta (Scheda → PB) per calcolarli. Poi qui escono i tempi di ogni step.</p></div>`;
+  }
+  const start = vam / 0.68;        // 1º step ≈ 68% VAM: facile (~1.5 mmol), un solo step di base
+  const dKm = (Number(distM) || 1200) / 1000;
+  const gap = start - vam;
+  let N = Math.round(gap / 14) + 1; N = Math.max(6, Math.min(8, N));
+  const dec = gap / (N - 1);
+  const zona = p => { const pc = vam / p * 100; return pc >= 97 ? "VAM (VO2max)" : pc >= 90 ? "sotto-VAM" : pc >= 82 ? "soglia" : pc >= 75 ? "medio" : "fondo / easy"; };
+  let rows = "";
+  for (let i = 0; i < N; i++) {
+    const p = start - dec * i;
+    rows += `<tr><td style="text-align:center;color:var(--txt3)">${i + 1}</td><td style="text-align:center"><b>${_mzMMSS(p * dKm)}</b></td><td style="text-align:center">${_mzMMSS(p)}/km</td><td class="et" style="margin:0;color:var(--txt3)">${zona(p)}</td></tr>`;
+  }
+  return `<details class="card">
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span class="et" style="margin:0"><b>🎯 Ritmi consigliati per il test</b> · ${(a.nome || "").split(" ")[0]}</span>
+      <span class="et" style="margin:0;color:var(--blu)">apri ▾</span>
+    </summary>
+    <p class="et" style="margin:9px 0 6px">Parti dallo <b>step 1</b> (facile, ~1.5 mmol); ogni step <b>~${Math.round(dec)}″/km più veloce</b>. A fine step: <b>lattato + FC + RPE</b>, 30-60″ di pausa, poi riparti. Gli <b>ultimi 2 devono far male</b>.</p>
+    <div class="p-scroll"><table class="ptab" style="width:100%">
+      <thead><tr><th>Step</th><th>${Math.round(Number(distM) || 1200)} m</th><th>/km</th><th>Zona</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <p class="et" style="margin:8px 0 0;color:var(--txt3)">Calcolati dai PB dell'atleta. Ricopia i passi (min/sec) nella tabella degli step qui sotto.</p>
+  </details>`;
+}
 function vistaTestLattato() {
   const a = latState.atletaRif ? DEMO.atleti.find(x => x.id === latState.atletaRif) : null;
   const selAtleta = `<div class="card">
@@ -950,7 +983,8 @@ function vistaTestLattato() {
     <p class="et" style="margin-top:10px"><b>Regola d'oro:</b> la leva più grande resta il VOLUME AEROBICO facile. Il test serve a MISURARE i progressi e affinare i ritmi, non a sostituire l'occhio del coach.</p>
   </div>`;
 
-  return intro + selAtleta + setup + tabSteps + warnTxt + risultati + prospetto;
+  const ritmiCons = _latRitmiConsigliati(a, t.distStep);
+  return intro + selAtleta + ritmiCons + setup + tabSteps + warnTxt + risultati + prospetto;
 }
 
 // ============================================================================
