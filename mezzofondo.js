@@ -127,23 +127,25 @@ function ritmoMezzo(atleta, mezzo, opts) {
 function _passo400(secKm) { return (secKm == null || isNaN(secKm)) ? "—" : _mzMMSS(secKm * 0.4); }
 // convertitore live: tempo su una distanza → passaggio al 400 + /km (aggiorna il risultato senza ri-disegnare)
 function _calcPasso400() {
-  const dEl = document.getElementById("conv400dist"), tEl = document.getElementById("conv400t"), out = document.getElementById("conv400out");
+  const mEl = document.getElementById("conv400min"), sEl = document.getElementById("conv400sec"), dEl = document.getElementById("conv400dist"), out = document.getElementById("conv400out");
   if (!out) return;
   const dist = parseFloat(String((dEl && dEl.value) || "").replace(",", ".")) || 0;
-  const tsec = (typeof _mzToSec === "function") ? _mzToSec(tEl && tEl.value) : null;
-  if (!dist || tsec == null || tsec <= 0) { out.innerHTML = `<span class="et" style="margin:0">— scrivi tempo e distanza —</span>`; return; }
+  const min = parseInt((mEl && mEl.value) || "", 10) || 0, sec = parseInt((sEl && sEl.value) || "", 10) || 0;
+  const tsec = min * 60 + sec;
+  if (!dist || tsec <= 0) { out.innerHTML = `<span class="et" style="margin:0">— scrivi i minuti/secondi e la distanza —</span>`; return; }
   const secKm = tsec / (dist / 1000);
-  out.innerHTML = `400 m in <b style="color:var(--blu);font-size:17px">${_mzMMSS(secKm * 0.4)}</b> &nbsp;·&nbsp; <b>${_mzMMSS(secKm)}/km</b> &nbsp;·&nbsp; ${(3600 / secKm).toFixed(1)} km/h`;
+  out.innerHTML = `400 m in <b style="color:var(--blu);font-size:18px">${_mzMMSS(secKm * 0.4)}</b> &nbsp;·&nbsp; <b>${_mzMMSS(secKm)}/km</b> &nbsp;·&nbsp; ${(3600 / secKm).toFixed(1)} km/h`;
 }
 function _convPasso400HTML() {
+  const box = (id, ph, w, val, ml) => `<input id="${id}" class="tbox" inputmode="numeric" maxlength="${ml}" placeholder="${ph}" value="${val || ""}" oninput="_calcPasso400()" style="width:${w};height:46px">`;
   return `<div class="card">
-    <p class="et" style="margin:0 0 8px"><b>🔄 Passaggio al 400</b> — scrivi il tempo e la distanza, ti dà subito il passaggio ai 400 m (e il /km)</p>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input id="conv400t" inputmode="numeric" placeholder="es. 6:00" oninput="_calcPasso400()" style="width:auto;max-width:120px">
-      <span class="et" style="margin:0">su</span>
-      <input id="conv400dist" inputmode="numeric" value="1200" oninput="_calcPasso400()" style="width:auto;max-width:90px"><span class="et" style="margin:0">m</span>
+    <p class="et" style="margin:0 0 8px"><b>🔄 Passaggio al 400</b> — scrivi minuti e secondi (niente due punti) e la distanza: ti dà il passaggio ai 400 m</p>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      ${box("conv400min", "min", "58px", "", 3)}<span style="font-weight:800;color:var(--txt3)">:</span>${box("conv400sec", "sec", "58px", "", 2)}
+      <span class="et" style="margin:0 2px">su</span>
+      ${box("conv400dist", "m", "72px", "1200", 5)}<span class="et" style="margin:0">m</span>
     </div>
-    <p id="conv400out" style="margin:10px 0 0;font-size:14px"><span class="et" style="margin:0">— scrivi tempo e distanza —</span></p>
+    <p id="conv400out" style="margin:10px 0 0;font-size:14px"><span class="et" style="margin:0">— scrivi i minuti/secondi e la distanza —</span></p>
   </div>`;
 }
 
@@ -874,9 +876,19 @@ function _latRitmiConsigliati(a, distM) {
   if (typeof ritmiTarget !== "function") return "";
   const R = ritmiTarget(a, {});   // ritmi dai PB ATTUALI (senza obiettivo): è un test, non una proiezione
   const g = m => { const r = R.find(x => x.mezzo === m); return r && r.secKm != null ? r.secKm : null; };
-  const vam = g("VO2max");         // = ritmo 3000 ≈ VAM/vVO2max (ancora dei PB)
+  const vam = g("VO2max");         // = ritmo 3000 ≈ VAM/vVO2max (ancora dei PB) o dal Test lattato
   if (vam == null) {
-    return `<div class="card"><p class="et" style="margin:0"><b>🎯 Ritmi consigliati</b>: servono i <b>PB mezzofondo</b> dell'atleta (Scheda → PB) per calcolarli. Poi qui escono i tempi di ogni step.</p></div>`;
+    // nessun PB né test: scheda "a sensazione" con scala generica km/h → il test darà i ritmi veri
+    const dKm0 = (Number(distM) || 1200) / 1000;
+    let gen = "";
+    for (let v = 9; v <= 14.001; v += 0.5) { const sk = 3600 / v; gen += `<tr><td style="text-align:center;color:var(--txt3)">${v.toFixed(1)}</td><td style="text-align:center"><b>${_mzMMSS(sk * dKm0)}</b></td><td style="text-align:center">${_mzMMSS(sk)}/km</td><td style="text-align:center;color:var(--txt2)">${_passo400(sk)}</td></tr>`; }
+    return `<details class="card">
+      <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span class="et" style="margin:0"><b>🎯 Ritmi consigliati per il test</b> · ${(a.nome || "").split(" ")[0]}</span><span class="et" style="margin:0;color:var(--blu)">apri ▾</span></summary>
+      <p class="et" style="margin:9px 0 6px"><b>Niente PB</b>: si parte <b>a sensazione</b>. Riscaldamento + <b>1º step dove chiacchiera comodo</b> (facile!), poi <b>+0.5 km/h</b> (una tacca) a step. Questa è una <b>scala generica</b> di riferimento: scegli dove partire e sali di una riga a step. <b>Il test gli darà i ritmi veri</b> (poi li userà l'app).</p>
+      <div class="p-scroll"><table class="ptab" style="width:100%"><thead><tr><th>km/h</th><th>${Math.round(Number(distM) || 1200)} m</th><th>/km</th><th>al 400</th></tr></thead><tbody>${gen}</tbody></table></div>
+      <p class="et" style="margin:8px 0 0;color:var(--txt3)">Per i più lenti parti dai 9-10 km/h, per i più allenati dai 11-12. L'importante è che il 1º step sia <b>davvero facile</b> (~1.5 mmol).</p>
+    </details>`;
   }
   const start = vam / 0.62;        // 1º step ≈ 62% VAM: davvero facile (~1-1.5 mmol), così la base della curva c'è
   const dKm = (Number(distM) || 1200) / 1000;
@@ -930,6 +942,29 @@ function _latVerdettoAerobico(R) {
   }
   return p.join("; ") + ".";
 }
+// esempi di LAVORO pronti, costruiti sui ritmi dell'atleta (col passaggio ai 400) — spiega il lattato/soglie "facendo"
+function _latEsempiLavoro(a, R) {
+  if (!R || R.n < 3 || typeof ritmiTarget !== "function") return "";
+  const Z = ritmiTarget(a, {});
+  const g = m => { const r = Z.find(x => x.mezzo === m); return r && r.secKm != null ? r.secKm : null; };
+  const lungo = g("Lungo"), medio = g("Medio / maratona"), sub = g("Sub-soglia"), sog = g("Soglia LT2 (tempo)"), vam = g("VO2max");
+  const pc = s => s == null ? "—" : _mzMMSS(s) + "/km";
+  const p4 = s => s == null ? "—" : _passo400(s);
+  const es = (titolo, perche, lavoro) => `<div style="padding:9px 0;border-bottom:1px solid var(--line)">
+    <p style="font-weight:600;font-size:13px;margin:0 0 2px">${titolo}</p>
+    <p class="et" style="margin:0 0 4px;color:var(--txt3)">${perche}</p>
+    <p class="et" style="margin:0">${lavoro}</p></div>`;
+  return `<div class="card">
+    <p class="et" style="margin-bottom:4px"><b>Esempi di lavoro — dai suoi ritmi</b></p>
+    <p class="et" style="margin:0 0 8px;color:var(--txt3)">Il <b>lattato</b> dice <i>dove</i> stanno le zone: sotto <b>LT1</b> è facile (si bruciano grassi, lattato ~1-2); tra LT1 e LT2 è la <b>soglia</b> (lattato ~2-4, stabile); sopra <b>LT2</b> vai in debito (sale veloce). Ecco cosa farci — col passaggio ai <b>400</b>.</p>
+    ${es("Fondo / base aerobica <span class='et'>(sotto LT1)</span>", "il motore: cuore, capillari, mitocondri. È la leva più grande.", `60-80′ facili a <b>${pc(lungo)}</b> <span class="et">(400: ${p4(lungo)})</span>. Deve poter chiacchierare.`)}
+    ${es("Medio <span class='et'>(tra LT1 e LT2)</span>", "resistenza aerobica forte, supporta la soglia.", `2-3 × 12-15′ a <b>${pc(medio)}</b> <span class="et">(400: ${p4(medio)})</span>, rec 2-3′.`)}
+    ${es("Soglia LT2 — il lavoro-chiave", "alza il ritmo che tiene a lungo; il lattato resta ~stabile a 3-4 mmol.", `4-5 × 1000 m a <b>${pc(sog)}</b> → passaggio 400 <b>${p4(sog)}</b>, rec 1′-1′30″. Oppure 20-25′ continui a soglia.`)}
+    ${es("Sub-soglia <span class='et'>(metodo norvegese)</span>", "tanto volume di qualità senza sfinirsi (lattato 2-3).", `6 × 1000 m a <b>${pc(sub)}</b> <span class="et">(400: ${p4(sub)})</span>, rec 1′. Si può ripetere più volte a settimana.`)}
+    ${es("VO2max (VAM) <span class='et'>(sopra LT2)</span>", "potenza aerobica, il tetto del motore; lattato alto (6-10), lavoro breve.", `5-6 × 3′ a <b>${pc(vam)}</b> <span class="et">(400: ${p4(vam)})</span>, rec 2-3′. Oppure 30″ a VAM / 30″ piano × 12-18.`)}
+    <p class="et" style="margin-top:8px;color:var(--txt3)">Ritmi ${R.vLT2 != null ? "<b>ancorati al Test lattato</b>" : "stimati dai PB"}. Regola: tanta <b>base facile</b>, poche <b>soglie</b> ben fatte, un pizzico di <b>VO2max</b>.</p>
+  </div>`;
+}
 function vistaTestLattato() {
   const a = latState.atletaRif ? DEMO.atleti.find(x => x.id === latState.atletaRif) : null;
   const selAtleta = `<div class="card">
@@ -941,7 +976,7 @@ function vistaTestLattato() {
     <button class="btn btn-2" style="width:auto;padding:8px 14px;margin-top:10px" onclick="toggleLatGuida()">${S.latGuida ? "Nascondi come si fa" : "📋 Come si fa il test"}</button>
     ${S.latGuida ? `<div style="margin-top:10px;padding:11px 13px;background:var(--card2,rgba(120,120,140,.08));border-radius:10px">
       <p class="et" style="margin:0 0 8px"><b>Protocollo a step</b> (sul campo). <b style="color:var(--ambra,#e6a83c)">La cosa più importante è il riscaldamento e partire piano</b>: se parti forte il lattato di partenza è alto e <b>tutta la curva si alza</b> → soglia sbagliata.</p>
-      <p class="et" style="margin:0 0 6px"><b>0 · Riscaldamento (fondamentale):</b> 15-20′ di corsa facile + mobilità + 2-3 allunghi. Poi <b>3-5′ di calma</b> (cammina/stretching): fai <b>scendere FC e lattato</b>. Se hai lo strumento, misura il lattato dopo il riscaldamento: dev'essere <b>~1-1.5 mmol</b>; se è più alto, aspetta ancora.</p>
+      <p class="et" style="margin:0 0 6px"><b>0 · Riscaldamento (fondamentale):</b> 15-20′ di corsa facile + mobilità + 2-3 allunghi. Poi <b>3-5′ di calma</b> (cammina/stretching): fai <b>scendere FC e lattato</b>. Se hai lo strumento, misura il lattato dopo il riscaldamento: dev'essere <b>~1-1.5 mmol</b>; se è più alto, aspetta ancora. <span style="color:var(--txt3)"><b>Giovani / principianti</b> (es. Haru, Chiara): basta anche <b>~5′ di corsa facile + mobilità</b>, poi via <b>piano</b> — l'importante resta <b>partire lenti</b>.</span></p>
       <p class="et" style="margin:0 0 6px"><b>1 · Distanza per step:</b> 1200 m (o 3-5 minuti a ritmo costante) — la imposti qui sotto.</p>
       <p class="et" style="margin:0 0 6px"><b>2 · 1º step DAVVERO FACILE</b> (ci chiacchieri, ~1.5 mmol). Usa i <b>«🎯 Ritmi consigliati»</b> qui sotto. Se il lattato al 1º step esce &gt;2, hai iniziato troppo forte → rifai partendo più piano.</p>
       <p class="et" style="margin:0 0 6px"><b>3 · Ogni step ~10-15″/km più veloce</b> (≈ +0.5 km/h). Mantieni il ritmo costante dentro ogni step.</p>
@@ -1053,7 +1088,8 @@ function vistaTestLattato() {
   </div>`;
 
   const ritmiCons = _latRitmiConsigliati(a, t.distStep);
-  return intro + selAtleta + ritmiCons + setup + tabSteps + warnTxt + risultati + prospetto;
+  const esempi = (typeof _latEsempiLavoro === "function") ? _latEsempiLavoro(a, R) : "";
+  return intro + selAtleta + ritmiCons + setup + tabSteps + warnTxt + risultati + esempi + prospetto;
 }
 
 // ============================================================================
