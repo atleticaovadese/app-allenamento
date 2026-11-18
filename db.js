@@ -434,13 +434,13 @@ function _settimanaMonReale(a, off) {
     if (typeof seduteDelGiorno === "function") {
       try { prog = seduteDelGiorno(iso, false, a) || []; } catch (e) { prog = []; }
     }
-    prog.forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); });
-    reali.forEach(x => { if (x.tipo === "pista" || x.tipo === "palestra") tipi.add(x.tipo); });
-    doppio[i] = tipi.has("pista") && tipi.has("palestra");   // doppio allenamento: pista + palestra lo stesso giorno
+    prog.forEach(x => { if (x.tipo === "pista") tipi.add(x.bici ? "bici" : "pista"); else if (x.tipo === "palestra") tipi.add("palestra"); });
+    reali.forEach(x => { if (x.tipo === "pista") tipi.add((x.dati && x.dati.bici) ? "bici" : "pista"); else if (x.tipo === "palestra") tipi.add("palestra"); });
+    doppio[i] = (tipi.has("pista") || tipi.has("bici")) && tipi.has("palestra");   // doppio allenamento: corsa/bici + palestra lo stesso giorno
     // n° sedute del giorno (programmate, o svolte se di più): mostra i giorni con 2+ sedute (anche 2 piste dopo uno spostamento)
     const nProg = prog.filter(x => x.tipo === "pista" || x.tipo === "palestra").length;
     nSed[i] = Math.max(nProg, reali.length);
-    const tipo = tipi.has("pista") ? "pista" : (tipi.has("palestra") ? "palestra" : "");
+    const tipo = tipi.has("pista") ? "pista" : (tipi.has("bici") ? "bici" : (tipi.has("palestra") ? "palestra" : ""));
     sett[i] = (gare || []).some(g => g.data === iso) ? "gara" : tipo;
   }
   return { settimana: sett, done, extra, extraKm, doppio, nSed };

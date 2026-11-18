@@ -743,7 +743,7 @@ function vistaCalendario() {
   ${sett.map(d => { const exs = extraDi(d.dataISO); return `<div class="card"${d.oggi ? ' style="border-color:var(--blu)"' : ""}>
     <p style="font-weight:600${d.oggi ? ";color:var(--blu)" : ""}">${cap(d.nomeGiorno)} ${dNum(d.dataISO)}${d.oggi ? " · oggi" : ""}</p>
     ${d.sedute.length ? d.sedute.map(s => `<div class="lib-row" style="margin-top:8px" onclick="apriSeduta('${s.id}')">
-      <div style="flex:1;min-width:0"><div style="font-weight:500">${s.chiusa ? "<span style='color:var(--verde)'>✓</span> " : ""}${s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra"} · giorno ${s.giorno}${s.chiusa ? " <span class='et' style='color:var(--verde)'>· svolto</span>" : ""}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:500">${s.chiusa ? "<span style='color:var(--verde)'>✓</span> " : ""}${s.bici ? "🚴 Bici" : s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra"}${(s.superficie === "trail") ? " ⛰" : (s.superficie === "strada") ? " 🛣" : ""} · giorno ${s.giorno}${s.chiusa ? " <span class='et' style='color:var(--verde)'>· svolto</span>" : ""}</div>
         <div class="et" style="margin-top:1px">${typeof riepilogoSeduta === "function" ? riepilogoSeduta(s) : ""}</div></div>
       <span class="freccia">›</span></div>`).join("")
       : (exs.length ? "" : `<p class="et" style="margin-top:6px">Riposo</p>`)}

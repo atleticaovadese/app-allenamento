@@ -5,7 +5,7 @@ const STATO = {
   w: ["p-giallo", "attenzione", "var(--giallo)"],
   r: ["p-rosso", "rischio alto", "var(--rosso)"]
 };
-const TIPO_CELLA = { pista: "pista", palestra: "palestra", gara: "gara", salto: "salto" };
+const TIPO_CELLA = { pista: "pista", palestra: "palestra", gara: "gara", salto: "salto", bici: "bici" };
 
 function triage(lista) {
   const c = { v: 0, w: 0, r: 0 };
@@ -703,7 +703,7 @@ function vistaAtletaDettaglio() {
     const ring = dop ? "box-shadow:0 0 0 2px #e6a83c, 0 0 5px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
     const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
     const dim = wk.done[i] ? "" : (ex ? "" : "nofatto");
-    const glyph = wk.done[i] ? "✓" : (ex ? "＋" : "");
+    const glyph = wk.done[i] ? "✓" : (ex ? "＋" : (tp === "bici" ? "🚴" : ""));
     const cls = dop ? "" : (tp ? TIPO_CELLA[tp] : "vuoto");
     return `<div class="mini-g">
       <div class="mini-c ${cls} ${dim}" style="${tp ? "cursor:pointer;" : ""}${bg}${ring}"${tp ? ` onclick="apriSedutaCal('${a.id}',${i},'${tp}')"` : ""}${dop ? ` title="Doppio allenamento: pista + palestra"` : (ex ? ` title="${exTip}"` : "")}>${glyph}</div>
@@ -846,8 +846,8 @@ function vistaCalendarioSquadra() {
       const multi = nS >= 2;                  // 2+ sedute lo stesso giorno (anche due piste dopo uno spostamento)
       const ring = (dop || multi) ? "box-shadow:0 0 0 2px #e6a83c, 0 0 6px rgba(230,168,60,.6);" : (ex ? "box-shadow:0 0 0 2px var(--verde);" : "");
       const bg = dop ? "background:linear-gradient(135deg,#2f6fd6 0 50%,#5148b0 50% 100%);" : "";
-      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (multi ? ` title="${nS} sedute in questo giorno"` : (ex ? ` title="${exTip}"` : ""));
-      const testo = multi ? `${s.done[i] ? "✓" : ""}${nS}` : (s.done[i] ? "✓" : (ex ? "＋" : ""));
+      const title = dop ? ` title="Doppio allenamento: pista + palestra"` : (multi ? ` title="${nS} sedute in questo giorno"` : (ex ? ` title="${exTip}"` : (tp === "bici" ? ` title="🚴 Giorno in bici"` : "")));
+      const testo = multi ? `${s.done[i] ? "✓" : ""}${nS}` : (s.done[i] ? "✓" : (ex ? "＋" : (tp === "bici" ? "🚴" : "")));
       if (tp) return `<div class="cell ${dop ? '' : (TIPO_CELLA[tp] || '')} ${s.done[i] ? '' : (ex ? '' : 'nofatto')}" style="cursor:pointer;${bg}${ring}"${title} onclick="apriSedutaCal('${a.id}',${i},'${tp}',${off})">${testo}</div>`;
       if (ex) return `<div class="cell off" style="${ring}"${title}>＋</div>`;
       return `<div class="cell off"></div>`;
@@ -902,7 +902,7 @@ function apriSedutaCal(atletaId, off, tp, wkOff) {
   // 2+ sedute lo stesso giorno (pista+palestra, oppure due piste dopo uno spostamento) → chiedi quale aprire
   if (scelte.length >= 2 && typeof mostraFoglio === "function") {
     const btns = scelte.map((s, k) => {
-      const lab = (s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra") + " · giorno " + s.giorno;
+      const lab = (s.bici ? "🚴 Bici" : s.tipo === "pista" ? "🏃 Pista" : "🏋 Palestra") + " · giorno " + s.giorno;
       const rie = (typeof riepilogoSeduta === "function") ? riepilogoSeduta(s) : "";
       return `<button class="btn ${k === 0 ? "" : "btn-2"}" style="${k === 0 ? "" : "margin-top:8px;"}text-align:left" onclick="chiudiScheda();apriSeduta('${s.id}')">${lab}${rie ? `<span class="et" style="display:block;color:inherit;opacity:.85">${rie}</span>` : ""}</button>`;
     }).join("");

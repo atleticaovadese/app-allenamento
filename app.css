@@ -100,6 +100,7 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
   color:#fff;font-size:15px;font-weight:700;cursor:pointer;background:var(--line2)}
 .cell.pista{background:#2f6fd6}
 .cell.palestra{background:#5148b0}
+.cell.bici{background:#12a3c4}
 .cell.scarico{opacity:.5}
 .cell.now{outline:2px solid var(--blu);outline-offset:1px}
 .legenda{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--txt2)}
@@ -116,7 +117,7 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .mini-week{display:flex;gap:6px}
 .mini-g{flex:1;display:flex;flex-direction:column;gap:3px}
 .mini-c{height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
-.mini-c.pista{background:#2f6fd6} .mini-c.palestra{background:#5148b0}
+.mini-c.pista{background:#2f6fd6} .mini-c.palestra{background:#5148b0} .mini-c.bici{background:#12a3c4}
 .mini-c.gara{background:#d85a30} .mini-c.salto{background:#4b8a1e}
 .mini-c.vuoto{background:var(--card2)} .mini-c.nofatto{opacity:.4}
 
