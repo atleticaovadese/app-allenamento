@@ -334,13 +334,14 @@ function vistaProgrammaPistaLanci() {
       <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
       ${typeof _selCopiaGiorno === "function" ? _selCopiaGiorno(m.giorni, S.pistaGiorno, "copiaGiornoPista") : ""}
+      ${typeof _toggleBiciGiornoHTML === "function" ? _toggleBiciGiornoHTML(g) : ""}
     </div>`;
 
   const listaSett = settimaneDelGiorno(m, g);
   const copiaBtn = listaSett.length > 1
     ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? ` (scarico −${scaricoPctVal(m)}% auto)` : ""}</button>`
     : "";
-  const settimane = listaSett.map((sett, s) => {
+  const settimane = (g.bici && typeof _settimaneBiciGiorno === "function") ? _settimaneBiciGiorno(m, g, listaSett) : listaSett.map((sett, s) => {
     const scar = isScaricoIdx(m, s);
     const nota = (sett.nota || "").trim();
     const righe = sett.righe.map((r, i) => {

@@ -61,6 +61,7 @@ function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
 function _invalidaSeduteGen() { if (DEMO.seduteGen) DEMO.seduteGen = DEMO.seduteGen.filter(s => s.chiusa); }
 
 function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
+  if (g && g.bici) return null;   // giorno in bici: seduta/registrazione atleta nella Parte 2 (per ora non genera una seduta corsa)
   const sett = g.settimane && g.settimane[settIdx];
   const _mi = (prog && prog.mesocicli) ? prog.mesocicli.indexOf(meso) : -1;
   const ovR = overrideRighe(atleta, "pista", _mi, giornoNum - 1, settIdx);

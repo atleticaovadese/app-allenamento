@@ -35,6 +35,99 @@ function rigaVuota() { return { contenuto: "", distanza: "", n: "", rec: "", per
 function settVuota() { return { righe: [rigaVuota()], nota: "" }; }
 function giornoVuoto() { return { giornoSett: "", risc: {}, settimane: [settVuota(), settVuota(), settVuota(), settVuota()] }; }
 
+// ===================== GIORNO IN BICI (velocità, mezzofondo, lanci) =====================
+// Un giorno intero di bicicletta: righe a TEMPO con tipo di lavoro, zona RPE e battiti (FC).
+// La disciplina non cambia: è un giorno "cross-training" (infortunato o lavoro aerobico in bici).
+const BICI_TIPI = ["continuo", "fartlek", "progressivo", "salite", "recupero"];
+function _biciDefRiga() { return { bici: true, contenuto: "", bMin: "", bTipo: "continuo", bRpe: "", bFc: "", rec: "" }; }
+function _giornoPistaCorrente() {
+  const p = (typeof pistaInit === "function") ? pistaInit() : null;
+  const m = p && p.mesocicli && p.mesocicli[S.pistaMeso];
+  return m && m.giorni && m.giorni[S.pistaGiorno];
+}
+function toggleBiciGiorno() {
+  const g = _giornoPistaCorrente(); if (!g) return;
+  g.bici = !g.bici;
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  if (typeof savePista === "function") savePista();
+  disegna(); window.scrollTo(0, 0);
+}
+function _toggleBiciGiornoHTML(g) {
+  const on = !!(g && g.bici);
+  return `<label class="check" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+    <input type="checkbox" ${on ? "checked" : ""} onchange="toggleBiciGiorno()">
+    <span>🚴 <b>Giorno in bici</b> — tutto il giorno diventa bicicletta (minuti · tipo · RPE · battiti). Per l'infortunato o per una seduta aerobica in bici.</span>
+  </label>`;
+}
+function biciAddRiga(s) {
+  const g = _giornoPistaCorrente(); if (!g || !g.settimane || !g.settimane[s]) return;
+  (g.settimane[s].righe = g.settimane[s].righe || []).push(_biciDefRiga());
+  if (typeof savePista === "function") savePista(); disegna();
+}
+// tutte le settimane del giorno in bici (una card per settimana) — rimpiazza la tabella corsa/lanci
+function _settimaneBiciGiorno(m, g, listaSett) {
+  const esc = v => String(v == null ? "" : v).replace(/"/g, "&quot;");
+  const optSel = (val, arr) => arr.map(x => `<option value="${esc(x)}" ${String(val) === String(x) ? "selected" : ""}>${x}</option>`).join("");
+  return listaSett.map((sett, s) => {
+    const scar = (typeof isScaricoIdx === "function") ? isScaricoIdx(m, s) : false;
+    const nota = (sett.nota || "").trim();
+    const righe = (sett.righe || []).map((r, i) => `<tr>
+        <td><input value="${esc(r.contenuto)}" placeholder="es. fondo lungo" oninput="setPistaRigaVal(${s},${i},'contenuto',this.value)" style="min-width:120px"></td>
+        <td><input inputmode="numeric" value="${esc(r.bMin)}" placeholder="min" oninput="setPistaRigaVal(${s},${i},'bMin',this.value)" style="width:56px;min-width:56px"></td>
+        <td><select onchange="setPistaRiga(${s},${i},'bTipo',this.value)">${optSel(r.bTipo || "continuo", BICI_TIPI)}</select></td>
+        <td><input inputmode="decimal" value="${esc(r.bRpe)}" placeholder="RPE" oninput="setPistaRigaVal(${s},${i},'bRpe',this.value)" style="width:54px;min-width:54px"></td>
+        <td><input value="${esc(r.bFc)}" placeholder="es. 130-150" oninput="setPistaRigaVal(${s},${i},'bFc',this.value)" style="width:90px;min-width:90px"></td>
+        <td><input value="${esc(r.rec)}" placeholder="rec" oninput="setPistaRigaVal(${s},${i},'rec',this.value)" style="width:62px;min-width:62px"></td>
+        <td><button class="chiudi" style="font-size:14px" onclick="pistaDelRiga(${s},${i})" aria-label="Rimuovi">✕</button></td>
+      </tr>`).join("");
+    return `<div class="card"${scar ? ' style="border-color:rgba(240,168,60,.45)"' : ""}>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <p style="font-weight:600;font-size:13px;margin:0">Settimana ${s + 1}</p>
+        <span class="pill" style="background:rgba(77,154,255,.15);color:var(--blu)">🚴 Bici</span>
+        ${scar ? `<span class="pill p-giallo">scarico</span>` : ""}
+      </div>
+      <div class="p-scroll"><table class="ptab pista-w">
+        <thead><tr><th>Contenuto / focus</th><th>Min</th><th>Tipo</th><th>RPE</th><th>Battiti (FC)</th><th>Rec</th><th></th></tr></thead>
+        <tbody>${righe}</tbody>
+      </table></div>
+      <div style="margin-top:8px"><button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="biciAddRiga(${s})">＋ riga</button></div>
+      <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
+    </div>`;
+  }).join("");
+}
+
+// ===================== SUPERFICIE strada / trail (mezzofondo) =====================
+// Flag per giorno: pista/campo · strada · trail. Se strada/trail → dislivello D+/D- (obiettivo del coach,
+// oppure lasciati vuoti e segnati dall'atleta a fine seduta col resoconto del percorso — Parte 2).
+function setSuperficieGiorno(val) {
+  const g = _giornoPistaCorrente(); if (!g) return;
+  g.superficie = val || "";
+  if (typeof savePista === "function") savePista();
+  disegna();
+}
+function setDislivelloGiorno(campo, val) {
+  const g = _giornoPistaCorrente(); if (!g) return;
+  g[campo] = val;   // dPos / dNeg
+  if (typeof savePista === "function") savePista();
+}
+function _trailGiornoHTML(g) {
+  const sup = (g && g.superficie) || "";
+  const seg = (v, l) => `<button class="btn ${sup === v ? "" : "btn-2"}" style="width:auto;padding:7px 12px" onclick="setSuperficieGiorno('${v}')">${l}</button>`;
+  const campi = (sup === "trail" || sup === "strada") ? `<div class="griglia2" style="margin-top:10px">
+      <div><label class="lab">Dislivello + (m) <span style="color:var(--txt3)">obiettivo</span></label>
+        <input inputmode="numeric" value="${(g.dPos || "")}" placeholder="es. 300" oninput="setDislivelloGiorno('dPos',this.value)" style="margin-top:4px"></div>
+      <div><label class="lab">Dislivello − (m)</label>
+        <input inputmode="numeric" value="${(g.dNeg || "")}" placeholder="es. 300" oninput="setDislivelloGiorno('dNeg',this.value)" style="margin-top:4px"></div>
+    </div>
+    <p class="et" style="margin-top:6px;color:var(--txt3)">Puoi lasciarli vuoti: a fine allenamento l'atleta segna il dislivello reale e com'era il percorso.</p>` : "";
+  return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+    <label class="lab" style="display:block">Superficie</label>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      ${seg("", "Pista / campo")}${seg("strada", "🛣 Strada")}${seg("trail", "⛰ Trail")}
+    </div>${campi}
+  </div>`;
+}
+
 // riscaldamento del giorno: 4 tipi (attivazione/mobilità/andature/ostacoli), ognuno on/off + protocollo scelto
 const RISC_TIPI_PISTA = [["attivazione", "Attivazione"], ["mobilita", "Mobilità"], ["andature", "Andature"], ["ostacoli", "Ostacoli"]];
 function riscInit(g) {
@@ -1117,6 +1210,7 @@ function vistaProgrammaPista() {
       <label class="lab" style="display:block;margin-top:12px">Esercizi speciali</label>
       <button class="btn btn-2" style="margin-top:6px;text-align:left" onclick="apriSpeciali()">${specialiRiassunto(g)}</button>
       ${typeof _selCopiaGiorno === "function" ? _selCopiaGiorno(m.giorni, S.pistaGiorno, "copiaGiornoPista") : ""}
+      ${typeof _toggleBiciGiornoHTML === "function" ? _toggleBiciGiornoHTML(g) : ""}
     </div>`;
 
   // le settimane del giorno (numero dal ciclo del mesociclo)
@@ -1124,7 +1218,7 @@ function vistaProgrammaPista() {
   const copiaBtn = listaSett.length > 1
     ? `<button class="btn btn-2" style="margin-bottom:11px" onclick="pistaCopiaSettimana()">⧉ Copia settimana 1 sulle altre${m.ciclo && m.ciclo !== "1" ? ` (scarico −${scaricoPctVal(m)}% auto)` : ""}</button>`
     : "";
-  const settimane = listaSett.map((sett, s) => {
+  const settimane = (g.bici && typeof _settimaneBiciGiorno === "function") ? _settimaneBiciGiorno(m, g, listaSett) : listaSett.map((sett, s) => {
     const scar = isScaricoIdx(m, s);
     const nota = (sett.nota || "").trim();
     const righe = sett.righe.map((r, i) => {
