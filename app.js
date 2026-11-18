@@ -42,38 +42,8 @@ function _gateProgAtleta(tipo) {
   const lab = tipo === "palestra" ? "palestra" : "pista";
   return (typeof selettoreProgGruppo === "function" ? selettoreProgGruppo() : "") + `<div class="card" style="border-color:var(--blu)">
     <p class="et" style="margin:0"><b>👤 ${a.nome}</b> segue il <b>programma MADRE</b> del gruppo per la ${lab}.</p>
-    <p class="et" style="margin:8px 0 0">Per cambiarlo <b>solo per ${a.nome}</b> (aggiungere giorni, scegliere esercizi, ecc.) crea un <b>programma personale</b>: parte da una copia dell'attuale madre e le modifiche <b>non toccano gli altri</b>.</p>
-    <button class="btn" style="margin-top:10px" onclick="creaProgAtletaTipo('${tipo}')">✎ Crea programma personale (copia del madre)</button>
-    ${(() => {
-      const fonti = (typeof _fontiCopiaMeso === "function") ? _fontiCopiaMeso(tipo === "palestra" ? "palestra" : "pista") : [];
-      if (!fonti.length) return "";
-      const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-      return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-        <p class="et" style="margin:0 0 6px">Oppure <b>copia tutto il programma da un altro atleta</b> (${tipo === "palestra" ? "palestra" : "stessa disciplina"}): parti dal suo intero programma e poi lo ritocchi. I tempi e i carichi si calcolano comunque sui dati di <b>${a.nome}</b>.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <select id="copiaProgSrc" style="flex:1;min-width:150px"><option value="">— scegli l'atleta da cui copiare —</option>${fonti.map(f => `<option value="${f.id}">${esc(f.nome)}</option>`).join("")}</select>
-          <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="creaProgAtletaDaAtleta('${tipo}',(document.getElementById('copiaProgSrc')||{}).value)">⧉ Copia programma</button>
-        </div>
-      </div>`;
-    })()}</div>`;
-}
-// crea il programma personale copiando l'INTERO programma (tutti i mesocicli) di un altro atleta
-function creaProgAtletaDaAtleta(tipo, srcId) {
-  const id = S.progAtleta, a = DEMO.atleti.find(x => x.id === id); if (!a) return;
-  if (!srcId) { alert("Scegli prima l'atleta da cui copiare il programma."); return; }
-  const pal = tipo === "palestra";
-  const store = pal ? (DEMO.palAtleta = DEMO.palAtleta || {}) : (DEMO.pistaAtleta = DEMO.pistaAtleta || {});
-  if (store[id]) { alert("Esiste già un programma personale per questo atleta."); return; }
-  const srcProg = store[srcId], src = DEMO.atleti.find(x => x.id === srcId);
-  if (!srcProg || !(srcProg.mesocicli || []).length) { alert("Quell'atleta non ha un programma " + (pal ? "palestra" : "pista") + " personale da copiare."); return; }
-  const clone = JSON.parse(JSON.stringify(srcProg));
-  clone.atletaRif = id;   // i carichi/tempi si ricalcolano sui dati di QUESTO atleta, non di quello copiato
-  store[id] = clone;
-  if (pal) { if (DEMO.draftPalAtleta) delete DEMO.draftPalAtleta[id]; } else { if (DEMO.draftPistaAtleta) delete DEMO.draftPistaAtleta[id]; }
-  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
-  if (typeof salvaCustom === "function") salvaCustom();
-  disegna(); window.scrollTo(0, 0);
-  if (typeof alert === "function") alert("✓ Programma copiato da " + ((src && src.nome) || "atleta") + " per " + a.nome + ".\nOra puoi ritoccarlo liberamente: tempi e carichi usano i dati di " + a.nome + ".");
+    <p class="et" style="margin:8px 0 0">Per cambiarlo <b>solo per ${a.nome}</b> (aggiungere giorni, scegliere esercizi, ecc.) crea un <b>programma personale</b>: parte da una copia dell'attuale madre e le modifiche <b>non toccano gli altri</b>. Una volta dentro, puoi anche <b>copiare un mesociclo da un altro atleta</b> (scegli atleta e mesociclo).</p>
+    <button class="btn" style="margin-top:10px" onclick="creaProgAtletaTipo('${tipo}')">✎ Crea programma personale per ${a.nome}</button></div>`;
 }
 function selettoreProgGruppo() {
   const atl = S.progAtleta ? DEMO.atleti.find(x => x.id === S.progAtleta) : null;
