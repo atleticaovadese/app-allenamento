@@ -35,14 +35,21 @@ function gruppoDi(a) {
   const g = GRUPPI.find(x => x[2].includes(d));
   return g ? g[0] : "vel"; // default: velocisti/saltatori (il sistema principale)
 }
-function nomeGruppo(k) { const g = GRUPPI.find(x => x[0] === k); return g ? g[1] : "Tutti"; }
-function atletiDelGruppo(gk) { return DEMO.atleti.filter(a => gruppoDi(a) === gk); }
-function setGruppo(gk) { S.gruppo = gk; disegna(); }   // cambia disciplina restando dove sei
+// gruppo di SCHERMO (per i tab e le liste): gli atleti "online" vivono in una scheda a sé, staccati dalla
+// disciplina. La disciplina VERA (gruppoDi) resta per programmi, tempi ed editor pista/palestra/mezzo.
+function atletaEOnline(a) { const id = a && (a.id || a); return !!(id && DEMO.atletaOnline && DEMO.atletaOnline[id]); }
+function gruppoSchermo(a) { return atletaEOnline(a) ? "online" : gruppoDi(a); }
+function nomeGruppo(k) { if (k === "online") return "Online"; const g = GRUPPI.find(x => x[0] === k); return g ? g[1] : "Tutti"; }
+function atletiDelGruppo(gk) { return DEMO.atleti.filter(a => gruppoSchermo(a) === gk); }
+function setGruppo(gk) { S.gruppo = gk; disegna(); }   // cambia scheda restando dove sei
 function chipsGruppi() {
-  return `<div class="tabbar" style="margin-bottom:11px">${GRUPPI.map(([k, l]) => {
+  const nOnline = (DEMO.atleti || []).filter(a => atletaEOnline(a)).length;
+  const chips = GRUPPI.map(([k, l]) => {
     const n = atletiDelGruppo(k).length;
     return `<button class="${S.gruppo === k ? "on" : ""}" onclick="setGruppo('${k}')">${l}${n ? " · " + n : ""}</button>`;
-  }).join("")}</div>`;
+  });
+  if (nOnline) chips.push(`<button class="${S.gruppo === "online" ? "on" : ""}" onclick="setGruppo('online')">💻 Online · ${nOnline}</button>`);
+  return `<div class="tabbar" style="margin-bottom:11px">${chips.join("")}</div>`;
 }
 
 // testo compatto di una riga di programma (pista vel/lanci/mezzo o palestra) — per la vista "Oggi"
@@ -107,11 +114,12 @@ function vistaOggiCoach() {
   const extraOggi = info.filter(x => x.extra.length);
 
   // --- PROGRAMMA MADRE di OGGI (solo la giornata) + chi ha un programma DIVERSO dal madre oggi ---
-  const madreP = _madreRigheOggi(g, "pista", oggi);
-  const madreG = _madreRigheOggi(g, "palestra", oggi);
+  const online = (g === "online");   // scheda Online: nessun programma madre di gruppo (tutti personali)
+  const madreP = online ? null : _madreRigheOggi(g, "pista", oggi);
+  const madreG = online ? null : _madreRigheOggi(g, "palestra", oggi);
   const _rowsTxt = (righe, tipo) => (righe || []).map(r => _txtRigaProg(r, g, tipo)).filter(Boolean);
   const diffAtl = [];
-  lista.forEach(a => {
+  if (!online) lista.forEach(a => {
     const diffs = [];
     [["pista", madreP], ["palestra", madreG]].forEach(([tipo, madre]) => {
       const atlR = (typeof righeGiornoAtleta === "function") ? righeGiornoAtleta(a, oggi, tipo) : [];
@@ -123,7 +131,9 @@ function vistaOggiCoach() {
     if (diffs.length) diffAtl.push({ a, diffs });
   });
   const madreVuoto = (!madreP || !madreP.righe.length) && (!madreG || !madreG.righe.length);
-  const madreHtml = `<p class="sez">Programma madre di oggi · ${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""}</p>
+  const madreHtml = online
+    ? `<div class="card" style="border-color:rgba(123,192,67,.35)"><p class="et" style="margin:0">💻 <b>Atleti online</b> — ognuno ha il suo programma personale, non c'è un programma madre di gruppo. Qui sotto trovi chi si allena oggi e lo stato del diario.</p></div>`
+    : `<p class="sez">Programma madre di oggi · ${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""}</p>
     <div class="card" style="border-color:rgba(77,154,255,.35)">
       ${madreP ? `<p style="font-weight:600;margin:0 0 4px">🏃 Pista${madreP.giorno ? " · g" + madreP.giorno : ""}</p><p class="et" style="margin:0 0 ${madreG ? "10px" : "0"}">${_rowsTxt(madreP.righe, "pista").join(" · ") || "—"}</p>` : ""}
       ${madreG ? `<p style="font-weight:600;margin:0 0 4px">🏋 Palestra${madreG.giorno ? " · g" + madreG.giorno : ""}</p><p class="et" style="margin:0">${_rowsTxt(madreG.righe, "palestra").join(" · ") || "—"}</p>` : ""}
@@ -459,7 +469,7 @@ function notificheCoach(includiVisti) {
         else if (p != null) { const prev = storia.slice(1, 6).map(_notifPront).filter(x => x != null); if (prev.length >= 3) { const med = prev.reduce((s, x) => s + x, 0) / prev.length; if (med - p >= 1.0) add(a, "prontezza", "y", storia[0].data, `Calo di condizione: prontezza ${p.toFixed(1)} (media recente ${med.toFixed(1)})`, "pr"); } }
       }
       const ac = parseFloat(String(m.acwr).replace(",", "."));
-      if (!isNaN(ac)) {
+      if (!isNaN(ac) && m.acwrOk) {   // solo se l'ACWR è affidabile (~4 settimane, ≥6 sedute): niente falsi allarmi
         if (ac > sog.acwrAlto) add(a, "acwr", "r", "", `ACWR alto ${ac.toFixed(2)}: picco di carico (rischio)`, "alto");
         else if (ac < 0.8) add(a, "acwr", "y", "", `ACWR basso ${ac.toFixed(2)}: carico giù / calo di condizione`, "basso");
       }
@@ -769,6 +779,17 @@ function vistaAtletaDettaglio() {
           <button class="btn btn-2" style="width:auto;padding:7px 12px;font-size:13px" onclick="azzeraAdattaAtleta('${a.id}')">Azzera i suoi adattamenti</button>
         </div>
       </div>` : (pro ? `<p class="et" style="margin-top:8px;color:var(--txt3)">Attivo: l'atleta può adattare. Non ha ancora modificato nulla.</p>` : "")}
+  </div>`;
+  })()}
+
+  ${(() => {
+    const onl = (typeof atletaEOnline === "function") && atletaEOnline(a.id);
+    return `<div class="card">
+    <p class="et" style="margin-bottom:6px">Atleta online</p>
+    <label class="check" style="margin:0">
+      <input type="checkbox" ${onl ? "checked" : ""} ${a.bloccato ? "disabled" : ""} onchange="toggleOnline('${a.id}')">
+      <span><b>Lo segui da remoto (online)</b> — finisce nella scheda «💻 Online», staccato dalla sua disciplina. Mantiene disciplina e specialità (${a.disciplina || "—"}) per programmi e tempi; di solito gli costruisci un programma personale.</span>
+    </label>
   </div>`;
   })()}
 
@@ -1642,6 +1663,14 @@ function togglePro(id) {
   if (typeof salvaCustom === "function") salvaCustom();
   disegna();
 }
+function toggleOnline(id) {
+  if (typeof atletaBloccato === "function" && atletaBloccato(id)) { alert("🔒 Scheda dimostrativa: non modificabile."); return; }
+  DEMO.atletaOnline = DEMO.atletaOnline || {};
+  if (DEMO.atletaOnline[id]) delete DEMO.atletaOnline[id]; else DEMO.atletaOnline[id] = true;
+  if (typeof salvaCustom === "function") salvaCustom();
+  if (S.gruppo === "online" && !Object.keys(DEMO.atletaOnline).length) S.gruppo = "vel";   // tolto l'ultimo online: esci dalla scheda
+  disegna();
+}
 // il coach azzera gli adattamenti fatti dall'atleta (torna al programma del coach/madre)
 function azzeraAdattaAtleta(aid) {
   const a = DEMO.atleti.find(x => x.id === aid);
@@ -2023,7 +2052,7 @@ function _agHaPersonale(a, tipo) {
     : !!(DEMO.pistaAtleta && DEMO.pistaAtleta[a.id] && (DEMO.pistaAtleta[a.id].mesocicli || []).length);
 }
 function _agInit() {
-  if (!S.adattaGruppo) S.adattaGruppo = { gruppo: (S.gruppo || "vel"), tipo: "palestra", mi: 0, gi: 0, wk: 0 };
+  if (!S.adattaGruppo) S.adattaGruppo = { gruppo: ((S.gruppo && S.gruppo !== "online") ? S.gruppo : "vel"), tipo: "palestra", mi: 0, gi: 0, wk: 0 };   // Adatta gruppo lavora sul madre: mai "online"
   const s = S.adattaGruppo, prog = _agProg(), nM = (prog && prog.mesocicli || []).length;
   if (s.mi >= nM) s.mi = Math.max(0, nM - 1);
   const sch = _agGiorniSched();
@@ -2488,7 +2517,7 @@ function _commentoScreening(atleta, giorni, ctx) {
     if (sedute > prevSed) { score += 0.5; perche.push(`più costante del periodo prima (${prevSed}→${sedute} allenamenti)`); }
     else { score -= 0.5; perche.push(`meno costante del periodo prima (${prevSed}→${sedute} allenamenti)`); }
   }
-  const _acwrN = parseFloat(m.acwr); if (!isNaN(_acwrN) && _acwrN > 1.5) { score -= 0.5; perche.push("carico in salita rapida (ACWR alto ⚠)"); }
+  const _acwrN = parseFloat(m.acwr); if (!isNaN(_acwrN) && _acwrN > 1.5 && m.acwrOk) { score -= 0.5; perche.push("carico in salita rapida (ACWR alto ⚠)"); }
   const _prN = parseFloat(m.prontezza); if (!isNaN(_prN) && _prN < 2.5) { score -= 0.5; perche.push("prontezza bassa ⚠"); }
   const pochiDati = sedute < 6;
   let verd;

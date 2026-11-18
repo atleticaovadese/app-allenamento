@@ -98,12 +98,13 @@ function eserciziTipo(tipo) {
     return zone.filter(g => g.items.length);
   }
   if (tipo === "Andature") {   // tutti i video della Libreria Video, divisi per categoria (named first)
-    const ordine = ["Running drills (andature)", "Basic taps (piedi e caviglia)", "Mobility drills", "Starting point"];
+    const ordine = ["Mobility drills", "Basic taps (piedi e caviglia)", "Running drills (andature)", "Starting point"];
     const nomi = ordine.concat(V.map(c => c.cat).filter(n => ordine.indexOf(n) < 0));
     return nomi.map(n => ({ cat: n, items: cat(n) })).filter(g => g.items.length);
   }
   if (tipo === "Ostacoli")
     return [{ cat: "Ostacoli", items: cat("Ostacoli") }];
+  // (helper di ordinamento definiti sotto: ordinaVociRisc / _normalizzaOrdineRisc)
   if (tipo === "Core") {   // esercizi di core (dalla libreria sala, gruppi "CORE…"), raggruppati per zona
     const voci = (typeof _coreLibVoci === "function") ? _coreLibVoci() : [];
     const zone = [];
@@ -111,6 +112,34 @@ function eserciziTipo(tipo) {
     return zone.filter(g => g.items.length);
   }
   return [];
+}
+
+// ordina le voci di una routine secondo l'ordine delle categorie del suo tipo (lo stesso del selettore):
+// es. Andature → Mobility drills · Basic taps · Running drills · Starting point. Le voci scritte a mano
+// (non presenti in libreria) restano in fondo, nell'ordine in cui sono state inserite.
+function ordinaVociRisc(voci, tipo) {
+  const arr = Array.isArray(voci) ? voci.slice() : [];
+  if (arr.length < 2 || typeof eserciziTipo !== "function") return arr;
+  let gruppi = [];
+  try { gruppi = eserciziTipo(tipo) || []; } catch (e) { return arr; }
+  const rank = {};
+  gruppi.forEach((g, ci) => (g.items || []).forEach((it, ii) => { if (rank[it.n] === undefined) rank[it.n] = ci * 1000 + ii; }));
+  const rk = v => {
+    if (rank[v] !== undefined) return rank[v];
+    let best = 1e9;   // voce con dose attaccata o scritta a mano: match per prefisso, altrimenti in fondo
+    Object.keys(rank).forEach(n => { if (String(v).indexOf(n) === 0 && rank[n] < best) best = rank[n]; });
+    return best;
+  };
+  return arr.map((v, i) => ({ v, i, r: rk(v) })).sort((a, b) => (a.r - b.r) || (a.i - b.i)).map(o => o.v);
+}
+// riordina IN MEMORIA tutte le routine salvate (chiamata quando si carica il bundle): le andature già
+// create si vedono subito in ordine, senza riscrivere nulla sul DB (si persiste al prossimo salvataggio).
+function _normalizzaOrdineRisc() {
+  if (!DEMO || !DEMO.schede) return;
+  const tipi = DEMO.schedeTipo || {};
+  Object.keys(DEMO.schede).forEach(n => {
+    if (Array.isArray(DEMO.schede[n])) DEMO.schede[n] = ordinaVociRisc(DEMO.schede[n], tipi[n] || "Attivazione");
+  });
 }
 
 function nuovaRoutine() { S.routineEdit = { nome: "", voci: [], orig: null, tipo: "Attivazione" }; disegna(); window.scrollTo(0, 0); }
@@ -192,6 +221,7 @@ function aggiungiSelezionati() {
   if (!sel.length) { alert("Spunta almeno un esercizio."); return; }
   const r = S.routineEdit;
   sel.forEach(n => { if (!r.voci.some(v => v === n || String(v).indexOf(n) === 0)) r.voci.push(n); });
+  r.voci = ordinaVociRisc(r.voci, r.tipo);   // mostra subito gli esercizi in ordine di categoria
   disegna(); window.scrollTo(0, 0);
 }
 function aggiungiVoce() {
@@ -221,7 +251,7 @@ function salvaRoutine() {
   }
   DEMO.schedeTipo = DEMO.schedeTipo || {};
   if (r.orig && r.orig !== nome) { delete DEMO.schede[r.orig]; delete DEMO.schedeTipo[r.orig]; }  // rinominata
-  DEMO.schede[nome] = [...r.voci];
+  DEMO.schede[nome] = ordinaVociRisc(r.voci, r.tipo || "Attivazione");   // salva già in ordine di categoria
   DEMO.schedeTipo[nome] = r.tipo || "Attivazione";   // tipo della routine (per il riscaldamento della pista)
   if (typeof salvaCustom === "function") salvaCustom();
   S.routineEdit = null; disegna(); window.scrollTo(0, 0);

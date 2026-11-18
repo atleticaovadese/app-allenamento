@@ -1,0 +1,8 @@
+# Appunti interni di lavoro (non fanno parte dell'app)
+_APPUNTI*.md
+
+# File temporanei / di sistema
+*.tmp
+*.log
+.DS_Store
+Thumbs.db

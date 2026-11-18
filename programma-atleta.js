@@ -358,6 +358,79 @@ function _estendiApplica(tipo, inizio) {
 }
 function pistaEstendiAiPersonali() { estendiMesoAiPersonali("pista"); }
 function palEstendiAiPersonali() { estendiMesoAiPersonali("palestra"); }
+
+// ---------- COPIA un mesociclo DA un ALTRO atleta nel programma in costruzione (madre o personale) ----------
+// gruppo del contesto corrente (serve per la pista: vel/lanci/mezzo hanno schemi di riga diversi)
+function _gruppoCorrenteProg() {
+  if (S.progAtleta) { const a = (DEMO.atleti || []).find(x => x.id === S.progAtleta); return (a && typeof gruppoDi === "function") ? gruppoDi(a) : "vel"; }
+  return S.progGruppo || "vel";
+}
+// atleti con un programma PERSONALE del tipo richiesto (pista: stesso gruppo) e almeno un mesociclo
+function _fontiCopiaMeso(tipo) {
+  const pal = tipo === "palestra";
+  const g = _gruppoCorrenteProg();
+  const store = pal ? DEMO.palAtleta : DEMO.pistaAtleta;
+  if (!store) return [];
+  return (DEMO.atleti || []).filter(a => {
+    if (!a || a.bloccato || a.id === S.progAtleta) return false;
+    const prg = store[a.id];
+    if (!prg || !(prg.mesocicli || []).length) return false;
+    if (!pal && typeof gruppoDi === "function" && gruppoDi(a) !== g) return false;   // pista: solo stesso gruppo
+    return true;
+  }).sort((x, y) => String(x.nome || "").localeCompare(String(y.nome || ""), "it", { sensitivity: "base" }));
+}
+// card con il pulsante (mostrata solo se c'è almeno una fonte)
+function _cardCopiaMesoDaAtleta(tipo) {
+  if (!_fontiCopiaMeso(tipo).length) return "";
+  const pal = tipo === "palestra";
+  return `<div class="card" style="border-color:rgba(123,192,67,.4)">
+      <p class="et" style="margin:0 0 8px">Puoi <b>copiare un mesociclo da un altro atleta</b> (${pal ? "palestra" : "pista, stesso gruppo"}) che ha un programma personale: lo aggiunge come <b>nuovo mesociclo</b> qui. Tempi e carichi restano calcolati sui dati ${S.progAtleta ? "di questo atleta" : "di ogni atleta"}.</p>
+      <button class="btn btn-2" style="width:auto;padding:8px 14px" onclick="copiaMesoDaAtletaApri('${tipo}')">⧉ Copia un mesociclo da un altro atleta</button>
+    </div>`;
+}
+// finestra (bottom sheet): elenco piatto degli atleti-fonte e dei loro mesocicli, con «Copia qui»
+function copiaMesoDaAtletaApri(tipo) {
+  const pal = tipo === "palestra";
+  const fonti = _fontiCopiaMeso(tipo);
+  if (!fonti.length) { alert("Nessun atleta con un programma " + (pal ? "palestra" : "pista di questo gruppo") + " personale da cui copiare."); return; }
+  const store = pal ? DEMO.palAtleta : DEMO.pistaAtleta;
+  const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const righe = fonti.map(a => {
+    const mc = (store[a.id].mesocicli || []);
+    const voci = mc.map((m, i) => {
+      const et = (m.focus || m.blocco || ("Meso " + (i + 1)));
+      const dt = m.inizio ? " · dal " + _dataItBreve(m.inizio) : "";
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)">
+        <span>Meso ${i + 1}: <b>${esc(et)}</b><span class="et">${dt}</span></span>
+        <button class="btn btn-2" style="width:auto;padding:6px 12px;font-size:12px;flex:none" onclick="copiaMesoDaAtletaFai('${tipo}','${a.id}',${i})">Copia qui</button>
+      </div>`;
+    }).join("");
+    return `<div style="margin-bottom:12px"><p class="sez" style="margin:4px 0 2px">${esc(a.nome)}</p>${voci}</div>`;
+  }).join("");
+  const body = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+      <h3 style="margin:0">Copia da un altro atleta</h3>
+      <button class="chiudi" style="font-size:18px" onclick="_estendiChiudi()" aria-label="Chiudi">✕</button>
+    </div>
+    <p class="et" style="margin:0 0 12px;color:var(--txt3)">Scegli il mesociclo: verrà aggiunto come <b style="color:var(--txt)">nuovo mesociclo</b> nel programma ${pal ? "palestra" : "pista"} ${S.progAtleta ? "di questo atleta" : "madre del gruppo"}. Poi controlla la <b>data d'inizio</b> e premi <b>Salva programma</b>.</p>
+    ${righe}`;
+  _estendiApri(body);
+}
+function copiaMesoDaAtletaFai(tipo, aid, mi) {
+  const pal = tipo === "palestra";
+  const store = pal ? DEMO.palAtleta : DEMO.pistaAtleta;
+  const src = store && store[aid] && (store[aid].mesocicli || [])[mi];
+  if (!src) { _estendiChiudi(); return; }
+  const dest = pal ? palestraInit() : pistaInit();
+  if (!dest || !Array.isArray(dest.mesocicli)) { _estendiChiudi(); return; }
+  dest.mesocicli.push(JSON.parse(JSON.stringify(src)));
+  const nuovo = dest.mesocicli.length - 1;
+  if (pal) { S.palMeso = nuovo; S.palGiorno = 0; } else { S.pistaMeso = nuovo; S.pistaGiorno = 0; }
+  _estendiChiudi();
+  const a = (DEMO.atleti || []).find(x => x.id === aid);
+  disegna(); window.scrollTo(0, 0);
+  if (typeof alert === "function") alert("✓ Mesociclo copiato da " + ((a && a.nome) || "atleta") + " come nuovo Meso " + (nuovo + 1) + ".\nControlla la data d'inizio, poi premi «Salva programma».");
+}
 // flag on/off "questo atleta segue il madre"
 function toggleAssegna(id) {
   DEMO.programmaAssegnato = DEMO.programmaAssegnato || {};

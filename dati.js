@@ -31,7 +31,7 @@ function bundleCustom() {
     reportNote: DEMO.reportNote || {}, atletaSesso: DEMO.atletaSesso || {}, atletaFoto: DEMO.atletaFoto || {}, atletaAntropo: DEMO.atletaAntropo || {}, programmaAssegnato: DEMO.programmaAssegnato || {},
     overrideGiorni: DEMO.overrideGiorni || {}, overrideGiorniSett: DEMO.overrideGiorniSett || {}, overrideContenuto: DEMO.overrideContenuto || {},
     pistaAtleta: DEMO.pistaAtleta || {}, palAtleta: DEMO.palAtleta || {},
-    atletaPro: DEMO.atletaPro || {},
+    atletaPro: DEMO.atletaPro || {}, atletaOnline: DEMO.atletaOnline || {},
     coreRoutine: DEMO.coreRoutine || {},
     modGiorno: DEMO.modGiorno || {}
   };
@@ -42,6 +42,7 @@ function applicaBundle(c) {
   if (typeof mergeEserciziCustom === "function") mergeEserciziCustom(DEMO.customEsercizi);
   if (c.schede) DEMO.schede = c.schede;
   if (c.schedeTipo) DEMO.schedeTipo = c.schedeTipo;
+  if (typeof _normalizzaOrdineRisc === "function") _normalizzaOrdineRisc();   // andature già create → in ordine di categoria
   if (c.piano) DEMO.piano = c.piano;
   if (c.pianoAtleta) DEMO.pianoAtleta = c.pianoAtleta;
   if (c.pista) DEMO.pista = c.pista;
@@ -73,6 +74,7 @@ function applicaBundle(c) {
   if (c.pistaAtleta) DEMO.pistaAtleta = c.pistaAtleta;
   if (c.palAtleta) DEMO.palAtleta = c.palAtleta;
   if (c.atletaPro) DEMO.atletaPro = c.atletaPro;   // atleti "pro" (possono adattare il proprio programma) — lo decide il coach
+  if (c.atletaOnline) DEMO.atletaOnline = c.atletaOnline;   // atleti seguiti da remoto → scheda «Online» (staccati dalla disciplina)
   if (c.coreRoutine) DEMO.coreRoutine = c.coreRoutine;   // routine di core salvate (riusabili nei giorni)
   DEMO.modGiorno = c.modGiorno || {};   // modifiche "una tantum" per singola data (coach)
 }

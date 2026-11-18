@@ -304,6 +304,7 @@ async function caricaDati() {
   DEMO.pista = {}; DEMO.palestra = {};   // programmi per-gruppo: creati vuoti su richiesta da pistaDi/palDi(gruppo)
   DEMO.pistaAtleta = {}; DEMO.palAtleta = {};   // programmi PERSONALI per atleta (override completo del madre)
   DEMO.atletaPro = {};   // flag "pro" per atleta (arriva dal bundle del coach)
+  DEMO.atletaOnline = {};   // flag "online" per atleta (scheda a sé, arriva dal bundle del coach)
   DEMO.adattaSelf = {};  // auto-adattamenti del programma fatti dall'atleta pro (tabella atleta_adatta)
 
   // programmi & dati custom salvati nel DB (sovrascrivono demo/locale se presenti)
@@ -705,31 +706,57 @@ async function salvaExtraDB(atletaId, ex) {
   catch (e) { _codaAggiungi(payload); }
 }
 
-// carico reale dalle sedute svolte (sRPE = rpe × durata): ACWR + forma (TSB) per atleta
+// carico reale dalle sedute svolte (sRPE = rpe × durata): ACWR + forma (TSB) per atleta.
+// Metodo EWMA (medie mobili esponenziali, Williams et al. 2017): rispetto alla media semplice smussa i
+// picchi di una singola seduta dura e tiene conto dei giorni di riposo → molti meno falsi "rischio alto".
+// Il rosso scatta solo quando i dati sono affidabili (~4 settimane e ≥6 sedute): m.acwrOk segnala questo
+// agli altri punti (alert notifiche e punteggio prontezza), così nessuno dei tre grida al lupo troppo presto.
 function ricalcolaCarico(svolte) {
-  const dayMs = 86400000, oggi = Date.now(), perA = {};
+  const dayMs = 86400000, perA = {};
   (svolte || []).forEach(sv => {
     const load = (Number(sv.rpe) || 0) * (Number(sv.durata_min) || 0);
     if (!load) return;
     (perA[sv.atleta_id] = perA[sv.atleta_id] || []).push({ t: new Date(sv.data + "T00:00:00").getTime(), load });
   });
+  const oggiMid = new Date((new Date()).toISOString().slice(0, 10) + "T00:00:00").getTime();
   Object.keys(perA).forEach(aid => {
     const arr = perA[aid];
-    const win = g => arr.filter(x => (oggi - x.t) / dayMs < g).reduce((s, x) => s + x.load, 0);
     const m = DEMO.mon[aid] = DEMO.mon[aid] || monDefault();
-    // ACWR e forma (TSB) hanno senso solo con un carico CRONICO reale (~4 settimane). Con poche sedute
-    // acuto≈cronico → ACWR sempre ~4 e forma molto negativa: sono ARTEFATTI, non un vero rischio.
     const firstT = Math.min.apply(null, arr.map(x => x.t));
-    const spanGiorni = (oggi - firstT) / dayMs;
-    if (spanGiorni < 21 || arr.length < 3) {
-      m.acwr = "—"; m.forma = "—"; m.stato = "v"; m.caricoInfo = "In raccolta dati: ACWR e forma diventano affidabili dopo ~4 settimane di allenamenti.";
+    const spanGiorni = Math.round((oggiMid - firstT) / dayMs);
+    const nSess = arr.length;
+    m.acwrOk = false;
+    // servono almeno ~2 settimane e 3 sedute per dare anche solo un numero sensato
+    if (spanGiorni < 14 || nSess < 3) {
+      m.acwr = "—"; m.forma = "—"; m.stato = "v";
+      m.caricoInfo = "In raccolta dati: ACWR e forma diventano affidabili dopo ~4 settimane di allenamenti.";
       return;
     }
-    m.caricoInfo = "";
-    const acute = win(7), chronic = win(28);
-    const acwr = chronic > 0 ? Math.round(acute / (chronic / 4) * 100) / 100 : null;
-    const tsb = Math.round((chronic / 28 - acute / 7) * 10) / 10;
-    if (acwr != null) { m.acwr = String(acwr); m.forma = (tsb >= 0 ? "+" : "") + tsb; m.stato = (acwr > 1.5 || acwr < 0.8) ? "r" : (acwr > 1.3 ? "w" : "v"); }
+    // carico giornaliero (somma dei sRPE del giorno), poi EWMA acuto (7 g) e cronico (28 g) fino a OGGI.
+    const perDay = {};
+    arr.forEach(x => { const d = Math.round((x.t - firstT) / dayMs); perDay[d] = (perDay[d] || 0) + x.load; });
+    const lastDay = Math.round((oggiMid - firstT) / dayMs);
+    const la = 2 / (7 + 1), lc = 2 / (28 + 1);   // costanti di decadimento (λ = 2/(N+1))
+    let ewA = 0, ewC = 0, seeded = false;
+    for (let d = 0; d <= lastDay; d++) {
+      const L = perDay[d] || 0;                   // giorno senza seduta = carico 0 (l'EWMA decade)
+      if (!seeded) { ewA = ewC = L; seeded = true; }
+      else { ewA = L * la + ewA * (1 - la); ewC = L * lc + ewC * (1 - lc); }
+    }
+    const acwr = ewC > 0 ? Math.round(ewA / ewC * 100) / 100 : null;
+    const tsb = Math.round((ewC - ewA) * 10) / 10;   // forma = fitness (cronico) − fatica (acuto)
+    if (acwr == null) { m.acwr = "—"; m.forma = "—"; m.stato = "v"; m.caricoInfo = "In raccolta dati."; return; }
+    m.acwr = String(acwr);
+    m.forma = (tsb >= 0 ? "+" : "") + tsb;
+    if (spanGiorni < 28 || nSess < 6) {
+      // numero mostrato ma NON affidabile: niente rosso finché il carico cronico non si è stabilizzato
+      m.stato = "v";
+      m.caricoInfo = "ACWR indicativo: diventa pienamente affidabile dopo ~4 settimane e almeno 6 sedute.";
+    } else {
+      m.acwrOk = true;
+      m.caricoInfo = "";
+      m.stato = (acwr > 1.5 || acwr < 0.8) ? "r" : (acwr > 1.3 ? "w" : "v");
+    }
   });
 }
 
