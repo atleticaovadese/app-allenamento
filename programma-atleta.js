@@ -61,7 +61,7 @@ function sedutaGen(id) { return (DEMO.seduteGen || []).find(s => s.id === id); }
 function _invalidaSeduteGen() { if (DEMO.seduteGen) DEMO.seduteGen = DEMO.seduteGen.filter(s => s.chiusa); }
 
 function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
-  if (g && g.bici) return null;   // giorno in bici: seduta/registrazione atleta nella Parte 2 (per ora non genera una seduta corsa)
+  if (g && g.bici) return _generaSedutaBici(g, giornoNum, settIdx, dataISO, meso, atleta, prog);   // giorno in bici
   const sett = g.settimane && g.settimane[settIdx];
   const _mi = (prog && prog.mesocicli) ? prog.mesocicli.indexOf(meso) : -1;
   const ovR = overrideRighe(atleta, "pista", _mi, giornoNum - 1, settIdx);
@@ -100,6 +100,26 @@ function generaSedutaPista(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
     speciali: (g.speciali || []).filter(r => r.es),
+    elementi, durata: null, rpe: null, fastidi: false, chiusa: false
+  });
+}
+// GIORNO IN BICI → seduta "bici": prescrizione a tempo (min · tipo · RPE · FC). L'atleta la vede e la chiude
+// con durata/RPE + FC reale + nota. Niente caselle tempi: la bici non si cronometra per ripetuta.
+function _generaSedutaBici(g, giornoNum, settIdx, dataISO, meso, atleta, prog) {
+  const sett = g.settimane && g.settimane[settIdx];
+  const righe = ((sett && sett.righe) || []).filter(r => r && (String(r.bMin || "").trim() || String(r.contenuto || "").trim() || (r.bTipo && r.bTipo !== "continuo")));
+  if (!righe.length) return null;
+  const aid = (atleta && atleta.id) || "x";
+  const elementi = righe.map((r, i) => ({
+    id: "e" + i, bici: true, contenuto: r.contenuto || "", min: r.bMin || "", tipo: r.bTipo || "continuo",
+    rpe: r.bRpe || "", fc: r.bFc || "", recupero: r.rec || "", tempi: null
+  }));
+  return _cacheSeduta({
+    id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", bici: true, giorno: giornoNum,
+    _gi: giornoNum - 1, _wk: settIdx, _tipoAdatta: "pista",
+    quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
+    focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "",
+    riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     elementi, durata: null, rpe: null, fastidi: false, chiusa: false
   });
 }

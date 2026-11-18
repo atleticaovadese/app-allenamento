@@ -15,7 +15,7 @@ function _datiBozza(s) {
 }
 function salvaBozzaSeduta(s) {
   if (!s || s.chiusa || !s.id) return;   // chiusa = già salvata nel DB, niente bozza
-  try { localStorage.setItem(_bozzaKey(s), JSON.stringify({ ts: Date.now(), tipo: s.tipo, durata: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, notaCoach: s.notaCoach || "", notaSessione: s.notaSessione || "", dati: _datiBozza(s) })); } catch (e) { }
+  try { localStorage.setItem(_bozzaKey(s), JSON.stringify({ ts: Date.now(), tipo: s.tipo, durata: s.durata, rpe: s.rpe, fastidi: !!s.fastidi, notaCoach: s.notaCoach || "", notaSessione: s.notaSessione || "", fcReale: s.fcReale || "", dPos: s.dPos ?? null, dNeg: s.dNeg ?? null, notaPercorso: s.notaPercorso || "", dati: _datiBozza(s) })); } catch (e) { }
 }
 function _rimuoviBozza(s) { if (s) { try { localStorage.removeItem(_bozzaKey(s)); } catch (e) { } } }
 function applicaBozza(s) {
@@ -29,6 +29,10 @@ function applicaBozza(s) {
   if (b.fastidi) s.fastidi = true;
   if (b.notaCoach) s.notaCoach = b.notaCoach;
   if (b.notaSessione) s.notaSessione = b.notaSessione;
+  if (b.fcReale) s.fcReale = b.fcReale;
+  if (b.dPos != null) s.dPos = b.dPos;
+  if (b.dNeg != null) s.dNeg = b.dNeg;
+  if (b.notaPercorso) s.notaPercorso = b.notaPercorso;
   const d = b.dati || {};
   if (s.tipo === "pista" && d.elementi) {
     const used = [];
@@ -179,8 +183,29 @@ function _cardScalaPista(s, e) {
   </div>`;
 }
 
+// ---------- BICI (seduta in bicicletta: prescrizione a tempo, chiusura con FC) ----------
+function vistaPistaBici(s) {
+  const esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const cards = (s.elementi || []).map(e => {
+    const meta = [e.tipo || "", e.rpe ? ("RPE " + e.rpe) : "", e.fc ? ("FC " + esc(e.fc)) : "", e.recupero ? ("rec " + esc(e.recupero)) : ""].filter(Boolean).join(" · ");
+    return `<div class="card">
+      ${e.contenuto ? `<p style="font-weight:600;font-size:15px;margin:0 0 6px;line-height:1.35">${esc(e.contenuto)}</p>` : ""}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="pill" style="background:rgba(77,154,255,.15);color:var(--blu)">🚴 Bici</span>
+        <h3 style="margin:0">${e.min ? esc(e.min) + " min" : "—"}</h3>
+      </div>
+      <p class="et" style="margin:6px 0 0">${meta || "—"}</p>
+    </div>`;
+  }).join("");
+  return `${typeof bloccoRiscaldamento === "function" ? bloccoRiscaldamento(s) : ""}
+  <div class="card" style="border-color:rgba(77,154,255,.35)"><p class="et" style="margin:0">🚴 <b>Seduta in bici.</b> Fai il lavoro indicato, poi segna qui sotto durata, RPE e — se ce l'hai — la frequenza cardiaca.</p></div>
+  ${cards}
+  ${bloccoChiusura(s)}`;
+}
+
 // ---------- PISTA ----------
 function vistaPista(s) {
+  if (s.bici && typeof vistaPistaBici === "function") return vistaPistaBici(s);      // seduta in bicicletta
   if (s.mezzo && typeof vistaPistaMezzo === "function") return vistaPistaMezzo(s);   // seduta mezzofondo/fondo
   if (s.lanci && typeof vistaPistaLanci === "function") return vistaPistaLanci(s);   // seduta lanci
   return `${bloccoRiscaldamento(s)}
@@ -628,6 +653,21 @@ function _ripristinaTimer() {
 
 // ---------- chiusura seduta ----------
 function bloccoChiusura(s) {
+  const esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const trail = (s.superficie === "strada" || s.superficie === "trail");
+  const fcBlocco = s.bici ? `<div style="margin-top:12px"><label class="lab">Frequenza cardiaca media (battiti) <span style="color:var(--txt3)">(se ce l'hai)</span></label>
+      <input inputmode="text" value="${esc(s.fcReale)}" placeholder="es. 142" onchange="segnaTestoSeduta('${s.id}','fcReale',this.value)" style="margin-top:6px;max-width:170px"></div>` : "";
+  const trailBlocco = trail ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+      <p class="et" style="margin:0 0 6px">${s.superficie === "trail" ? "⛰ Trail" : "🛣 Strada"}${(s.dPosTarget || s.dNegTarget) ? ` · obiettivo ${s.dPosTarget ? ("+" + s.dPosTarget) : ""}${s.dNegTarget ? (" / −" + s.dNegTarget) : ""} m` : ""} — segna il dislivello reale e com'era il percorso.</p>
+      <div class="griglia2">
+        <div><label class="lab">Dislivello + reale (m)</label>
+          <input inputmode="numeric" value="${s.dPos ?? ""}" placeholder="es. 320" onchange="segnaChiusura('${s.id}','dPos',this.value)" style="margin-top:4px"></div>
+        <div><label class="lab">Dislivello − reale (m)</label>
+          <input inputmode="numeric" value="${s.dNeg ?? ""}" placeholder="es. 300" onchange="segnaChiusura('${s.id}','dNeg',this.value)" style="margin-top:4px"></div>
+      </div>
+      <label class="lab" style="display:block;margin-top:10px">Com'era il percorso?</label>
+      <textarea rows="2" style="margin-top:6px" placeholder="Es. sterrato tecnico, salita lunga al km 3, un po' di fango..." onchange="segnaTestoSeduta('${s.id}','notaPercorso',this.value)">${esc(s.notaPercorso)}</textarea>
+    </div>` : "";
   return `<div class="card">
     <p class="et">A fine allenamento</p>
     <div class="griglia2">
@@ -638,6 +678,8 @@ function bloccoChiusura(s) {
         <input inputmode="decimal" value="${s.rpe ?? ""}" placeholder="es. 8.5"
           onchange="segnaChiusura('${s.id}','rpe',this.value)"></div>
     </div>
+    ${fcBlocco}
+    ${trailBlocco}
     <label class="check" style="margin-top:12px">
       <input type="checkbox" ${s.fastidi ? "checked" : ""}
         onchange="segnaChiusura('${s.id}','fastidi',this.checked)">

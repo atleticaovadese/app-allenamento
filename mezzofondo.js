@@ -539,6 +539,7 @@ function _generaSedutaPistaMezzo(g, giornoNum, settIdx, dataISO, meso, atleta, p
   });
   return _cacheSeduta({
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", mezzo: true, giorno: giornoNum,
+    superficie: g.superficie || "", dPosTarget: g.dPos || "", dNegTarget: g.dNeg || "",   // strada/trail + obiettivo dislivello
     _gi: giornoNum - 1, _wk: settIdx, _tipoAdatta: "pista",
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
     focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
