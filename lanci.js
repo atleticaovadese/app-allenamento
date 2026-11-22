@@ -381,7 +381,7 @@ function vistaProgrammaPistaLanci() {
         <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPista(${s})">+% applica</button>
       </div>` : ""}
       ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPista(${s})">⬇ Scarico: n° lanci −${scaricoPctVal(m)}% dalla sett. ${s}</button>` : ""}
-      <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
+      <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaSeduta(${s})">📋 ${nota ? "Focus: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Focus del giorno (lo vede l'atleta)"}</button>
     </div>`;
   }).join("");
 
@@ -409,7 +409,7 @@ function _generaSedutaPistaLanci(g, giornoNum, settIdx, dataISO, meso, atleta, p
     id: "gen-p-" + aid + "-" + dataISO + "-g" + giornoNum, tipo: "pista", lanci: true, giorno: giornoNum,
     _gi: giornoNum - 1, _wk: settIdx, _tipoAdatta: "pista",
     quando: "", data: dataLunga(dataISO), dataISO: dataISO, atletaId: aid,
-    focus: (meso && meso.focus) || "", obiettivi: "", notaCoach: (sett && sett.nota) || "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
+    focus: (meso && meso.focus) || "", obiettivi: (sett && sett.nota) || "", notaCoach: "", riscaldamento: (typeof riscLista === "function" ? riscLista(g) : []),
     plio: (g.plio || []).filter(r => r.es),
     core: (g.core || []).filter(r => r.es),
     speciali: (g.speciali || []).filter(r => r.es),

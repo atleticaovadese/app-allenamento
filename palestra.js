@@ -276,9 +276,9 @@ function applicaScaricoPal(s) {
 function apriNotaPal(s) {
   const sett = palGiornoCorrente().settimane[s];
   mostraFoglio(`
-    <div class="foglio-top"><h3>Nota tecnica · Settimana ${s + 1}</h3>
+    <div class="foglio-top"><h3>Focus del giorno · Settimana ${s + 1}</h3>
       <button class="chiudi" onclick="chiudiNotaPal()" aria-label="Chiudi">✕</button></div>
-    <p class="et" style="margin-bottom:8px">Spiega all'atleta cosa curare in questa seduta: la vedrà nel suo allenamento.</p>
+    <p class="et" style="margin-bottom:8px">Scrivi cosa vuoi dall'atleta in questa seduta: compare come <b>«Obiettivi e focus di oggi»</b> nel suo allenamento.</p>
     <textarea rows="5" placeholder="Es. massima intenzione in salita, controllo in discesa..." oninput="setNotaPal(${s},this.value)">${(sett.nota || "").replace(/</g, "&lt;")}</textarea>`);
 }
 function setNotaPal(s, v) { palGiornoCorrente().settimane[s].nota = v; savePalestra(); }
@@ -419,7 +419,7 @@ function vistaProgrammaPalestra() {
         <button class="btn btn-2" style="width:auto;padding:7px 12px" onclick="applicaProgrPal(${s})">+% applica</button>
       </div>` : ""}
       ${s > 0 && scar ? `<button class="btn btn-2" style="margin-top:8px" onclick="applicaScaricoPal(${s})">⬇ Scarico: volume −${scaricoPctVal(m)}% dalla sett. ${s}</button>` : ""}
-      <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaPal(${s})">📝 ${nota ? "Nota: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Nota tecnica del giorno"}</button>
+      <button class="btn btn-2" style="margin-top:8px;text-align:left;font-size:13px" onclick="apriNotaPal(${s})">📋 ${nota ? "Focus: " + (nota.length > 42 ? nota.slice(0, 42) + "…" : nota) : "Focus del giorno (lo vede l'atleta)"}</button>
     </div>`;
   }).join("");
 
