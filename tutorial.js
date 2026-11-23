@@ -114,6 +114,17 @@ const _TUT_SCREENS = {
     <div class="tc"><div style="font-size:10px;color:#7a8598">Questa settimana</div>
       <div style="display:flex;justify-content:space-between;margin-top:8px">${["L", "M", "M", "G", "V", "S", "D"].map((g, i) => `<div style="text-align:center"><div style="font-size:9px;color:#7a8598">${g}</div><div class="tut-cday" style="background:${[0, 2, 4].includes(i) ? _TA : "#e2e8f2"}"></div></div>`).join("")}</div></div>
     <div class="tc"><div style="font-size:10px;color:#7a8598">Presenze del mese</div><div class="tut-prog2"><i style="width:75%"></i></div><div style="font-size:10px;text-align:right;margin-top:2px"><b>12 / 16</b></div></div>`),
+  cronometro: () => {
+    const st = _tutIState().crono || {};
+    const run = st.run;
+    return _tf("⏱ Cronometro dal vivo", "#2f6fd6", `
+      <div class="tc" style="text-align:center;background:#2f6fd6;color:#fff;border:0">
+        <div style="font-size:10px;color:#cfe0ff">5 × 1000 m</div>
+        <div style="font-size:30px;font-weight:800;margin:3px 0;font-variant-numeric:tabular-nums">${run ? "3:12.46" : "0:00.00"}</div></div>
+      <div class="tut-arow" style="background:#eaf6ee"><span class="tut-sdot" style="background:${_TG}"></span><b style="flex:1">Leonardo</b><span style="font-size:11px">3:08.74 ✓</span></div>
+      <div class="tut-arow on"><span class="tut-sdot" style="background:${run ? "#2f6fd6" : "#8a94a3"}"></span><b style="flex:1">Marco</b>${run ? `<button class="tut-mini" style="background:${_TR};padding:5px 12px" onclick="tutSet('crono',{run:false,done:true})">STOP</button>` : `<span style="font-size:11px">${st.done ? "3:11.90 ✓" : "—"}</span>`}</div>
+      ${!run && !st.done ? `<button class="tut-mini" style="background:${_TG};align-self:center" onclick="tutSet('crono',{run:true})">▶ Via! (tutti)</button>${_hint("fai partire il cronometro")}` : (run ? _hint("tocca STOP quando l'atleta arriva") : `<div class="tut-hint" style="background:#dff3e6;color:${_TG}">✓ i tempi vanno sulla giornata degli atleti</div><button class="tut-mini" style="background:#8a94a3;align-self:center;margin-top:6px" onclick="tutReset('crono')">↺ rivedi</button>`)}`);
+  },
   guida: () => _tf("Guida & glossario", "#3a4256", [["ACWR", "carico acuto / cronico"], ["RSI", "indice di reattività"], ["TUT", "tempo sotto tensione"], ["LSI", "simmetria dx/sx"]].map(p => `<div class="tc" style="padding:8px 12px"><b style="color:${_TA}">${p[0]}</b><div style="font-size:9px;color:#7a8598">${p[1]}</div></div>`).join("")),
   atleti: () => _tf("Atleti", _TA, `
     <button class="tut-mini" style="background:${_TA};align-self:center">＋ Nuovo atleta</button>
