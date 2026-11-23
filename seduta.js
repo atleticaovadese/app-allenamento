@@ -751,7 +751,8 @@ async function chiudiSeduta(sid) {
       if (!s.mezzo && typeof aggiornaPbAllenamento === "function") aggiornaPbAllenamento(aid, e.distanza + " m", Math.min(...fatti));
     });
   }
-  s.chiusa = true;
+  s.chiusa = true; s.daConfermare = false;
+  if (DEMO.cronoDaConfermare && DEMO.cronoDaConfermare[aid]) DEMO.cronoDaConfermare[aid] = DEMO.cronoDaConfermare[aid].filter(c => !(c.data === s.dataISO && (c.giorno == null || s.giorno == null || c.giorno === s.giorno)));   // confermata: non riproporre il cronometro
   if (typeof _rimuoviBozza === "function") _rimuoviBozza(s);   // chiusa: la bozza locale non serve più (ora è nel DB/coda)
   // TAPPA 4: la seduta svolta va al coach (DB) → screening/andamento/VBT/carico reali
   if (typeof salvaSedutaSvoltaDB === "function") { try { await salvaSedutaSvoltaDB(s); } catch (e) { /* offline: resta in coda */ } }
@@ -776,6 +777,7 @@ function vistaSeduta() {
     </div>
     ${s.chiusa ? `<div class="card" style="border-color:var(--verde);background:var(--verde-bg)"><p style="margin:0;font-weight:600;color:var(--verde)">✓ Allenamento già svolto${s.rpe ? " · RPE " + s.rpe : ""}${s.durata ? " · " + s.durata + "′" : ""}</p><p class="et" style="margin:4px 0 0">Lo stai <b>rivedendo</b>: i tuoi dati sono già salvati. Puoi correggere qualcosa se serve e richiudere.</p></div>` : ""}
     ${s.daMod ? `<div class="card" style="border-color:var(--blu);background:var(--blu-bg)"><p style="margin:0;font-weight:600;color:var(--blu)">✏️ Allenamento modificato dall'allenatore per questo giorno</p></div>` : ""}
+    ${(s.daConfermare && !s.chiusa) ? `<div class="card" style="border-color:rgba(230,168,60,.55);background:var(--giallo-bg,rgba(230,168,60,.09))"><p style="margin:0;font-weight:600;color:var(--ambra,#e6a83c)">⏱ Tempi presi dall'allenatore col cronometro${s.cronoContenuto ? " · " + String(s.cronoContenuto).replace(/</g, "&lt;") : ""}</p><p class="et" style="margin:4px 0 0">Controllali (correggi se serve), poi metti <b>durata</b> e <b>RPE</b> in fondo e chiudi per <b>confermare</b>.</p></div>` : ""}
     ${_notaExtraGiorno(s)}
     ${bloccoObiettivi(s)}
     <button class="btn-2" style="margin-bottom:11px" onclick="segnalaInfortunioSeduta()">🩹 Segnala infortunio / fastidio</button>

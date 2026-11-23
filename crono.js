@@ -19,23 +19,24 @@ function _clFmtRec(ms) {         // m:ss per il recupero
   return m + ":" + String(s).padStart(2, "0");
 }
 function _clIniz(n) { return (String(n || "").trim().split(/\s+/).slice(0, 2).map(w => w[0] || "").join("") || "?").toUpperCase(); }
-// etichetta breve del lavoro di OGGI del singolo atleta (dal suo programma) — per mostrare chi fa un lavoro diverso
-function _clLavoroAtleta(a, oggi, g) {
+// lavoro di OGGI del singolo atleta (dal suo programma): etichetta breve + distanza del blocco a ripetute.
+// Serve a mostrare chi fa un lavoro diverso E a far finire i tempi sull'elemento giusto della sua seduta.
+function _clTargetAtleta(a, oggi) {
   try {
     const sd = (typeof seduteDelGiorno === "function") ? (seduteDelGiorno(oggi, false, a) || []) : [];
-    const s = sd.find(x => x.tipo === "pista"); if (!s) return "";
-    const parts = [];
+    const s = sd.find(x => x.tipo === "pista"); if (!s) return { label: "", distanza: 0 };
+    const parts = []; let dist = 0;
     for (const e of (s.elementi || [])) {
       if (e.bici) parts.push("🚴 bici");
       else if (e.fk) parts.push("fartlek");
       else if (e.seg) parts.push("segment");
-      else if (Number(e.distanza) > 0 && Number(e.ripetute) > 0) parts.push(e.ripetute + "×" + e.distanza + "m");
+      else if (Number(e.distanza) > 0 && Number(e.ripetute) > 0) { parts.push(e.ripetute + "×" + e.distanza + "m"); if (!dist) dist = Number(e.distanza); }
       else if (Number(e.min) > 0) parts.push(e.min + "′");
       else if ((e.contenuto || "").trim()) parts.push(e.contenuto.trim());
       if (parts.length >= 2) break;
     }
-    return parts.join(" · ");
-  } catch (e) { return ""; }
+    return { label: parts.join(" · "), distanza: dist };
+  } catch (e) { return { label: "", distanza: 0 }; }
 }
 
 // ---- avvio dalla schermata "Oggi" ----
@@ -56,11 +57,11 @@ function avviaCronoLive() {
   const presenti = {};
   lista.forEach(a => { let has = false; try { has = ((typeof seduteDelGiorno === "function") ? (seduteDelGiorno(oggi, false, a) || []) : []).length > 0; } catch (e) { } if (has) presenti[a.id] = true; });
   if (!Object.keys(presenti).length) lista.forEach(a => { presenti[a.id] = true; });
-  const atl = {}, lavoroAtl = {};
-  lista.forEach(a => { atl[a.id] = { running: false, runStart: null, recStart: null, tempi: [] }; lavoroAtl[a.id] = _clLavoroAtleta(a, oggi, g); });
+  const atl = {}, lavoroAtl = {}, distAtl = {};
+  lista.forEach(a => { atl[a.id] = { running: false, runStart: null, recStart: null, tempi: [] }; const tg = _clTargetAtleta(a, oggi); lavoroAtl[a.id] = tg.label; distAtl[a.id] = tg.distanza; });
   // scelta di default: la prima riga con distanza (il "corpo" di ripetute), altrimenti la prima
   let sel = opzioni.findIndex(o => o.distanza > 0); if (sel < 0) sel = opzioni.length ? 0 : -1;
-  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, repStart: null, nRep: 0, atl, setup: true };
+  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, distAtl, repStart: null, nRep: 0, atl, setup: true };
   disegna(); window.scrollTo(0, 0);
 }
 function chiudiCronoLive() {
@@ -223,19 +224,30 @@ function vistaCronoLive() {
     ${fine}`;
 }
 
-// ---- Parte 2 (salvataggio): per ora recap; il salvataggio sulla giornata dell'atleta arriva subito dopo ----
-function cronoFine() {
+// ---- fine allenamento: salva i tempi sulla giornata di OGNI atleta come seduta "da confermare" ----
+async function cronoFine() {
   const C = S.cronoLive; if (!C) return;
-  const nomeDi = id => { const a = (DEMO.atleti || []).find(x => x.id === id); return a ? a.nome : "?"; };
-  const righe = (C.lista || []).filter(id => C.presenti[id] && (C.atl[id].tempi || []).length)
-    .map(id => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${_clEsc(nomeDi(id))}</b><div class="et" style="margin-top:2px">${C.atl[id].tempi.map((t, i) => (i + 1) + ": " + _clFmt(t * 1000)).join(" · ")}</div></div>`).join("");
-  if (typeof mostraFoglio === "function") {
-    mostraFoglio(`
-      <div class="foglio-top"><h3>Fine allenamento</h3><button class="chiudi" onclick="chiudiScheda()" aria-label="Chiudi">✕</button></div>
-      <p class="et" style="margin-bottom:8px">Lavoro: <b>${_clEsc(_clLavoroLabel())}</b>. Riepilogo tempi:</p>
-      ${righe || `<p class="et">Nessun tempo registrato.</p>`}
-      <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--blu-bg);border:1px solid rgba(77,154,255,.3)">
-        <p class="et" style="margin:0;color:var(--blu)">📲 Il salvataggio automatico sulla giornata degli atleti (che poi confermano i tempi e mettono l'RPE) è la <b>Parte 2</b>, in arrivo.</p>
-      </div>`);
+  const oggi = C.data;
+  const conTempi = (C.lista || []).filter(id => C.presenti[id] && (C.atl[id].tempi || []).length);
+  if (!conTempi.length) { alert("Nessun tempo registrato da salvare."); return; }
+  const nomiFinali = conTempi.map(id => { const a = (DEMO.atleti || []).find(x => x.id === id); return a ? a.nome : ""; }).filter(Boolean);
+  if (typeof confirm === "function" && !confirm("Salvare i tempi e mandarli sulla giornata di " + conTempi.length + " atlet" + (conTempi.length === 1 ? "a" : "i") + "?\nOgnuno li controllerà, metterà l'RPE e confermerà.")) return;
+  let n = 0;
+  for (const id of conTempi) {
+    const a = (DEMO.atleti || []).find(x => x.id === id); if (!a) continue;
+    const giorno = (typeof giornoDataAtleta === "function") ? giornoDataAtleta(a, oggi, "pista") : 1;
+    const dati = {
+      daConfermare: true,
+      cronoContenuto: (C.lavoroAtl && C.lavoroAtl[id]) ? C.lavoroAtl[id] : _clLavoroLabel(),
+      cronoDist: (C.distAtl && C.distAtl[id]) ? C.distAtl[id] : ((C.sel >= 0 && C.opzioni[C.sel]) ? C.opzioni[C.sel].distanza : 0),
+      cronoTempi: C.atl[id].tempi.slice()
+    };
+    if (typeof salvaCronoDaConfermareDB === "function") { try { await salvaCronoDaConfermareDB(id, oggi, giorno, dati); } catch (e) { } }
+    n++;
   }
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();   // le sedute si rigenerano coi tempi del cronometro
+  _clStopTick(); S.cronoLive = null;
+  if (typeof S !== "undefined") S.vista = "oggi";
+  disegna(); window.scrollTo(0, 0);
+  alert("✓ Salvato per " + n + " atlet" + (n === 1 ? "a" : "i") + ".\nI tempi sono sulla loro giornata: controllano, mettono l'RPE e confermano.");
 }

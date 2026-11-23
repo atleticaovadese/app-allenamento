@@ -564,10 +564,29 @@ function _svoltaDi(s) {
   const arr = (DEMO.seduteSvolte && DEMO.seduteSvolte[s.atletaId]) || [];
   return arr.find(sv => sv.data === s.dataISO && sv.tipo === s.tipo && (sv.giorno == null || sv.giorno === s.giorno)) || null;
 }
+// innesta i tempi presi col CRONOMETRO dall'allenatore (seduta "da confermare") nell'elemento giusto
+// della seduta generata, SENZA chiuderla: l'atleta li controlla, mette durata+RPE e conferma.
+function _applicaCrono(s) {
+  if (!s || s.chiusa || s.tipo !== "pista") return;
+  const arr = (DEMO.cronoDaConfermare && DEMO.cronoDaConfermare[s.atletaId]) || [];
+  const cr = arr.find(c => c.data === s.dataISO && (c.giorno == null || s.giorno == null || c.giorno === s.giorno));
+  if (!cr || !(cr.tempi || []).length) return;
+  const cand = (s.elementi || []).filter(e => Array.isArray(e.tempi));   // blocchi a ripetute (hanno le caselle tempi)
+  if (!cand.length) return;
+  let tgt = (cr.distanza ? cand.find(e => Number(e.distanza) === Number(cr.distanza)) : null)
+    || cand.slice().sort((a, b) => (Number(b.ripetute) || 0) - (Number(a.ripetute) || 0))[0];
+  if (!tgt) return;
+  const n = Math.max(Number(tgt.ripetute) || 0, cr.tempi.length);
+  const tempi = Array(n).fill(null);
+  cr.tempi.forEach((t, i) => { if (i < n) tempi[i] = Number(t); });
+  tgt.tempi = tempi; tgt.ripetute = n;
+  s.daConfermare = true; s.cronoContenuto = cr.contenuto || "";
+}
 function _applicaSvolta(s) {
   if (!s || s.chiusa) return s;                 // già chiusa in questa sessione (edit live): non toccare
-  if (typeof applicaBozza === "function") applicaBozza(s);   // ripristina la bozza locale (lavoro in corso: tempi/peso/RPE non ancora chiusi)
   const sv = _svoltaDi(s);
+  if (!sv && typeof _applicaCrono === "function") _applicaCrono(s);   // base: tempi dal cronometro (da confermare)
+  if (typeof applicaBozza === "function") applicaBozza(s);   // poi la bozza locale (modifiche in corso) ha la precedenza
   if (!sv) return s;
   s.chiusa = true;
   if (sv.durata_min != null) s.durata = sv.durata_min;

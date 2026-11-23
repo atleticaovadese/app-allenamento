@@ -377,6 +377,19 @@ async function caricaDati() {
         });
       }
     });
+    // sedute "DA CONFERMARE": tempi presi dall'allenatore col cronometro (seduta_svolta chiusa=false),
+    // l'atleta li controlla, mette l'RPE e conferma. Si ignorano se quella giornata è già stata chiusa.
+    DEMO.cronoDaConfermare = {};
+    try {
+      const { data: crDb } = await sb.from("seduta_svolta").select("atleta_id,data,tipo,giorno,dati").eq("chiusa", false).gte("data", isoL(sv0));
+      (crDb || []).forEach(r => {
+        const dd = r.dati || {};
+        if (!dd.daConfermare || !(dd.cronoTempi || []).length) return;
+        const giaFatta = (DEMO.seduteSvolte[r.atleta_id] || []).some(x => x.data === r.data && x.tipo === r.tipo && (x.giorno == null || r.giorno == null || x.giorno === r.giorno));
+        if (giaFatta) return;
+        (DEMO.cronoDaConfermare[r.atleta_id] = DEMO.cronoDaConfermare[r.atleta_id] || []).push({ data: r.data, giorno: r.giorno, tipo: r.tipo, contenuto: dd.cronoContenuto || "", distanza: Number(dd.cronoDist) || 0, tempi: dd.cronoTempi });
+      });
+    } catch (e) { /* offline o colonna assente */ }
     if (typeof ricalcolaCarico === "function") ricalcolaCarico(svolte || []);
 
     // presenze / aderenza reali: fatte = seduta_svolta, programmate = dal programma (con override)
@@ -686,6 +699,18 @@ async function salvaSedutaSvoltaDB(s) {
     } catch (e2) { /* pulizia non critica: se fallisce, ci pensa il dedup in lettura */ }
     _codaFlush();   // salvataggio ok → tento di svuotare eventuale arretrato
   } catch (e) { _codaAggiungi(payload); }   // offline / errore rete: resta in coda, si reinvia da sola
+}
+// CRONOMETRO allenatore: salva i tempi sulla giornata dell'atleta come seduta_svolta "DA CONFERMARE"
+// (chiusa=false, dati.daConfermare). L'atleta la ritrova sul suo giorno, controlla i tempi, mette l'RPE e conferma.
+async function salvaCronoDaConfermareDB(aid, data, giorno, dati) {
+  if (!aid || !data) return;
+  if (typeof atletaBloccato === "function" && atletaBloccato(aid)) return;
+  DEMO.cronoDaConfermare = DEMO.cronoDaConfermare || {};
+  DEMO.cronoDaConfermare[aid] = (DEMO.cronoDaConfermare[aid] || []).filter(c => !(c.data === data && (c.giorno == null || giorno == null || c.giorno === giorno)));
+  DEMO.cronoDaConfermare[aid].push({ data: data, giorno: giorno, tipo: "pista", contenuto: dati.cronoContenuto || "", distanza: Number(dati.cronoDist) || 0, tempi: (dati.cronoTempi || []).slice() });
+  if (!haDB()) return;
+  const payload = { atleta_id: aid, chiave: "crono-" + data + (giorno != null ? "-g" + giorno : ""), tipo: "pista", data: data, durata_min: null, rpe: null, fastidi: false, giorno: giorno != null ? giorno : null, chiusa: false, dati: dati };
+  try { await sb.from("seduta_svolta").upsert(payload, { onConflict: "atleta_id,chiave" }); } catch (e) { /* offline: resta in memoria */ }
 }
 // ALLENAMENTO EXTRA (corsa in più, solo mezzofondo): salvato come seduta_svolta tipo "extra" con km/passo/rpe.
 // Riusa la coda offline. In memoria subito (compare e conta i km all'istante).
