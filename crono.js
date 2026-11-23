@@ -224,7 +224,17 @@ function _clVistaSerie(C) {
           <span>${esc(nomeDi(id))}</span>
           <div class="cl-batt-sel">${Array.from({ length: nBatt + 1 }, (_, b) => b + 1).map(b => `<button class="cl-bchip ${(C.batt[id] || 1) === b ? "on" : ""}" onclick="cronoSetBatt('${id}',${b})">${b}</button>`).join("")}</div>
         </div>`).join("")}
-      <p class="et" style="margin-top:8px;color:var(--txt3)">Ogni batteria parte per conto suo. Segni i <b>passaggi</b> con un tasto (o un telecomando Bluetooth: <b>spazio/invio</b>), poi assegni l'ordine d'arrivo.</p>
+      <p class="et" style="margin-top:8px;color:var(--txt3)">Ogni batteria parte per conto suo. Segni i <b>passaggi</b> toccando il tasto grande (o col telecomando qui sotto), poi assegni l'ordine d'arrivo.</p>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        <label class="lab">🎮 Telecomando Bluetooth (facoltativo, a mani libere)</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
+          ${S.cronoLearn
+      ? `<span class="cl-chip on" style="cursor:default">⏺ Premi ora un tasto sul telecomando…</span>`
+      : `<button class="btn btn-2" style="width:auto;padding:8px 12px" onclick="cronoAbbinaRemoto()">Abbina un tasto</button>`}
+          ${_cronoRemotoKey() ? `<span class="et" style="margin:0">abbinato: <b>${esc(_cronoRemotoKey())}</b></span><button class="btn btn-2" style="width:auto;padding:6px 9px;font-size:12px" onclick="cronoResetRemoto()">✕</button>` : ``}
+        </div>
+        <p class="et" style="margin-top:7px;color:var(--txt3)">Spia — ultimo tasto ricevuto: <b id="cl-lastkey">${esc(S._cronoLastKey || "— nessuno —")}</b>. Se premendo il telecomando resta «nessuno», quel telecomando manda comandi <b>volume</b> (il browser non li riceve): serve un telecomando che faccia da <b>tastiera</b> (spesso c'è una modalità iOS/Android — prova a cambiarla).</p>
+      </div>
     </div>` : "";
 
   const battSel = nBatt > 1 ? `<div class="cl-presenti" style="margin-bottom:10px">${Array.from({ length: nBatt }, (_, b) => b + 1).map(b => `<button class="cl-chip ${C.battAttiva === b ? "on" : ""}" onclick="cronoBattAttiva(${b})">Batteria ${b} · ${pres.filter(id => (C.batt[id] || 1) === b).length}</button>`).join("")}</div>` : "";
@@ -268,17 +278,36 @@ function _clVistaSerie(C) {
     ${heat.length ? `<p class="sez">Batteria ${C.battAttiva} · ${heat.length}</p>${prog}` : `<div class="card"><p class="et" style="margin:0">Nessun atleta in questa batteria: apri il setup.</p></div>`}
     ${fine}`;
 }
-// telecomando Bluetooth / tastiera: SPAZIO o INVIO → Via!/Passaggio nel modo "serie" (mani libere)
+// telecomando Bluetooth / tastiera nel modo "serie": un tasto → Via!/Passaggio (mani libere).
+// Molti telecomandi mandano tasti diversi, quindi si può ABBINARE il proprio (impara qualunque tasto);
+// senza abbinamento valgono i tasti più comuni. Una spia mostra l'ultimo tasto ricevuto (diagnostica).
+function _cronoRemotoKey() { try { return localStorage.getItem("metis_crono_remoto") || ""; } catch (e) { return ""; } }
+function cronoAbbinaRemoto() { S.cronoLearn = true; disegna(); }
+function cronoResetRemoto() { try { localStorage.removeItem("metis_crono_remoto"); } catch (e) { } S.cronoLearn = false; disegna(); }
+const _CL_DEF_KEYS = ["Space", "Enter", "NumpadEnter", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "AudioVolumeUp", "AudioVolumeDown"];
 if (typeof document !== "undefined" && document.addEventListener) {
   document.addEventListener("keydown", function (e) {
     const C = (typeof S !== "undefined") ? S.cronoLive : null;
     if (!C || C.modo !== "serie" || (typeof S !== "undefined" && S.seduta)) return;
-    if (e.target && e.target.matches && e.target.matches("input,select,textarea")) return;
-    if (e.code === "Space" || e.key === " " || e.key === "Enter") {
+    // spia: mostra SEMPRE l'ultimo tasto ricevuto (così si vede se il telecomando manda qualcosa)
+    const info = (e.key === " " ? "Spazio" : e.key) + (e.code && e.code !== e.key ? " · " + e.code : "");
+    S._cronoLastKey = info;
+    const le = document.getElementById("cl-lastkey"); if (le) le.textContent = info;
+    // modalità abbinamento: memorizza questo tasto come comando del telecomando
+    if (S.cronoLearn) {
+      if (e.key === "Escape") { S.cronoLearn = false; disegna(); return; }
       e.preventDefault();
-      const se = C.serie || {};
-      if (se.start == null) cronoSerieVia(); else cronoSeriePassaggio();
+      try { localStorage.setItem("metis_crono_remoto", e.code || e.key); } catch (x) { }
+      S.cronoLearn = false; disegna(); return;
     }
+    if (e.target && e.target.matches && e.target.matches("input,select,textarea")) return;
+    const learned = _cronoRemotoKey();
+    const match = (_CL_DEF_KEYS.indexOf(e.code) >= 0 || e.key === " " || e.key === "Enter")
+      || (learned && (e.code === learned || e.key === learned));   // tasti comuni SEMPRE attivi + quello abbinato
+    if (!match) return;
+    e.preventDefault();
+    const se = C.serie || {};
+    if (se.start == null) cronoSerieVia(); else cronoSeriePassaggio();
   });
 }
 
