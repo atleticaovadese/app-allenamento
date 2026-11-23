@@ -177,6 +177,9 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .cl-presenti{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
 .cl-chip{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--txt2);font-size:13px;cursor:pointer}
 .cl-chip.on{background:rgba(77,154,255,.18);border-color:rgba(77,154,255,.55);color:var(--txt)}
+.cl-via1{padding:10px 16px;border:0;border-radius:10px;font-size:15px;font-weight:800;color:#fff;background:#2f8f4e;cursor:pointer}
+.cl-undo-mini{margin-top:5px;padding:3px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card2);color:var(--txt3);font-size:13px;cursor:pointer}
+.cl-lav-atl{font-size:11.5px;color:var(--txt3);margin-top:2px}
 
 .pront{text-align:center}
 .pront .pv{font-size:38px;font-weight:600;line-height:1.1;margin-top:4px}

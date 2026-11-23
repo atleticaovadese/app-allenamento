@@ -19,6 +19,24 @@ function _clFmtRec(ms) {         // m:ss per il recupero
   return m + ":" + String(s).padStart(2, "0");
 }
 function _clIniz(n) { return (String(n || "").trim().split(/\s+/).slice(0, 2).map(w => w[0] || "").join("") || "?").toUpperCase(); }
+// etichetta breve del lavoro di OGGI del singolo atleta (dal suo programma) — per mostrare chi fa un lavoro diverso
+function _clLavoroAtleta(a, oggi, g) {
+  try {
+    const sd = (typeof seduteDelGiorno === "function") ? (seduteDelGiorno(oggi, false, a) || []) : [];
+    const s = sd.find(x => x.tipo === "pista"); if (!s) return "";
+    const parts = [];
+    for (const e of (s.elementi || [])) {
+      if (e.bici) parts.push("🚴 bici");
+      else if (e.fk) parts.push("fartlek");
+      else if (e.seg) parts.push("segment");
+      else if (Number(e.distanza) > 0 && Number(e.ripetute) > 0) parts.push(e.ripetute + "×" + e.distanza + "m");
+      else if (Number(e.min) > 0) parts.push(e.min + "′");
+      else if ((e.contenuto || "").trim()) parts.push(e.contenuto.trim());
+      if (parts.length >= 2) break;
+    }
+    return parts.join(" · ");
+  } catch (e) { return ""; }
+}
 
 // ---- avvio dalla schermata "Oggi" ----
 function avviaCronoLive() {
@@ -38,11 +56,11 @@ function avviaCronoLive() {
   const presenti = {};
   lista.forEach(a => { let has = false; try { has = ((typeof seduteDelGiorno === "function") ? (seduteDelGiorno(oggi, false, a) || []) : []).length > 0; } catch (e) { } if (has) presenti[a.id] = true; });
   if (!Object.keys(presenti).length) lista.forEach(a => { presenti[a.id] = true; });
-  const atl = {};
-  lista.forEach(a => { atl[a.id] = { running: false, recStart: null, tempi: [] }; });
+  const atl = {}, lavoroAtl = {};
+  lista.forEach(a => { atl[a.id] = { running: false, runStart: null, recStart: null, tempi: [] }; lavoroAtl[a.id] = _clLavoroAtleta(a, oggi, g); });
   // scelta di default: la prima riga con distanza (il "corpo" di ripetute), altrimenti la prima
   let sel = opzioni.findIndex(o => o.distanza > 0); if (sel < 0) sel = opzioni.length ? 0 : -1;
-  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, repStart: null, nRep: 0, atl, setup: true };
+  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, repStart: null, nRep: 0, atl, setup: true };
   disegna(); window.scrollTo(0, 0);
 }
 function chiudiCronoLive() {
@@ -70,7 +88,7 @@ function _clTick() {
     const st = C.atl[id]; if (!st) return;
     const te = document.getElementById("cl-t-" + id);
     const re = document.getElementById("cl-r-" + id);
-    if (st.running && C.repStart) { if (te) te.textContent = _clFmt(now - C.repStart); if (re) re.textContent = ""; }
+    if (st.running && st.runStart) { if (te) te.textContent = _clFmt(now - st.runStart); if (re) re.textContent = ""; }
     else {
       const ultimo = st.tempi.length ? st.tempi[st.tempi.length - 1] : null;
       if (te) te.textContent = ultimo != null ? _clFmt(ultimo * 1000) : "–";
@@ -80,16 +98,26 @@ function _clTick() {
 }
 
 // ---- azioni ----
-function cronoGo() {               // crono grande: parte/riparte TUTTI i presenti sulla ripetuta
+function cronoGo() {               // crono grande: parte/riparte TUTTI i presenti sulla stessa ripetuta
   const C = S.cronoLive; if (!C) return;
-  C.repStart = Date.now(); C.nRep = (C.nRep || 0) + 1; C.setup = false;
-  (C.lista || []).forEach(id => { if (C.presenti[id]) { C.atl[id].running = true; C.atl[id].recStart = null; } });
+  const now = Date.now();
+  C.repStart = now; C.nRep = (C.nRep || 0) + 1; C.setup = false;
+  (C.lista || []).forEach(id => { if (C.presenti[id]) { const st = C.atl[id]; st.running = true; st.runStart = now; st.recStart = null; } });
   disegna();
 }
-function cronoStop(id) {            // stop del singolo atleta: registra il tempo e fa partire il recupero
-  const C = S.cronoLive; if (!C || !C.repStart) return;
-  const st = C.atl[id]; if (!st || !st.running) return;
-  const t = Math.round((Date.now() - C.repStart) / 10) / 100;   // secondi, 2 decimali
+// crono del SINGOLO atleta: fa (ri)partire solo il suo tempo, indipendente dagli altri
+function cronoViaUno(id) {
+  const C = S.cronoLive; if (!C) return;
+  const st = C.atl[id]; if (!st) return;
+  C.presenti[id] = true; C.setup = false;
+  st.running = true; st.runStart = Date.now(); st.recStart = null;
+  if (C.repStart == null) C.repStart = st.runStart;   // così il crono grande mostra comunque qualcosa
+  disegna();
+}
+function cronoStop(id) {            // stop del singolo atleta: registra il tempo (dal SUO start) e parte il recupero
+  const C = S.cronoLive; if (!C) return;
+  const st = C.atl[id]; if (!st || !st.running || !st.runStart) return;
+  const t = Math.round((Date.now() - st.runStart) / 10) / 100;   // secondi, 2 decimali
   st.tempi.push(t); st.running = false; st.recStart = Date.now();
   disegna();
 }
@@ -137,6 +165,7 @@ function vistaCronoLive() {
       ${C.sel < 0 ? `<input value="${_clEsc(C.custom)}" placeholder="es. 5 × 1000 m" oninput="cronoSetCustom(this.value)" onchange="disegna()" style="margin-top:8px">` : ""}
       <label class="lab" style="display:block;margin-top:14px">Chi è presente (${nPres})</label>
       <div class="cl-presenti">${(C.lista || []).map(id => `<button class="cl-chip ${C.presenti[id] ? "on" : ""}" onclick="cronoTogglePresente('${id}')">${C.presenti[id] ? "✓ " : ""}${_clEsc(nomeDi(id))}</button>`).join("")}</div>
+      <p class="et" style="margin-top:8px;color:var(--txt3)">Puoi includere anche chi fa un <b>lavoro diverso</b>: partono insieme col crono grande, ma ognuno ha il suo tempo e può ripartire da solo col <b>▶ Via</b> della sua riga.</p>
     </div>` : "";
 
   // --- crono grande ---
@@ -144,7 +173,7 @@ function vistaCronoLive() {
   const bigBtn = `<button class="cl-go" onclick="cronoGo()">${C.repStart ? "↻ Via! (tutti)" : "▶ Via!"}</button>`;
   const grande = `<div class="card cl-grande">
       <div class="cl-grande-top">
-        <div><div class="et" style="margin:0">Lavoro</div><div class="cl-lavoro">${_clEsc(lavoro)}</div></div>
+        <div><div class="et" style="margin:0">Lavoro del gruppo</div><div class="cl-lavoro">${_clEsc(lavoro)}</div></div>
         <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="cronoToggleSetup()">${C.setup ? "Nascondi" : "⚙ Setup"}</button>
       </div>
       <div class="cl-big" id="cl-big">0:00.0</div>
@@ -159,7 +188,9 @@ function vistaCronoLive() {
     const tDisp = st.running ? "0:00.0" : (st.tempi.length ? _clFmt(st.tempi[st.tempi.length - 1] * 1000) : "–");
     const azione = st.running
       ? `<button class="cl-stop" onclick="cronoStop('${id}')">■ STOP</button>`
-      : (st.tempi.length ? `<button class="btn btn-2 cl-undo" style="width:auto;padding:7px 10px;font-size:12px" onclick="cronoAnnullaUltimo('${id}')" title="Annulla l'ultimo tempo">↶</button>` : `<span class="et" style="margin:0">in attesa</span>`);
+      : `<button class="cl-via1" onclick="cronoViaUno('${id}')">▶ Via</button>`;
+    const undo = (!st.running && st.tempi.length) ? `<button class="cl-undo-mini" onclick="cronoAnnullaUltimo('${id}')" title="Annulla l'ultimo tempo">↶</button>` : "";
+    const lavA = (C.lavoroAtl && C.lavoroAtl[id]) ? `<div class="cl-lav-atl">${_clEsc(C.lavoroAtl[id])}</div>` : "";
     return `<div class="card cl-row ${st.running ? "run" : (st.recStart ? "rec" : "")}">
       <span class="av" style="width:36px;height:36px;font-size:12px">${_clIniz(nomeDi(id))}</span>
       <div style="flex:1;min-width:0">
@@ -167,11 +198,12 @@ function vistaCronoLive() {
           <h3 style="margin:0;font-size:15px">${_clEsc(nomeDi(id))}</h3>
           <span class="cl-rec" id="cl-r-${id}"></span>
         </div>
+        ${lavA}
         ${chips ? `<div class="cl-times">${chips}</div>` : ""}
       </div>
       <div class="cl-row-right">
         <span class="cl-t" id="cl-t-${id}">${tDisp}</span>
-        ${azione}
+        ${azione}${undo}
       </div>
     </div>`;
   }).join("");
