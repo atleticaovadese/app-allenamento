@@ -182,6 +182,7 @@ function vistaOggiCoach() {
 
   return `${(typeof chipsGruppi === "function") ? chipsGruppi() : ""}
   ${hero}
+  ${(g !== "online" && typeof avviaCronoLive === "function") ? `<button class="btn cl-start" onclick="avviaCronoLive()">⏱ Start allenamento · cronometro di gruppo</button>` : ""}
   ${daGestire.length
       ? `<p class="sez" style="color:var(--rosso)">⚠️ Da gestire oggi · ${daGestire.length}</p>${daGestire.map(rigaGest).join("")}`
       : `<div class="card ok-card"><p class="et" style="margin:0;color:var(--verde)">✓ Nessuna criticità oggi: nessun fastidio o prontezza bassa.</p></div>`}

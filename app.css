@@ -158,6 +158,26 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .oggi-mini b{display:block;font-size:20px;font-weight:800;line-height:1.1}
 .oggi-mini span{font-size:11px;color:var(--txt3)}
 
+/* ===== Cronometro dal vivo (allenatore) ===== */
+.cl-start{background:linear-gradient(135deg,#2f6fd6,#7bc043);border:0;font-size:16px;font-weight:700;color:#fff}
+.cl-grande{text-align:center}
+.cl-grande-top{display:flex;justify-content:space-between;align-items:flex-start;text-align:left;gap:8px}
+.cl-lavoro{font-size:18px;font-weight:800;margin-top:2px;line-height:1.2}
+.cl-big{font-size:54px;font-weight:800;line-height:1.1;letter-spacing:1px;margin:12px 0;font-variant-numeric:tabular-nums}
+.cl-go{display:block;width:100%;padding:16px;border:0;border-radius:14px;font-size:20px;font-weight:800;color:#fff;background:linear-gradient(135deg,#2f6fd6,#4d8df0);cursor:pointer}
+.cl-row{display:flex;align-items:center;gap:11px}
+.cl-row.run{border-color:rgba(77,154,255,.55);box-shadow:0 0 0 1px rgba(77,154,255,.35)}
+.cl-row.rec{border-color:rgba(230,168,60,.45)}
+.cl-row-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.cl-t{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+.cl-stop{padding:10px 16px;border:0;border-radius:10px;font-size:15px;font-weight:800;color:#fff;background:#b02a37;cursor:pointer}
+.cl-rec{font-size:12px;color:var(--ambra,#e6a83c);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cl-times{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.cl-time-chip{font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--txt2);font-variant-numeric:tabular-nums}
+.cl-presenti{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+.cl-chip{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--txt2);font-size:13px;cursor:pointer}
+.cl-chip.on{background:rgba(77,154,255,.18);border-color:rgba(77,154,255,.55);color:var(--txt)}
+
 .pront{text-align:center}
 .pront .pv{font-size:38px;font-weight:600;line-height:1.1;margin-top:4px}
 .pront .pv span{font-size:16px;color:var(--txt2);font-weight:400}
