@@ -224,7 +224,7 @@ function _clVistaSerie(C) {
           <span>${esc(nomeDi(id))}</span>
           <div class="cl-batt-sel">${Array.from({ length: nBatt + 1 }, (_, b) => b + 1).map(b => `<button class="cl-bchip ${(C.batt[id] || 1) === b ? "on" : ""}" onclick="cronoSetBatt('${id}',${b})">${b}</button>`).join("")}</div>
         </div>`).join("")}
-      <p class="et" style="margin-top:8px;color:var(--txt3)">Ogni batteria parte per conto suo. Segni i <b>passaggi</b> toccando il tasto grande (o col telecomando qui sotto), poi assegni l'ordine d'arrivo.</p>
+      <p class="et" style="margin-top:8px;color:var(--txt3)">Ogni batteria parte per conto suo. Dopo il «Via!» <b>tutta l'area verde del cronometro è un tasto</b>: tocchi <b>ovunque lì</b> a ogni arrivo (comodo e veloce). Poi assegni l'ordine d'arrivo.</p>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
         <label class="lab">🎮 Telecomando Bluetooth (facoltativo, a mani libere)</label>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
@@ -240,15 +240,19 @@ function _clVistaSerie(C) {
   const battSel = nBatt > 1 ? `<div class="cl-presenti" style="margin-bottom:10px">${Array.from({ length: nBatt }, (_, b) => b + 1).map(b => `<button class="cl-chip ${C.battAttiva === b ? "on" : ""}" onclick="cronoBattAttiva(${b})">Batteria ${b} · ${pres.filter(id => (C.batt[id] || 1) === b).length}</button>`).join("")}</div>` : "";
 
   const lavoro = _clLavoroLabel();
-  const azioneGrande = se.start == null
-    ? `<button class="cl-go" onclick="cronoSerieVia()">▶ Via! (batteria ${C.battAttiva})</button>`
-    : `<button class="cl-go cl-passaggio" onclick="cronoSeriePassaggio()">⏱ PASSAGGIO · ${se.passaggi.length}/${heat.length}</button>`;
+  // in corsa: tutta l'area clock+passaggio è un TASTO GIGANTE (tocca ovunque qui a ogni arrivo)
+  const corpoGrande = se.start == null
+    ? `<div class="cl-big" id="cl-big">0:00.0</div><button class="cl-go" onclick="cronoSerieVia()">▶ Via! (batteria ${C.battAttiva})</button>`
+    : `<div class="cl-tapzone" onclick="cronoSeriePassaggio()">
+        <div class="cl-big" id="cl-big">0:00.0</div>
+        <div class="cl-tapzone-lbl">⏱ PASSAGGIO · ${se.passaggi.length}/${heat.length}</div>
+        <div class="cl-tapzone-sub">tocca qui a ogni arrivo</div>
+      </div>`;
   const grande = `<div class="card cl-grande">
       <div class="cl-grande-top"><div><div class="et" style="margin:0">Lavoro del gruppo</div><div class="cl-lavoro">${esc(lavoro)}</div></div>
         <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="cronoToggleSetup()">${C.setup ? "Nascondi" : "⚙ Setup"}</button></div>
       ${battSel}
-      <div class="cl-big" id="cl-big">0:00.0</div>
-      ${azioneGrande}
+      ${corpoGrande}
       <p class="cl-rec" id="cl-serie-rec" style="text-align:center;margin:8px 0 0;min-height:16px"></p>
       <p class="et" style="text-align:center;margin:4px 0 0">${se.nRep ? "Serie " + se.nRep + " · batteria di " + heat.length : "Premi «Via!» e poi «Passaggio» a ogni arrivo"}</p>
     </div>`;
