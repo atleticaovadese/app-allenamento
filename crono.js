@@ -61,7 +61,7 @@ function avviaCronoLive() {
   lista.forEach(a => { atl[a.id] = { running: false, runStart: null, recStart: null, tempi: [] }; const tg = _clTargetAtleta(a, oggi); lavoroAtl[a.id] = tg.label; distAtl[a.id] = tg.distanza; });
   // scelta di default: la prima riga con distanza (il "corpo" di ripetute), altrimenti la prima
   let sel = opzioni.findIndex(o => o.distanza > 0); if (sel < 0) sel = opzioni.length ? 0 : -1;
-  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, distAtl, repStart: null, nRep: 0, atl, setup: true };
+  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, distAtl, modo: null, repStart: null, nRep: 0, atl, setup: true };
   disegna(); window.scrollTo(0, 0);
 }
 function chiudiCronoLive() {
@@ -72,7 +72,9 @@ function chiudiCronoLive() {
 }
 function _clQualcosaFatto() {
   const C = S.cronoLive; if (!C) return false;
-  return Object.keys(C.atl).some(id => (C.atl[id].tempi || []).length) || C.repStart != null;
+  if (C.repStart != null) return true;
+  if (C.serie && ((C.serie.passaggi || []).length || C.serie.nRep)) return true;
+  return Object.keys(C.atl || {}).some(id => (C.atl[id].tempi || []).length);
 }
 
 // ---- tick: aggiorna i tempi a schermo senza ridisegnare tutto ----
@@ -83,6 +85,13 @@ function _clTick() {
   if (!C) { _clStopTick(); return; }
   const now = Date.now();
   const big = document.getElementById("cl-big");
+  if (C.modo === "serie") {
+    const se = C.serie || {};
+    if (big) big.textContent = se.start ? _clFmt(now - se.start) : "0:00.0";
+    const sr = document.getElementById("cl-serie-rec");
+    if (sr) sr.textContent = se.recStart ? ("rec dal 1°: " + _clFmtRec(now - se.recStart)) : "";
+    return;
+  }
   if (big) big.textContent = C.repStart ? _clFmt(now - C.repStart) : "0:00.0";
   (C.lista || []).forEach(id => {
     if (!C.presenti[id]) return;
@@ -147,11 +156,139 @@ function _clLavoroLabel() {
 }
 function cronoToggleSetup() { const C = S.cronoLive; if (C) { C.setup = !C.setup; disegna(); } }
 
+// ====================== MODO "DA SERIE / BATTERIA" ======================
+function cronoScegliModo(modo) {
+  const C = S.cronoLive; if (!C) return;
+  C.modo = modo;
+  if (modo === "serie") {
+    const pres = (C.lista || []).filter(id => C.presenti[id]);
+    C.batt = {}; pres.forEach((id, i) => { C.batt[id] = Math.floor(i / 10) + 1; });   // batterie da max 10
+    C.battAttiva = 1;
+    C.serie = { start: null, nRep: 0, passaggi: [], recStart: null, ordine: [] };
+    C.setup = true;
+  }
+  disegna(); window.scrollTo(0, 0);
+}
+function _clVistaScegliModo(C) {
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const dataLbl = (typeof dataLunga === "function") ? cap(dataLunga(C.data)) : C.data;
+  const gruppoNome = (typeof nomeGruppo === "function") ? nomeGruppo(C.gruppo) : "";
+  return `<button class="indietro" onclick="chiudiCronoLive()">‹ Esci dal cronometro</button>
+    <div class="card" style="background:var(--blu);color:#fff;border:0"><h3 style="color:#fff;margin:0">⏱ Allenamento dal vivo</h3><p class="et" style="color:#fff;opacity:.9;margin-top:3px">${gruppoNome} · ${dataLbl}</p></div>
+    <div class="card"><p class="et" style="margin:0 0 10px">Che tipo di cronometro vuoi usare?</p>
+      <button class="cl-go" style="background:linear-gradient(135deg,#2f6fd6,#4d8df0)" onclick="cronoScegliModo('ripetuta')">🔂 Da ripetuta<br><span style="font-size:12.5px;font-weight:600;opacity:.92">ogni atleta ha la sua riga e il suo STOP · parte col crono grande</span></button>
+      <button class="cl-go" style="margin-top:11px;background:linear-gradient(135deg,#2f8f4e,#7bc043)" onclick="cronoScegliModo('serie')">🏁 Da serie / batteria<br><span style="font-size:12.5px;font-weight:600;opacity:.92">partono insieme (max 10): segni i passaggi con un tasto, poi assegni l'ordine d'arrivo</span></button>
+    </div>`;
+}
+function _clSerie() { const C = S.cronoLive; if (!C) return null; C.serie = C.serie || { start: null, nRep: 0, passaggi: [], recStart: null, ordine: [] }; return C.serie; }
+function cronoSetBatt(id, n) { const C = S.cronoLive; if (!C) return; C.batt = C.batt || {}; C.batt[id] = Number(n) || 1; disegna(); }
+function cronoBattAttiva(n) { const C = S.cronoLive; if (!C) return; const se = _clSerie(); se.start = null; se.passaggi = []; se.recStart = null; se.ordine = []; C.battAttiva = Number(n) || 1; disegna(); }
+function cronoSerieVia() { const C = S.cronoLive; if (!C) return; const se = _clSerie(); se.start = Date.now(); se.nRep = (se.nRep || 0) + 1; se.passaggi = []; se.recStart = null; C.setup = false; disegna(); }
+function cronoSeriePassaggio() {
+  const C = S.cronoLive; if (!C) return; const se = _clSerie(); if (se.start == null) return;
+  const heat = (C.lista || []).filter(id => C.presenti[id] && (C.batt[id] || 1) === C.battAttiva);
+  if (se.passaggi.length >= heat.length && heat.length) return;   // presi tutti
+  se.passaggi.push(Math.round((Date.now() - se.start) / 10) / 100);
+  if (se.recStart == null) se.recStart = Date.now();   // recupero dal 1° arrivato
+  disegna();
+}
+function cronoSeriePassaggioUndo() { const C = S.cronoLive; if (!C) return; const se = _clSerie(); if (!se.passaggi.length) return; se.passaggi.pop(); if (!se.passaggi.length) se.recStart = null; disegna(); }
+function cronoSerieSetOrdine(pos, aid) { const C = S.cronoLive; if (!C) return; const se = _clSerie(); se.ordine[pos] = aid || null; disegna(); }
+function cronoSerieConferma() {
+  const C = S.cronoLive; if (!C) return; const se = _clSerie();
+  if (!se.passaggi.length) { alert("Non hai ancora segnato nessun passaggio."); return; }
+  const senzaAtl = se.passaggi.some((_, i) => !se.ordine[i]);
+  if (senzaAtl && typeof confirm === "function" && !confirm("Alcuni tempi non hanno un atleta assegnato e verranno ignorati. Confermo lo stesso?")) return;
+  se.passaggi.forEach((t, i) => { const aid = se.ordine[i]; if (aid && C.atl[aid]) C.atl[aid].tempi.push(t); });
+  se.start = null; se.passaggi = []; se.recStart = null;   // pronta per la prossima serie (l'ordine resta come default)
+  disegna(); window.scrollTo(0, 0);
+}
+function _clVistaSerie(C) {
+  const esc = _clEsc;
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const dataLbl = (typeof dataLunga === "function") ? cap(dataLunga(C.data)) : C.data;
+  const nomeDi = id => { const a = (DEMO.atleti || []).find(x => x.id === id); return a ? a.nome : "?"; };
+  const gruppoNome = (typeof nomeGruppo === "function") ? nomeGruppo(C.gruppo) : "";
+  const se = _clSerie();
+  const pres = (C.lista || []).filter(id => C.presenti[id]);
+  const nBatt = pres.length ? Math.max(1, ...pres.map(id => C.batt[id] || 1)) : 1;
+  const heat = pres.filter(id => (C.batt[id] || 1) === C.battAttiva);
+  const opt = C.opzioni.map((o, i) => `<option value="${i}" ${C.sel === i ? "selected" : ""}>${esc(o.label)}</option>`).join("");
+
+  const setup = C.setup ? `<div class="card">
+      <label class="lab">Lavoro del gruppo</label>
+      <select onchange="cronoSetLavoro(this.value)" style="margin-top:6px">${opt}<option value="custom" ${C.sel < 0 ? "selected" : ""}>✎ scrivilo a mano…</option></select>
+      ${C.sel < 0 ? `<input value="${esc(C.custom)}" placeholder="es. 5 × 200 m" oninput="cronoSetCustom(this.value)" onchange="disegna()" style="margin-top:8px">` : ""}
+      <label class="lab" style="display:block;margin-top:14px">Batterie (max 10 per batteria) — tocca il numero per spostare</label>
+      ${pres.map(id => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)">
+          <span>${esc(nomeDi(id))}</span>
+          <div class="cl-batt-sel">${Array.from({ length: nBatt + 1 }, (_, b) => b + 1).map(b => `<button class="cl-bchip ${(C.batt[id] || 1) === b ? "on" : ""}" onclick="cronoSetBatt('${id}',${b})">${b}</button>`).join("")}</div>
+        </div>`).join("")}
+      <p class="et" style="margin-top:8px;color:var(--txt3)">Ogni batteria parte per conto suo. Segni i <b>passaggi</b> con un tasto (o un telecomando Bluetooth: <b>spazio/invio</b>), poi assegni l'ordine d'arrivo.</p>
+    </div>` : "";
+
+  const battSel = nBatt > 1 ? `<div class="cl-presenti" style="margin-bottom:10px">${Array.from({ length: nBatt }, (_, b) => b + 1).map(b => `<button class="cl-chip ${C.battAttiva === b ? "on" : ""}" onclick="cronoBattAttiva(${b})">Batteria ${b} · ${pres.filter(id => (C.batt[id] || 1) === b).length}</button>`).join("")}</div>` : "";
+
+  const lavoro = _clLavoroLabel();
+  const azioneGrande = se.start == null
+    ? `<button class="cl-go" onclick="cronoSerieVia()">▶ Via! (batteria ${C.battAttiva})</button>`
+    : `<button class="cl-go cl-passaggio" onclick="cronoSeriePassaggio()">⏱ PASSAGGIO · ${se.passaggi.length}/${heat.length}</button>`;
+  const grande = `<div class="card cl-grande">
+      <div class="cl-grande-top"><div><div class="et" style="margin:0">Lavoro del gruppo</div><div class="cl-lavoro">${esc(lavoro)}</div></div>
+        <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="cronoToggleSetup()">${C.setup ? "Nascondi" : "⚙ Setup"}</button></div>
+      ${battSel}
+      <div class="cl-big" id="cl-big">0:00.0</div>
+      ${azioneGrande}
+      <p class="cl-rec" id="cl-serie-rec" style="text-align:center;margin:8px 0 0;min-height:16px"></p>
+      <p class="et" style="text-align:center;margin:4px 0 0">${se.nRep ? "Serie " + se.nRep + " · batteria di " + heat.length : "Premi «Via!» e poi «Passaggio» a ogni arrivo"}</p>
+    </div>`;
+
+  const assegna = se.passaggi.length ? `<div class="card">
+      <p class="sez" style="margin-top:0">Ordine d'arrivo · assegna gli atleti</p>
+      ${se.passaggi.map((t, i) => `<div class="cl-ass-row">
+          <span class="cl-ass-pos">${i + 1}°</span>
+          <span class="cl-ass-t">${_clFmt(t * 1000)}</span>
+          <select onchange="cronoSerieSetOrdine(${i},this.value)" style="flex:1;min-width:110px"><option value="">— atleta —</option>${heat.map(aid => `<option value="${aid}" ${se.ordine[i] === aid ? "selected" : ""}>${esc(nomeDi(aid))}</option>`).join("")}</select>
+        </div>`).join("")}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-2" style="width:auto;padding:8px 12px" onclick="cronoSeriePassaggioUndo()">↶ togli ultimo</button>
+        <button class="btn" style="flex:1" onclick="cronoSerieConferma()">✓ Conferma la serie</button>
+      </div>
+    </div>` : "";
+
+  const prog = heat.map(id => { const tp = C.atl[id].tempi; return `<div class="card cl-row"><span class="av" style="width:34px;height:34px;font-size:11px">${_clIniz(nomeDi(id))}</span><div style="flex:1;min-width:0"><h3 style="margin:0;font-size:14px">${esc(nomeDi(id))}</h3>${tp.length ? `<div class="cl-times">${tp.map((t, i) => `<span class="cl-time-chip">${i + 1}: ${_clFmt(t * 1000)}</span>`).join("")}</div>` : `<span class="et" style="margin:0">nessun tempo</span>`}</div></div>`; }).join("");
+
+  const fine = _clQualcosaFatto() ? `<button class="btn" style="margin-top:14px" onclick="cronoFine()">✓ Fine allenamento · salva i tempi</button>` : "";
+
+  return `<button class="indietro" onclick="chiudiCronoLive()">‹ Esci dal cronometro</button>
+    <div class="card" style="background:var(--blu);color:#fff;border:0"><h3 style="color:#fff;margin:0">🏁 Serie / batteria dal vivo</h3><p class="et" style="color:#fff;opacity:.9;margin-top:3px">${gruppoNome} · ${dataLbl}</p></div>
+    ${setup}
+    ${grande}
+    ${assegna}
+    ${heat.length ? `<p class="sez">Batteria ${C.battAttiva} · ${heat.length}</p>${prog}` : `<div class="card"><p class="et" style="margin:0">Nessun atleta in questa batteria: apri il setup.</p></div>`}
+    ${fine}`;
+}
+// telecomando Bluetooth / tastiera: SPAZIO o INVIO → Via!/Passaggio nel modo "serie" (mani libere)
+if (typeof document !== "undefined" && document.addEventListener) {
+  document.addEventListener("keydown", function (e) {
+    const C = (typeof S !== "undefined") ? S.cronoLive : null;
+    if (!C || C.modo !== "serie" || (typeof S !== "undefined" && S.seduta)) return;
+    if (e.target && e.target.matches && e.target.matches("input,select,textarea")) return;
+    if (e.code === "Space" || e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      const se = C.serie || {};
+      if (se.start == null) cronoSerieVia(); else cronoSeriePassaggio();
+    }
+  });
+}
+
 // ---- vista ----
 function vistaCronoLive() {
   const C = S.cronoLive;
   if (!C) return "";
   _clStartTick();
+  if (!C.modo) return _clVistaScegliModo(C);
+  if (C.modo === "serie") return _clVistaSerie(C);
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   const dataLbl = (typeof dataLunga === "function") ? cap(dataLunga(C.data)) : C.data;
   const nomeDi = id => { const a = (DEMO.atleti || []).find(x => x.id === id); return a ? a.nome : "?"; };
