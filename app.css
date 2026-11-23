@@ -129,6 +129,35 @@ textarea:focus{outline:2px solid var(--blu);outline-offset:-1px}
 .srow-n{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .srow .cell{height:30px;font-size:13px;cursor:default}
 
+/* ===== Oggi coach (restyle) ===== */
+.av{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:none;border-radius:50%;font-size:13.5px;font-weight:700;letter-spacing:.3px;color:var(--txt);background:var(--card2);border:2px solid var(--line)}
+.av-ok{background:rgba(124,194,67,.18);color:#9fe07a;border-color:rgba(124,194,67,.55)}
+.av-todo{background:rgba(77,154,255,.18);color:#8fbaff;border-color:rgba(77,154,255,.5)}
+.av-parz{background:rgba(230,168,60,.18);color:#f0c070;border-color:rgba(230,168,60,.55)}
+.av-alert{background:rgba(176,42,55,.2);color:#f08a93;border-color:rgba(176,42,55,.6)}
+.oggi-row{display:flex;align-items:center;gap:12px}
+.oggi-row.s-ok{border-left:3px solid var(--verde)}
+.oggi-row.s-todo{border-left:3px solid var(--blu)}
+.oggi-row.s-parz{border-left:3px solid var(--ambra,#e6a83c)}
+.oggi-row.s-alert{border-left:3px solid var(--rosso);border-color:rgba(176,42,55,.4)}
+.ob-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.ob-badge{font-size:12px;padding:2px 9px;border-radius:999px;background:var(--card2);color:var(--txt2);border:1px solid var(--line);white-space:nowrap}
+.ob-badge.done{color:var(--verde);border-color:rgba(124,194,67,.45);background:rgba(124,194,67,.08)}
+.ob-badge.warn{color:var(--ambra,#e6a83c);border-color:rgba(230,168,60,.4);background:rgba(230,168,60,.08)}
+.ok-card{border-color:rgba(124,194,67,.4)!important;background:rgba(124,194,67,.06)}
+.oggi-hero{background:linear-gradient(135deg,rgba(77,154,255,.16),rgba(81,72,176,.14));border-color:rgba(77,154,255,.32)}
+.oggi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.oggi-data{font-size:19px;font-weight:800;line-height:1.15}
+.oggi-perc{font-size:22px;font-weight:800;color:var(--blu)}
+.oggi-prog{margin-top:14px}
+.oggi-prog-lab{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px;color:var(--txt2)}
+.prog-bar{height:9px;border-radius:999px;background:var(--card2);overflow:hidden}
+.prog-bar>i{display:block;height:100%;background:linear-gradient(90deg,#4d8df0,#7bc043);border-radius:999px;transition:width .4s ease}
+.oggi-mini{display:flex;gap:8px;margin-top:14px}
+.oggi-mini>div{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:9px 6px;text-align:center}
+.oggi-mini b{display:block;font-size:20px;font-weight:800;line-height:1.1}
+.oggi-mini span{font-size:11px;color:var(--txt3)}
+
 .pront{text-align:center}
 .pront .pv{font-size:38px;font-weight:600;line-height:1.1;margin-top:4px}
 .pront .pv span{font-size:16px;color:var(--txt2);font-weight:400}

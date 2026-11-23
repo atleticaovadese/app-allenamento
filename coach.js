@@ -96,16 +96,22 @@ function vistaOggiCoach() {
   const chiusi = allena.filter(x => x.svNorm.length).length;
   const daFare = allena.length - chiusi;
   const diarioN = info.filter(x => x.diario).length;
+  const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const iniz = n => (String(n || "").trim().split(/\s+/).slice(0, 2).map(w => w[0] || "").join("") || "?").toUpperCase();
+  const av = (n, cls) => `<span class="av ${cls || ""}">${iniz(n)}</span>`;
   const tipoLbl = { pista: "🏃 Pista", palestra: "🏋 Palestra" };
   const rigaAllena = x => {
     const tipi = [...new Set(x.prog.map(s => s.tipo))];
     x.svNorm.forEach(s => { if (!tipi.includes(s.tipo)) tipi.push(s.tipo); });
-    const badges = tipi.map(t => { const fatto = x.svNorm.some(s => s.tipo === t); return `<span style="color:${fatto ? "var(--verde)" : "var(--ambra,#e6a83c)"}">${tipoLbl[t] || t} ${fatto ? "✓" : "⏳"}</span>`; }).join(" · ");
-    const ex = x.extra.length ? ` · <span style="color:var(--verde)">＋${x.extra.length} in più</span>` : "";
-    const dia = x.diario ? "" : ` · <span style="color:var(--txt3)">diario ✗</span>`;
-    return `<div class="card riga-a" onclick="apriAtleta('${x.a.id}')">
-      <div style="flex:1;min-width:0"><h3>${x.a.nome}</h3>
-        <p class="et" style="margin-top:2px">${badges || "—"}${ex}${dia}</p></div>
+    const fattoTutto = tipi.length > 0 && tipi.every(t => x.svNorm.some(s => s.tipo === t));
+    const stato = fattoTutto ? "ok" : (x.svNorm.length ? "parz" : "todo");
+    const badges = tipi.map(t => { const fatto = x.svNorm.some(s => s.tipo === t); return `<span class="ob-badge ${fatto ? "done" : ""}">${tipoLbl[t] || t} ${fatto ? "✓" : "⏳"}</span>`; }).join("");
+    const ex = x.extra.length ? `<span class="ob-badge done">＋${x.extra.length} in più</span>` : "";
+    const dia = x.diario ? "" : `<span class="ob-badge warn">📓 ✗</span>`;
+    return `<div class="card riga-a oggi-row s-${stato}" onclick="apriAtleta('${x.a.id}')">
+      ${av(x.a.nome, "av-" + stato)}
+      <div style="flex:1;min-width:0"><h3 style="margin:0">${esc(x.a.nome)}</h3>
+        <div class="ob-badges">${badges}${ex}${dia}</div></div>
       <span class="freccia">›</span></div>`;
   };
   const senzaDiario = info.filter(x => !x.diario);
@@ -146,21 +152,44 @@ function vistaOggiCoach() {
         <span class="freccia">›</span></div>`).join("")
       : `<div class="card"><p class="et">Tutti seguono il programma madre oggi. ✓</p></div>`}`;
 
+  // riga "da gestire" (priorità): fastidio / prontezza bassa — in evidenza
+  const rigaGest = x => {
+    const p = _pr(x);
+    const motivi = [x.dObj.fastidi ? "🩹 fastidio oggi" : "", (p != null && p < 2.5) ? "🔋 prontezza bassa " + p.toFixed(1) : ""].filter(Boolean).join(" · ");
+    return `<div class="card riga-a oggi-row s-alert" onclick="apriAtleta('${x.a.id}')">${av(x.a.nome, "av-alert")}
+      <div style="flex:1;min-width:0"><h3 style="margin:0">${esc(x.a.nome)}</h3><p class="et" style="margin-top:2px;color:var(--rosso)">${motivi}</p></div>
+      <span class="freccia">›</span></div>`;
+  };
+  const pctFatti = allena.length ? Math.round(chiusi / allena.length * 100) : 0;
+  const hero = `<div class="card oggi-hero">
+    <div class="oggi-head">
+      <div><div class="oggi-data">${dataLbl}</div><div class="et" style="margin-top:2px">${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""} · ${lista.length} atlet${lista.length === 1 ? "a" : "i"}</div></div>
+      <span class="oggi-perc">${allena.length ? pctFatti + "%" : "—"}</span>
+    </div>
+    <div class="oggi-prog"><div class="oggi-prog-lab"><span>Allenamenti di oggi</span><b>${chiusi}/${allena.length} fatti</b></div>
+      <div class="prog-bar"><i style="width:${pctFatti}%"></i></div></div>
+    <div class="oggi-mini">
+      <div><b style="color:${daFare ? "var(--ambra,#e6a83c)" : "var(--verde)"}">${daFare}</b><span>da fare</span></div>
+      <div><b>${diarioN}/${lista.length}</b><span>diario</span></div>
+      <div><b style="color:${daGestire.length ? "var(--rosso)" : "var(--verde)"}">${daGestire.length}</b><span>da gestire</span></div>
+    </div></div>`;
+  const diarioHtml = senzaDiario.length
+    ? `<p class="sez">Diario · ${diarioN}/${lista.length}</p><div class="card"><p class="et" style="margin:0 0 7px">Non ha ancora compilato oggi:</p><div class="ob-badges">${senzaDiario.map(x => `<span class="ob-badge warn" style="cursor:pointer" onclick="apriAtleta('${x.a.id}')">${esc(x.a.nome)}</span>`).join("")}</div></div>`
+    : `<div class="card ok-card"><p class="et" style="margin:0;color:var(--verde)">📓 ✓ Tutti hanno compilato il diario oggi.</p></div>`;
+  const extraHtml = extraOggi.length
+    ? `<p class="sez">Allenamenti in più · ${extraOggi.length}</p>${extraOggi.map(x => `<div class="card riga-a oggi-row" onclick="apriAtleta('${x.a.id}')">${av(x.a.nome)}<div style="flex:1;min-width:0"><h3 style="margin:0">${esc(x.a.nome)}</h3><p class="et" style="margin-top:2px;color:var(--verde)">${x.extra.map(sv => { const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "In più" }; return inf.icona + " " + inf.titolo; }).join(" · ")}</p></div><span class="freccia">›</span></div>`).join("")}`
+    : "";
+
   return `${(typeof chipsGruppi === "function") ? chipsGruppi() : ""}
-  <div class="card"><h3>Oggi · ${dataLbl}</h3>
-    <p class="et" style="margin-top:2px">Colpo d'occhio sulla giornata (${(typeof nomeGruppo === "function") ? nomeGruppo(g) : ""}). Tocca un atleta per aprirlo.</p></div>
-  ${madreHtml}
-  <div class="quadri" style="margin-bottom:11px">
-    <div class="q"><div class="k">Si allenano oggi</div><div class="v">${allena.length}</div></div>
-    <div class="q"><div class="k">Hanno chiuso</div><div class="v" style="color:var(--verde)">${chiusi}</div></div>
-    <div class="q"><div class="k">Ancora da fare</div><div class="v" style="color:${daFare ? "var(--ambra,#e6a83c)" : "var(--verde)"}">${daFare}</div></div>
-    <div class="q"><div class="k">Diario oggi</div><div class="v">${diarioN}/${lista.length}</div></div>
-  </div>
-  <p class="sez">Allenamenti di oggi</p>
-  ${allena.length ? allena.map(rigaAllena).join("") : `<div class="card"><p class="et">Nessun allenamento programmato oggi per questo gruppo.</p></div>`}
-  ${daGestire.length ? `<p class="sez">Da gestire oggi</p>${daGestire.map(x => { const p = _pr(x); return `<div class="card riga-a" style="border-color:rgba(176,42,55,.4)" onclick="apriAtleta('${x.a.id}')"><div style="flex:1;min-width:0"><h3>${x.a.nome}</h3><p class="et" style="margin-top:2px">${x.dObj.fastidi ? "🩹 fastidio segnalato oggi" : ""}${x.dObj.fastidi && p != null && p < 2.5 ? " · " : ""}${p != null && p < 2.5 ? "🔋 prontezza bassa " + p.toFixed(1) : ""}</p></div><span class="freccia">›</span></div>`; }).join("")}` : ""}
-  ${senzaDiario.length ? `<p class="sez">Diario non compilato oggi · ${senzaDiario.length}</p><div class="card"><p class="et">${senzaDiario.map(x => x.a.nome).join(" · ")}</p></div>` : `<div class="card" style="border-color:rgba(124,194,67,.4)"><p class="et" style="color:var(--verde)">✓ Tutti hanno compilato il diario oggi.</p></div>`}
-  ${extraOggi.length ? `<p class="sez">Allenamenti in più oggi</p>${extraOggi.map(x => `<div class="card riga-a" onclick="apriAtleta('${x.a.id}')"><div style="flex:1;min-width:0"><h3>${x.a.nome}</h3><p class="et" style="margin-top:2px">${x.extra.map(sv => { const inf = (typeof _extraInfo === "function") ? _extraInfo(sv) : { icona: "➕", titolo: "In più" }; return inf.icona + " " + inf.titolo; }).join(" · ")}</p></div><span class="freccia">›</span></div>`).join("")}` : ""}`;
+  ${hero}
+  ${daGestire.length
+      ? `<p class="sez" style="color:var(--rosso)">⚠️ Da gestire oggi · ${daGestire.length}</p>${daGestire.map(rigaGest).join("")}`
+      : `<div class="card ok-card"><p class="et" style="margin:0;color:var(--verde)">✓ Nessuna criticità oggi: nessun fastidio o prontezza bassa.</p></div>`}
+  <p class="sez">Allenamenti di oggi · ${chiusi}/${allena.length}</p>
+  ${allena.length ? allena.map(rigaAllena).join("") : `<div class="card"><p class="et" style="margin:0">Nessun allenamento programmato oggi per questo gruppo.</p></div>`}
+  ${diarioHtml}
+  ${extraHtml}
+  ${madreHtml}`;
 }
 
 // ---------- squadra (ingresso coach) ----------
