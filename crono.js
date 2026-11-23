@@ -8,10 +8,13 @@
 // ============================================================================
 
 function _clEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"); }
-function _clFmt(ms) {            // m:ss.d (decimi) per i tempi che corrono
+// orologio ad alta risoluzione e MONOTONO (non risente di scatti/aggiustamenti dell'ora di sistema):
+// ogni tempo è sempre (adesso − start), quindi niente deriva accumulata.
+function _clNow() { return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now(); }
+function _clFmt(ms) {            // m:ss.cc (CENTESIMI) per i tempi che corrono
   if (!(ms > 0)) ms = 0;
-  const dec = Math.floor(ms / 100) % 10, t = Math.floor(ms / 1000), s = t % 60, m = Math.floor(t / 60);
-  return m + ":" + String(s).padStart(2, "0") + "." + dec;
+  const cc = Math.floor(ms / 10) % 100, t = Math.floor(ms / 1000), s = t % 60, m = Math.floor(t / 60);
+  return m + ":" + String(s).padStart(2, "0") + "." + String(cc).padStart(2, "0");
 }
 function _clFmtRec(ms) {         // m:ss per il recupero
   if (!(ms > 0)) ms = 0;
@@ -78,21 +81,21 @@ function _clQualcosaFatto() {
 }
 
 // ---- tick: aggiorna i tempi a schermo senza ridisegnare tutto ----
-function _clStartTick() { if (!S._clHandle) S._clHandle = setInterval(_clTick, 120); }
+function _clStartTick() { if (!S._clHandle) S._clHandle = setInterval(_clTick, 30); }   // ~33fps: i centesimi scorrono fluidi e gira anche col pannello in background
 function _clStopTick() { if (S._clHandle) { clearInterval(S._clHandle); S._clHandle = null; } }
 function _clTick() {
   const C = S.cronoLive;
   if (!C) { _clStopTick(); return; }
-  const now = Date.now();
+  const now = _clNow();
   const big = document.getElementById("cl-big");
   if (C.modo === "serie") {
     const se = C.serie || {};
-    if (big) big.textContent = se.start ? _clFmt(now - se.start) : "0:00.0";
+    if (big) big.textContent = se.start ? _clFmt(now - se.start) : "0:00.00";
     const sr = document.getElementById("cl-serie-rec");
     if (sr) sr.textContent = se.recStart ? ("rec dal 1°: " + _clFmtRec(now - se.recStart)) : "";
     return;
   }
-  if (big) big.textContent = C.repStart ? _clFmt(now - C.repStart) : "0:00.0";
+  if (big) big.textContent = C.repStart ? _clFmt(now - C.repStart) : "0:00.00";
   (C.lista || []).forEach(id => {
     if (!C.presenti[id]) return;
     const st = C.atl[id]; if (!st) return;
@@ -110,7 +113,7 @@ function _clTick() {
 // ---- azioni ----
 function cronoGo() {               // crono grande: parte/riparte TUTTI i presenti sulla stessa ripetuta
   const C = S.cronoLive; if (!C) return;
-  const now = Date.now();
+  const now = _clNow();
   C.repStart = now; C.nRep = (C.nRep || 0) + 1; C.setup = false;
   (C.lista || []).forEach(id => { if (C.presenti[id]) { const st = C.atl[id]; st.running = true; st.runStart = now; st.recStart = null; } });
   disegna();
@@ -120,15 +123,15 @@ function cronoViaUno(id) {
   const C = S.cronoLive; if (!C) return;
   const st = C.atl[id]; if (!st) return;
   C.presenti[id] = true; C.setup = false;
-  st.running = true; st.runStart = Date.now(); st.recStart = null;
+  st.running = true; st.runStart = _clNow(); st.recStart = null;
   if (C.repStart == null) C.repStart = st.runStart;   // così il crono grande mostra comunque qualcosa
   disegna();
 }
 function cronoStop(id) {            // stop del singolo atleta: registra il tempo (dal SUO start) e parte il recupero
   const C = S.cronoLive; if (!C) return;
   const st = C.atl[id]; if (!st || !st.running || !st.runStart) return;
-  const t = Math.round((Date.now() - st.runStart) / 10) / 100;   // secondi, 2 decimali
-  st.tempi.push(t); st.running = false; st.recStart = Date.now();
+  const t = Math.round((_clNow() - st.runStart) / 10) / 100;   // secondi, 2 decimali
+  st.tempi.push(t); st.running = false; st.recStart = _clNow();
   disegna();
 }
 function cronoAnnullaUltimo(id) {   // togli l'ultimo tempo registrato (mistap)
@@ -183,13 +186,13 @@ function _clVistaScegliModo(C) {
 function _clSerie() { const C = S.cronoLive; if (!C) return null; C.serie = C.serie || { start: null, nRep: 0, passaggi: [], recStart: null, ordine: [] }; return C.serie; }
 function cronoSetBatt(id, n) { const C = S.cronoLive; if (!C) return; C.batt = C.batt || {}; C.batt[id] = Number(n) || 1; disegna(); }
 function cronoBattAttiva(n) { const C = S.cronoLive; if (!C) return; const se = _clSerie(); se.start = null; se.passaggi = []; se.recStart = null; se.ordine = []; C.battAttiva = Number(n) || 1; disegna(); }
-function cronoSerieVia() { const C = S.cronoLive; if (!C) return; const se = _clSerie(); se.start = Date.now(); se.nRep = (se.nRep || 0) + 1; se.passaggi = []; se.recStart = null; C.setup = false; disegna(); }
+function cronoSerieVia() { const C = S.cronoLive; if (!C) return; const se = _clSerie(); se.start = _clNow(); se.nRep = (se.nRep || 0) + 1; se.passaggi = []; se.recStart = null; C.setup = false; disegna(); }
 function cronoSeriePassaggio() {
   const C = S.cronoLive; if (!C) return; const se = _clSerie(); if (se.start == null) return;
   const heat = (C.lista || []).filter(id => C.presenti[id] && (C.batt[id] || 1) === C.battAttiva);
   if (se.passaggi.length >= heat.length && heat.length) return;   // presi tutti
-  se.passaggi.push(Math.round((Date.now() - se.start) / 10) / 100);
-  if (se.recStart == null) se.recStart = Date.now();   // recupero dal 1° arrivato
+  se.passaggi.push(Math.round((_clNow() - se.start) / 10) / 100);
+  if (se.recStart == null) se.recStart = _clNow();   // recupero dal 1° arrivato
   disegna();
 }
 function cronoSeriePassaggioUndo() { const C = S.cronoLive; if (!C) return; const se = _clSerie(); if (!se.passaggi.length) return; se.passaggi.pop(); if (!se.passaggi.length) se.recStart = null; disegna(); }
@@ -242,9 +245,9 @@ function _clVistaSerie(C) {
   const lavoro = _clLavoroLabel();
   // in corsa: tutta l'area clock+passaggio è un TASTO GIGANTE (tocca ovunque qui a ogni arrivo)
   const corpoGrande = se.start == null
-    ? `<div class="cl-big" id="cl-big">0:00.0</div><button class="cl-go" onclick="cronoSerieVia()">▶ Via! (batteria ${C.battAttiva})</button>`
+    ? `<div class="cl-big" id="cl-big">0:00.00</div><button class="cl-go" onclick="cronoSerieVia()">▶ Via! (batteria ${C.battAttiva})</button>`
     : `<div class="cl-tapzone" onclick="cronoSeriePassaggio()">
-        <div class="cl-big" id="cl-big">0:00.0</div>
+        <div class="cl-big" id="cl-big">0:00.00</div>
         <div class="cl-tapzone-lbl">⏱ PASSAGGIO · ${se.passaggi.length}/${heat.length}</div>
         <div class="cl-tapzone-sub">tocca qui a ogni arrivo</div>
       </div>`;
@@ -347,7 +350,7 @@ function vistaCronoLive() {
         <div><div class="et" style="margin:0">Lavoro del gruppo</div><div class="cl-lavoro">${_clEsc(lavoro)}</div></div>
         <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="cronoToggleSetup()">${C.setup ? "Nascondi" : "⚙ Setup"}</button>
       </div>
-      <div class="cl-big" id="cl-big">0:00.0</div>
+      <div class="cl-big" id="cl-big">0:00.00</div>
       ${bigBtn}
       <p class="et" style="text-align:center;margin:8px 0 0">${C.nRep ? "Ripetuta " + C.nRep + " · parte/riparte tutti insieme" : "Premi «Via!» per far partire tutti insieme"}</p>
     </div>`;
@@ -356,7 +359,7 @@ function vistaCronoLive() {
   const righe = (C.lista || []).filter(id => C.presenti[id]).map(id => {
     const st = C.atl[id];
     const chips = st.tempi.map((t, i) => `<span class="cl-time-chip">${i + 1}: ${_clFmt(t * 1000)}</span>`).join("");
-    const tDisp = st.running ? "0:00.0" : (st.tempi.length ? _clFmt(st.tempi[st.tempi.length - 1] * 1000) : "–");
+    const tDisp = st.running ? "0:00.00" : (st.tempi.length ? _clFmt(st.tempi[st.tempi.length - 1] * 1000) : "–");
     const azione = st.running
       ? `<button class="cl-stop" onclick="cronoStop('${id}')">■ STOP</button>`
       : `<button class="cl-via1" onclick="cronoViaUno('${id}')">▶ Via</button>`;
