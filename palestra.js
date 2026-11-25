@@ -176,6 +176,23 @@ function palCopiaMesoPrec() {
   S.palMeso = mc.length - 1; S.palGiorno = 0;
   savePalestra(); disegna(); window.scrollTo(0, 0);
 }
+// CANCELLA il mesociclo mostrato — con DOPPIA conferma (per rimediare a mesocicli aggiunti per sbaglio).
+// Ne resta sempre almeno uno (vuoto): così l'editor non resta senza e sei "pronto a iniziare col Meso 1".
+function palDelMeso() {
+  const p = palestraInit(), mc = p.mesocicli || [];
+  const i = S.palMeso, m = mc[i]; if (!m) return;
+  const n = i + 1;
+  if (typeof confirm === "function") {
+    if (!confirm("Cancellare il Mesociclo " + n + " con tutto il suo contenuto?")) return;
+    if (!confirm("Confermi DAVVERO? Il Mesociclo " + n + " verrà eliminato e non si può recuperare.")) return;
+  }
+  mc.splice(i, 1);
+  if (!mc.length) mc.push(palMesoVuoto());   // ne resta sempre almeno uno: l'editor non può restare senza mesocicli
+  if (S.palMeso >= mc.length) S.palMeso = mc.length - 1;
+  S.palGiorno = 0;
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  savePalestra(); disegna(); window.scrollTo(0, 0);
+}
 function selPalMeso(i) { S.palMeso = i; S.palGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei
 function selPalGiorno(i) { S.palGiorno = i; disegna(); }                // cambia giorno restando dove sei
 function palAddGiorno() {
@@ -322,7 +339,8 @@ function vistaProgrammaPalestra() {
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>
     `<button class="${i === S.palMeso ? "on" : ""}" onclick="selPalMeso(${i})">Meso ${i + 1}</button>`).join("")}
     <button onclick="palAddMeso()" title="Nuovo mesociclo vuoto">＋</button>
-    <button onclick="palCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>`;
+    <button onclick="palCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>
+    <div style="margin:6px 0 11px"><button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px;color:var(--rosso);border-color:rgba(255,107,107,.4)" onclick="palDelMeso()">🗑 Cancella Meso ${S.palMeso + 1}</button></div>`;
 
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);

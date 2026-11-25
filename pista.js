@@ -1052,6 +1052,23 @@ function pistaCopiaMesoPrec() {
   S.pistaMeso = mc.length - 1; S.pistaGiorno = 0;
   savePista(); disegna(); window.scrollTo(0, 0);
 }
+// CANCELLA il mesociclo mostrato — con DOPPIA conferma (per rimediare a mesocicli aggiunti per sbaglio).
+// Ne resta sempre almeno uno (vuoto): così l'editor non resta senza e sei "pronto a iniziare col Meso 1".
+function pistaDelMeso() {
+  const p = pistaInit(), mc = p.mesocicli || [];
+  const i = S.pistaMeso, m = mc[i]; if (!m) return;
+  const n = i + 1;
+  if (typeof confirm === "function") {
+    if (!confirm("Cancellare il Mesociclo " + n + " con tutto il suo contenuto?")) return;
+    if (!confirm("Confermi DAVVERO? Il Mesociclo " + n + " verrà eliminato e non si può recuperare.")) return;
+  }
+  mc.splice(i, 1);
+  if (!mc.length) mc.push(mesoVuoto());   // ne resta sempre almeno uno: l'editor non può restare senza mesocicli
+  if (S.pistaMeso >= mc.length) S.pistaMeso = mc.length - 1;
+  S.pistaGiorno = 0;
+  if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();
+  savePista(); disegna(); window.scrollTo(0, 0);
+}
 function selMeso(i) { S.pistaMeso = i; S.pistaGiorno = 0; disegna(); }   // cambia mesociclo restando dove sei
 function selGiorno(i) { S.pistaGiorno = i; disegna(); }                  // cambia giorno restando dove sei
 function pistaAddGiorno() {
@@ -1169,7 +1186,8 @@ function vistaProgrammaPista() {
   const tabMeso = `<div class="tabbar">${p.mesocicli.map((_, i) =>
     `<button class="${i === S.pistaMeso ? "on" : ""}" onclick="selMeso(${i})">Meso ${i + 1}</button>`).join("")}
     <button onclick="pistaAddMeso()" title="Nuovo mesociclo vuoto">＋</button>
-    <button onclick="pistaCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>`;
+    <button onclick="pistaCopiaMesoPrec()" title="Nuovo mesociclo copiando quello mostrato">⧉ copia</button></div>
+    <div style="margin:6px 0 11px"><button class="btn btn-2" style="width:auto;padding:6px 11px;font-size:12px;color:var(--rosso);border-color:rgba(255,107,107,.4)" onclick="pistaDelMeso()">🗑 Cancella Meso ${S.pistaMeso + 1}</button></div>`;
 
   const cicli = pistaCicliPiano();
   const nSett = nSettimaneMeso(m);
