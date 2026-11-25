@@ -748,10 +748,10 @@ function annullaProgMadre(tipo) {
 // barra in fondo all'editor: stato + Salva / Annulla / Annulla-ultimo-salvataggio — sia madre sia personale
 function _barraSalvaMadre(tipo) {
   const c = _progCtx(tipo);
-  // LUCCHETTO: se il programma è bloccato, non si salva (né si modifica): prima si Sblocca con la password.
+  // LUCCHETTO: se il mesociclo è finito, non si salva (né si modifica): prima si preme «Sblocca» (un tocco).
   if (typeof progBloccato === "function" && progBloccato()) {
     return `<div class="card" style="position:sticky;bottom:8px;border-color:rgba(240,168,60,.6);box-shadow:0 -2px 10px rgba(0,0,0,.15)">
-      <p class="et" style="margin:0 0 8px;color:var(--ambra,#e6a83c)">🔒 Programma <b>bloccato</b>: per modificarlo e salvarlo, sbloccalo con la password.</p>
+      <p class="et" style="margin:0 0 8px;color:var(--ambra,#e6a83c)">🔒 Mesociclo <b>finito</b>: per modificarlo e salvarlo, premi «Sblocca» (un tocco).</p>
       <button class="btn" style="width:100%" onclick="sbloccaProg()">🔓 Sblocca per modificare</button>
     </div>`;
   }
@@ -767,7 +767,7 @@ function _barraSalvaMadre(tipo) {
     ${undo ? `<button class="btn btn-2" style="width:100%;margin-top:8px" onclick="annullaUltimoSalvataggio('${tipo}')">↩️ Annulla l'ultimo salvataggio (torna a prima)</button>` : ""}
   </div>`;
 }
-// ---- LUCCHETTO dei programmi: un programma è bloccato finché non si inserisce la password (1111).
+// ---- LUCCHETTO dei programmi: un mesociclo FINITO è bloccato finché non si preme «Sblocca» (un tocco, niente password).
 // Dopo ogni salvataggio si ri-blocca da solo, così non si cambia per sbaglio il programma sbagliato. ----
 // mesociclo mostrato nell'editor corrente (pista vel/mezzo/lanci o palestra)
 function _mesoShown() {
@@ -793,14 +793,14 @@ function _mesoUltimoGiorno(m) {
   return (typeof _dataItBreve === "function") ? _dataItBreve(iso) : iso;
 }
 // LUCCHETTO: scatta SOLO sui mesocicli FINITI (così la password si usa il meno possibile).
-// Quelli in corso/futuri si modificano liberamente. Un finito si sblocca con la password (1111).
+// Quelli in corso/futuri si modificano liberamente. Un finito si sblocca con un tocco su «Sblocca».
 function progBloccato() { return !S.progSbloccato && _mesoFinito(_mesoShown()); }
 function _lk(html) { return progBloccato() ? `<div style="pointer-events:none;opacity:.5;filter:grayscale(.35)" aria-disabled="true">${html}</div>` : html; }
 function sbloccaProg() {
-  const pw = (typeof prompt === "function") ? prompt("Password per modificare il programma:", "") : "";
-  if (pw == null) return;
-  if (String(pw).trim() === "1111") { S.progSbloccato = true; disegna(); window.scrollTo(0, 0); }
-  else if (typeof alert === "function") alert("Password errata.");
+  // UN TOCCO SOLO, niente password: su iPad/telefono (app installata) il popup del prompt
+  // a volte non compariva e non si riusciva a sbloccare. Il mesociclo finito resta segnalato,
+  // ma per modificarlo basta premere «Sblocca». Vale per tutti i programmi (pista + palestra).
+  S.progSbloccato = true; disegna(); window.scrollTo(0, 0);
 }
 function bloccaProg() { S.progSbloccato = false; disegna(); }
 function _barraLock() {
