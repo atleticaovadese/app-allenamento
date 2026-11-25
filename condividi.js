@@ -40,7 +40,12 @@ function _shareStats(s, a) {
       load != null ? { v: Math.round(load).toLocaleString("it-IT"), l: "volume kg" } : null,
       vbtBest != null ? { v: vbtBest.toFixed(2), l: "m/s (VBT)" } : rpe
     ].filter(Boolean);
-    return { chip: "PALESTRA", heroLabel: _shareEsc(sel.nome).toUpperCase(), heroVal: hasPeso ? String(sel.peso) : ((sel.serie && sel.rep) ? sel.serie + "×" + sel.rep : "✓"), heroUnit: hasPeso ? " kg" : "", stats, eserList: ex.map(x => x.nome), eserSel: sel.nome };
+    // dettaglio di OGNI serie: la velocità VBT per serie se registrata, altrimenti rip×peso ripetuto per il numero di serie
+    const setsN = Number(sel.serie) || 0;
+    let palSplits = [], palSplitsTitle = "SERIE";
+    if (vbtF.length) { palSplits = vbtF.map(v => Number(v).toFixed(2)); palSplitsTitle = "VELOCITÀ SERIE (m/s)"; }
+    else if (setsN > 1) { const lbl = (sel.rep ? String(sel.rep) : "") + (sel.rep && hasPeso ? " × " : "") + (hasPeso ? sel.peso + "kg" : (sel.rep ? " rip" : "")); if (lbl.trim()) palSplits = Array.from({ length: setsN }, () => lbl); }
+    return { chip: "PALESTRA", heroLabel: _shareEsc(sel.nome).toUpperCase(), heroVal: hasPeso ? String(sel.peso) : ((sel.serie && sel.rep) ? sel.serie + "×" + sel.rep : "✓"), heroUnit: hasPeso ? " kg" : "", stats, splits: palSplits, splitsTitle: palSplitsTitle, eserList: ex.map(x => x.nome), eserSel: sel.nome };
   }
 
   // pista / campo
@@ -73,9 +78,9 @@ function _shareStats(s, a) {
         if (g === "mezzo") {
           const pace = e.distanza ? _shareFmtPace(avg / e.distanza * 1000) : null;
           const avgR = Math.round(avg); // per la corsa: tempo medio al secondo (senza centesimi)
-          return { chip, heroLabel: repsLbl, heroVal: _shareFmtSec(avgR).replace("s", ""), heroUnit: avgR < 60 ? "s" : "", stats: [pace ? { v: pace, l: "passo /km" } : null, { v: vol >= 1000 ? (vol / 1000).toFixed(1) + " km" : vol + " m", l: "volume" }, rpe].filter(Boolean), elList, elSel };
+          return { chip, heroLabel: repsLbl, heroVal: _shareFmtSec(avgR).replace("s", ""), heroUnit: avgR < 60 ? "s" : "", stats: [pace ? { v: pace, l: "passo /km" } : null, { v: vol >= 1000 ? (vol / 1000).toFixed(1) + " km" : vol + " m", l: "volume" }, rpe].filter(Boolean), elList, elSel, splits: times.map(t => _shareFmtSec(Math.round(Number(t)))), splitsTitle: "SINGOLI TEMPI" };
         }
-        return { chip, heroLabel: repsLbl, heroVal, heroUnit, stats: [{ v: _shareFmtSec(bt), l: "miglior tempo" }, { v: vol + " m", l: "volume" }, rpe].filter(Boolean), elList, elSel };
+        return { chip, heroLabel: repsLbl, heroVal, heroUnit, stats: [{ v: _shareFmtSec(bt), l: "miglior tempo" }, { v: vol + " m", l: "volume" }, rpe].filter(Boolean), elList, elSel, splits: times.map(t => _shareFmtSec(Number(t))), splitsTitle: "SINGOLI TEMPI" };
       }
       if (e.min) return { chip, heroLabel: _shareEsc(e.mezzo || "CONTINUO").toUpperCase(), heroVal: String(e.min), heroUnit: "′", stats: [dur, rpe].filter(Boolean), elList, elSel };
     }
@@ -105,15 +110,67 @@ function _shareSVG(s, a) {
   const bg = foto
     ? `<image xlink:href="${foto}" href="${foto}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`
     : `<rect width="${W}" height="${H}" fill="url(#sgBg)"/>`;
-  const cols = st.stats.slice(0, 3);
-  const colW = (W - 128) / Math.max(1, cols.length);
-  const statsSVG = cols.map((c, i) => {
-    const cx = (64 + colW * i).toFixed(0);
-    return `<text x="${cx}" y="1648" font-family="Arial, Helvetica, sans-serif" font-size="62" font-weight="700" fill="#ffffff">${_shareEsc(c.v)}</text>
-      <text x="${cx}" y="1692" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#cfd6e2" letter-spacing="1">${_shareEsc(c.l)}</text>`;
-  }).join("");
   const heroUnit = st.heroUnit ? `<tspan font-size="74" font-weight="600" fill="#e7ecf5">${_shareEsc(st.heroUnit)}</tspan>` : "";
   const chipW = st.chip.length * 21 + 60;
+
+  // logo Metis: immagine vera (data-URI) se disponibile, altrimenti la "M" disegnata come fallback
+  const logoUri = (typeof window !== "undefined" && window.METIS_LOGO_URI) ? window.METIS_LOGO_URI : "";
+  const logo = logoUri
+    ? `<clipPath id="lgClip"><rect x="64" y="72" width="80" height="80" rx="20"/></clipPath>
+       <image clip-path="url(#lgClip)" x="64" y="72" width="80" height="80" xlink:href="${logoUri}" href="${logoUri}"/>`
+    : `<rect x="64" y="72" width="72" height="72" rx="18" fill="#2563c9"/>
+       <text x="100" y="123" font-family="Arial, Helvetica, sans-serif" font-size="46" font-weight="800" fill="#ffffff" text-anchor="middle">M</text>`;
+  const logoTxtX = logoUri ? 160 : 156;
+  const brand = `<text x="${logoTxtX}" y="108" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" fill="#ffffff" letter-spacing="2">METIS</text>
+    <text x="${logoTxtX + 2}" y="140" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="600" fill="#cfd6e2" letter-spacing="4">PERFORMANCE</text>`;
+
+  const chipBlock = `<rect x="64" y="1236" width="${chipW}" height="58" rx="29" fill="#4d9aff" fill-opacity=".2" stroke="#4d9aff" stroke-opacity=".7" stroke-width="2"/>
+    <text x="92" y="1275" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#a9cdff" letter-spacing="2">${_shareEsc(st.chip)}</text>`;
+
+  const splits = (st.splits || []).filter(x => x != null && x !== "");
+  let lower;
+  if (splits.length) {
+    // ---- layout CON i singoli tempi (ripetute) / dettaglio serie (palestra) ----
+    let shown = splits;
+    if (splits.length > 10) { shown = splits.slice(0, 9); shown.push("+" + (splits.length - 9)); }
+    const n = shown.length, perRow = Math.min(5, n);
+    const availW = W - 128, gap = 14;
+    const pillW = (availW - gap * (perRow - 1)) / perRow, pillH = 58, rowH = pillH + 16, y0 = 1624;
+    const pills = shown.map((t, i) => {
+      const r = Math.floor(i / perRow), c = i % perRow;
+      const x = 64 + c * (pillW + gap), y = y0 + r * rowH;
+      return `<rect x="${x.toFixed(0)}" y="${y}" width="${pillW.toFixed(0)}" height="${pillH}" rx="16" fill="#ffffff" fill-opacity=".1" stroke="#ffffff" stroke-opacity=".2" stroke-width="1.5"/>
+        <text x="${(x + pillW / 2).toFixed(0)}" y="${y + 39}" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#ffffff" text-anchor="middle">${_shareEsc(t)}</text>`;
+    }).join("");
+    const summary = st.stats.slice(0, 3).map(c => _shareEsc(c.v) + " " + _shareEsc(c.l)).join("   ·   ");
+    lower = `${chipBlock}
+      <text x="64" y="1356" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="600" fill="#dbe1ec" letter-spacing="3">${_shareEsc(st.heroLabel)}</text>
+      <text x="60" y="1486" font-family="Arial, Helvetica, sans-serif" font-size="132" font-weight="800" fill="#ffffff">${_shareEsc(st.heroVal)}${heroUnit}</text>
+      ${summary ? `<text x="64" y="1536" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#cfd6e2">${summary}</text>` : ""}
+      <text x="64" y="1596" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#9fb3cc" letter-spacing="3">${_shareEsc(st.splitsTitle || "SINGOLI TEMPI")}</text>
+      ${pills}
+      <line x1="64" y1="1792" x2="1016" y2="1792" stroke="#ffffff" stroke-opacity=".2" stroke-width="2"/>
+      <text x="64" y="1850" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#ffffff">${nome}</text>
+      <text x="1016" y="1850" font-family="Arial, Helvetica, sans-serif" font-size="30" fill="#cfd6e2" text-anchor="end">${data}</text>`;
+  } else {
+    // ---- layout classico (riepilogo con 3 numeri) ----
+    const cols = st.stats.slice(0, 3);
+    const colW = (W - 128) / Math.max(1, cols.length);
+    const statsSVG = cols.map((c, i) => {
+      const cx = (64 + colW * i).toFixed(0);
+      return `<text x="${cx}" y="1648" font-family="Arial, Helvetica, sans-serif" font-size="62" font-weight="700" fill="#ffffff">${_shareEsc(c.v)}</text>
+        <text x="${cx}" y="1692" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#cfd6e2" letter-spacing="1">${_shareEsc(c.l)}</text>`;
+    }).join("");
+    lower = `${chipBlock}
+      <text x="64" y="1372" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="600" fill="#dbe1ec" letter-spacing="3">${_shareEsc(st.heroLabel)}</text>
+      <text x="60" y="1512" font-family="Arial, Helvetica, sans-serif" font-size="156" font-weight="800" fill="#ffffff">${_shareEsc(st.heroVal)}${heroUnit}</text>
+      <line x1="64" y1="1556" x2="1016" y2="1556" stroke="#ffffff" stroke-opacity=".2" stroke-width="2"/>
+      ${statsSVG}
+      <line x1="64" y1="1758" x2="1016" y2="1758" stroke="#ffffff" stroke-opacity=".2" stroke-width="2"/>
+      <text x="64" y="1828" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#ffffff">${nome}</text>
+      <text x="1016" y="1828" font-family="Arial, Helvetica, sans-serif" font-size="30" fill="#cfd6e2" text-anchor="end">${data}</text>`;
+  }
+
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
     <defs>
       <linearGradient id="sgTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000000" stop-opacity=".5"/><stop offset="1" stop-color="#000000" stop-opacity="0"/></linearGradient>
@@ -123,19 +180,9 @@ function _shareSVG(s, a) {
     ${bg}
     <rect x="0" y="0" width="${W}" height="360" fill="url(#sgTop)"/>
     <rect x="0" y="1020" width="${W}" height="900" fill="url(#sgBot)"/>
-    <rect x="64" y="72" width="72" height="72" rx="18" fill="#2563c9"/>
-    <text x="100" y="123" font-family="Arial, Helvetica, sans-serif" font-size="46" font-weight="800" fill="#ffffff" text-anchor="middle">M</text>
-    <text x="156" y="108" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" fill="#ffffff" letter-spacing="2">METIS</text>
-    <text x="158" y="140" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="600" fill="#cfd6e2" letter-spacing="4">PERFORMANCE</text>
-    <rect x="64" y="1236" width="${chipW}" height="58" rx="29" fill="#4d9aff" fill-opacity=".2" stroke="#4d9aff" stroke-opacity=".7" stroke-width="2"/>
-    <text x="92" y="1275" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#a9cdff" letter-spacing="2">${_shareEsc(st.chip)}</text>
-    <text x="64" y="1372" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="600" fill="#dbe1ec" letter-spacing="3">${_shareEsc(st.heroLabel)}</text>
-    <text x="60" y="1512" font-family="Arial, Helvetica, sans-serif" font-size="156" font-weight="800" fill="#ffffff">${_shareEsc(st.heroVal)}${heroUnit}</text>
-    <line x1="64" y1="1556" x2="1016" y2="1556" stroke="#ffffff" stroke-opacity=".2" stroke-width="2"/>
-    ${statsSVG}
-    <line x1="64" y1="1758" x2="1016" y2="1758" stroke="#ffffff" stroke-opacity=".2" stroke-width="2"/>
-    <text x="64" y="1828" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#ffffff">${nome}</text>
-    <text x="1016" y="1828" font-family="Arial, Helvetica, sans-serif" font-size="30" fill="#cfd6e2" text-anchor="end">${data}</text>
+    ${logo}
+    ${brand}
+    ${lower}
   </svg>`;
 }
 
