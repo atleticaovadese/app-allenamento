@@ -196,6 +196,13 @@ function cronoReorder(id, dir) {
   C.lista[ia] = other; C.lista[ib] = id;
   disegna();
 }
+// --- ordine alfabetico A→Z: riordina tutta la lista per nome ---
+function cronoOrdinaAlfabetico() {
+  const C = S.cronoLive; if (!C) return;
+  const nome = id => { const a = (DEMO.atleti || []).find(x => x.id === id); return a ? (a.nome || "") : ""; };
+  (C.lista || []).sort((a, b) => nome(a).localeCompare(nome(b), "it", { sensitivity: "base" }));
+  disegna();
+}
 // --- selezione per far partire più atleti INSIEME (anche con recuperi diversi), riutilizzabile ogni ripetuta ---
 function cronoSelRip(id) { const C = S.cronoLive; if (!C) return; C.selRip = C.selRip || {}; if (C.selRip[id]) delete C.selRip[id]; else C.selRip[id] = true; disegna(); }
 function cronoViaSelezionati() {
@@ -388,7 +395,10 @@ function vistaCronoLive() {
       ${C.sel < 0 ? `<input value="${_clEsc(C.custom)}" placeholder="es. 5 × 1000 m" oninput="cronoSetCustom(this.value)" onchange="disegna()" style="margin-top:8px">` : ""}
       <label class="lab" style="display:block;margin-top:14px">Chi è presente (${nPres})</label>
       <div class="cl-presenti">${(C.lista || []).map(id => `<button class="cl-chip ${C.presenti[id] ? "on" : ""}" onclick="cronoTogglePresente('${id}')">${C.presenti[id] ? "✓ " : ""}${_clEsc(nomeDi(id))}</button>`).join("")}</div>
-      <label class="lab" style="display:block;margin-top:14px">Ordine in lista <span style="color:var(--txt3)">(metti i più veloci in alto)</span></label>
+      <label class="lab" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px">
+        <span>Ordine in lista <span style="color:var(--txt3)">(i più veloci in alto)</span></span>
+        <button class="cl-ord-az" onclick="cronoOrdinaAlfabetico()" title="ordina per nome A→Z">A→Z</button>
+      </label>
       <div class="cl-ordlist">${(C.lista || []).filter(id => C.presenti[id]).map((id, i, arr) => `<div class="cl-ord-row">
           <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${_clEsc(nomeDi(id))}</span>
           <button class="cl-ord-btn" ${i === 0 ? "disabled" : ""} onclick="cronoReorder('${id}',-1)">↑</button>
