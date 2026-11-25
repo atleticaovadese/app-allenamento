@@ -46,6 +46,11 @@ function _clTargetAtleta(a, oggi) {
 function avviaCronoLive() {
   const g = (typeof S !== "undefined" && S.gruppo) ? S.gruppo : "vel";
   if (g === "online") { alert("Il cronometro dal vivo è per gli allenamenti di gruppo in pista/campo, non per gli atleti online."); return; }
+  // c'è un cronometro di oggi lasciato a metà (es. l'app si è ricaricata)? offri di riprenderlo
+  if (_clRipresaDisponibile()) {
+    if (typeof confirm === "function" && confirm("C'è un cronometro di oggi con dei tempi non ancora salvati. Vuoi riprenderlo?")) { _clRiprendi(); return; }
+    _clClearSave();
+  }
   const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
   const lista = ((typeof atletiDelGruppo === "function") ? atletiDelGruppo(g) : (DEMO.atleti || [])).filter(a => a && !a.bloccato);
   if (!lista.length) { alert("Nessun atleta in questo gruppo."); return; }
@@ -64,14 +69,14 @@ function avviaCronoLive() {
   lista.forEach(a => { atl[a.id] = { running: false, runStart: null, recStart: null, tempi: [] }; const tg = _clTargetAtleta(a, oggi); lavoroAtl[a.id] = tg.label; distAtl[a.id] = tg.distanza; });
   // scelta di default: la prima riga con distanza (il "corpo" di ripetute), altrimenti la prima
   let sel = opzioni.findIndex(o => o.distanza > 0); if (sel < 0) sel = opzioni.length ? 0 : -1;
-  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, distAtl, modo: null, repStart: null, nRep: 0, atl, setup: true };
+  S.cronoLive = { gruppo: g, data: oggi, lista: lista.map(a => a.id), opzioni, sel, custom: "", presenti, lavoroAtl, distAtl, selRip: {}, modo: null, repStart: null, nRep: 0, atl, setup: true };
   disegna(); window.scrollTo(0, 0);
 }
 function chiudiCronoLive() {
   _clStopTick();
   const fatti = _clQualcosaFatto();
   if (fatti && typeof confirm === "function" && !confirm("Uscire dal cronometro? I tempi non ancora salvati andranno persi.")) { _clStartTick(); return; }
-  S.cronoLive = null; disegna(); window.scrollTo(0, 0);
+  _clClearSave(); S.cronoLive = null; disegna(); window.scrollTo(0, 0);
 }
 function _clQualcosaFatto() {
   const C = S.cronoLive; if (!C) return false;
@@ -158,6 +163,49 @@ function _clLavoroLabel() {
   return (C.custom || "").trim() || "Allenamento";
 }
 function cronoToggleSetup() { const C = S.cronoLive; if (C) { C.setup = !C.setup; disegna(); } }
+
+// --- persistenza locale: niente va perso se l'app si ricarica a metà allenamento ---
+function _clSave() { try { if (S.cronoLive) localStorage.setItem("metis_crono_live", JSON.stringify(S.cronoLive)); } catch (e) { } }
+function _clClearSave() { try { localStorage.removeItem("metis_crono_live"); } catch (e) { } }
+function _clRipresaDisponibile() {
+  try {
+    const raw = localStorage.getItem("metis_crono_live"); if (!raw) return false;
+    const C = JSON.parse(raw); const oggi = (typeof oggiISO === "function") ? oggiISO() : new Date().toISOString().slice(0, 10);
+    if (!C || C.data !== oggi) { _clClearSave(); return false; }
+    return Object.keys(C.atl || {}).some(id => (C.atl[id].tempi || []).length) || (C.serie && (C.serie.nRep || 0) > 0);
+  } catch (e) { return false; }
+}
+function _clRiprendi() {
+  try {
+    const C = JSON.parse(localStorage.getItem("metis_crono_live"));
+    // i timer IN CORSO non si riprendono dopo un reload: azzero lo stato "in corsa", tengo i tempi REGISTRATI
+    C.repStart = null;
+    Object.keys(C.atl || {}).forEach(id => { const st = C.atl[id]; st.running = false; st.runStart = null; st.recStart = null; });
+    if (C.serie) { C.serie.start = null; C.serie.recStart = null; C.serie.passaggi = []; }
+    C.selRip = C.selRip || {};
+    S.cronoLive = C; disegna(); window.scrollTo(0, 0);
+  } catch (e) { }
+}
+// --- ordine della lista (ripetute): sposta un atleta su/giù (metti i più veloci in alto) ---
+function cronoReorder(id, dir) {
+  const C = S.cronoLive; if (!C) return;
+  const pres = (C.lista || []).filter(x => C.presenti[x]);
+  const pi = pres.indexOf(id), pj = pi + dir;
+  if (pi < 0 || pj < 0 || pj >= pres.length) return;
+  const other = pres[pj], ia = C.lista.indexOf(id), ib = C.lista.indexOf(other);
+  C.lista[ia] = other; C.lista[ib] = id;
+  disegna();
+}
+// --- selezione per far partire più atleti INSIEME (anche con recuperi diversi), riutilizzabile ogni ripetuta ---
+function cronoSelRip(id) { const C = S.cronoLive; if (!C) return; C.selRip = C.selRip || {}; if (C.selRip[id]) delete C.selRip[id]; else C.selRip[id] = true; disegna(); }
+function cronoViaSelezionati() {
+  const C = S.cronoLive; if (!C) return; C.selRip = C.selRip || {};
+  const sel = (C.lista || []).filter(id => C.selRip[id] && C.presenti[id]);
+  if (!sel.length) return;
+  const now = _clNow(); C.repStart = now; C.nRep = (C.nRep || 0) + 1; C.setup = false;
+  sel.forEach(id => { const st = C.atl[id]; st.running = true; st.runStart = now; st.recStart = null; });
+  disegna();
+}
 
 // ====================== MODO "DA SERIE / BATTERIA" ======================
 function cronoScegliModo(modo) {
@@ -323,6 +371,7 @@ function vistaCronoLive() {
   const C = S.cronoLive;
   if (!C) return "";
   _clStartTick();
+  _clSave();   // salva lo stato a ogni azione: se l'app si ricarica a metà non si perde nulla
   if (!C.modo) return _clVistaScegliModo(C);
   if (C.modo === "serie") return _clVistaSerie(C);
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -339,46 +388,46 @@ function vistaCronoLive() {
       ${C.sel < 0 ? `<input value="${_clEsc(C.custom)}" placeholder="es. 5 × 1000 m" oninput="cronoSetCustom(this.value)" onchange="disegna()" style="margin-top:8px">` : ""}
       <label class="lab" style="display:block;margin-top:14px">Chi è presente (${nPres})</label>
       <div class="cl-presenti">${(C.lista || []).map(id => `<button class="cl-chip ${C.presenti[id] ? "on" : ""}" onclick="cronoTogglePresente('${id}')">${C.presenti[id] ? "✓ " : ""}${_clEsc(nomeDi(id))}</button>`).join("")}</div>
-      <p class="et" style="margin-top:8px;color:var(--txt3)">Puoi includere anche chi fa un <b>lavoro diverso</b>: partono insieme col crono grande, ma ognuno ha il suo tempo e può ripartire da solo col <b>▶ Via</b> della sua riga.</p>
+      <label class="lab" style="display:block;margin-top:14px">Ordine in lista <span style="color:var(--txt3)">(metti i più veloci in alto)</span></label>
+      <div class="cl-ordlist">${(C.lista || []).filter(id => C.presenti[id]).map((id, i, arr) => `<div class="cl-ord-row">
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${_clEsc(nomeDi(id))}</span>
+          <button class="cl-ord-btn" ${i === 0 ? "disabled" : ""} onclick="cronoReorder('${id}',-1)">↑</button>
+          <button class="cl-ord-btn" ${i === arr.length - 1 ? "disabled" : ""} onclick="cronoReorder('${id}',1)">↓</button>
+        </div>`).join("")}</div>
+      <p class="et" style="margin-top:8px;color:var(--txt3)">Puoi includere anche chi fa un <b>lavoro diverso</b>. Spunta la casella accanto ai nomi per <b>far partire insieme</b> più atleti (anche con recuperi diversi); poi ognuno ha il suo tempo e il suo recupero.</p>
     </div>` : "";
 
   // --- crono grande ---
   const lavoro = _clLavoroLabel();
-  const bigBtn = `<button class="cl-go" onclick="cronoGo()">${C.repStart ? "↻ Via! (tutti)" : "▶ Via!"}</button>`;
+  const nSel = (C.lista || []).filter(id => C.selRip && C.selRip[id] && C.presenti[id]).length;
+  const bigBtn = `<button class="cl-go" onclick="cronoGo()">${C.repStart ? "↻ Via! (tutti)" : "▶ Via! (tutti)"}</button>`;
+  const selBtn = nSel ? `<button class="cl-go cl-go-sel" onclick="cronoViaSelezionati()">▶ Via ai ${nSel} selezionati (insieme)</button>` : "";
   const grande = `<div class="card cl-grande">
       <div class="cl-grande-top">
         <div><div class="et" style="margin:0">Lavoro del gruppo</div><div class="cl-lavoro">${_clEsc(lavoro)}</div></div>
         <button class="btn btn-2" style="width:auto;padding:6px 10px;font-size:12px" onclick="cronoToggleSetup()">${C.setup ? "Nascondi" : "⚙ Setup"}</button>
       </div>
       <div class="cl-big" id="cl-big">0:00.00</div>
-      ${bigBtn}
-      <p class="et" style="text-align:center;margin:8px 0 0">${C.nRep ? "Ripetuta " + C.nRep + " · parte/riparte tutti insieme" : "Premi «Via!» per far partire tutti insieme"}</p>
+      ${bigBtn}${selBtn}
+      <p class="et" style="text-align:center;margin:8px 0 0">${nSel ? "Spunta i nomi per partire insieme in sottogruppo" : (C.nRep ? "Ripetuta " + C.nRep + " · il crono grande li fa partire tutti" : "Premi «Via!» per far partire tutti insieme")}</p>
     </div>`;
 
   // --- righe atleti ---
   const righe = (C.lista || []).filter(id => C.presenti[id]).map(id => {
     const st = C.atl[id];
-    const chips = st.tempi.map((t, i) => `<span class="cl-time-chip">${i + 1}: ${_clFmt(t * 1000)}</span>`).join("");
     const tDisp = st.running ? "0:00.00" : (st.tempi.length ? _clFmt(st.tempi[st.tempi.length - 1] * 1000) : "–");
+    const stato = st.running ? "s-run" : (st.recStart ? "s-rec" : "");
+    const sel = (C.selRip && C.selRip[id]) ? "s-sel" : "";
     const azione = st.running
-      ? `<button class="cl-stop" onclick="cronoStop('${id}')">■ STOP</button>`
-      : `<button class="cl-via1" onclick="cronoViaUno('${id}')">▶ Via</button>`;
-    const undo = (!st.running && st.tempi.length) ? `<button class="cl-undo-mini" onclick="cronoAnnullaUltimo('${id}')" title="Annulla l'ultimo tempo">↶</button>` : "";
-    const lavA = (C.lavoroAtl && C.lavoroAtl[id]) ? `<div class="cl-lav-atl">${_clEsc(C.lavoroAtl[id])}</div>` : "";
-    return `<div class="card cl-row ${st.running ? "run" : (st.recStart ? "rec" : "")}">
-      <span class="av" style="width:36px;height:36px;font-size:12px">${_clIniz(nomeDi(id))}</span>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-          <h3 style="margin:0;font-size:15px">${_clEsc(nomeDi(id))}</h3>
-          <span class="cl-rec" id="cl-r-${id}"></span>
-        </div>
-        ${lavA}
-        ${chips ? `<div class="cl-times">${chips}</div>` : ""}
-      </div>
-      <div class="cl-row-right">
-        <span class="cl-t" id="cl-t-${id}">${tDisp}</span>
-        ${azione}${undo}
-      </div>
+      ? `<button class="cl-stop cl-stopc" onclick="cronoStop('${id}')">STOP</button>`
+      : `<button class="cl-via1 cl-via1c" onclick="cronoViaUno('${id}')" title="fai partire solo lui">▶</button>`;
+    const undo = (!st.running && st.tempi.length) ? `<button class="cl-undo-c" onclick="cronoAnnullaUltimo('${id}')" title="annulla l'ultimo tempo">↶</button>` : "";
+    return `<div class="cl-rowc ${stato} ${sel}">
+      <input type="checkbox" class="cl-selck" ${(C.selRip && C.selRip[id]) ? "checked" : ""} onclick="cronoSelRip('${id}')" title="seleziona per partire insieme">
+      <span class="cl-rowc-n">${_clEsc(nomeDi(id))}${st.tempi.length ? `<span class="cl-rowc-n-rip">·${st.tempi.length}</span>` : ""}</span>
+      <span class="cl-rec" id="cl-r-${id}"></span>
+      <span class="cl-t" id="cl-t-${id}">${tDisp}</span>
+      ${undo}${azione}
     </div>`;
   }).join("");
 
@@ -419,7 +468,7 @@ async function cronoFine() {
     n++;
   }
   if (typeof _invalidaSeduteGen === "function") _invalidaSeduteGen();   // le sedute si rigenerano coi tempi del cronometro
-  _clStopTick(); S.cronoLive = null;
+  _clStopTick(); _clClearSave(); S.cronoLive = null;
   if (typeof S !== "undefined") S.vista = "oggi";
   disegna(); window.scrollTo(0, 0);
   alert("✓ Salvato per " + n + " atlet" + (n === 1 ? "a" : "i") + ".\nI tempi sono sulla loro giornata: controllano, mettono l'RPE e confermano.");
